@@ -45,6 +45,44 @@ CREATE TABLE IF NOT EXISTS workspace_settings (
     updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS workspace_brand_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE UNIQUE,
+    
+    -- Business Identity
+    business_name TEXT,
+    owner_name TEXT,
+    email TEXT,
+    phone TEXT,
+    website TEXT,
+    
+    -- Business Details
+    industry TEXT,
+    business_description TEXT,
+    target_audience TEXT,
+    brand_voice TEXT,
+    
+    -- Services & Offerings
+    services JSONB DEFAULT '[]',
+    unique_selling_points TEXT[],
+    
+    -- Visual Brand Assets
+    logo_url TEXT,
+    brand_colors JSONB DEFAULT '{}',
+    reference_image_urls TEXT[],
+    
+    -- Social Media Context
+    instagram_handle TEXT,
+    facebook_page TEXT,
+    content_themes TEXT[],
+    
+    -- Metadata
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_brand_profiles_workspace ON workspace_brand_profiles(workspace_id);
+
 -- =============================================================================
 -- SOCIAL ACCOUNTS
 -- =============================================================================
@@ -175,6 +213,8 @@ CREATE TABLE IF NOT EXISTS generated_images (
 -- 1. Create bucket: "generated_assets" (Public)
 -- 2. Create bucket: "reference-images" (Public)
 -- 3. Create bucket: "post_media" (Public)
+-- 4. Create bucket: "brand_assets" (Public)
+
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('post_media', 'post_media', true)
 ON CONFLICT (id) DO NOTHING;
@@ -183,14 +223,18 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('generated_assets', 'generated_assets', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Allow public access to storage (for demo purposes, use specific policies for production)
-create policy "Public Access"
-  on storage.objects for select
-  using ( bucket_id in ('post_media', 'generated_assets', 'reference-images') );
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('brand_assets', 'brand_assets', true)
+ON CONFLICT (id) DO NOTHING;
 
-create policy "Public Insert"
-  on storage.objects for insert
-  with check ( bucket_id in ('post_media', 'generated_assets', 'reference-images') );
+-- Allow public access to storage (for demo purposes, use specific policies for production)
+CREATE POLICY "Public Access"
+  ON storage.objects FOR SELECT
+  USING ( bucket_id IN ('post_media', 'generated_assets', 'reference-images', 'brand_assets') );
+
+CREATE POLICY "Public Insert"
+  ON storage.objects FOR INSERT
+  WITH CHECK ( bucket_id IN ('post_media', 'generated_assets', 'reference-images', 'brand_assets') );
 
 -- =============================================================================
 -- HELPER FUNCTIONS
@@ -215,3 +259,14 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Example to disable RLS on a table:
 -- ALTER TABLE posts DISABLE ROW LEVEL SECURITY;
+
+-- =============================================================================
+-- PERMISSIONS (Required for API access)
+-- =============================================================================
+
+-- Ensure read/write access for workspace_brand_profiles
+GRANT ALL ON TABLE workspace_brand_profiles TO anon, authenticated, service_role;
+ALTER TABLE workspace_brand_profiles DISABLE ROW LEVEL SECURITY;
+
+GRANT ALL ON TABLE chat_sessions TO anon, authenticated, service_role;
+ALTER TABLE chat_sessions DISABLE ROW LEVEL SECURITY;

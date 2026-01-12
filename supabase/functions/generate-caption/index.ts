@@ -57,20 +57,47 @@ serve(async (req) => {
 
         const platformNames = platforms?.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' and ') || 'Social Media'
 
-        const prompt = `
-      Act as a social media expert. Generate 5 distinct caption suggestions for a post on ${platformNames}.
+        // Fetch brand profile for context
+        const { data: brandProfile } = await supabase
+            .from('workspace_brand_profiles')
+            .select('*')
+            .eq('workspace_id', workspaceId)
+            .maybeSingle()
+
+        // Build brand context
+        let brandContext = ''
+        if (brandProfile) {
+            const services = brandProfile.services?.map((s: any) => s.name).join(', ') || ''
+            const usps = brandProfile.unique_selling_points?.join(', ') || ''
+            const themes = brandProfile.content_themes?.join(', ') || ''
+
+            brandContext = `\nBRAND CONTEXT:
+Business: ${brandProfile.business_name || 'Not specified'}
+Industry: ${brandProfile.industry || 'Not specified'}
+Brand Voice: ${brandProfile.brand_voice || 'professional'}
+Target Audience: ${brandProfile.target_audience || 'General audience'}
+${services ? `Services: ${services}` : ''}
+${usps ? `USPs: ${usps}` : ''}
+${themes ? `Content Themes: ${themes}` : ''}
+`
+        }
+
+        const prompt = `${brandContext}
+Act as a social media expert. Generate 5 distinct caption suggestions for a post on ${platformNames}.
       
-      Topic/Description: "${description}"
-      Tone: ${tone || 'professional'}
-      Language: ${language || 'en'}
+Topic/Description: "${description}"
+Tone: ${brandProfile?.brand_voice || tone || 'professional'}
+Language: ${language || 'en'}
       
-      Requirements:
-      - relevant hashtags
-      - engaging emojis
-      - optimized for engagement on the selected platforms
-      - keeps it concise but impactful
+Requirements:
+- Align with the brand voice and target audience above
+- Include relevant hashtags
+- Use engaging emojis
+- Optimize for engagement on the selected platforms
+- Keep it concise but impactful
+${brandProfile?.business_name ? `- Subtly reflect ${brandProfile.business_name}'s brand identity` : ''}
       
-      Return ONLY the captions as a JSON array of strings. No markdown formatting.
+Return ONLY the captions as a JSON array of strings. No markdown formatting.
     `
 
         const result = await model.generateContent(prompt)

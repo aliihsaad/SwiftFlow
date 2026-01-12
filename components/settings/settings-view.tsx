@@ -3,7 +3,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Facebook, Instagram } from "lucide-react"
 import { ManageWorkspacesList } from "@/components/workspace/manage-workspaces-list"
 import { ApiSettingsForm } from "@/components/settings/api-settings-form"
 import { Workspace, WorkspaceRole } from "@/types/workspace"
@@ -26,7 +25,6 @@ export function SettingsView({ workspaces, settings }: SettingsViewProps) {
                 <TabsList>
                     <TabsTrigger value="workspaces">Workspaces</TabsTrigger>
                     <TabsTrigger value="api">AI Provider</TabsTrigger>
-                    <TabsTrigger value="social">Social Accounts</TabsTrigger>
                     <TabsTrigger value="members">Members</TabsTrigger>
                 </TabsList>
 
@@ -48,42 +46,8 @@ export function SettingsView({ workspaces, settings }: SettingsViewProps) {
                     <ApiSettingsForm settings={settings} />
                 </TabsContent>
 
-                <TabsContent value="social" className="space-y-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Connected Accounts</CardTitle>
-                            <CardDescription>
-                                Connect your social media accounts to this workspace to start posting.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-6">
-                            <div className="flex items-center justify-between p-4 border rounded-lg">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                                        <Facebook className="h-6 w-6 text-blue-600" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold">Facebook</h4>
-                                        <p className="text-sm text-muted-foreground">Not connected</p>
-                                    </div>
-                                </div>
-                                <Button variant="outline">Connect Page</Button>
-                            </div>
-
-                            <div className="flex items-center justify-between p-4 border rounded-lg">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-2 bg-pink-100 dark:bg-pink-900/30 rounded-full">
-                                        <Instagram className="h-6 w-6 text-pink-600" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold">Instagram</h4>
-                                        <p className="text-sm text-muted-foreground">Not connected</p>
-                                    </div>
-                                </div>
-                                <Button variant="outline">Connect Business</Button>
-                            </div>
-                        </CardContent>
-                    </Card>
+                <TabsContent value="api" className="space-y-4">
+                    <ApiSettingsForm settings={settings} />
                 </TabsContent>
 
                 <TabsContent value="members">

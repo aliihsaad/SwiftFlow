@@ -56,10 +56,18 @@ export default async function DashboardPage() {
         { day: 'Sun', scheduled: 0, posted: 0 },
     ]
 
-    // 3. Calendar posts
-    const calendarPosts = posts?.map(p => ({
-        date: new Date(p.scheduled_for || p.created_at),
-        platform: 'instagram' // simplify for now, real app reads platform field
+    // 3. Calendar posts (Upcoming Scheduled)
+    const { data: scheduledPosts } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('status', 'scheduled')
+        .order('scheduled_for', { ascending: true })
+        .limit(50)
+
+    const calendarPosts = scheduledPosts?.map(p => ({
+        date: new Date(p.scheduled_for),
+        platforms: Array.isArray(p.platforms) ? p.platforms : [],
+        content: p.content
     })) || []
 
     return (

@@ -4,12 +4,36 @@ import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { CreatePostModal } from "@/components/create/create-post-modal"
-import { Pencil, CalendarDays } from "lucide-react"
+import { Pencil, CalendarDays, FileText, Trash2 } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/utils/supabase/client"
 
-export function ScheduledPostsList({ posts, workspaceId }: { posts: any[], workspaceId: string }) {
+interface ScheduledPostsListProps {
+    posts: any[]
+    workspaceId: string
+    status?: 'scheduled' | 'draft' | 'posted' | 'failed'
+}
+
+export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }: ScheduledPostsListProps) {
     const [editingPost, setEditingPost] = useState<any>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [deletePostId, setDeletePostId] = useState<string | null>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
+    const { toast } = useToast()
+    const router = useRouter()
+    const supabase = createClient()
 
     const handleEdit = (post: any) => {
         setEditingPost(post)
@@ -21,15 +45,77 @@ export function ScheduledPostsList({ posts, workspaceId }: { posts: any[], works
         if (!open) setEditingPost(null)
     }
 
+    const handleDeleteClick = (postId: string) => {
+        setDeletePostId(postId)
+    }
+
+    const handleDeleteConfirm = async () => {
+        if (!deletePostId) return
+
+        setIsDeleting(true)
+        try {
+            const { error } = await supabase
+                .from('posts')
+                .delete()
+                .eq('id', deletePostId)
+
+            if (error) throw error
+
+            toast({
+                title: "Post deleted",
+                description: "The post has been permanently deleted.",
+            })
+
+            // Refresh the page to update the lists
+            router.refresh()
+        } catch (error: any) {
+            toast({
+                title: "Error",
+                description: error.message || "Failed to delete post",
+                variant: "destructive",
+            })
+        } finally {
+            setIsDeleting(false)
+            setDeletePostId(null)
+        }
+    }
+
     if (!posts || posts.length === 0) {
+        const emptyStates = {
+            draft: {
+                icon: <FileText className="h-8 w-8 text-primary" />,
+                title: "No drafts saved",
+                description: "You don't have any draft posts. Create a new post and save it as a draft to work on it later!"
+            },
+            scheduled: {
+                icon: <CalendarDays className="h-8 w-8 text-primary" />,
+                title: "No posts scheduled",
+                description: "You don't have any posts scheduled for the future. Create a new post to get started!"
+            },
+            posted: {
+                icon: <CalendarDays className="h-8 w-8 text-primary" />,
+                title: "No posted content",
+                description: "You haven't published any posts yet. Once your scheduled posts go live, they'll appear here!"
+            },
+            failed: {
+                icon: <CalendarDays className="h-8 w-8 text-destructive" />,
+                title: "No failed posts",
+                description: "Great news! You don't have any failed posts. All your publishing attempts have been successful!"
+            }
+        }
+
+        const currentState = emptyStates[status]
+
         return (
             <Card className="flex flex-col items-center justify-center p-12 text-center border-dashed">
                 <div className="p-4 bg-primary/10 rounded-full mb-4">
-                    <CalendarDays className="h-8 w-8 text-primary" />
+                    {currentState.icon}
                 </div>
-                <h3 className="text-lg font-semibold">No posts scheduled</h3>
+                <h3 className="text-lg font-semibold">
+                    {currentState.title}
+                </h3>
                 <p className="text-muted-foreground mt-2 max-w-sm">
-                    You don't have any posts scheduled for the future. Create a new post to get started!
+                    {currentState.description}
                 </p>
             </Card>
         )
@@ -52,15 +138,31 @@ export function ScheduledPostsList({ posts, workspaceId }: { posts: any[], works
                         <CardContent className="pt-6">
                             <div className="flex justify-between items-start mb-4">
                                 <div className="flex flex-col gap-1">
-                                    <Badge variant="secondary" className="w-fit">
-                                        {new Date(post.scheduled_for).toLocaleDateString()}
-                                    </Badge>
-                                    <span className="text-xs text-muted-foreground">
-                                        {new Date(post.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
+                                    {post.scheduled_for && (
+                                        <>
+                                            <Badge variant="secondary" className="w-fit">
+                                                {new Date(post.scheduled_for).toLocaleDateString()}
+                                            </Badge>
+                                            <span className="text-xs text-muted-foreground">
+                                                {new Date(post.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </span>
+                                        </>
+                                    )}
+                                    {post.published_at && (
+                                        <Badge variant="default" className="w-fit">
+                                            Published {new Date(post.published_at).toLocaleDateString()}
+                                        </Badge>
+                                    )}
                                 </div>
                                 <div className="flex gap-2 items-center">
-                                    <Badge variant={post.status === 'published' ? 'default' : 'outline'} className="capitalize">
+                                    <Badge
+                                        variant={
+                                            post.status === 'posted' ? 'default' :
+                                                post.status === 'failed' ? 'destructive' :
+                                                    'outline'
+                                        }
+                                        className="capitalize"
+                                    >
                                         {post.status}
                                     </Badge>
                                 </div>
@@ -82,7 +184,7 @@ export function ScheduledPostsList({ posts, workspaceId }: { posts: any[], works
                                 })()}
                             </div>
 
-                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                                 <Button
                                     size="icon"
                                     variant="secondary"
@@ -90,6 +192,14 @@ export function ScheduledPostsList({ posts, workspaceId }: { posts: any[], works
                                     onClick={() => handleEdit(post)}
                                 >
                                     <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    size="icon"
+                                    variant="destructive"
+                                    className="h-8 w-8 shadow-sm"
+                                    onClick={() => handleDeleteClick(post.id)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
                                 </Button>
                             </div>
                         </CardContent>
@@ -103,6 +213,27 @@ export function ScheduledPostsList({ posts, workspaceId }: { posts: any[], works
                 postToEdit={editingPost}
                 workspaceId={workspaceId}
             />
+
+            <AlertDialog open={!!deletePostId} onOpenChange={(open) => !open && setDeletePostId(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Post</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete this post? This action cannot be undone.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDeleteConfirm}
+                            disabled={isDeleting}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                            {isDeleting ? "Deleting..." : "Delete"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     )
 }

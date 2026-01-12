@@ -43,6 +43,7 @@ serve(async (req) => {
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
+        // Fetch workspace settings
         const { data: settings, error: settingsError } = await supabase
             .from('workspace_settings')
             .select('*')
@@ -51,6 +52,17 @@ serve(async (req) => {
 
         if (settingsError) {
             console.error('Settings error:', settingsError)
+        }
+
+        // Fetch brand profile for context
+        const { data: brandProfile, error: brandError } = await supabase
+            .from('workspace_brand_profiles')
+            .select('*')
+            .eq('workspace_id', workspaceId)
+            .maybeSingle()
+
+        if (brandError) {
+            console.error('Brand profile error:', brandError)
         }
 
         const dbKey = settings?.gemini_api_key
@@ -68,11 +80,30 @@ serve(async (req) => {
             modelName = 'gemini-2.0-flash'
         }
 
+        // Build brand context for system instruction
+        let brandContext = ''
+        if (brandProfile) {
+            brandContext = `
+BRAND CONTEXT:
+${brandProfile.business_name ? `Business: ${brandProfile.business_name}` : ''}
+${brandProfile.industry ? `Industry: ${brandProfile.industry}` : ''}
+${brandProfile.business_description ? `About: ${brandProfile.business_description}` : ''}
+${brandProfile.target_audience ? `Target Audience: ${brandProfile.target_audience}` : ''}
+${brandProfile.brand_voice ? `Brand Voice: ${brandProfile.brand_voice}` : ''}
+${brandProfile.unique_selling_points?.length ? `USPs: ${brandProfile.unique_selling_points.join(', ')}` : ''}
+${brandProfile.content_themes?.length ? `Content Themes: ${brandProfile.content_themes.join(', ')}` : ''}
+
+Use this brand context to generate highly relevant, on-brand content ideas.
+`
+        }
+
         const genAI = new GoogleGenerativeAI(apiKey)
         const model = genAI.getGenerativeModel({
             model: modelName,
             systemInstruction: `You are a Social Media Content Strategist. 
             
+            ${brandContext}
+
             Your goal is to generate 5 high-quality, engaging content ideas based on the user's input.
             
             RETURN JSON ONLY. The response must match this schema:
@@ -90,8 +121,9 @@ serve(async (req) => {
 
             Guidelines:
             1. Title should be punchy and scroll-stopping.
-            2. Body should be actionable.
-            3. Provide exactly 5 ideas.`,
+            2. Body should be actionable and align with the brand voice.
+            3. Provide exactly 5 ideas.
+            4. Tailor content to the target audience and industry.`,
             generationConfig: {
                 temperature: 0.8,
                 responseMimeType: "application/json"

@@ -1,6 +1,6 @@
 import { createClient } from "@/utils/supabase/server"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
-import { ScheduledPostsList } from "@/components/scheduled/scheduled-posts-list"
+import { PostsTabView } from "@/components/scheduled/posts-tab-view"
 
 export default async function ScheduledPostsPage() {
     const supabase = await createClient()
@@ -14,21 +14,49 @@ export default async function ScheduledPostsPage() {
         )
     }
 
-    const { data: posts } = await supabase
+    // Fetch posts by status
+    const { data: scheduledPosts } = await supabase
         .from('posts')
         .select('*')
         .eq('status', 'scheduled')
         .eq('workspace_id', activeWorkspace.id)
         .order('scheduled_for', { ascending: true })
 
+    const { data: draftPosts } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('status', 'draft')
+        .eq('workspace_id', activeWorkspace.id)
+        .order('updated_at', { ascending: false })
+
+    const { data: postedPosts } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('status', 'posted')
+        .eq('workspace_id', activeWorkspace.id)
+        .order('published_at', { ascending: false })
+
+    const { data: failedPosts } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('status', 'failed')
+        .eq('workspace_id', activeWorkspace.id)
+        .order('updated_at', { ascending: false })
+
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold tracking-tight">Scheduled Posts</h2>
-                <p className="text-muted-foreground">View and manage upcoming content for {activeWorkspace.name}.</p>
+                <h2 className="text-2xl font-bold tracking-tight">Posts</h2>
+                <p className="text-muted-foreground">Manage all your posts for {activeWorkspace.name}.</p>
             </div>
 
-            <ScheduledPostsList posts={posts || []} workspaceId={activeWorkspace.id} />
+            <PostsTabView
+                scheduledPosts={scheduledPosts || []}
+                draftPosts={draftPosts || []}
+                postedPosts={postedPosts || []}
+                failedPosts={failedPosts || []}
+                workspaceId={activeWorkspace.id}
+            />
         </div>
     )
 }

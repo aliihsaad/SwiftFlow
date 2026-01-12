@@ -46,9 +46,7 @@ export function SettingsView({ workspaces, settings }: SettingsViewProps) {
                     <ApiSettingsForm settings={settings} />
                 </TabsContent>
 
-                <TabsContent value="api" className="space-y-4">
-                    <ApiSettingsForm settings={settings} />
-                </TabsContent>
+
 
                 <TabsContent value="members">
                     <Card>

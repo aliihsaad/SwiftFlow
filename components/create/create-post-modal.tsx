@@ -11,6 +11,8 @@ import { SchedulingControls } from "./scheduling-controls"
 import { X, Info, Plus, Instagram, Facebook, Monitor, Clock, Sparkles, RefreshCw, Smile, Bold, Italic, Link, BarChart2, Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import EmojiPicker, { Theme } from "emoji-picker-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface CreatePostModalProps {
     open: boolean
@@ -301,7 +303,25 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId }:
                         {/* Toolbar */}
                         <div className="flex items-center justify-between px-3 py-2 border-t bg-zinc-50 dark:bg-zinc-800/50">
                             <div className="flex items-center gap-1">
-                                <button className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md"><Smile className="h-4 w-4 text-muted-foreground" /></button>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <button className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md" title="Add emoji">
+                                            <Smile className="h-4 w-4 text-muted-foreground" />
+                                        </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-full p-0 border-none shadow-none" align="start">
+                                        <EmojiPicker
+                                            onEmojiClick={(emojiData) => handleCaptionChange(globalCaption + emojiData.emoji)}
+                                            theme={Theme.LIGHT}
+                                            lazyLoadEmojis={true}
+                                            width={350}
+                                            height={400}
+                                            previewConfig={{ showPreview: false }}
+                                            skinTonesDisabled
+                                            searchDisabled={false}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
                                 <button className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md"><Bold className="h-4 w-4 text-muted-foreground" /></button>
                                 <button className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md"><Italic className="h-4 w-4 text-muted-foreground" /></button>
                                 <button className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md"><Link className="h-4 w-4 text-muted-foreground" /></button>
@@ -366,18 +386,6 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId }:
                             scheduledAt={scheduledAt}
                             onChange={(d) => setScheduledAt(d)}
                         />
-                        <Button variant="outline" size="sm" className="gap-1.5">
-                            <Sparkles className="h-3 w-3" />
-                            Next slot
-                        </Button>
-                        <Button variant="outline" size="sm" className="gap-1.5">
-                            <Clock className="h-3 w-3" />
-                            Timeslots
-                        </Button>
-                        <Button variant="outline" size="sm" className="gap-1.5">
-                            <Info className="h-3 w-3" />
-                            Suggestions
-                        </Button>
                     </div>
 
                     {/* Actions Row */}

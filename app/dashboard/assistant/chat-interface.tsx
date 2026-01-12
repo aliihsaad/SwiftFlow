@@ -35,10 +35,12 @@ import { ContentCard } from "./components/content-card"
 import { CarouselPreview } from "./components/carousel-preview"
 import { ImagePreview } from "./components/image-preview"
 
+import { StyleSelector } from "./components/style-selector"
+
 interface Message {
     role: 'user' | 'assistant'
     content: string
-    type?: 'text' | 'content_cards' | 'carousel_slides' | 'image'
+    type?: 'text' | 'content_cards' | 'carousel_slides' | 'image' | 'style_selector'
     data?: any
 }
 
@@ -74,20 +76,6 @@ const ACTION_CARDS = [
         description: "Generate AI images for posts",
         prompt: "Create a realistic image of...",
         functionName: "generate-image"
-    },
-    {
-        icon: CalendarDays,
-        title: "View my schedule",
-        description: "See upcoming scheduled posts",
-        prompt: "What posts do I have scheduled for this week?",
-        functionName: "get-schedule"
-    },
-    {
-        icon: BarChart3,
-        title: "View my analytics",
-        description: "Quick stats across all platforms",
-        prompt: "Summarize my engagement stats for the last month.",
-        functionName: "get-analytics"
     }
 ]
 
@@ -155,9 +143,39 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }
     }, [messages, isLoading])
 
+    const [flowState, setFlowState] = useState<'idle' | 'awaiting_description' | 'awaiting_style'>('idle')
+    const [tempImagePrompt, setTempImagePrompt] = useState("")
+
+    // Handlers for Content Card Actions
+    const handleGenerateImage = (id: string, text: string) => {
+        // Trigger image generation based on content
+        handleSend(`Generate an image for this post: "${text.substring(0, 100)}..."`, "generate-image")
+    }
+
     const handleSend = async (text?: string, overrideFunction?: string) => {
         const messageText = text || input
         if (!messageText.trim()) return
+
+        // HANDLE IMAGE FLOW STATE: Awaiting Description
+        if (flowState === 'awaiting_description' && !overrideFunction) {
+            // User sent the description
+            setInput("")
+            const newMessages: Message[] = [
+                ...messages,
+                { role: 'user', content: messageText },
+                {
+                    role: 'assistant',
+                    content: `What style would you like for your "${messageText}" image?`,
+                    type: 'style_selector'
+                }
+            ]
+            setMessages(newMessages)
+            setTempImagePrompt(messageText)
+            setFlowState('awaiting_style')
+            // Save conversational progress
+            await saveSession(newMessages, sessionId)
+            return
+        }
 
         if (!workspaceId) {
             setMessages(prev => [...prev, {
@@ -273,6 +291,16 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
     }
 
     const handleCardClick = (card: typeof ACTION_CARDS[0]) => {
+        if (card.functionName === 'generate-image') {
+            // Start Image Flow
+            setFlowState('awaiting_description')
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: "What do you want the image to be about?"
+            }])
+            return
+        }
+
         setActiveFunction(card.functionName)
         if (card.prompt.endsWith("...") || card.prompt.endsWith(": ")) {
             setInput(card.prompt)
@@ -281,15 +309,57 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }
     }
 
+    const handleStyleSelect = async (style: string, enhance: boolean) => {
+        setFlowState('idle') // End flow, start generating logic
+
+        let finalPrompt = tempImagePrompt
+
+        // If Magic Wand is on, enhance the prompt first
+        if (enhance) {
+            setIsLoading(true)
+            // Add a temporary "Enhancing..." message
+            setMessages(prev => [...prev, {
+                role: 'user',
+                content: `Generate a ${style} style image of: ${tempImagePrompt} (with Magic Wand ✨)`
+            }])
+
+            try {
+                // Call generate-ideas just to rewrite the prompt
+                // INSTRUCTION: strictly format output
+                const { data } = await supabase.functions.invoke('chat-assistant', {
+                    body: {
+                        messages: [{ role: 'user', content: `Rewrite this image description to be highly detailed and optimized for AI image generation. Keep it under 2 sentences. Enclose the final prompt in <prompt> tags. Provide ONLY the tagged prompt. Description: "${tempImagePrompt}"` }],
+                        workspaceId
+                    }
+                })
+
+                if (data?.response) {
+                    const match = data.response.match(/<prompt>([\s\S]*?)<\/prompt>/)
+                    if (match && match[1]) {
+                        finalPrompt = match[1].trim()
+                    } else {
+                        // Fallback: use full response but strip quotes if wrapped
+                        finalPrompt = data.response.replace(/^["']|["']$/g, '').trim()
+                    }
+                }
+            } catch (e) {
+                console.error("Enhancement failed, using original prompt", e)
+            }
+            setIsLoading(false)
+        } else {
+            setMessages(prev => [...prev, {
+                role: 'user',
+                content: `Generate a ${style} style image of: ${tempImagePrompt}`
+            }])
+        }
+
+        // Trigger the actual generation
+        handleSend(`Generate a ${style} style image of: ${finalPrompt}`, "generate-image")
+    }
+
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text)
         toast({ title: "Copied!", duration: 1000 })
-    }
-
-    // Handlers for Content Card Actions
-    const handleGenerateImage = (id: string, text: string) => {
-        // Trigger image generation based on content
-        handleSend(`Generate an image for this post: "${text.substring(0, 100)}..."`, "generate-image")
     }
 
     const handleRefine = (id: string, text: string) => {
@@ -471,6 +541,16 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                     onDownload={handleDownloadImage}
                                                     onUseInPost={handleUseImage}
                                                     onRegenerate={(prompt) => handleSend(`Regenerate: ${prompt}`, "generate-image")}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* RENDER STYLE SELECTOR */}
+                                        {msg.type === 'style_selector' && (
+                                            <div className="w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
+                                                <StyleSelector
+                                                    onSelect={handleStyleSelect}
+                                                    isGenerating={isLoading && flowState === 'idle'}
                                                 />
                                             </div>
                                         )}

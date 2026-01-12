@@ -91,9 +91,10 @@ serve(async (req) => {
         })
 
     } catch (error: any) {
+        console.error('API Error:', error)
         return new Response(JSON.stringify({ error: error.message }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400,
+            status: 200, // Return 200 so client doesn't throw automatically
         })
     }
 })

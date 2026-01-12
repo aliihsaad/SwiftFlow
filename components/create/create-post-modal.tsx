@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Platform } from "@/types/post"
 import { MediaUploadZone } from "./media-upload-zone"
@@ -14,6 +15,8 @@ import { cn } from "@/lib/utils"
 interface CreatePostModalProps {
     open: boolean
     onOpenChange: (open: boolean) => void
+    postToEdit?: any
+    workspaceId: string
 }
 
 const PLATFORMS = [
@@ -24,8 +27,9 @@ const PLATFORMS = [
 
 const SUGGESTED_HASHTAGS = ['#OpenSourceLife', '#CodingCommunity', '#SkilledDeveloper', '#CareerGrowth']
 
-export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
+export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId }: CreatePostModalProps) {
     // --- State ---
+    const router = useRouter()
     const [activeTab, setActiveTab] = useState<string>('all')
     const [globalMedia, setGlobalMedia] = useState<string[]>([])
     const [globalCaption, setGlobalCaption] = useState('')
@@ -33,9 +37,18 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
     const [isGeneratingAI, setIsGeneratingAI] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Check for draft data from Chat Interface when modal opens
+    // Check for draft data or edit mode when modal opens
     useEffect(() => {
         if (!open) return
+
+        if (postToEdit) {
+            setGlobalCaption(postToEdit.content || '')
+            setGlobalMedia(postToEdit.media_urls || [])
+            if (postToEdit.scheduled_for) {
+                setScheduledAt(new Date(postToEdit.scheduled_for))
+            }
+            return // Skip draft data loading if editing
+        }
 
         if (typeof window !== 'undefined') {
             const draftMedia = sessionStorage.getItem('draft_post_media')
@@ -75,7 +88,10 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
         try {
             const supabase = createClient()
             const { data, error } = await supabase.functions.invoke('generate-image', {
-                body: { prompt }
+                body: {
+                    prompt,
+                    workspaceId
+                }
             })
             if (data?.result?.imageUrl) {
                 setGlobalMedia(prev => [...prev, data.result.imageUrl])
@@ -91,17 +107,20 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
         setIsGeneratingAI(true)
         try {
             const supabase = createClient()
-            const { data, error } = await supabase.functions.invoke('generate-ideas', {
+            const { data, error } = await supabase.functions.invoke('generate-caption', {
                 body: {
-                    intent: 'Generate a social media caption',
-                    topic: globalCaption || 'Create an engaging post',
-                    platform: activeTab === 'all' ? 'instagram' : activeTab
+                    description: globalCaption || 'Write a caption for this post',
+                    platforms: [activeTab === 'all' ? 'instagram' : activeTab],
+                    tone: 'engaging',
+                    language: 'en',
+                    workspaceId: workspaceId
                 }
             })
 
-            if (data?.result?.content_cards && data.result.content_cards.length > 0) {
-                // Use the first generated idea as caption
-                setGlobalCaption(data.result.content_cards[0].body)
+            if (data?.suggestions && data.suggestions.length > 0) {
+                // Append the first suggestion to the current caption or replace it
+                // For now, let's replace as it is a "generator"
+                setGlobalCaption(data.suggestions[0])
             }
         } catch (e) {
             console.error("Caption Gen Error", e)
@@ -110,17 +129,34 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
         }
     }
 
+    const [suggestedHashtags, setSuggestedHashtags] = useState(SUGGESTED_HASHTAGS)
+
     const handleRefreshHashtags = async () => {
-        // In a real implementation, this would call an AI function to generate relevant hashtags
-        // For now, we'll just rotate the existing ones
-        const allHashtags = [
-            '#OpenSourceLife', '#CodingCommunity', '#SkilledDeveloper', '#CareerGrowth',
-            '#TechLife', '#DeveloperLife', '#CodeNewbie', '#Programming',
-            '#WebDev', '#SoftwareEngineering', '#LearnToCode', '#DevCommunity'
-        ]
-        // Randomly select 4 hashtags
-        const shuffled = allHashtags.sort(() => 0.5 - Math.random())
-        // Update the suggested hashtags (you'd need to add state for this)
+        // Generate relevant hashtags using AI
+        const supabase = createClient()
+        try {
+            const { data } = await supabase.functions.invoke('generate-caption', {
+                body: {
+                    description: "Generate 10 relevant hashtags for: " + globalCaption,
+                    platforms: ['instagram'],
+                    tone: 'engaging',
+                    workspaceId: workspaceId
+                }
+            })
+
+            if (data?.suggestions && Array.isArray(data.suggestions)) {
+                // Extract hashtags from the response ideas
+                // Since generate-caption returns strings, we'll look for #tags in them
+                const combined = data.suggestions.join(' ')
+                const tags = combined.match(/#[a-zA-Z0-9_]+/g) || []
+                if (tags.length > 0) {
+                    const uniqueTags = (Array.from(new Set(tags)) as string[]).slice(0, 8)
+                    setSuggestedHashtags(uniqueTags)
+                }
+            }
+        } catch (e) {
+            console.error("Hashtag Gen Error", e)
+        }
     }
 
     const handleAddHashtag = (tag: string) => {
@@ -165,16 +201,25 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
                 return url
             }))
 
+            // Determine selected platforms
+            let selectedPlatforms = ['instagram', 'facebook']
+            if (activeTab === 'instagram') selectedPlatforms = ['instagram']
+            if (activeTab === 'facebook') selectedPlatforms = ['facebook']
+
             const payload = {
-                platforms: ['instagram', 'facebook'],
+                platforms: selectedPlatforms,
                 captionByPlatform: { instagram: globalCaption, facebook: globalCaption },
                 mediaUrls: processedMedia,
                 status,
-                scheduledAt: scheduledAt?.toISOString()
+                scheduledAt: scheduledAt?.toISOString(),
+                id: postToEdit?.id // Include ID for updates
             }
 
-            const res = await fetch('/api/posts', {
-                method: 'POST',
+            const url = '/api/posts'
+            const method = postToEdit ? 'PUT' : 'POST'
+
+            const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
@@ -182,6 +227,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
             if (!res.ok) throw new Error('Failed to save')
 
             onOpenChange(false)
+            router.refresh()
         } catch (e) {
             console.error(e)
         } finally {
@@ -286,7 +332,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
                             </button>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            {SUGGESTED_HASHTAGS.map((tag) => (
+                            {suggestedHashtags.map((tag: string) => (
                                 <button
                                     key={tag}
                                     onClick={() => handleAddHashtag(tag)}
@@ -307,23 +353,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
                     />
 
                     {/* Image Preview (Below Drop Zones) */}
-                    {globalMedia.length > 0 && (
-                        <div className="relative w-fit">
-                            <div className="rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-700 shadow-sm">
-                                <img
-                                    src={globalMedia[0]}
-                                    alt="Preview"
-                                    className="max-w-[280px] max-h-[280px] object-contain"
-                                />
-                            </div>
-                            <button
-                                onClick={() => removeMedia(0)}
-                                className="absolute -top-2 -right-2 p-1 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors shadow-md"
-                            >
-                                <X className="h-3 w-3" />
-                            </button>
-                        </div>
-                    )}
+
 
                 </div>
 
@@ -372,7 +402,7 @@ export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
                                 disabled={!isValid || isSubmitting}
                                 className="bg-blue-500 hover:bg-blue-600 text-white"
                             >
-                                Schedule Post
+                                {postToEdit && postToEdit.status === 'scheduled' ? 'Save Changes' : 'Schedule Post'}
                             </Button>
                             <Button
                                 onClick={() => handleSubmit('published')}

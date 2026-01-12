@@ -174,6 +174,23 @@ CREATE TABLE IF NOT EXISTS generated_images (
 -- Run in Supabase Dashboard -> Storage:
 -- 1. Create bucket: "generated_assets" (Public)
 -- 2. Create bucket: "reference-images" (Public)
+-- 3. Create bucket: "post_media" (Public)
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('post_media', 'post_media', true)
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('generated_assets', 'generated_assets', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Allow public access to storage (for demo purposes, use specific policies for production)
+create policy "Public Access"
+  on storage.objects for select
+  using ( bucket_id in ('post_media', 'generated_assets', 'reference-images') );
+
+create policy "Public Insert"
+  on storage.objects for insert
+  with check ( bucket_id in ('post_media', 'generated_assets', 'reference-images') );
 
 -- =============================================================================
 -- HELPER FUNCTIONS

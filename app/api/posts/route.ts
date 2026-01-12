@@ -63,3 +63,49 @@ export async function POST(request: NextRequest) {
         )
     }
 }
+
+export async function PUT(request: NextRequest) {
+    try {
+        const supabase = await createClient()
+
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
+        const body = await request.json()
+        const { id, platforms, captionByPlatform, mediaUrls, status, scheduledAt } = body
+
+        if (!id) {
+            return NextResponse.json({ error: 'Post ID is required' }, { status: 400 })
+        }
+
+        const mainCaption = captionByPlatform?.instagram || captionByPlatform?.facebook || ''
+
+        const { data: post, error } = await supabase
+            .from('posts')
+            .update({
+                content: mainCaption,
+                media_urls: mediaUrls || [],
+                platforms: platforms,
+                status: status,
+                scheduled_for: status === 'scheduled' ? scheduledAt : null,
+                published_at: status === 'published' ? new Date().toISOString() : null,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('Database Error:', error)
+            return NextResponse.json({ error: error.message }, { status: 500 })
+        }
+
+        return NextResponse.json(post)
+
+    } catch (error) {
+        console.error('Post Update Error:', error)
+        return NextResponse.json({ error: 'Failed to update post' }, { status: 500 })
+    }
+}

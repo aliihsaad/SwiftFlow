@@ -68,7 +68,8 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
         <div className="space-y-4">
 
             {/* Split View Dropzones */}
-            {mediaUrls.length === 0 ? (
+            {/* Split View Dropzones */}
+            {mediaUrls.length < 10 && (
                 <div className="grid grid-cols-2 gap-4">
                     {/* Left: Standard Upload */}
                     <div
@@ -122,35 +123,33 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
                         <Wand2 className="absolute top-4 right-4 h-4 w-4 text-purple-500 opacity-20" />
                     </div>
                 </div>
-            ) : (
-                /* Media Previews (Full Width when content exists) */
-                <div className="relative aspect-video w-full rounded-xl overflow-hidden border bg-black/90 group">
-                    {/* Just showing first one as hero for now to match UI image look */}
-                    {mediaUrls[0].match(/\.(mp4|webm|ogg)$/i) ? (
-                        <div className="w-full h-full flex items-center justify-center">
-                            <Video className="h-12 w-12 text-white/50" />
-                        </div>
-                    ) : (
-                        <img src={mediaUrls[0]} alt="Hero" className="w-full h-full object-contain" />
-                    )}
+            )}
 
-                    <button
-                        onClick={() => removeMedia(0)}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-red-500/80 transition-colors"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
-
-                    {/* Thumbnail list if multiple (Overlay) */}
-                    {mediaUrls.length > 1 && (
-                        <div className="absolute bottom-4 left-4 flex gap-2">
-                            {mediaUrls.slice(1).map((url, i) => (
-                                <div key={i} className="w-12 h-12 rounded-md border border-white/20 overflow-hidden bg-black/50">
-                                    <img src={url} className="w-full h-full object-cover opacity-70" />
+            {/* Media Gallery Grid */}
+            {mediaUrls.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    {mediaUrls.map((url, i) => (
+                        <div key={i} className="relative aspect-square rounded-xl overflow-hidden border bg-muted group">
+                            {url.match(/\.(mp4|webm|ogg)$/i) ? (
+                                <div className="w-full h-full flex items-center justify-center bg-black/10">
+                                    <Video className="h-8 w-8 text-foreground/50" />
                                 </div>
-                            ))}
+                            ) : (
+                                <img src={url} alt={`Media ${i + 1}`} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                            )}
+
+                            <button
+                                onClick={() => removeMedia(i)}
+                                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white hover:bg-red-500/90 transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm"
+                            >
+                                <X className="h-3 w-3" />
+                            </button>
+
+                            <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-sm text-white text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                                {i + 1}
+                            </div>
                         </div>
-                    )}
+                    ))}
                 </div>
             )}
         </div>

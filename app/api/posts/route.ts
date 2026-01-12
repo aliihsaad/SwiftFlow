@@ -31,24 +31,19 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Scheduled time is required for scheduled posts' }, { status: 400 })
         }
 
-        const mainCaption = captionByPlatform.instagram || captionByPlatform.facebook || ''
+        const mainCaption = captionByPlatform?.instagram || captionByPlatform?.facebook || ''
 
         // Construct database record
         const { data: post, error } = await supabase
             .from('posts')
             .insert({
                 workspace_id: activeWorkspace.id,
-                content: mainCaption, // Main caption for listing/search
-                media_urls: mediaUrls,
-                media_type: mediaUrls.length > 0 ? (mediaUrls[0].includes('video') ? 'video' : 'image') : 'text',
-                platforms: {
-                    selection: platforms,
-                    captions: captionByPlatform
-                },
+                content: mainCaption,
+                media_urls: mediaUrls || [],
+                platforms: platforms,
                 status: status,
                 scheduled_for: status === 'scheduled' ? scheduledAt : null,
-                posted_at: status === 'published' ? new Date().toISOString() : null,
-                ai_generated: false
+                published_at: status === 'published' ? new Date().toISOString() : null
             })
             .select()
             .single()

@@ -82,12 +82,12 @@ serve(async (req) => {
             try {
                 const blob = await (await fetch(imageUrl)).blob()
                 const fileName = `generated/${workspaceId}/${Date.now()}.png`
-                const { error: uploadError } = await supabase.storage.from('post_media').upload(fileName, blob, {
+                const { error: uploadError } = await supabase.storage.from('generated_assets').upload(fileName, blob, {
                     contentType: 'image/png',
                     upsert: true
                 })
                 if (!uploadError) {
-                    const { data: { publicUrl } } = supabase.storage.from('post_media').getPublicUrl(fileName)
+                    const { data: { publicUrl } } = supabase.storage.from('generated_assets').getPublicUrl(fileName)
                     finalAssetUrl = publicUrl
                 } else {
                     console.error("Upload Error:", uploadError)
@@ -98,13 +98,18 @@ serve(async (req) => {
         }
 
         // Insert into generated_assets
-        await supabase.from('generated_assets').insert({
+        const { error: insertError } = await supabase.from('generated_assets').insert({
             workspace_id: workspaceId,
-            prompt: promptUsed,
             asset_type: 'image',
-            asset_url: finalAssetUrl,
-            metadata: { model: targetModel, style: style }
+            image_url: finalAssetUrl,
+            content: { prompt: promptUsed, model: targetModel, style: style }
         })
+
+        if (insertError) {
+            console.error("Database insert error:", insertError)
+        } else {
+            console.log("Successfully saved to generated_assets")
+        }
 
         const parsedResult = {
             type: "image",

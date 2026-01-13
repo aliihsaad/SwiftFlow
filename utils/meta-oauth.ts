@@ -7,66 +7,36 @@ const META_OAUTH_URL = 'https://www.facebook.com/v24.0/dialog/oauth';
 const META_TOKEN_URL = 'https://graph.facebook.com/v24.0/oauth/access_token';
 
 /**
- * OAuth Scopes for different flows
- * Meta's modern pattern: Separate login from business asset access
+ * OAuth Scopes
+ * We use ONLY base scopes - page access is implicit for page admins via /me/accounts
  */
-export const META_LOGIN_SCOPE = 'email,public_profile';
-
-export const META_PAGES_PERMISSIONS = [
-    'pages_read_engagement',    // Read page data
-    'pages_manage_posts',       // Create/manage posts
-    'pages_manage_metadata',    // Page settings
-    'instagram_basic',          // Instagram account info
-    'instagram_content_publish' // Post to Instagram
-].join(',');
-
-// Combined for page connection flow
-export const META_FULL_SCOPE = `${META_LOGIN_SCOPE},${META_PAGES_PERMISSIONS}`;
+export const META_SCOPE = 'email,public_profile';
 
 /**
  * Generate Meta OAuth URL
- * @param workspaceId - Workspace to connect (optional)
- * @param flowType - 'login' for authentication, 'pages' for page access
+ * Uses only base scopes - page access is implicit for admins
  */
-export function getMetaOAuthUrl(
-    workspaceId?: string,
-    flowType: 'login' | 'pages' = 'login'
-): string {
+export function getMetaOAuthUrl(workspaceId?: string): string {
     console.log('[META_OAUTH] Generating OAuth URL', {
-        flowType,
         hasAppId: !!process.env.NEXT_PUBLIC_META_APP_ID,
         hasWorkspaceId: !!workspaceId,
     });
 
     const redirectUri = getMetaRedirectUri();
 
-    // Choose scope based on flow type
-    const scope = flowType === 'pages' ? META_FULL_SCOPE : META_LOGIN_SCOPE;
-
     const params: Record<string, string> = {
         client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
         redirect_uri: redirectUri,
         response_type: 'code',
-        scope,
+        scope: META_SCOPE, // ONLY base scope - no page permissions
     };
 
-    // Encode flow type in state parameter: "workspaceId:flowType"
-    const state = workspaceId
-        ? `${workspaceId}:${flowType}`
-        : flowType;
-
-    params.state = state;
+    if (workspaceId) {
+        params.state = workspaceId;
+    }
 
     const queryParams = new URLSearchParams(params);
-    const fullUrl = `${META_OAUTH_URL}?${queryParams.toString()}`;
-
-    console.log('[META_OAUTH] OAuth URL generated', {
-        flowType,
-        scope: flowType === 'pages' ? '[pages permissions]' : scope,
-        redirectUri,
-    });
-
-    return fullUrl;
+    return `${META_OAUTH_URL}?${queryParams.toString()}`;
 }
 
 /**
@@ -108,14 +78,9 @@ export async function exchangeCodeForToken(code: string): Promise<{
 
 /**
  * Frontend helper: Redirect user to Meta OAuth
- * @param workspaceId - Workspace ID
- * @param flowType - 'login' or 'pages'
  */
-export function redirectToMetaOAuth(
-    workspaceId?: string,
-    flowType: 'login' | 'pages' = 'login'
-): void {
+export function redirectToMetaOAuth(workspaceId?: string): void {
     if (typeof window !== 'undefined') {
-        window.location.href = getMetaOAuthUrl(workspaceId, flowType);
+        window.location.href = getMetaOAuthUrl(workspaceId);
     }
 }

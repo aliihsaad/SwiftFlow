@@ -46,8 +46,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     }, [workspaceId]);
 
     const handleConnectPages = () => {
-        // Use 'pages' flow to request page permissions
-        redirectToMetaOAuth(workspaceId, 'pages');
+        redirectToMetaOAuth(workspaceId);
     };
 
     return (

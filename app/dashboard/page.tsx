@@ -5,25 +5,38 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import Link from "next/link"
 import { createClient } from "@/utils/supabase/server"
+import { getActiveWorkspace } from "@/lib/workspace-utils"
 
 export default async function DashboardPage() {
     const supabase = await createClient()
+    const activeWorkspace = await getActiveWorkspace()
+
+    if (!activeWorkspace) {
+        return (
+            <div className="flex h-full flex-col items-center justify-center space-y-4">
+                <p>No active workspace selected.</p>
+            </div>
+        )
+    }
 
     // 1. Fetch Counts
     const { count: scheduledCount } = await supabase
         .from('posts')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'scheduled')
+        .eq('workspace_id', activeWorkspace.id)
 
     const { count: postedCount } = await supabase
         .from('posts')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'posted')
+        .eq('workspace_id', activeWorkspace.id)
 
     // 2. Fetch Recent Posts for Chart
     const { data: posts } = await supabase
         .from('posts')
         .select('created_at, status, scheduled_for')
+        .eq('workspace_id', activeWorkspace.id)
         .order('created_at', { ascending: false })
         .limit(50)
 
@@ -61,6 +74,7 @@ export default async function DashboardPage() {
         .from('posts')
         .select('*')
         .eq('status', 'scheduled')
+        .eq('workspace_id', activeWorkspace.id)
         .order('scheduled_for', { ascending: true })
         .limit(50)
 

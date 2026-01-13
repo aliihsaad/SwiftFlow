@@ -92,7 +92,7 @@ export function CalendarView({ posts }: CalendarViewProps) {
                                                     )}
                                                 </div>
                                                 <span className="truncate">
-                                                    {post.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    {post.date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                             </div>
                                         ))}

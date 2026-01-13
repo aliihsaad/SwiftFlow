@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
         }
 
         return NextResponse.redirect(
-            new URL('/dashboard/settings/brand?success=meta_connected', request.url)
+            new URL(`/dashboard/settings/brand?success=meta_connected&pages_count=${pages.length}`, request.url)
         );
     } catch (error) {
         console.error('Meta token exchange error:', error);
@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
             : 'Token exchange failed';
 
         return NextResponse.redirect(
-            new URL(`/dashboard/settings/brand?error=${encodeURIComponent(errorMessage)}`, request.url)
+            new URL(`/dashboard/settings/brand?error=${encodeURIComponent(errorMessage)}&debug=${encodeURIComponent(JSON.stringify(error))}`, request.url)
         );
     }
 }

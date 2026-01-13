@@ -15,12 +15,12 @@ const META_TOKEN_URL = 'https://graph.facebook.com/v24.0/oauth/access_token';
  * Redirects user to Facebook's OAuth dialog to authorize the app
  * @param workspaceId Optional workspace ID to persist through the OAuth flow
  */
-export function getMetaOAuthUrl(workspaceId?: string): string {
+export function getMetaOAuthUrl(workspaceId?: string, permissions?: string): string {
     const params: Record<string, string> = {
         client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
         redirect_uri: getMetaRedirectUri(),
         response_type: 'code',
-        scope: 'email,public_profile', // Strict: No pages scopes to avoid Invalid Scope error
+        scope: permissions || 'email,public_profile', // Default to strict, allow override
     };
 
     if (workspaceId) {
@@ -77,8 +77,8 @@ export async function exchangeCodeForToken(code: string): Promise<{
  * Frontend helper: Redirect user to Meta OAuth
  * Use this in a button click handler
  */
-export function redirectToMetaOAuth(workspaceId?: string): void {
+export function redirectToMetaOAuth(workspaceId?: string, permissions?: string): void {
     if (typeof window !== 'undefined') {
-        window.location.href = getMetaOAuthUrl(workspaceId);
+        window.location.href = getMetaOAuthUrl(workspaceId, permissions);
     }
 }

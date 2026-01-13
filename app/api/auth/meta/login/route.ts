@@ -11,6 +11,7 @@ import { getMetaOAuthUrl } from '@/utils/meta-oauth';
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const workspaceId = searchParams.get('workspaceId');
+    const scope = searchParams.get('scope');
 
     if (!workspaceId) {
         return NextResponse.json(
@@ -19,6 +20,6 @@ export async function GET(request: NextRequest) {
         );
     }
 
-    const authUrl = getMetaOAuthUrl(workspaceId);
+    const authUrl = getMetaOAuthUrl(workspaceId, scope || undefined);
     return NextResponse.redirect(authUrl);
 }

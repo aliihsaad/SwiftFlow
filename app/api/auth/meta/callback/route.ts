@@ -57,12 +57,19 @@ export async function GET(request: NextRequest) {
 
         // 2. Fetch User's Pages
         // This returns individual page access tokens which are needed for publishing
-        const pagesResponse = await fetch(`${META_GRAPH_URL}/me/accounts?access_token=${userAccessToken}`);
-        if (!pagesResponse.ok) {
-            throw new Error('Failed to fetch Facebook Pages');
+        let pages = [];
+        try {
+            const pagesResponse = await fetch(`${META_GRAPH_URL}/me/accounts?access_token=${userAccessToken}`);
+            if (pagesResponse.ok) {
+                const pagesData = await pagesResponse.json();
+                pages = pagesData.data || [];
+            } else {
+                console.warn('Could not fetch pages (likely missing permission for Step 1):', await pagesResponse.text());
+            }
+        } catch (fetchError) {
+            console.warn('Error fetching pages:', fetchError);
+            // Continue anyway to complete the login flow for trust establishment
         }
-        const pagesData = await pagesResponse.json();
-        const pages = pagesData.data || [];
 
         console.log(`Fetched ${pages.length} pages for workspace ${workspaceId}`);
 

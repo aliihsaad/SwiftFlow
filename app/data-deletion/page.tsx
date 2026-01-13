@@ -20,12 +20,12 @@ export default function DataDeletionInstructions() {
                         <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">How to Request Data Deletion</h2>
                         <ol className="list-decimal pl-5 mt-2 space-y-3 text-gray-600 dark:text-gray-300">
                             <li>
-                                <strong>Send an Email Request:</strong> To initiate a data deletion request, please send an email to our Data Protection Officer at:
+                                <strong>Send an Email Request:</strong> To initiate a data deletion request, please send an email to our Data Protection Officer at Swift Digital Solutions LLC:
                                 <br />
-                                <a href="mailto:alisaad_10@hotmail.com" className="text-blue-600 hover:underline font-medium block mt-1">alisaad_10@hotmail.com</a>
+                                <a href="mailto:info@swiftdigital-s.com" className="text-blue-600 hover:underline font-medium block mt-1">info@swiftdigital-s.com</a>
                             </li>
                             <li>
-                                <strong>Subject Line:</strong> Please use the subject line <strong>"Data Deletion Request"</strong> to ensure timely processing.
+                                <strong>Subject Line:</strong> Please use the subject line <strong>"Data Deletion Request - Social Media Tool"</strong> to ensure timely processing.
                             </li>
                             <li>
                                 <strong>Include Account Details:</strong> In the body of the email, please include the email address associated with your account and the specific Facebook/Instagram pages for which you wish to remove data.

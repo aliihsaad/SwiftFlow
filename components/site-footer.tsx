@@ -20,7 +20,7 @@ export function SiteFooter() {
                     </nav>
                 </div>
                 <div className="flex items-center gap-4">
-                    <a href="mailto:alisaad_10@hotmail.com" className="hover:text-foreground transition-colors">
+                    <a href="mailto:info@swiftdigital-s.com" className="hover:text-foreground transition-colors">
                         Contact Support
                     </a>
                 </div>

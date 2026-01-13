@@ -12,8 +12,8 @@ export default function TermsOfService() {
                     <section>
                         <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">1. Acceptance of Terms</h2>
                         <p className="text-gray-600 dark:text-gray-300">
-                            By accessing and using this Social Media Manager AI Tool, you agree to comply with and be bound by these Terms of Service.
-                            This tool is intended for internal business use or authorized client management only.
+                            By accessing and using the Social Media Manager AI Tool provided by Swift Digital Solutions LLC ("we," "us," or "our"), you agree to comply with and be bound by these Terms of Service.
+                            This tool is intended for businesses utilizing our digital marketing, web development, and automation services.
                         </p>
                     </section>
 
@@ -21,7 +21,7 @@ export default function TermsOfService() {
                         <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">2. Description of Service</h2>
                         <p className="text-gray-600 dark:text-gray-300">
                             The Service provides social media management features, including content scheduling, analytics, and AI-assisted creation
-                            for platforms including Facebook and Instagram.
+                            for platforms including Facebook and Instagram, as part of Swift Digital Solutions LLC's broader digital service offerings.
                         </p>
                     </section>
 
@@ -50,9 +50,19 @@ export default function TermsOfService() {
                     </section>
 
                     <section>
-                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">6. Contact Information</h2>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">6. Governing Law</h2>
                         <p className="text-gray-600 dark:text-gray-300">
-                            For any questions about these Terms, please contact us at: <a href="mailto:alisaad_10@hotmail.com" className="text-blue-600 hover:underline">alisaad_10@hotmail.com</a>
+                            These Terms shall be governed by and construed in accordance with the laws of the State of Michigan, United States, without regard to its conflict of law provisions.
+                        </p>
+                    </section>
+
+                    <section>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-3">7. Contact Information</h2>
+                        <p className="text-gray-600 dark:text-gray-300">
+                            For any questions about these Terms, please contact Swift Digital Solutions LLC at: <a href="mailto:info@swiftdigital-s.com" className="text-blue-600 hover:underline">info@swiftdigital-s.com</a>
+                        </p>
+                        <p className="mt-1 text-sm text-gray-500">
+                            <a href="https://swiftdigital-s.com" className="hover:underline">https://swiftdigital-s.com</a>
                         </p>
                     </section>
                 </div>

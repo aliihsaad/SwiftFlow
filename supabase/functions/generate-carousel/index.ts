@@ -51,20 +51,25 @@ serve(async (req) => {
             RETURN JSON ONLY. The response must match this schema:
             {
               "type": "carousel_slides",
+              "style": "The visual style requested (e.g. Minimal, Cartoon, Realistic)",
+              "caption": "The main Instagram caption for the ENTIRE post. Engaging, with hook, value, and CTA. Include hashtags here.",
               "data": [
                 {
                   "slide_number": 1,
                   "title": "Slide Title",
                   "content": "Main text content...",
-                  "image_prompt": "Description for AI visual generation"
+                  "image_prompt": "Detailed prompt for generating the slide image. MUST explicitly ask for the Title and Content to be visible text overlaid on the design."
                 }
               ]
             }
 
             Guidelines:
-            1. Slide 1 is always the Hook/Cover.
-            2. Last slide is always a CTA.
-            3. Keep text concise (under 30 words per slide).`,
+            1. The 'caption' field is for the whole post, not individual slides.
+            2. The 'image_prompt' MUST describe a design where the text is PART of the image.
+               - Example: "A minimal infographic slide. In the center, large bold text reads: '5 Coding Tips'. Dark background with code syntax highlights."
+            3. Slide 1 is always the Hook/Cover.
+            4. Last slide is always a CTA.
+            5. Keep text concise (under 20 words per slide for better visibility).`,
             generationConfig: {
                 temperature: 0.7,
                 responseMimeType: "application/json"

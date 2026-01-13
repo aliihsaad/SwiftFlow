@@ -34,13 +34,13 @@ import { useToast } from "@/components/ui/use-toast"
 import { ContentCard } from "./components/content-card"
 import { CarouselPreview } from "./components/carousel-preview"
 import { ImagePreview } from "./components/image-preview"
-
 import { StyleSelector } from "./components/style-selector"
+import { CarouselStyleSelector } from "./components/carousel-style-selector"
 
 interface Message {
     role: 'user' | 'assistant'
     content: string
-    type?: 'text' | 'content_cards' | 'carousel_slides' | 'image' | 'style_selector'
+    type?: 'text' | 'content_cards' | 'carousel_slides' | 'image' | 'style_selector' | 'carousel_style_selector'
     data?: any
 }
 
@@ -143,8 +143,10 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }
     }, [messages, isLoading])
 
-    const [flowState, setFlowState] = useState<'idle' | 'awaiting_description' | 'awaiting_style'>('idle')
+    const [flowState, setFlowState] = useState<'idle' | 'awaiting_description' | 'awaiting_style' | 'awaiting_carousel_topic' | 'awaiting_carousel_style'>('idle')
     const [tempImagePrompt, setTempImagePrompt] = useState("")
+    const [tempCarouselTopic, setTempCarouselTopic] = useState("")
+    const [generatingSlide, setGeneratingSlide] = useState<number | null>(null)
 
     // Handlers for Content Card Actions
     const handleGenerateImage = (id: string, text: string) => {
@@ -173,6 +175,26 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             setTempImagePrompt(messageText)
             setFlowState('awaiting_style')
             // Save conversational progress
+            await saveSession(newMessages, sessionId)
+            return
+        }
+
+        // HANDLE CAROUSEL FLOW STATE: Awaiting Topic
+        if (flowState === 'awaiting_carousel_topic' && !overrideFunction) {
+            setInput("")
+            const newMessages: Message[] = [
+                ...messages,
+                { role: 'user', content: messageText },
+                {
+                    role: 'assistant',
+                    content: `Let's create your Instagram carousel about "${messageText}"! Choose how many slides and the visual style:`,
+                    type: 'carousel_style_selector',
+                    data: { topic: messageText }
+                }
+            ]
+            setMessages(newMessages)
+            setTempCarouselTopic(messageText)
+            setFlowState('awaiting_carousel_style')
             await saveSession(newMessages, sessionId)
             return
         }
@@ -301,6 +323,16 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             return
         }
 
+        if (card.functionName === 'generate-carousel') {
+            // Start Carousel Flow
+            setFlowState('awaiting_carousel_topic')
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: "What topic do you want the carousel to be about? Feel free to share any specific tips or points you'd like to include, or I can generate them for you!"
+            }])
+            return
+        }
+
         setActiveFunction(card.functionName)
         if (card.prompt.endsWith("...") || card.prompt.endsWith(": ")) {
             setInput(card.prompt)
@@ -357,6 +389,89 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         handleSend(`Generate a ${style} style image of: ${finalPrompt}`, "generate-image")
     }
 
+    const handleCarouselGenerate = async (slideCount: number, style: string) => {
+        setFlowState('idle')
+
+        setMessages(prev => [...prev, {
+            role: 'user',
+            content: `Generate a Instagram carousel with ${slideCount} slides about "${tempCarouselTopic}" in ${style} style`
+        }])
+
+        // Trigger carousel generation
+        handleSend(
+            `Create a ${slideCount}-slide Instagram carousel about "${tempCarouselTopic}" in ${style} visual style. Generate engaging content for each slide with captions.`,
+            "generate-carousel"
+        )
+    }
+
+    const handleGenerateSlideImage = async (slideNumber: number, prompt: string) => {
+        if (!workspaceId) {
+            toast({ title: "Error", description: "No workspace selected" })
+            return
+        }
+
+        setGeneratingSlide(slideNumber)
+
+        try {
+            // Find the carousel style from the latest carousel message
+            let carouselStyle = "Photorealistic, cinematic lighting" // Default
+
+            const carouselMsg = [...messages].reverse().find(m => m.type === 'carousel_slides')
+            if (carouselMsg && carouselMsg.data?.style) {
+                carouselStyle = carouselMsg.data.style
+            }
+
+            // Call generate-image edge function directly
+            const { data, error } = await supabase.functions.invoke('generate-image', {
+                body: {
+                    messages: [{ role: 'user', content: prompt }],
+                    workspaceId,
+                    prompt,
+                    style: carouselStyle
+                }
+            })
+
+            if (data?.error) throw new Error(data.error)
+            if (error) throw new Error(error.message)
+
+            const imageUrl = data?.result?.imageUrl
+            if (imageUrl) {
+                // Update the messages state to include the new image URL for the specific slide
+                setMessages(prevMessages => {
+                    const newMessages = [...prevMessages]
+                    // Find the last assistant message with carousel_slides
+                    const carouselMsgIndex = newMessages.map(m => m).reverse().findIndex(m => m.type === 'carousel_slides')
+
+                    if (carouselMsgIndex !== -1) {
+                        // real index is length - 1 - reversedIndex
+                        const realIndex = newMessages.length - 1 - carouselMsgIndex
+                        const msg = { ...newMessages[realIndex] }
+                        if (msg.data && msg.data.data) {
+                            const slides = [...msg.data.data]
+                            const slideIndex = slides.findIndex((s: any) => s.slide_number === slideNumber)
+                            if (slideIndex !== -1) {
+                                slides[slideIndex] = { ...slides[slideIndex], imageUrl }
+                                msg.data = { ...msg.data, data: slides }
+                                newMessages[realIndex] = msg
+
+                                // Save session in background
+                                saveSession(newMessages, sessionId)
+                            }
+                        }
+                    }
+                    return newMessages
+                })
+                toast({ title: "Image Generated", description: `Slide ${slideNumber} image ready!` })
+            }
+
+        } catch (e: any) {
+            console.error("Failed to generate slide image:", e)
+            toast({ title: "Generation failed", description: e.message, variant: "destructive" })
+        } finally {
+            setGeneratingSlide(null)
+        }
+    }
+
     const handleCopy = (text: string) => {
         navigator.clipboard.writeText(text)
         toast({ title: "Copied!", duration: 1000 })
@@ -366,12 +481,13 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         setInput(`Refine this post: "${text.substring(0, 50)}..." Make it shorter.`)
     }
 
-    const handleSchedule = (id: string, text: string, image?: string) => {
+    const handleSchedule = (id: string, text: string, images?: string | string[]) => {
         // Store draft data
         if (typeof window !== 'undefined') {
             sessionStorage.setItem('draft_post_caption', text)
-            if (image) {
-                sessionStorage.setItem('draft_post_media', JSON.stringify([image]))
+            if (images) {
+                const mediaArray = Array.isArray(images) ? images : [images]
+                sessionStorage.setItem('draft_post_media', JSON.stringify(mediaArray))
             }
         }
 
@@ -527,7 +643,13 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                         {/* RENDER CAROUSEL PREVIEW */}
                                         {msg.type === 'carousel_slides' && msg.data?.data && (
                                             <div className="w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
-                                                <CarouselPreview slots={msg.data.data} />
+                                                <CarouselPreview
+                                                    slots={msg.data.data}
+                                                    caption={msg.data.caption}
+                                                    onGenerateImage={handleGenerateSlideImage}
+                                                    onSchedule={handleSchedule}
+                                                    generatingSlide={generatingSlide}
+                                                />
                                             </div>
                                         )}
 
@@ -551,6 +673,17 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                 <StyleSelector
                                                     onSelect={handleStyleSelect}
                                                     isGenerating={isLoading && flowState === 'idle'}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* RENDER CAROUSEL STYLE SELECTOR */}
+                                        {msg.type === 'carousel_style_selector' && msg.data && (
+                                            <div className="w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
+                                                <CarouselStyleSelector
+                                                    topic={msg.data.topic}
+                                                    onGenerate={handleCarouselGenerate}
+                                                    isGenerating={isLoading}
                                                 />
                                             </div>
                                         )}

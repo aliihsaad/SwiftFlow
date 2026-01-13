@@ -5,9 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Facebook, Instagram } from "lucide-react"
 import { redirectToMetaOAuth } from "@/utils/meta-oauth"
 
-export function ConnectedAccounts() {
+interface ConnectedAccountsProps {
+    workspaceId: string;
+}
+
+export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     const handleFacebookConnect = () => {
-        redirectToMetaOAuth();
+        redirectToMetaOAuth(workspaceId);
     };
 
     return (

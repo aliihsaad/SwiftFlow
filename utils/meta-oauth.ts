@@ -10,15 +10,26 @@ const META_TOKEN_URL = 'https://graph.facebook.com/v24.0/oauth/access_token';
  * Generate Meta OAuth redirect URL
  * Redirects user to Facebook's OAuth dialog to authorize the app
  */
-export function getMetaOAuthUrl(): string {
-    const params = new URLSearchParams({
+/**
+ * Generate Meta OAuth redirect URL
+ * Redirects user to Facebook's OAuth dialog to authorize the app
+ * @param workspaceId Optional workspace ID to persist through the OAuth flow
+ */
+export function getMetaOAuthUrl(workspaceId?: string): string {
+    const params: Record<string, string> = {
         client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
         redirect_uri: getMetaRedirectUri(),
         response_type: 'code',
         scope: 'email,public_profile,pages_show_list',
-    });
+    };
 
-    return `${META_OAUTH_URL}?${params.toString()}`;
+    if (workspaceId) {
+        params.state = workspaceId;
+    }
+
+    const queryParams = new URLSearchParams(params);
+
+    return `${META_OAUTH_URL}?${queryParams.toString()}`;
 }
 
 /**
@@ -61,8 +72,12 @@ export async function exchangeCodeForToken(code: string): Promise<{
  * Frontend helper: Redirect user to Meta OAuth
  * Use this in a button click handler
  */
-export function redirectToMetaOAuth(): void {
+/**
+ * Frontend helper: Redirect user to Meta OAuth
+ * Use this in a button click handler
+ */
+export function redirectToMetaOAuth(workspaceId?: string): void {
     if (typeof window !== 'undefined') {
-        window.location.href = getMetaOAuthUrl();
+        window.location.href = getMetaOAuthUrl(workspaceId);
     }
 }

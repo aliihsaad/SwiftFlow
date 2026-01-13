@@ -32,7 +32,7 @@ export default async function BrandSettingsPage() {
                 </TabsContent>
 
                 <TabsContent value="social">
-                    <ConnectedAccounts />
+                    <ConnectedAccounts workspaceId={activeWorkspace.id} />
                 </TabsContent>
             </Tabs>
         </div>

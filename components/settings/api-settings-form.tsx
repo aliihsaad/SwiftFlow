@@ -36,8 +36,8 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
         try {
             await updateCurrentWorkspaceSettings({
                 ai_provider: formData.ai_provider as 'gemini' | 'openai',
-                gemini_api_key: formData.gemini_api_key || null,
-                openai_api_key: formData.openai_api_key || null,
+                gemini_api_key: formData.gemini_api_key || undefined,
+                openai_api_key: formData.openai_api_key || undefined,
                 ai_model_name: formData.ai_model_name,
                 ai_temperature: formData.ai_temperature,
                 ai_max_tokens: formData.ai_max_tokens,

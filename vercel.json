@@ -1,0 +1,46 @@
+{
+  "buildCommand": "npm run build",
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "devCommand": "npm run dev",
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": {
+      "description": "Your Supabase project URL",
+      "required": true
+    },
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": {
+      "description": "Your Supabase anonymous key",
+      "required": true
+    },
+    "SUPABASE_SERVICE_KEY": {
+      "description": "Your Supabase service role key (keep secret!)",
+      "required": true
+    },
+    "GEMINI_API_KEY": {
+      "description": "Google Gemini API key for AI features",
+      "required": false
+    },
+    "NANO_BANANA_API_KEY": {
+      "description": "Nano Banana API key for image generation",
+      "required": false
+    },
+    "FACEBOOK_CLIENT_ID": {
+      "description": "Facebook App ID for social media integration",
+      "required": false
+    },
+    "FACEBOOK_CLIENT_SECRET": {
+      "description": "Facebook App Secret",
+      "required": false
+    },
+    "NEXT_PUBLIC_APP_URL": {
+      "description": "Your app's public URL (e.g., https://yourapp.vercel.app)",
+      "required": true
+    }
+  },
+  "regions": ["iad1"],
+  "functions": {
+    "app/api/**": {
+      "maxDuration": 30
+    }
+  }
+}

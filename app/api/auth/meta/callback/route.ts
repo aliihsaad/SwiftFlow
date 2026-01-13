@@ -55,6 +55,13 @@ export async function GET(request: NextRequest) {
         const tokenData = await exchangeCodeForToken(code);
         const userAccessToken = tokenData.access_token;
 
+        console.log('Meta OAuth Token Exchange Success:', {
+            token_type: tokenData.token_type,
+            expires_in: tokenData.expires_in,
+            granted_scopes: tokenData.scope, // Critical for debugging
+            has_token: !!tokenData.access_token,
+        });
+
         // 2. Fetch User's Pages
         // This returns individual page access tokens which are needed for publishing
         const pagesResponse = await fetch(`${META_GRAPH_URL}/me/accounts?access_token=${userAccessToken}`);

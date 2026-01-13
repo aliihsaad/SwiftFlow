@@ -20,7 +20,7 @@ export function getMetaOAuthUrl(workspaceId?: string): string {
         client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
         redirect_uri: getMetaRedirectUri(),
         response_type: 'code',
-        scope: 'email,public_profile,pages_show_list', // Step 2: Now that trust is established, request page permissions
+        scope: 'email,public_profile', // Strict: No pages scopes to avoid Invalid Scope error
     };
 
     if (workspaceId) {
@@ -48,6 +48,7 @@ export async function exchangeCodeForToken(code: string): Promise<{
     access_token: string;
     token_type: string;
     expires_in?: number;
+    scope?: string; // Added for debugging
 }> {
     const params = new URLSearchParams({
         client_id: process.env.NEXT_PUBLIC_META_APP_ID!,

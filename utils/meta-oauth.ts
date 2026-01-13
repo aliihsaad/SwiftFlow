@@ -20,7 +20,7 @@ export function getMetaOAuthUrl(workspaceId?: string): string {
         client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
         redirect_uri: getMetaRedirectUri(),
         response_type: 'code',
-        scope: 'email,public_profile', // Step 1: Base login to establish trust
+        scope: 'email,public_profile,pages_show_list', // Step 2: Full permissions now that trust is established
     };
 
     if (workspaceId) {

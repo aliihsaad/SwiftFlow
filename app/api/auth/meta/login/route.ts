@@ -6,12 +6,14 @@ import { getMetaOAuthUrl } from '@/utils/meta-oauth';
  * /api/auth/meta/login
  * 
  * Redirects the user to Facebook's OAuth dialog.
- * Can be called directly or via a link.
+ * Supports two flow types:
+ * - 'login': Basic authentication (email, public_profile)
+ * - 'pages': Full page access (includes page permissions)
  */
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const workspaceId = searchParams.get('workspaceId');
-    const scope = searchParams.get('scope');
+    const flowType = (searchParams.get('flow') || 'pages') as 'login' | 'pages';
 
     if (!workspaceId) {
         return NextResponse.json(
@@ -20,6 +22,6 @@ export async function GET(request: NextRequest) {
         );
     }
 
-    const authUrl = getMetaOAuthUrl(workspaceId, scope || undefined);
+    const authUrl = getMetaOAuthUrl(workspaceId, flowType);
     return NextResponse.redirect(authUrl);
 }

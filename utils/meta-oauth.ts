@@ -1,35 +1,72 @@
 /**
  * Meta/Facebook OAuth Utilities
- * Handles OAuth redirect and token exchange for Facebook Pages integration
+ * Modern two-step flow: Login (auth) vs Pages (business assets)
  */
 
 const META_OAUTH_URL = 'https://www.facebook.com/v24.0/dialog/oauth';
 const META_TOKEN_URL = 'https://graph.facebook.com/v24.0/oauth/access_token';
 
 /**
- * Generate Meta OAuth redirect URL
- * Redirects user to Facebook's OAuth dialog to authorize the app
+ * OAuth Scopes for different flows
+ * Meta's modern pattern: Separate login from business asset access
  */
+export const META_LOGIN_SCOPE = 'email,public_profile';
+
+export const META_PAGES_PERMISSIONS = [
+    'pages_read_engagement',    // Read page data
+    'pages_manage_posts',       // Create/manage posts
+    'pages_manage_metadata',    // Page settings
+    'instagram_basic',          // Instagram account info
+    'instagram_content_publish' // Post to Instagram
+].join(',');
+
+// Combined for page connection flow
+export const META_FULL_SCOPE = `${META_LOGIN_SCOPE},${META_PAGES_PERMISSIONS}`;
+
 /**
- * Generate Meta OAuth redirect URL
- * Redirects user to Facebook's OAuth dialog to authorize the app
- * @param workspaceId Optional workspace ID to persist through the OAuth flow
+ * Generate Meta OAuth URL
+ * @param workspaceId - Workspace to connect (optional)
+ * @param flowType - 'login' for authentication, 'pages' for page access
  */
-export function getMetaOAuthUrl(workspaceId?: string, permissions?: string): string {
+export function getMetaOAuthUrl(
+    workspaceId?: string,
+    flowType: 'login' | 'pages' = 'login'
+): string {
+    console.log('[META_OAUTH] Generating OAuth URL', {
+        flowType,
+        hasAppId: !!process.env.NEXT_PUBLIC_META_APP_ID,
+        hasWorkspaceId: !!workspaceId,
+    });
+
+    const redirectUri = getMetaRedirectUri();
+
+    // Choose scope based on flow type
+    const scope = flowType === 'pages' ? META_FULL_SCOPE : META_LOGIN_SCOPE;
+
     const params: Record<string, string> = {
         client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
-        redirect_uri: getMetaRedirectUri(),
+        redirect_uri: redirectUri,
         response_type: 'code',
-        scope: permissions || 'email,public_profile', // Default to strict, allow override
+        scope,
     };
 
-    if (workspaceId) {
-        params.state = workspaceId;
-    }
+    // Encode flow type in state parameter: "workspaceId:flowType"
+    const state = workspaceId
+        ? `${workspaceId}:${flowType}`
+        : flowType;
+
+    params.state = state;
 
     const queryParams = new URLSearchParams(params);
+    const fullUrl = `${META_OAUTH_URL}?${queryParams.toString()}`;
 
-    return `${META_OAUTH_URL}?${queryParams.toString()}`;
+    console.log('[META_OAUTH] OAuth URL generated', {
+        flowType,
+        scope: flowType === 'pages' ? '[pages permissions]' : scope,
+        redirectUri,
+    });
+
+    return fullUrl;
 }
 
 /**
@@ -48,7 +85,7 @@ export async function exchangeCodeForToken(code: string): Promise<{
     access_token: string;
     token_type: string;
     expires_in?: number;
-    scope?: string; // Added for debugging
+    scope?: string;
 }> {
     const params = new URLSearchParams({
         client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
@@ -71,14 +108,14 @@ export async function exchangeCodeForToken(code: string): Promise<{
 
 /**
  * Frontend helper: Redirect user to Meta OAuth
- * Use this in a button click handler
+ * @param workspaceId - Workspace ID
+ * @param flowType - 'login' or 'pages'
  */
-/**
- * Frontend helper: Redirect user to Meta OAuth
- * Use this in a button click handler
- */
-export function redirectToMetaOAuth(workspaceId?: string, permissions?: string): void {
+export function redirectToMetaOAuth(
+    workspaceId?: string,
+    flowType: 'login' | 'pages' = 'login'
+): void {
     if (typeof window !== 'undefined') {
-        window.location.href = getMetaOAuthUrl(workspaceId, permissions);
+        window.location.href = getMetaOAuthUrl(workspaceId, flowType);
     }
 }

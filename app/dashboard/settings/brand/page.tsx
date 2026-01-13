@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ConnectedAccounts } from "@/components/settings/connected-accounts"
+import { ExternalServicesList } from "./components/external-services-list"
 
 export default async function BrandSettingsPage() {
     const activeWorkspace = await getActiveWorkspace()
@@ -25,6 +26,7 @@ export default async function BrandSettingsPage() {
                 <TabsList>
                     <TabsTrigger value="details">Brand Details</TabsTrigger>
                     <TabsTrigger value="social">Connected Accounts</TabsTrigger>
+                    <TabsTrigger value="services">External Services</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="details">
@@ -33,6 +35,10 @@ export default async function BrandSettingsPage() {
 
                 <TabsContent value="social">
                     <ConnectedAccounts workspaceId={activeWorkspace.id} />
+                </TabsContent>
+
+                <TabsContent value="services">
+                    <ExternalServicesList workspaceId={activeWorkspace.id} />
                 </TabsContent>
             </Tabs>
         </div>

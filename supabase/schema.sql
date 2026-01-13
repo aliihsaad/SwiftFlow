@@ -270,3 +270,25 @@ ALTER TABLE workspace_brand_profiles DISABLE ROW LEVEL SECURITY;
 
 GRANT ALL ON TABLE chat_sessions TO anon, authenticated, service_role;
 ALTER TABLE chat_sessions DISABLE ROW LEVEL SECURITY;
+
+-- =============================================================================
+-- EXTERNAL SERVICES
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS external_services (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+    service_name TEXT NOT NULL,
+    website TEXT,
+    email TEXT,
+    password TEXT,
+    subscription_tier TEXT,
+    price TEXT,
+    api_key TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Permissions
+GRANT ALL ON TABLE external_services TO anon, authenticated, service_role;
+ALTER TABLE external_services DISABLE ROW LEVEL SECURITY;

@@ -3,8 +3,13 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Facebook, Instagram } from "lucide-react"
+import { redirectToMetaOAuth } from "@/utils/meta-oauth"
 
 export function ConnectedAccounts() {
+    const handleFacebookConnect = () => {
+        redirectToMetaOAuth();
+    };
+
     return (
         <Card>
             <CardHeader>
@@ -24,7 +29,9 @@ export function ConnectedAccounts() {
                             <p className="text-sm text-muted-foreground">Not connected</p>
                         </div>
                     </div>
-                    <Button variant="outline">Connect Page</Button>
+                    <Button variant="outline" onClick={handleFacebookConnect}>
+                        Connect Page
+                    </Button>
                 </div>
 
                 <div className="flex items-center justify-between p-4 border rounded-lg">
@@ -37,7 +44,16 @@ export function ConnectedAccounts() {
                             <p className="text-sm text-muted-foreground">Not connected</p>
                         </div>
                     </div>
-                    <Button variant="outline">Connect Business</Button>
+                    <Button variant="outline" disabled>
+                        Connect Business
+                    </Button>
+                </div>
+
+                <div className="text-sm text-muted-foreground">
+                    <p>
+                        <strong>Note:</strong> Instagram Business accounts are connected through Facebook Pages.
+                        Connect your Facebook Page first, and any linked Instagram Business accounts will be available.
+                    </p>
                 </div>
             </CardContent>
         </Card>

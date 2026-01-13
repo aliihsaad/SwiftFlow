@@ -57,72 +57,68 @@ export async function GET(request: NextRequest) {
 
         // 2. Fetch User's Pages
         // This returns individual page access tokens which are needed for publishing
-        let pages = [];
-        try {
-            const pagesResponse = await fetch(`${META_GRAPH_URL}/me/accounts?access_token=${userAccessToken}`);
-            if (pagesResponse.ok) {
-                const pagesData = await pagesResponse.json();
-                pages = pagesData.data || [];
-            } else {
-                console.warn('Could not fetch pages (likely missing permission for Step 1):', await pagesResponse.text());
-            }
-        } catch (fetchError) {
-            console.warn('Error fetching pages:', fetchError);
-            // Continue anyway to complete the login flow for trust establishment
+        const pagesResponse = await fetch(`${META_GRAPH_URL}/me/accounts?access_token=${userAccessToken}`);
+        if (!pagesResponse.ok) {
+            const errorText = await pagesResponse.text();
+            throw new Error(`Failed to fetch Facebook Pages: ${errorText}`);
         }
+        const pagesData = await pagesResponse.json();
+        const pages = pagesData.data || [];
 
         console.log(`Fetched ${pages.length} pages for workspace ${workspaceId}`);
 
-        // 3. Store Pages in Database
+        // 3. Enrich with Instagram Business Accounts and Store
         if (pages.length > 0) {
-            const upsertData = pages.map((page: any) => ({
-                workspace_id: workspaceId,
-                platform: 'facebook',
-                account_name: page.name,
-                account_id: page.id,
-                access_token: page.access_token, // Page Access Token
-                token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // ~60 days default for long-lived
-                metadata: {
+            // Fetch IG details for each page
+            const enrichedPages = await Promise.all(pages.map(async (page: any) => {
+                try {
+                    const igResponse = await fetch(`${META_GRAPH_URL}/${page.id}?fields=instagram_business_account&access_token=${page.access_token}`);
+                    if (igResponse.ok) {
+                        const igData = await igResponse.json();
+                        if (igData.instagram_business_account) {
+                            page.instagram_business_account = igData.instagram_business_account;
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`Failed to fetch IG account for page ${page.name}`, e);
+                }
+                return page;
+            }));
+
+            // Prepare DB operations
+            for (const page of enrichedPages) {
+                const metadata: any = {
                     category: page.category,
                     tasks: page.tasks,
                     user_access_token: userAccessToken // Keep user token just in case
+                };
+
+                if (page.instagram_business_account) {
+                    metadata.instagram_business_account_id = page.instagram_business_account.id;
                 }
-            }));
 
-            const { error: dbError } = await supabaseAdmin
-                .from('social_accounts')
-                .upsert(upsertData, {
-                    onConflict: 'workspace_id,account_id', // Needs Unique constraint on (workspace_id, account_id) or just ID check if we had it
-                    ignoreDuplicates: false
-                });
-
-            // Note: social_accounts schema uses ID as PK. 
-            // Better to delete existing for this platform or check if we can add unique constraint.
-            // For now, let's query existing to update or insert.
-
-            // Simpler approach for now: Loop and Upsert based on query logic or just insert
-            // Since we don't have a unique constraint on (workspace_id, account_id) in the schema provided earlier,
-            // we should technically query first. But to keep it efficient:
-
-            for (const page of pages) {
-                // Check if exists
-                const { data: existing } = await supabaseAdmin
+                // Check if account already exists in this workspace
+                const { data: existingAccount } = await supabaseAdmin
                     .from('social_accounts')
                     .select('id')
                     .eq('workspace_id', workspaceId)
                     .eq('account_id', page.id)
                     .single();
 
-                if (existing) {
+                if (existingAccount) {
+                    // Update existing account
                     await supabaseAdmin
                         .from('social_accounts')
                         .update({
                             account_name: page.name,
                             access_token: page.access_token,
+                            token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+                            metadata: metadata,
                             updated_at: new Date().toISOString()
                         })
-                        .eq('id', existing.id);
+                        .eq('id', existingAccount.id);
                 } else {
+                    // Insert new account
                     await supabaseAdmin
                         .from('social_accounts')
                         .insert({
@@ -131,9 +127,14 @@ export async function GET(request: NextRequest) {
                             account_name: page.name,
                             account_id: page.id,
                             access_token: page.access_token,
-                            metadata: { category: page.category }
+                            token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+                            metadata: metadata
                         });
                 }
+
+                // Optional: If IG exists, auto-create an Instagram 'connected account' entry?
+                // For now, adhering to instructions to just "store the ID". 
+                // It is stored in the Facebook Page's metadata.
             }
         }
 

@@ -130,10 +130,14 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {mediaUrls.map((url, i) => (
                         <div key={i} className="relative aspect-square rounded-xl overflow-hidden border bg-muted group">
-                            {url.match(/\.(mp4|webm|ogg)$/i) ? (
-                                <div className="w-full h-full flex items-center justify-center bg-black/10">
-                                    <Video className="h-8 w-8 text-foreground/50" />
-                                </div>
+                            {url.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+                                <video
+                                    src={url}
+                                    className="w-full h-full object-cover"
+                                    controls
+                                    playsInline
+                                    muted
+                                />
                             ) : (
                                 <img src={url} alt={`Media ${i + 1}`} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
                             )}

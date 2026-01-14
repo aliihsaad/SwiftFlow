@@ -15,7 +15,6 @@ export default function LoginPage() {
     const [password, setPassword] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const [mode, setMode] = useState<'signin' | 'signup'>('signin')
 
     const router = useRouter()
     const supabase = createClient()
@@ -26,26 +25,12 @@ export default function LoginPage() {
         setError(null)
 
         try {
-            if (mode === 'signin') {
-                const { error } = await supabase.auth.signInWithPassword({
-                    email,
-                    password
-                })
-                if (error) throw error
-                router.push('/dashboard')
-            } else {
-                const { error } = await supabase.auth.signUp({
-                    email,
-                    password,
-                    options: {
-                        emailRedirectTo: `${location.origin}/auth/callback`
-                    }
-                })
-                if (error) throw error
-                // Check if session created immediately or needs email confirm
-                // For dev/internal tools, often confirmed automatically if config set
-                router.push('/dashboard')
-            }
+            const { error } = await supabase.auth.signInWithPassword({
+                email,
+                password
+            })
+            if (error) throw error
+            router.push('/dashboard')
         } catch (error: any) {
             console.error(error)
             setError(error.message || "Authentication failed")
@@ -81,51 +66,44 @@ export default function LoginPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Tabs value={mode} onValueChange={(v) => setMode(v as any)} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2 mb-4">
-                            <TabsTrigger value="signin">Sign In</TabsTrigger>
-                            <TabsTrigger value="signup">Sign Up</TabsTrigger>
-                        </TabsList>
-
-                        <form onSubmit={handleAuth} className="grid gap-4">
-                            {error && (
-                                <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/10 rounded-md">
-                                    {error}
-                                </div>
+                    <form onSubmit={handleAuth} className="grid gap-4">
+                        {error && (
+                            <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/10 rounded-md">
+                                {error}
+                            </div>
+                        )}
+                        <div className="grid gap-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input
+                                id="email"
+                                type="email"
+                                placeholder="you@company.com"
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                disabled={isLoading}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="password">Password</Label>
+                            <Input
+                                id="password"
+                                type="password"
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                disabled={isLoading}
+                            />
+                        </div>
+                        <Button type="submit" className="w-full" disabled={isLoading}>
+                            {isLoading ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <KeyRound className="mr-2 h-4 w-4" />
                             )}
-                            <div className="grid gap-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    placeholder="you@company.com"
-                                    required
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    disabled={isLoading}
-                                />
-                            </div>
-                            <div className="grid gap-2">
-                                <Label htmlFor="password">Password</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    required
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    disabled={isLoading}
-                                />
-                            </div>
-                            <Button type="submit" className="w-full" disabled={isLoading}>
-                                {isLoading ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                    <KeyRound className="mr-2 h-4 w-4" />
-                                )}
-                                {mode === 'signin' ? 'Sign In' : 'Create Account'}
-                            </Button>
-                        </form>
-                    </Tabs>
+                            Sign In
+                        </Button>
+                    </form>
 
                     <div className="mt-4 relative">
                         <div className="absolute inset-0 flex items-center">

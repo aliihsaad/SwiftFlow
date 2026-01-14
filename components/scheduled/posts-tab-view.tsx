@@ -11,11 +11,12 @@ interface PostsTabViewProps {
     postedPosts: any[]
     failedPosts: any[]
     workspaceId: string
+    defaultTab?: string
 }
 
-export function PostsTabView({ scheduledPosts, draftPosts, postedPosts, failedPosts, workspaceId }: PostsTabViewProps) {
+export function PostsTabView({ scheduledPosts, draftPosts, postedPosts, failedPosts, workspaceId, defaultTab = "scheduled" }: PostsTabViewProps) {
     return (
-        <Tabs defaultValue="scheduled" className="w-full">
+        <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="grid w-full max-w-2xl grid-cols-4">
                 <TabsTrigger value="scheduled" className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />

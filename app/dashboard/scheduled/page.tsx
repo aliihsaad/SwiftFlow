@@ -2,9 +2,15 @@ import { createClient } from "@/utils/supabase/server"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { PostsTabView } from "@/components/scheduled/posts-tab-view"
 
-export default async function ScheduledPostsPage() {
+export default async function ScheduledPostsPage({
+    searchParams,
+}: {
+    searchParams: { [key: string]: string | string[] | undefined }
+}) {
     const supabase = await createClient()
     const activeWorkspace = await getActiveWorkspace()
+
+    // ... (rest of simple checks)
 
     if (!activeWorkspace) {
         return (
@@ -27,6 +33,7 @@ export default async function ScheduledPostsPage() {
         .select('*')
         .eq('status', 'draft')
         .eq('workspace_id', activeWorkspace.id)
+        // Order drafts by updated_at instead of created_at for better relevance
         .order('updated_at', { ascending: false })
 
     const { data: postedPosts } = await supabase
@@ -43,6 +50,11 @@ export default async function ScheduledPostsPage() {
         .eq('workspace_id', activeWorkspace.id)
         .order('updated_at', { ascending: false })
 
+    // Determine default tab from search params
+    const tab = typeof searchParams.tab === 'string' ? searchParams.tab : 'scheduled'
+    const allowedTabs = ['scheduled', 'drafts', 'posted', 'failed']
+    const defaultTab = allowedTabs.includes(tab) ? tab : 'scheduled'
+
     return (
         <div className="space-y-6">
             <div>
@@ -56,6 +68,7 @@ export default async function ScheduledPostsPage() {
                 postedPosts={postedPosts || []}
                 failedPosts={failedPosts || []}
                 workspaceId={activeWorkspace.id}
+                defaultTab={defaultTab}
             />
         </div>
     )

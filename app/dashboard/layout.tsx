@@ -56,6 +56,15 @@ export default async function DashboardLayout({
                 <main className="flex-1 overflow-y-auto bg-muted/10 p-6">
                     {children}
                 </main>
+                <footer className="flex h-12 items-center justify-between border-t bg-background/95 px-6 text-xs text-muted-foreground">
+                    <span>© 2026 Social Media Manager AI Tool</span>
+                    <nav className="flex items-center gap-4">
+                        <a href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</a>
+                        <a href="/terms" className="hover:text-foreground transition-colors">Terms of Service</a>
+                        <a href="/data-deletion" className="hover:text-foreground transition-colors">Data Deletion</a>
+                        <a href="mailto:info@swiftdigital-s.com" className="hover:text-foreground transition-colors">Contact Support</a>
+                    </nav>
+                </footer>
             </div>
         </div>
     )

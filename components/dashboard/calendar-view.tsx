@@ -3,11 +3,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { Facebook, Instagram } from "lucide-react"
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover"
 
 interface CalendarPost {
     date: Date
     platforms: string[]
     content?: string | null
+    mediaUrl?: string | null
 }
 
 interface CalendarViewProps {
@@ -52,9 +58,10 @@ export function CalendarView({ posts }: CalendarViewProps) {
     }
 
     const monthName = today.toLocaleString('default', { month: 'long' })
+    const isToday = (day: number | null) => day === today.getDate() && currentMonth === today.getMonth()
 
     return (
-        <Card className="col-span-3">
+        <Card>
             <CardHeader>
                 <CardTitle>Content Calendar ({monthName})</CardTitle>
             </CardHeader>
@@ -69,32 +76,70 @@ export function CalendarView({ posts }: CalendarViewProps) {
                         <div
                             key={i}
                             className={cn(
-                                "min-h-[100px] bg-background p-2 relative transition-colors hover:bg-muted/50",
-                                !cell.isCurrentMonth && "bg-muted/30"
+                                "min-h-[60px] bg-background p-2 relative transition-colors hover:bg-muted/50 flex flex-col gap-1",
+                                !cell.isCurrentMonth && "bg-muted/30",
+                                cell.day && isToday(cell.day) && "bg-blue-50/50 dark:bg-blue-900/10 ring-1 ring-inset ring-blue-500/50"
                             )}
                         >
                             {cell.day && (
                                 <>
-                                    <div className="text-sm font-medium mb-1">{cell.day}</div>
-                                    <div className="space-y-1">
+                                    <div className="flex justify-between items-start">
+                                        <span className={cn(
+                                            "text-xs font-medium",
+                                            isToday(cell.day) && "text-blue-600 dark:text-blue-400 font-bold"
+                                        )}>
+                                            {cell.day}
+                                        </span>
+                                        {cell.posts.length > 0 && (
+                                            <span className="text-[10px] bg-primary/10 text-primary px-1 rounded-sm font-medium">
+                                                {cell.posts.length}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="flex flex-wrap content-start gap-1 mt-1">
                                         {cell.posts.map((post, idx) => (
-                                            <div key={idx} className="flex items-center gap-1 text-[10px] bg-accent/50 p-1 rounded border border-border/50" title={post.content || ''}>
-                                                <div className="flex -space-x-1">
-                                                    {post.platforms.includes('facebook') && (
-                                                        <div className="bg-white rounded-full p-0.5 z-10">
-                                                            <Facebook className="h-3 w-3 text-blue-600" />
+                                            <Popover key={idx}>
+                                                <PopoverTrigger>
+                                                    <div
+                                                        className="h-6 w-6 rounded-md bg-cover bg-center transition-transform hover:scale-110 cursor-pointer shadow-sm border border-border"
+                                                        style={{
+                                                            backgroundColor: !post.mediaUrl ? (post.platforms.includes('instagram') ? '#E1306C' : post.platforms.includes('facebook') ? '#1877F2' : '#888') : undefined,
+                                                            backgroundImage: post.mediaUrl ? `url(${post.mediaUrl})` : undefined
+                                                        }}
+                                                    >
+                                                        {!post.mediaUrl && (
+                                                            <div className="w-full h-full flex items-center justify-center opacity-50">
+                                                                <div className="h-2 w-2 rounded-full bg-white" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-60 p-0 text-sm overflow-hidden">
+                                                    {post.mediaUrl && (
+                                                        <div className="w-full h-32 bg-muted relative">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img
+                                                                src={post.mediaUrl}
+                                                                alt="Post preview"
+                                                                className="w-full h-full object-cover"
+                                                            />
                                                         </div>
                                                     )}
-                                                    {post.platforms.includes('instagram') && (
-                                                        <div className="bg-white rounded-full p-0.5 z-20">
-                                                            <Instagram className="h-3 w-3 text-pink-600" />
+                                                    <div className="p-3">
+                                                        <div className="font-semibold mb-1 flex items-center gap-2">
+                                                            {post.date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                                            <div className="flex -space-x-1">
+                                                                {post.platforms.includes('facebook') && <Facebook className="h-3 w-3 text-blue-600" />}
+                                                                {post.platforms.includes('instagram') && <Instagram className="h-3 w-3 text-pink-600" />}
+                                                            </div>
                                                         </div>
-                                                    )}
-                                                </div>
-                                                <span className="truncate">
-                                                    {post.date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                                                </span>
-                                            </div>
+                                                        <p className="text-muted-foreground text-xs line-clamp-3">
+                                                            {post.content || "No content"}
+                                                        </p>
+                                                    </div>
+                                                </PopoverContent>
+                                            </Popover>
                                         ))}
                                     </div>
                                 </>

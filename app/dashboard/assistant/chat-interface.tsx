@@ -49,11 +49,12 @@ import { CarouselPreview } from "./components/carousel-preview"
 import { ImagePreview } from "./components/image-preview"
 import { StyleSelector } from "./components/style-selector"
 import { CarouselStyleSelector } from "./components/carousel-style-selector"
+import { IdeaOptionsSelector } from "./components/idea-options-selector"
 
 interface Message {
     role: 'user' | 'assistant'
     content: string
-    type?: 'text' | 'content_cards' | 'carousel_slides' | 'image' | 'style_selector' | 'carousel_style_selector'
+    type?: 'text' | 'content_cards' | 'carousel_slides' | 'image' | 'style_selector' | 'carousel_style_selector' | 'idea_options_selector'
     data?: any
 }
 
@@ -156,7 +157,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }
     }, [messages, isLoading])
 
-    const [flowState, setFlowState] = useState<'idle' | 'awaiting_description' | 'awaiting_style' | 'awaiting_carousel_topic' | 'awaiting_carousel_style'>('idle')
+    const [flowState, setFlowState] = useState<'idle' | 'awaiting_description' | 'awaiting_style' | 'awaiting_carousel_topic' | 'awaiting_carousel_style' | 'awaiting_idea_options'>('idle')
     const [tempImagePrompt, setTempImagePrompt] = useState("")
     const [tempCarouselTopic, setTempCarouselTopic] = useState("")
     const [generatingSlide, setGeneratingSlide] = useState<number | null>(null)
@@ -346,6 +347,17 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             return
         }
 
+        if (card.functionName === 'generate-ideas') {
+            // Start Ideas Flow
+            setFlowState('awaiting_idea_options')
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: "Let's generate some content ideas! Choose your source and how many ideas you need:",
+                type: 'idea_options_selector'
+            }])
+            return
+        }
+
         setActiveFunction(card.functionName)
         if (card.prompt.endsWith("...") || card.prompt.endsWith(": ")) {
             setInput(card.prompt)
@@ -415,6 +427,28 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             `Create a ${slideCount}-slide Instagram carousel about "${tempCarouselTopic}" in ${style} visual style. Generate engaging content for each slide with captions.`,
             "generate-carousel"
         )
+    }
+
+    const handleIdeaGenerate = async (type: 'auto' | 'custom', count: number, topic?: string) => {
+        setFlowState('idle')
+
+        let prompt = ""
+        let userMessage = ""
+
+        if (type === 'custom' && topic) {
+            userMessage = `Generate ${count} ideas about "${topic}"`
+            prompt = `Generate ${count} unique social media content ideas about "${topic}". For each idea, provide a catchy title and a brief description.`
+        } else {
+            userMessage = `Generate ${count} ideas based on my brand/context`
+            prompt = `Generate ${count} unique social media content ideas based on the brand's industry, voice, and recent activity. For each idea, provide a catchy title and a brief description.`
+        }
+
+        setMessages(prev => [...prev, {
+            role: 'user',
+            content: userMessage
+        }])
+
+        handleSend(prompt, "generate-ideas")
     }
 
     const handleGenerateSlideImage = async (slideNumber: number, prompt: string) => {
@@ -787,6 +821,16 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                     topic={msg.data.topic}
                                                     onGenerate={handleCarouselGenerate}
                                                     isGenerating={isLoading}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* RENDER IDEA OPTIONS SELECTOR */}
+                                        {msg.type === 'idea_options_selector' && (
+                                            <div className="w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
+                                                <IdeaOptionsSelector
+                                                    onGenerate={handleIdeaGenerate}
+                                                    isLoading={isLoading}
                                                 />
                                             </div>
                                         )}

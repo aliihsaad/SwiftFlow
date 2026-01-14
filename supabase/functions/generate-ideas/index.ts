@@ -104,7 +104,7 @@ Use this brand context to generate highly relevant, on-brand content ideas.
             
             ${brandContext}
 
-            Your goal is to generate 5 high-quality, engaging content ideas based on the user's input.
+            Your goal is to generate high-quality, engaging content ideas based on the user's input.
             
             RETURN JSON ONLY. The response must match this schema:
             {
@@ -122,7 +122,7 @@ Use this brand context to generate highly relevant, on-brand content ideas.
             Guidelines:
             1. Title should be punchy and scroll-stopping.
             2. Body should be actionable and align with the brand voice.
-            3. Provide exactly 5 ideas.
+            3. Provide the number of ideas requested by the user (default to 5 if not specified).
             4. Tailor content to the target audience and industry.`,
             generationConfig: {
                 temperature: 0.8,

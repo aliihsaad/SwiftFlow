@@ -20,15 +20,28 @@ import {
     ArrowUp,
     Copy,
     RefreshCw,
-    History
+    History,
+    Trash2
 } from "lucide-react"
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select"
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { createClient } from "@/utils/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
 import { ContentCard } from "./components/content-card"
@@ -497,6 +510,22 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
     const router = useRouter()
 
+    const handleDeleteSession = async (id: string) => {
+        try {
+            await fetch(`/api/chat/sessions/${id}`, { method: 'DELETE' })
+            setSessions(prev => prev.filter(s => s.id !== id))
+            if (sessionId === id) {
+                // If we deleted the active session, switch to new
+                loadSession('new')
+                toast({ title: "Chat deleted", description: "Session removed from history." })
+            } else {
+                toast({ title: "Chat deleted" })
+            }
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to delete chat" })
+        }
+    }
+
     // Handlers for Image Actions
     const handleDownloadImage = (url: string) => {
         const link = document.createElement('a')
@@ -528,19 +557,93 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Assistant Active</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Select value={sessionId || "new"} onValueChange={loadSession}>
-                        <SelectTrigger className="w-[180px] h-8 rounded-lg border-muted-foreground/20 bg-background/50 text-xs">
-                            <SelectValue placeholder="Chat History" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="new">New Chat</SelectItem>
-                            {sessions.map(s => (
-                                <SelectItem key={s.id} value={s.id}>
-                                    {s.title || "Untitled Chat"}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" size="icon" className="h-8 w-8 bg-background/50 border-muted-foreground/20" title="Chat History">
+                                <History className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                                <DialogTitle>Chat History</DialogTitle>
+                                <DialogDescription>
+                                    Select a previous conversation to resume or start a new chat.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="flex flex-col gap-4 mt-2">
+                                <div className="flex justify-end">
+                                    <Button
+                                        size="icon"
+                                        variant="outline"
+                                        onClick={() => {
+                                            loadSession('new')
+                                            setActiveFunction("chat-assistant")
+                                            toast({ title: "New Chat Started", duration: 1000 })
+                                        }}
+                                        title="New Chat"
+                                    >
+                                        <RefreshCw className="h-4 w-4" />
+                                    </Button>
+                                </div>
+
+                                <ScrollArea className="h-[300px] pr-4">
+                                    <div className="space-y-2">
+                                        {sessions.map(s => (
+                                            <div
+                                                key={s.id}
+                                                className={`flex items-center justify-between p-2 rounded-lg border transition-colors ${s.id === sessionId ? 'bg-accent border-accent-foreground/20' : 'hover:bg-accent/50 border-transparent'
+                                                    }`}
+                                            >
+                                                <button
+                                                    onClick={() => loadSession(s.id)}
+                                                    className="flex-1 text-left text-sm truncate px-2"
+                                                >
+                                                    {s.title || "Untitled Chat"}
+                                                </button>
+
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-50"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </AlertDialogTrigger>
+                                                    <AlertDialogContent>
+                                                        <AlertDialogHeader>
+                                                            <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
+                                                            <AlertDialogDescription>
+                                                                This action cannot be undone. This will permanently delete the chat history.
+                                                            </AlertDialogDescription>
+                                                        </AlertDialogHeader>
+                                                        <AlertDialogFooter>
+                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    handleDeleteSession(s.id)
+                                                                }}
+                                                                className="bg-red-500 hover:bg-red-600 focus:ring-red-500"
+                                                            >
+                                                                Delete
+                                                            </AlertDialogAction>
+                                                        </AlertDialogFooter>
+                                                    </AlertDialogContent>
+                                                </AlertDialog>
+                                            </div>
+                                        ))}
+                                        {sessions.length === 0 && (
+                                            <div className="text-center py-8 text-muted-foreground text-sm">
+                                                No chat history yet.
+                                            </div>
+                                        )}
+                                    </div>
+                                </ScrollArea>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                     <Button
                         variant="ghost"
                         size="icon"

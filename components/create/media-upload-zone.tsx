@@ -1,9 +1,26 @@
 import { useState, useCallback } from "react"
 import { useDropzone } from "react-dropzone"
-import { Upload, X, Video, Image as ImageIcon, Wand2, ArrowUp } from "lucide-react"
+import { Upload, X, Wand2, ArrowUp, GripVertical } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent
+} from '@dnd-kit/core'
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    rectSortingStrategy,
+    useSortable
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface MediaUploadZoneProps {
     mediaUrls: string[]
@@ -12,10 +29,84 @@ interface MediaUploadZoneProps {
     isGenerating?: boolean
 }
 
+// --- Sortable Item Component ---
+function SortableMediaItem({ url, index, onRemove }: { url: string, index: number, onRemove: (index: number) => void }) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: url })
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 10 : 1,
+        opacity: isDragging ? 0.5 : 1,
+    }
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className="relative aspect-square rounded-xl overflow-hidden border bg-muted group touch-none"
+        >
+            {/* Drag Handle - Now a dedicated Top-Left button */}
+            <div
+                {...attributes}
+                {...listeners}
+                className="absolute top-2 left-2 z-30 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+            >
+                <GripVertical className="h-3 w-3" />
+            </div>
+
+            {url.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+                <video
+                    src={url}
+                    className="w-full h-full object-cover"
+                    controls
+                    playsInline
+                    muted
+                />
+            ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                    src={url}
+                    alt={`Media ${index + 1}`}
+                    className="w-full h-full object-cover"
+                />
+            )}
+
+            <button
+                onClick={(e) => {
+                    e.stopPropagation()
+                    onRemove(index)
+                }}
+                className="absolute top-2 right-2 z-30 p-1.5 rounded-full bg-black/50 text-white hover:bg-red-500/90 transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm cursor-pointer"
+            >
+                <X className="h-3 w-3" />
+            </button>
+
+            <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-sm text-white text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                {index + 1}
+            </div>
+        </div>
+    )
+}
+
 export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGenerating }: MediaUploadZoneProps) {
     const [isUploading, setIsUploading] = useState(false)
     const [aiPrompt, setAiPrompt] = useState("")
     const supabase = createClient()
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    )
 
     // --- Dropping Logic (Reused) ---
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
@@ -57,6 +148,18 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
         onMediaChange(newUrls)
     }
 
+    // --- Drag Handler ---
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event
+
+        if (over && active.id !== over.id) {
+            const oldIndex = mediaUrls.indexOf(active.id as string)
+            const newIndex = mediaUrls.indexOf(over.id as string)
+
+            onMediaChange(arrayMove(mediaUrls, oldIndex, newIndex))
+        }
+    }
+
     // --- AI Handler ---
     const handleAiSubmit = () => {
         if (!aiPrompt.trim() || !onAiGenerate) return
@@ -67,7 +170,6 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
     return (
         <div className="space-y-4">
 
-            {/* Split View Dropzones */}
             {/* Split View Dropzones */}
             {mediaUrls.length < 10 && (
                 <div className="grid grid-cols-2 gap-4">
@@ -125,36 +227,29 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
                 </div>
             )}
 
-            {/* Media Gallery Grid */}
+            {/* Media Gallery Grid - Now Sortable */}
             {mediaUrls.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    {mediaUrls.map((url, i) => (
-                        <div key={i} className="relative aspect-square rounded-xl overflow-hidden border bg-muted group">
-                            {url.match(/\.(mp4|webm|ogg|mov)$/i) ? (
-                                <video
-                                    src={url}
-                                    className="w-full h-full object-cover"
-                                    controls
-                                    playsInline
-                                    muted
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={handleDragEnd}
+                >
+                    <SortableContext
+                        items={mediaUrls}
+                        strategy={rectSortingStrategy}
+                    >
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                            {mediaUrls.map((url, i) => (
+                                <SortableMediaItem
+                                    key={url}
+                                    url={url}
+                                    index={i}
+                                    onRemove={removeMedia}
                                 />
-                            ) : (
-                                <img src={url} alt={`Media ${i + 1}`} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                            )}
-
-                            <button
-                                onClick={() => removeMedia(i)}
-                                className="absolute top-2 right-2 p-1.5 rounded-full bg-black/50 text-white hover:bg-red-500/90 transition-all opacity-0 group-hover:opacity-100 backdrop-blur-sm"
-                            >
-                                <X className="h-3 w-3" />
-                            </button>
-
-                            <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-sm text-white text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                                {i + 1}
-                            </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
+                    </SortableContext>
+                </DndContext>
             )}
         </div>
     )

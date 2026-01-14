@@ -15,14 +15,16 @@ import { ChevronsUpDown, Plus, Settings, Check } from "lucide-react"
 import { Workspace } from "@/types/workspace"
 import { switchWorkspace } from "@/app/actions/workspace"
 import { AddWorkspaceModal } from "@/components/workspace/add-workspace-modal"
+import { cn } from "@/lib/utils"
 
 interface WorkspaceSwitcherProps {
     activeWorkspace: Workspace | null
     workspaces: Workspace[]
     onAddClick?: () => void
+    isCollapsed?: boolean
 }
 
-export function WorkspaceSwitcher({ activeWorkspace, workspaces }: WorkspaceSwitcherProps) {
+export function WorkspaceSwitcher({ activeWorkspace, workspaces, isCollapsed }: WorkspaceSwitcherProps) {
     const [isPending, startTransition] = useTransition()
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const router = useRouter()
@@ -31,12 +33,15 @@ export function WorkspaceSwitcher({ activeWorkspace, workspaces }: WorkspaceSwit
         startTransition(async () => {
             try {
                 await switchWorkspace(workspaceId)
-                router.refresh() // Reload data for new context
+                router.refresh()
             } catch (error) {
                 console.error("Failed to switch workspace", error)
             }
         })
     }
+
+    // Get initials for avatar
+    const initial = activeWorkspace?.name.charAt(0).toUpperCase() || "W"
 
     return (
         <>
@@ -44,34 +49,59 @@ export function WorkspaceSwitcher({ activeWorkspace, workspaces }: WorkspaceSwit
                 <DropdownMenuTrigger asChild>
                     <Button
                         variant="ghost"
-                        className="w-full justify-between h-12 px-2 hover:bg-slate-800/50 mb-4 border border-slate-700/50"
+                        size={isCollapsed ? "icon" : "default"}
+                        className={cn(
+                            "w-full mb-2 transition-all duration-200",
+                            isCollapsed
+                                ? "h-10 w-10 p-0 rounded-lg bg-primary/10 hover:bg-primary/20"
+                                : "h-14 px-3 justify-between hover:bg-accent border border-transparent hover:border-border/50"
+                        )}
+                        title={isCollapsed ? activeWorkspace?.name : undefined}
                     >
-                        <div className="flex flex-col items-start gap-1 overflow-hidden">
-                            <span className="text-sm font-semibold truncate w-full text-left">
-                                {activeWorkspace?.name || "Select Workspace"}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                                {activeWorkspace ? 'Free Plan' : 'No Active Workspace'}
-                            </span>
+                        {/* Avatar / Icon */}
+                        <div className={cn(
+                            "flex items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold shrink-0 transition-all",
+                            isCollapsed ? "h-6 w-6 text-xs" : "h-8 w-8 text-sm"
+                        )}>
+                            {initial}
                         </div>
-                        <ChevronsUpDown className="h-4 w-4 text-muted-foreground shrink-0 opacity-50" />
+
+                        {/* Text Details (Hidden when collapsed) */}
+                        {!isCollapsed && (
+                            <div className="flex flex-col items-start gap-0.5 ml-3 flex-1 overflow-hidden">
+                                <span className="text-sm font-semibold truncate w-full text-left">
+                                    {activeWorkspace?.name || "Select Workspace"}
+                                </span>
+                                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                                    Free Plan
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Chevron (Hidden when collapsed) */}
+                        {!isCollapsed && (
+                            <ChevronsUpDown className="h-4 w-4 text-muted-foreground shrink-0 opacity-50 ml-2" />
+                        )}
                     </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-64" align="start">
-                    <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                <DropdownMenuContent className="w-64" align="start" side={isCollapsed ? "right" : "bottom"}>
+                    <DropdownMenuLabel className="text-xs font-normal text-muted-foreground uppercase tracking-wider">
                         Switch Workspace
                     </DropdownMenuLabel>
                     {workspaces.map((ws) => (
                         <DropdownMenuItem
                             key={ws.id}
                             onSelect={() => handleSwitch(ws.id)}
-                            className="gap-2 cursor-pointer"
+                            className="gap-3 cursor-pointer py-2"
                         >
-                            <div className="flex items-center justify-center h-6 w-6 rounded bg-primary/10 text-primary text-xs font-medium">
-                                {ws.name.substring(0, 2).toUpperCase()}
+                            <div className="flex items-center justify-center h-8 w-8 rounded-md bg-primary/10 text-primary text-xs font-bold">
+                                {ws.name.substring(0, 1).toUpperCase()}
                             </div>
-                            <span className="truncate flex-1">{ws.name}</span>
-                            {activeWorkspace?.id === ws.id && <Check className="h-4 w-4" />}
+                            <div className="flex flex-col gap-0.5 flex-1 overflow-hidden">
+                                <span className="truncate font-medium">{ws.name}</span>
+                                <span className="text-[10px] text-muted-foreground">Free Plan</span>
+                            </div>
+                            {activeWorkspace?.id === ws.id && <Check className="h-4 w-4 text-primary" />}
                         </DropdownMenuItem>
                     ))}
                     <DropdownMenuSeparator />

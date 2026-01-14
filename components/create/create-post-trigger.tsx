@@ -1,29 +1,36 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
+import { useState } from "react"
 import { CreatePostModal } from "@/components/create/create-post-modal"
-import { PlusCircle } from "lucide-react"
 
-export function CreatePostTrigger({ workspaceId }: { workspaceId: string }) {
+interface CreatePostTriggerProps {
+    workspaceId?: string
+    children?: React.ReactNode
+}
+
+function getCookie(name: string): string | undefined {
+    if (typeof window === 'undefined') return undefined;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()?.split(';').shift();
+}
+
+export function CreatePostTrigger({ workspaceId, children }: CreatePostTriggerProps) {
     const [isModalOpen, setIsModalOpen] = useState(false)
 
-    // Auto-open for testing convenience or user expectation
-    useEffect(() => {
-        setIsModalOpen(true)
-    }, [])
+    // Get workspace ID from cookies if not provided
+    const activeWorkspaceId = workspaceId || getCookie("active_workspace_id") || ""
 
     return (
         <>
-            <Button size="lg" onClick={() => setIsModalOpen(true)} className="gap-2">
-                <PlusCircle className="h-5 w-5" />
-                Open Creator
-            </Button>
+            <div onClick={() => setIsModalOpen(true)}>
+                {children}
+            </div>
 
             <CreatePostModal
                 open={isModalOpen}
                 onOpenChange={setIsModalOpen}
-                workspaceId={workspaceId}
+                workspaceId={activeWorkspaceId}
             />
         </>
     )

@@ -256,15 +256,10 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId }:
                 <DialogDescription className="sr-only">Create a new social media post for your platforms.</DialogDescription>
 
                 {/* Header */}
-                <div className="flex items-center justify-between px-5 py-3 border-b">
-                    <div className="flex items-center gap-2">
-                        <Plus className="h-4 w-4" />
-                        <h2 className="text-base font-medium">Create Post</h2>
-                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                    </div>
-                    <button onClick={() => onOpenChange(false)} className="text-muted-foreground hover:text-foreground">
-                        <X className="h-5 w-5" />
-                    </button>
+                <div className="flex items-center gap-2 px-5 py-3 border-b">
+                    <Plus className="h-4 w-4" />
+                    <h2 className="text-base font-medium">Create Post</h2>
+                    <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                 </div>
 
                 {/* Scrollable Content */}

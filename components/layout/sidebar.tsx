@@ -24,13 +24,13 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { CreatePostTrigger } from "@/components/create/create-post-trigger"
 
 import { Workspace } from "@/types/workspace"
 import { WorkspaceSwitcher } from "@/components/layout/workspace-switcher"
 
 const sidebarItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-    { icon: PenSquare, label: "Create Post", href: "/dashboard/create" },
     { icon: CalendarDays, label: "Scheduled", href: "/dashboard/scheduled" },
     { icon: Bot, label: "AI Assistant", href: "/dashboard/assistant" },
     { icon: BarChart3, label: "Analytics", href: "/dashboard/analytics" },
@@ -67,6 +67,34 @@ export function Sidebar({ workspaces, activeWorkspace }: SidebarProps) {
                 {/* Navigation */}
                 <div className="flex-1 overflow-y-auto py-6 px-3">
                     <nav className="grid gap-1.5">
+                        {/* Create Post Modal Trigger */}
+                        {isCollapsed ? (
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <CreatePostTrigger>
+                                        <Button
+                                            variant="default"
+                                            className="justify-center px-2 h-10 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white"
+                                        >
+                                            <PenSquare className="h-5 w-5 shrink-0" />
+                                        </Button>
+                                    </CreatePostTrigger>
+                                </TooltipTrigger>
+                                <TooltipContent side="right">Create Post</TooltipContent>
+                            </Tooltip>
+                        ) : (
+                            <CreatePostTrigger>
+                                <Button
+                                    variant="default"
+                                    className="w-full justify-start gap-3 px-3 py-2.5 h-auto text-sm font-medium bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white shadow-lg shadow-purple-500/20"
+                                >
+                                    <PenSquare className="h-5 w-5 shrink-0" />
+                                    <span className="truncate">Create Post</span>
+                                </Button>
+                            </CreatePostTrigger>
+                        )}
+
+                        {/* Regular Navigation Items */}
                         {sidebarItems.map((item, index) => {
                             const isActive = pathname === item.href
                             const LinkComponent = (

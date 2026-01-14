@@ -127,12 +127,23 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                 {posts.map((post) => (
                     <Card key={post.id} className="overflow-hidden group relative">
                         {post.media_urls && post.media_urls.length > 0 && (
-                            <div className="aspect-video w-full bg-muted/20 relative">
-                                <img
-                                    src={post.media_urls[0]}
-                                    alt="Post media"
-                                    className="w-full h-full object-cover"
-                                />
+                            <div className="aspect-video w-full bg-muted/20 relative overflow-hidden">
+                                {post.media_urls[0].match(/\.(mp4|webm|ogg|mov)$/i) ? (
+                                    <video
+                                        src={post.media_urls[0]}
+                                        className="w-full h-full object-cover pointer-events-none"
+                                        playsInline
+                                        muted
+                                        preload="metadata"
+                                    />
+                                ) : (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={post.media_urls[0]}
+                                        alt="Post media"
+                                        className="w-full h-full object-cover"
+                                    />
+                                )}
                             </div>
                         )}
                         <CardContent className="pt-6">
@@ -184,11 +195,12 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                                 })()}
                             </div>
 
-                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+
+                            <div className="absolute top-2 right-2 flex gap-1">
                                 <Button
                                     size="icon"
                                     variant="secondary"
-                                    className="h-8 w-8 shadow-sm"
+                                    className="h-8 w-8 shadow-sm bg-background/90 hover:bg-background"
                                     onClick={() => handleEdit(post)}
                                 >
                                     <Pencil className="h-4 w-4" />

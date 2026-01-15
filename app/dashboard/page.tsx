@@ -46,40 +46,50 @@ export default async function DashboardPage() {
     // 2. Fetch Recent Posts for Chart & Activity
     const { data: posts } = await supabase
         .from('posts')
-        .select('created_at, status, scheduled_for, content, platforms')
+        .select('created_at, status, scheduled_for, published_at, content, platforms')
         .eq('workspace_id', activeWorkspace.id)
         .order('created_at', { ascending: false })
-        .limit(50)
+        .limit(100)
+
+    // Generate last 7 days + next 7 days
+    const dates = []
+    const today = new Date()
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(today)
+        d.setDate(d.getDate() - i)
+        dates.push(d)
+    }
+    for (let i = 1; i <= 7; i++) {
+        const d = new Date(today)
+        d.setDate(d.getDate() + i)
+        dates.push(d)
+    }
 
     // Aggregate data for chart
-    const chartData = posts ? posts.reduce((acc: any[], post) => {
-        const day = new Date(post.created_at).toLocaleDateString('en-US', { weekday: 'short' })
-        const existing = acc.find((item: any) => item.day === day)
-        if (existing) {
-            if (post.status === 'scheduled') existing.scheduled++
-            if (post.status === 'posted') existing.posted++
-        } else {
-            acc.push({
-                day,
-                scheduled: post.status === 'scheduled' ? 1 : 0,
-                posted: post.status === 'posted' ? 1 : 0,
-                // Mock previous period data for visual demonstration
-                scheduledPrev: Math.floor(Math.random() * 3),
-                postedPrev: Math.floor(Math.random() * 3)
-            })
-        }
-        return acc
-    }, []).slice(0, 7) : []
+    const chartMap = new Map()
+    dates.forEach(date => {
+        const key = date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' })
+        chartMap.set(key, { day: key, scheduled: 0, posted: 0 })
+    })
 
-    const safeChartData = chartData.length > 0 ? chartData : [
-        { day: 'Mon', scheduled: 0, posted: 0, scheduledPrev: 0, postedPrev: 0 },
-        { day: 'Tue', scheduled: 0, posted: 0, scheduledPrev: 0, postedPrev: 0 },
-        { day: 'Wed', scheduled: 0, posted: 0, scheduledPrev: 0, postedPrev: 0 },
-        { day: 'Thu', scheduled: 0, posted: 0, scheduledPrev: 0, postedPrev: 0 },
-        { day: 'Fri', scheduled: 0, posted: 0, scheduledPrev: 0, postedPrev: 0 },
-        { day: 'Sat', scheduled: 0, posted: 0, scheduledPrev: 0, postedPrev: 0 },
-        { day: 'Sun', scheduled: 0, posted: 0, scheduledPrev: 0, postedPrev: 0 },
-    ]
+    if (posts) {
+        posts.forEach(post => {
+            let dateKey = ''
+            if (post.status === 'posted' && post.published_at) {
+                dateKey = new Date(post.published_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' })
+                if (chartMap.has(dateKey)) {
+                    chartMap.get(dateKey).posted++
+                }
+            } else if (post.status === 'scheduled' && post.scheduled_for) {
+                dateKey = new Date(post.scheduled_for).toLocaleDateString('en-US', { month: 'short', day: '2-digit' })
+                if (chartMap.has(dateKey)) {
+                    chartMap.get(dateKey).scheduled++
+                }
+            }
+        })
+    }
+
+    const safeChartData = Array.from(chartMap.values())
 
     // 3. Calendar posts (Upcoming Scheduled)
     const { data: scheduledPosts } = await supabase

@@ -1,6 +1,6 @@
 "use client"
 
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from "recharts"
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -10,10 +10,9 @@ interface PostsChartProps {
         day: string
         scheduled: number
         posted: number
-        scheduledPrev?: number // Comparison data
-        postedPrev?: number // Comparison data
     }[]
 }
+
 
 export function PostsChart({ data }: PostsChartProps) {
     return (
@@ -42,7 +41,7 @@ export function PostsChart({ data }: PostsChartProps) {
             </CardHeader>
             <CardContent className="pl-2 pr-4 pt-6">
                 <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <AreaChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                         <defs>
                             <linearGradient id="colorPosted" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
@@ -74,6 +73,7 @@ export function PostsChart({ data }: PostsChartProps) {
                             axisLine={false}
                             tickFormatter={(value) => `${value}`}
                             width={35}
+                            allowDecimals={false}
                         />
                         <Tooltip
                             contentStyle={{
@@ -92,52 +92,29 @@ export function PostsChart({ data }: PostsChartProps) {
                         />
 
                         {/* Current Period - Posted */}
-                        <Line
+                        <Area
                             type="monotone"
                             dataKey="posted"
                             name="Posted"
                             stroke="#10b981"
-                            strokeWidth={4}
-                            activeDot={{
-                                r: 7,
-                                fill: '#10b981',
-                                strokeWidth: 3,
-                                stroke: '#ffffff',
-                                filter: 'drop-shadow(0px 2px 4px rgba(16, 185, 129, 0.4))'
-                            }}
-                            dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#ffffff' }}
+                            fillOpacity={1}
+                            fill="url(#colorPosted)"
+                            strokeWidth={2}
                         />
 
                         {/* Current Period - Scheduled */}
-                        <Line
+                        <Area
                             type="monotone"
                             dataKey="scheduled"
                             name="Scheduled"
                             stroke="#3b82f6"
-                            strokeWidth={4}
-                            activeDot={{
-                                r: 7,
-                                fill: '#3b82f6',
-                                strokeWidth: 3,
-                                stroke: '#ffffff',
-                                filter: 'drop-shadow(0px 2px 4px rgba(59, 130, 246, 0.4))'
-                            }}
-                            dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#ffffff' }}
+                            fillOpacity={1}
+                            fill="url(#colorScheduled)"
+                            strokeWidth={2}
                         />
 
-                        {/* Previous Period (Dotted) */}
-                        <Line
-                            type="monotone"
-                            dataKey="postedPrev"
-                            name="Posted (Prev)"
-                            stroke="#10b981"
-                            strokeWidth={2}
-                            strokeDasharray="6 4"
-                            strokeOpacity={0.35}
-                            dot={false}
-                            activeDot={false}
-                        />
-                    </LineChart>
+
+                    </AreaChart>
                 </ResponsiveContainer>
             </CardContent>
         </Card>

@@ -3,6 +3,7 @@ import { PostsChart } from "@/components/dashboard/posts-chart"
 import { CalendarView } from "@/components/dashboard/calendar-view"
 import { QuickActions } from "@/components/dashboard/quick-actions"
 import { RecentActivityDropdown, RecentAction } from "@/components/dashboard/recent-activity-dropdown"
+import { CreatePostTrigger } from "@/components/create/create-post-trigger"
 import { Button } from "@/components/ui/button"
 import { Plus, ArrowRight } from "lucide-react"
 import Link from "next/link"
@@ -97,6 +98,7 @@ export default async function DashboardPage() {
         }
 
         return {
+            id: p.id,
             date: new Date(p.scheduled_for),
             platforms: Array.isArray(p.platforms) ? p.platforms : [],
             content: p.content,
@@ -162,7 +164,7 @@ export default async function DashboardPage() {
                 postedCount={postedCount || 0}
             />
 
-            <QuickActions />
+            <QuickActions workspaceId={activeWorkspace.id} />
 
             {posts && posts.length === 0 ? (
                 /* Improved Empty State */
@@ -175,21 +177,17 @@ export default async function DashboardPage() {
                         <p className="mt-2 text-sm text-muted-foreground mb-6">
                             You haven't created any content yet. Start by creating your first post to engage your audience!
                         </p>
-                        <Link href="/dashboard/create">
-                            <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                        <CreatePostTrigger workspaceId={activeWorkspace.id}>
+                            <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer">
                                 Publish your first post <ArrowRight className="ml-2 h-4 w-4" />
                             </Button>
-                        </Link>
+                        </CreatePostTrigger>
                     </div>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-                    <div className="col-span-1 md:col-span-7">
-                        <PostsChart data={safeChartData} />
-                    </div>
-                    <div className="col-span-1 md:col-span-5">
-                        <CalendarView posts={calendarPosts} />
-                    </div>
+                <div className="space-y-6">
+                    <PostsChart data={safeChartData} />
+                    <CalendarView posts={calendarPosts} />
                 </div>
             )}
         </div>

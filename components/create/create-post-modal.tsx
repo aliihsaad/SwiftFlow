@@ -19,6 +19,8 @@ interface CreatePostModalProps {
     onOpenChange: (open: boolean) => void
     postToEdit?: any
     workspaceId: string
+    initialCaption?: string
+    initialMedia?: string[]
 }
 
 const PLATFORMS = [
@@ -29,7 +31,7 @@ const PLATFORMS = [
 
 const SUGGESTED_HASHTAGS = ['#OpenSourceLife', '#CodingCommunity', '#SkilledDeveloper', '#CareerGrowth']
 
-export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId }: CreatePostModalProps) {
+export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, initialCaption, initialMedia }: CreatePostModalProps) {
     // --- State ---
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<string>('all')
@@ -39,7 +41,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId }:
     const [isGeneratingAI, setIsGeneratingAI] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    // Check for draft data or edit mode when modal opens
+    // Check for props, draft data, or edit mode when modal opens
     useEffect(() => {
         if (!open) return
 
@@ -49,7 +51,14 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId }:
             if (postToEdit.scheduled_for) {
                 setScheduledAt(new Date(postToEdit.scheduled_for))
             }
-            return // Skip draft data loading if editing
+            return // Skip other loading sources if editing
+        }
+
+        // Check for props first (from assistant modal trigger)
+        if (initialCaption || (initialMedia && initialMedia.length > 0)) {
+            if (initialCaption) setGlobalCaption(initialCaption)
+            if (initialMedia && initialMedia.length > 0) setGlobalMedia(initialMedia)
+            return // Skip session storage if we have props
         }
 
         if (typeof window !== 'undefined') {

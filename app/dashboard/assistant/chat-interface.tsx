@@ -50,6 +50,7 @@ import { ImagePreview } from "./components/image-preview"
 import { StyleSelector } from "./components/style-selector"
 import { CarouselStyleSelector } from "./components/carousel-style-selector"
 import { IdeaOptionsSelector } from "./components/idea-options-selector"
+import { CreatePostModal } from "@/components/create/create-post-modal"
 
 interface Message {
     role: 'user' | 'assistant'
@@ -161,6 +162,11 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
     const [tempImagePrompt, setTempImagePrompt] = useState("")
     const [tempCarouselTopic, setTempCarouselTopic] = useState("")
     const [generatingSlide, setGeneratingSlide] = useState<number | null>(null)
+
+    // Create Post Modal State
+    const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false)
+    const [draftCaption, setDraftCaption] = useState("")
+    const [draftMedia, setDraftMedia] = useState<string[]>([])
 
     // Handlers for Content Card Actions
     const handleGenerateImage = (id: string, text: string) => {
@@ -529,17 +535,17 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
     }
 
     const handleSchedule = (id: string, text: string, images?: string | string[]) => {
-        // Store draft data
-        if (typeof window !== 'undefined') {
-            sessionStorage.setItem('draft_post_caption', text)
-            if (images) {
-                const mediaArray = Array.isArray(images) ? images : [images]
-                sessionStorage.setItem('draft_post_media', JSON.stringify(mediaArray))
-            }
+        // Set draft content for modal
+        setDraftCaption(text)
+        if (images) {
+            const mediaArray = Array.isArray(images) ? images : [images]
+            setDraftMedia(mediaArray)
+        } else {
+            setDraftMedia([])
         }
 
         toast({ title: "Opening Scheduler...", description: "Draft created from idea." })
-        router.push('/dashboard/create')
+        setIsCreatePostModalOpen(true)
     }
 
     const router = useRouter()
@@ -571,15 +577,12 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
     }
 
     const handleUseImage = (url: string) => {
-        // Store in session storage to pass to the Create Post page
-        // We use session storage because Data URLs are too large for URL params
-        if (typeof window !== 'undefined') {
-            sessionStorage.setItem('draft_post_media', JSON.stringify([url]))
-            sessionStorage.setItem('draft_post_caption', messages[messages.length - 1]?.content || '') // Try to capture context
-        }
+        // Set draft content for modal
+        setDraftMedia([url])
+        setDraftCaption(messages[messages.length - 1]?.content || '')
 
         toast({ title: "Opening Editor...", description: "Image attached to new post draft." })
-        router.push('/dashboard/create')
+        setIsCreatePostModalOpen(true)
     }
 
     return (
@@ -889,6 +892,22 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                     </div>
                 </div>
             </div>
+
+            {/* Create Post Modal */}
+            <CreatePostModal
+                open={isCreatePostModalOpen}
+                onOpenChange={(open) => {
+                    setIsCreatePostModalOpen(open)
+                    if (!open) {
+                        // Clear draft when modal closes
+                        setDraftCaption("")
+                        setDraftMedia([])
+                    }
+                }}
+                workspaceId={workspaceId || ""}
+                initialCaption={draftCaption}
+                initialMedia={draftMedia}
+            />
         </div>
     )
 }

@@ -16,6 +16,7 @@ A powerful, AI-driven social media management platform built with Next.js, Supab
 - **Multi-Function AI**: Switch between different AI capabilities (ideas, captions, images)
 - **Context-Aware**: Remembers your brand voice, target audience, and industry
 - **Session Management**: Organize conversations with automatic saving and history dropdown
+- **Direct Post Creation**: "Schedule" and "Use in Post" buttons open creation modal with AI-generated content pre-filled
 
 ### 📅 Content Management
 - **Post Scheduling**: Schedule posts across multiple platforms
@@ -23,7 +24,14 @@ A powerful, AI-driven social media management platform built with Next.js, Supab
 - **Tab-Based Interface**: Quick navigation between post statuses with visual counts
 - **Draft Management**: Save and edit drafts before publishing
 - **Delete with Confirmation**: Remove posts from any status with safety confirmation
-- **Calendar View**: Visual calendar with platform-specific post indicators
+- **Interactive Calendar**: Visual calendar with drag-and-drop rescheduling
+  - **Drag-and-Drop Rescheduling**: Move posts between dates with instant visual feedback
+  - **Optimistic Updates**: Posts move immediately while API updates in background
+  - **Disabled Past Dates**: Prevents scheduling or moving posts to past dates
+  - **Platform Indicators**: Color-coded post badges (Instagram pink, Facebook blue)
+  - **Month Navigation**: Browse through any month of the year
+  - **Post Preview**: Hover over posts to see content, media, and platforms
+- **Modal-Based Creation**: Create posts from anywhere via modal (no page navigation)
 - **Multi-Platform Support**: Instagram, Facebook, LinkedIn, Twitter
 - **Smart Empty States**: Context-aware messages for each post status
 
@@ -54,6 +62,7 @@ A powerful, AI-driven social media management platform built with Next.js, Supab
 - **Components**: Radix UI, shadcn/ui
 - **Animations**: Framer Motion
 - **Icons**: Lucide React
+- **Drag & Drop**: @dnd-kit (for calendar rescheduling)
 - **State Management**: React Hooks, SWR
 
 ### Backend
@@ -68,6 +77,9 @@ A powerful, AI-driven social media management platform built with Next.js, Supab
 {
   "@google/generative-ai": "^0.24.1",
   "@supabase/supabase-js": "^2.90.1",
+  "@dnd-kit/core": "^6.3.1",
+  "@dnd-kit/sortable": "^9.0.0",
+  "@dnd-kit/utilities": "^3.2.2",
   "next": "16.1.1",
   "react": "19.2.3",
   "framer-motion": "^12.25.0",
@@ -372,14 +384,24 @@ For issues or questions:
 
 ## 🔮 Roadmap
 
+### ✅ Recently Completed
+- [x] **Calendar Drag-and-Drop Rescheduling** - Move posts between dates with optimistic updates
+- [x] **Modal-Based Post Creation** - Create posts from anywhere without page navigation
+- [x] **AI Assistant Integration** - Direct post creation from AI-generated content
+
+### 🚧 In Progress
 - [ ] Instagram Direct Publishing
 - [ ] Facebook Auto-Posting
 - [ ] Advanced Analytics Dashboard
+
+### 📋 Planned Features
 - [ ] Team Collaboration Features
 - [ ] Content Calendar Templates
 - [ ] AI-Powered Hashtag Research
 - [ ] Competitor Analysis
 - [ ] Performance Predictions
+- [ ] Bulk Post Scheduling
+- [ ] Post Templates Library
 
 ## 🙏 Acknowledgments
 

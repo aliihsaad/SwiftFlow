@@ -11,7 +11,6 @@ const navItems = [
     { label: "Scheduled", href: "/dashboard/scheduled" },
     { label: "Analytics", href: "/dashboard/analytics" },
     { label: "Assistant", href: "/dashboard/assistant" },
-    { label: "Create", href: "/dashboard/create" },
 ]
 
 export function AnalyticsNavbar() {

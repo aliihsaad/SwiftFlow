@@ -109,3 +109,48 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to update post' }, { status: 500 })
     }
 }
+
+// PATCH - Partial update (e.g., just the scheduled date for drag-and-drop)
+export async function PATCH(request: NextRequest) {
+    try {
+        const supabase = await createClient()
+
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+        if (authError || !user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+        }
+
+        const body = await request.json()
+        const { id, scheduledAt } = body
+
+        if (!id) {
+            return NextResponse.json({ error: 'Post ID is required' }, { status: 400 })
+        }
+
+        if (!scheduledAt) {
+            return NextResponse.json({ error: 'Scheduled date is required' }, { status: 400 })
+        }
+
+        // Only update the scheduled_for field - preserves all other data
+        const { data: post, error } = await supabase
+            .from('posts')
+            .update({
+                scheduled_for: scheduledAt,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .select()
+            .single()
+
+        if (error) {
+            console.error('Database Error:', error)
+            return NextResponse.json({ error: error.message }, { status: 500 })
+        }
+
+        return NextResponse.json(post)
+
+    } catch (error) {
+        console.error('Post Patch Error:', error)
+        return NextResponse.json({ error: 'Failed to update post schedule' }, { status: 500 })
+    }
+}

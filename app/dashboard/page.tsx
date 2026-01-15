@@ -162,34 +162,16 @@ export default async function DashboardPage() {
                 draftCount={draftCount || 0}
                 scheduledCount={scheduledCount || 0}
                 postedCount={postedCount || 0}
+                workspaceId={activeWorkspace.id}
             />
 
             <QuickActions workspaceId={activeWorkspace.id} />
 
-            {posts && posts.length === 0 ? (
-                /* Improved Empty State */
-                <div className="rounded-xl border border-dashed p-12 text-center bg-muted/20">
-                    <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center text-center">
-                        <div className="p-4 rounded-full bg-primary/10 mb-4">
-                            <Plus className="h-8 w-8 text-primary" />
-                        </div>
-                        <h3 className="mt-2 text-xl font-semibold">No posts yet</h3>
-                        <p className="mt-2 text-sm text-muted-foreground mb-6">
-                            You haven't created any content yet. Start by creating your first post to engage your audience!
-                        </p>
-                        <CreatePostTrigger workspaceId={activeWorkspace.id}>
-                            <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground cursor-pointer">
-                                Publish your first post <ArrowRight className="ml-2 h-4 w-4" />
-                            </Button>
-                        </CreatePostTrigger>
-                    </div>
-                </div>
-            ) : (
-                <div className="space-y-6">
-                    <PostsChart data={safeChartData} />
-                    <CalendarView posts={calendarPosts} />
-                </div>
-            )}
+            {/* Dashboard Content - Always Visible */}
+            <div className="space-y-6">
+                <PostsChart data={safeChartData} />
+                <CalendarView posts={calendarPosts} workspaceId={activeWorkspace.id} />
+            </div>
         </div>
     )
 }

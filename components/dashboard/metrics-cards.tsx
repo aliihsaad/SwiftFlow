@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Calendar, CheckCircle2, FileEdit, TrendingUp, TrendingDown, HelpCircle } from "lucide-react"
+import { Calendar, CheckCircle2, FileEdit, TrendingUp, TrendingDown, HelpCircle, Plus } from "lucide-react"
 import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { CreatePostTrigger } from "@/components/create/create-post-trigger"
 import {
     Tooltip,
     TooltipContent,
@@ -12,6 +14,7 @@ interface MetricsProps {
     draftCount: number
     scheduledCount: number
     postedCount: number
+    workspaceId: string
 }
 
 // Simple Sparkline Component
@@ -41,11 +44,13 @@ function Sparkline({ data, color }: { data: number[], color: string }) {
     )
 }
 
-export function MetricsCards({ draftCount, scheduledCount, postedCount }: MetricsProps) {
+export function MetricsCards({ draftCount, scheduledCount, postedCount, workspaceId }: MetricsProps) {
     // Mock trend strings and data for visual enhancement
     const draftTrend = { value: 12, isUp: true }
     const scheduledTrend = { value: 5, isUp: true }
     const postedTrend = { value: 2, isUp: false } // vs yesterday
+
+    const isWorkspaceEmpty = (draftCount + scheduledCount + postedCount) === 0
 
     return (
         <TooltipProvider>
@@ -105,18 +110,28 @@ export function MetricsCards({ draftCount, scheduledCount, postedCount }: Metric
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex justify-between items-end">
-                                <div>
-                                    <div className="text-3xl font-bold text-blue-700 dark:text-blue-300">{scheduledCount}</div>
-                                    <div className="flex items-center text-xs font-medium text-blue-600/80 dark:text-blue-400/80 mt-1">
-                                        {scheduledTrend.isUp ? <TrendingUp className="mr-1 h-3 w-3 text-green-600" /> : <TrendingDown className="mr-1 h-3 w-3 text-red-600" />}
-                                        <span className={scheduledTrend.isUp ? "text-green-600" : "text-red-600"}>
-                                            {scheduledTrend.value}%
-                                        </span>
-                                    </div>
+                            {isWorkspaceEmpty ? (
+                                <div className="flex items-center justify-center p-2">
+                                    <CreatePostTrigger workspaceId={workspaceId}>
+                                        <Button variant="outline" size="sm" className="w-full text-xs h-8 border-dashed border-blue-300 dark:border-blue-700 bg-transparent hover:bg-blue-100 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                                            <Plus className="h-3 w-3 mr-1" /> Create First Post
+                                        </Button>
+                                    </CreatePostTrigger>
                                 </div>
-                                <Sparkline data={[4, 2, 5, 3, 6, 4, 7]} color="text-blue-500/50" />
-                            </div>
+                            ) : (
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <div className="text-3xl font-bold text-blue-700 dark:text-blue-300">{scheduledCount}</div>
+                                        <div className="flex items-center text-xs font-medium text-blue-600/80 dark:text-blue-400/80 mt-1">
+                                            {scheduledTrend.isUp ? <TrendingUp className="mr-1 h-3 w-3 text-green-600" /> : <TrendingDown className="mr-1 h-3 w-3 text-red-600" />}
+                                            <span className={scheduledTrend.isUp ? "text-green-600" : "text-red-600"}>
+                                                {scheduledTrend.value}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <Sparkline data={[4, 2, 5, 3, 6, 4, 7]} color="text-blue-500/50" />
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
@@ -140,18 +155,28 @@ export function MetricsCards({ draftCount, scheduledCount, postedCount }: Metric
                             </div>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex justify-between items-end">
-                                <div>
-                                    <div className="text-3xl font-bold text-green-700 dark:text-green-300">{postedCount}</div>
-                                    <div className="flex items-center text-xs font-medium text-green-600/80 dark:text-green-400/80 mt-1">
-                                        {postedTrend.isUp ? <TrendingUp className="mr-1 h-3 w-3 text-green-600" /> : <TrendingDown className="mr-1 h-3 w-3 text-red-600" />}
-                                        <span className={postedTrend.isUp ? "text-green-600" : "text-red-600"}>
-                                            {postedTrend.value}
-                                        </span>
-                                    </div>
+                            {isWorkspaceEmpty ? (
+                                <div className="flex items-center justify-center p-2">
+                                    <CreatePostTrigger workspaceId={workspaceId}>
+                                        <Button variant="outline" size="sm" className="w-full text-xs h-8 border-dashed border-green-300 dark:border-green-700 bg-transparent hover:bg-green-100 dark:hover:bg-green-900/40 text-green-700 dark:text-green-300">
+                                            <Plus className="h-3 w-3 mr-1" /> Create First Post
+                                        </Button>
+                                    </CreatePostTrigger>
                                 </div>
-                                <Sparkline data={[1, 3, 2, 4, 5, 8, 9]} color="text-green-500/50" />
-                            </div>
+                            ) : (
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <div className="text-3xl font-bold text-green-700 dark:text-green-300">{postedCount}</div>
+                                        <div className="flex items-center text-xs font-medium text-green-600/80 dark:text-green-400/80 mt-1">
+                                            {postedTrend.isUp ? <TrendingUp className="mr-1 h-3 w-3 text-green-600" /> : <TrendingDown className="mr-1 h-3 w-3 text-red-600" />}
+                                            <span className={postedTrend.isUp ? "text-green-600" : "text-red-600"}>
+                                                {postedTrend.value}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <Sparkline data={[1, 3, 2, 4, 5, 8, 9]} color="text-green-500/50" />
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>

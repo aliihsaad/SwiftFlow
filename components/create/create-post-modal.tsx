@@ -21,6 +21,7 @@ interface CreatePostModalProps {
     workspaceId: string
     initialCaption?: string
     initialMedia?: string[]
+    initialDate?: Date
 }
 
 const PLATFORMS = [
@@ -31,7 +32,7 @@ const PLATFORMS = [
 
 const SUGGESTED_HASHTAGS = ['#OpenSourceLife', '#CodingCommunity', '#SkilledDeveloper', '#CareerGrowth']
 
-export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, initialCaption, initialMedia }: CreatePostModalProps) {
+export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, initialCaption, initialMedia, initialDate }: CreatePostModalProps) {
     // --- State ---
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<string>('all')
@@ -54,10 +55,11 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
             return // Skip other loading sources if editing
         }
 
-        // Check for props first (from assistant modal trigger)
-        if (initialCaption || (initialMedia && initialMedia.length > 0)) {
+        // Check for props first (from assistant modal trigger or calendar)
+        if (initialCaption || (initialMedia && initialMedia.length > 0) || initialDate) {
             if (initialCaption) setGlobalCaption(initialCaption)
             if (initialMedia && initialMedia.length > 0) setGlobalMedia(initialMedia)
+            if (initialDate) setScheduledAt(initialDate)
             return // Skip session storage if we have props
         }
 

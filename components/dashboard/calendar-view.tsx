@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { Facebook, Instagram, ChevronLeft, ChevronRight, GripVertical } from "lucide-react"
+import { Facebook, Instagram, ChevronLeft, ChevronRight, GripVertical, Plus } from "lucide-react"
 import {
     Popover,
     PopoverContent,
@@ -30,6 +30,7 @@ import {
 } from '@dnd-kit/core'
 import { useRouter } from "next/navigation"
 import { useToast } from "@/components/ui/use-toast"
+import { CreatePostModal } from "@/components/create/create-post-modal"
 
 interface CalendarPost {
     id: string
@@ -41,6 +42,7 @@ interface CalendarPost {
 
 interface CalendarViewProps {
     posts: CalendarPost[]
+    workspaceId: string
 }
 
 // Draggable Post Badge Component
@@ -124,7 +126,8 @@ function DroppableCalendarCell({
     posts,
     currentYear,
     currentMonth,
-    isOver
+    isOver,
+    onAddPost
 }: {
     day: number | null
     isCurrentMonth: boolean
@@ -134,6 +137,7 @@ function DroppableCalendarCell({
     currentYear: number
     currentMonth: number
     isOver: boolean
+    onAddPost?: (date: Date) => void
 }) {
     // Only make cell droppable if it's not a past date
     const { setNodeRef } = useDroppable({
@@ -146,7 +150,7 @@ function DroppableCalendarCell({
         <div
             ref={setNodeRef}
             className={cn(
-                "min-h-[100px] bg-background p-2 relative transition-colors flex flex-col gap-1",
+                "min-h-[100px] bg-background p-2 relative transition-colors flex flex-col gap-1 group",
                 !isCurrentMonth && "bg-muted/30",
                 isToday && "bg-blue-50/50 dark:bg-blue-900/10 ring-1 ring-inset ring-blue-500/50",
                 isPast && "bg-muted/50 opacity-60 cursor-not-allowed",
@@ -163,11 +167,26 @@ function DroppableCalendarCell({
                         )}>
                             {day}
                         </span>
-                        {posts.length > 0 && (
-                            <span className="text-[10px] bg-primary/10 text-primary px-1 rounded-sm font-medium">
-                                {posts.length}
-                            </span>
-                        )}
+                        <div className="flex items-center gap-1">
+                            {posts.length > 0 && (
+                                <span className="text-[10px] bg-primary/10 text-primary px-1 rounded-sm font-medium">
+                                    {posts.length}
+                                </span>
+                            )}
+                            {!isPast && onAddPost && (
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        onAddPost(new Date(currentYear, currentMonth, day))
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-primary/10 rounded cursor-pointer"
+                                    title="Add post"
+                                >
+                                    <Plus className="h-3 w-3 text-muted-foreground hover:text-primary" />
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     <div className="flex flex-wrap content-start gap-1 mt-1">
@@ -181,11 +200,16 @@ function DroppableCalendarCell({
     )
 }
 
-export function CalendarView({ posts }: CalendarViewProps) {
+export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
     const [currentDate, setCurrentDate] = useState(new Date())
     const [activeId, setActiveId] = useState<string | null>(null)
     const [overId, setOverId] = useState<string | null>(null)
     const [localPosts, setLocalPosts] = useState<CalendarPost[]>(posts)
+
+    // Modal State
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+    const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
+
     const router = useRouter()
     const { toast } = useToast()
 
@@ -342,89 +366,104 @@ export function CalendarView({ posts }: CalendarViewProps) {
 
     const activePost = activeId ? localPosts.find(p => `post-${p.id}` === activeId) : null
 
+    const handleAddPost = (date: Date) => {
+        setSelectedDate(date)
+        setIsCreateModalOpen(true)
+    }
+
     return (
-        <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-        >
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <CardTitle>Content Calendar</CardTitle>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={goToToday}
-                                className="text-xs"
-                            >
-                                Today
-                            </Button>
-                            <div className="flex items-center gap-1">
+        <>
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+            >
+                <Card>
+                    <CardHeader>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="font-bold text-xl">Content Calendar</CardTitle>
+                            <div className="flex items-center gap-2">
                                 <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={goToPreviousMonth}
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={goToToday}
+                                    className="text-xs"
                                 >
-                                    <ChevronLeft className="h-4 w-4" />
+                                    Today
                                 </Button>
-                                <div className="min-w-[140px] text-center text-sm font-medium">
-                                    {monthName}
+                                <div className="flex items-center gap-1">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={goToPreviousMonth}
+                                    >
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <div className="min-w-[140px] text-center text-sm font-medium">
+                                        {monthName}
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={goToNextMonth}
+                                    >
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
                                 </div>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8"
-                                    onClick={goToNextMonth}
-                                >
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
                             </div>
                         </div>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="grid grid-cols-7 gap-px bg-muted rounded-lg overflow-hidden border border-border">
-                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                            <div key={day} className="bg-background p-2 text-center text-xs font-semibold text-muted-foreground">
-                                {day}
-                            </div>
-                        ))}
-                        {gridCells.map((cell, i) => (
-                            <DroppableCalendarCell
-                                key={i}
-                                day={cell.day}
-                                isCurrentMonth={cell.isCurrentMonth}
-                                isToday={cell.day ? isToday(cell.day) : false}
-                                isPast={cell.isPast || false}
-                                posts={cell.posts}
-                                currentYear={currentYear}
-                                currentMonth={currentMonth}
-                                isOver={overId === (cell.day ? `cell-${currentYear}-${currentMonth}-${cell.day}` : '')}
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-7 gap-px bg-muted rounded-lg overflow-hidden border border-border">
+                            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                                <div key={day} className="bg-background p-2 text-center text-xs font-semibold text-muted-foreground">
+                                    {day}
+                                </div>
+                            ))}
+                            {gridCells.map((cell, i) => (
+                                <DroppableCalendarCell
+                                    key={i}
+                                    day={cell.day}
+                                    isCurrentMonth={cell.isCurrentMonth}
+                                    isToday={cell.day ? isToday(cell.day) : false}
+                                    isPast={cell.isPast || false}
+                                    posts={cell.posts}
+                                    currentYear={currentYear}
+                                    currentMonth={currentMonth}
+                                    isOver={overId === (cell.day ? `cell-${currentYear}-${currentMonth}-${cell.day}` : '')}
+                                    onAddPost={handleAddPost}
+                                />
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+                <DragOverlay>
+                    {activePost && (
+                        <div className="h-6 w-6 rounded-md shadow-lg opacity-80">
+                            <div
+                                className="h-full w-full rounded-md"
+                                style={{
+                                    backgroundColor: !activePost.mediaUrl ? (activePost.platforms.includes('instagram') ? '#E1306C' : activePost.platforms.includes('facebook') ? '#1877F2' : '#888') : undefined,
+                                    backgroundImage: activePost.mediaUrl ? `url(${activePost.mediaUrl})` : undefined,
+                                    backgroundSize: 'cover',
+                                    backgroundPosition: 'center'
+                                }}
                             />
-                        ))}
-                    </div>
-                </CardContent>
-            </Card>
-            <DragOverlay>
-                {activePost && (
-                    <div className="h-6 w-6 rounded-md shadow-lg opacity-80">
-                        <div
-                            className="h-full w-full rounded-md"
-                            style={{
-                                backgroundColor: !activePost.mediaUrl ? (activePost.platforms.includes('instagram') ? '#E1306C' : activePost.platforms.includes('facebook') ? '#1877F2' : '#888') : undefined,
-                                backgroundImage: activePost.mediaUrl ? `url(${activePost.mediaUrl})` : undefined,
-                                backgroundSize: 'cover',
-                                backgroundPosition: 'center'
-                            }}
-                        />
-                    </div>
-                )}
-            </DragOverlay>
-        </DndContext>
+                        </div>
+                    )}
+                </DragOverlay>
+            </DndContext>
+
+            <CreatePostModal
+                open={isCreateModalOpen}
+                onOpenChange={setIsCreateModalOpen}
+                workspaceId={workspaceId}
+                initialDate={selectedDate}
+            />
+        </>
     )
 }

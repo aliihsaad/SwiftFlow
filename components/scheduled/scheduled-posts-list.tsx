@@ -151,17 +151,17 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                                 <div className="flex flex-col gap-1">
                                     {post.scheduled_for && (
                                         <>
-                                            <Badge variant="secondary" className="w-fit">
-                                                {new Date(post.scheduled_for).toLocaleDateString()}
+                                            <Badge variant="secondary" className="w-fit" suppressHydrationWarning>
+                                                {new Date(post.scheduled_for).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
                                             </Badge>
-                                            <span className="text-xs text-muted-foreground">
-                                                {new Date(post.scheduled_for).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            <span className="text-xs text-muted-foreground" suppressHydrationWarning>
+                                                {new Date(post.scheduled_for).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                         </>
                                     )}
                                     {post.published_at && (
-                                        <Badge variant="default" className="w-fit">
-                                            Published {new Date(post.published_at).toLocaleDateString()}
+                                        <Badge variant="default" className="w-fit" suppressHydrationWarning>
+                                            Published {new Date(post.published_at).toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' })}
                                         </Badge>
                                     )}
                                 </div>

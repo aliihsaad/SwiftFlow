@@ -57,6 +57,7 @@ export function WorkspaceSwitcher({ activeWorkspace, workspaces, isCollapsed }: 
                                 : "h-14 px-3 justify-between hover:bg-accent border border-transparent hover:border-border/50"
                         )}
                         title={isCollapsed ? activeWorkspace?.name : undefined}
+                        suppressHydrationWarning
                     >
                         {/* Avatar / Icon */}
                         <div className={cn(

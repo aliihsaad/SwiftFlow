@@ -71,7 +71,7 @@ export function Sidebar({ workspaces, activeWorkspace }: SidebarProps) {
                         {isCollapsed ? (
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <CreatePostTrigger>
+                                    <CreatePostTrigger workspaceId={activeWorkspace?.id}>
                                         <Button
                                             variant="default"
                                             className="justify-center px-2 h-10 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white"
@@ -83,7 +83,7 @@ export function Sidebar({ workspaces, activeWorkspace }: SidebarProps) {
                                 <TooltipContent side="right">Create Post</TooltipContent>
                             </Tooltip>
                         ) : (
-                            <CreatePostTrigger>
+                            <CreatePostTrigger workspaceId={activeWorkspace?.id}>
                                 <Button
                                     variant="default"
                                     className="w-full justify-start gap-3 px-3 py-2.5 h-auto text-sm font-medium bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white shadow-lg shadow-purple-500/20"

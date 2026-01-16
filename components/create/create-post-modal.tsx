@@ -120,9 +120,22 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
         setIsGeneratingAI(true)
         try {
             const supabase = createClient()
+
+            // Build a better description based on available context
+            let description = globalCaption
+
+            // If no caption but we have media, provide context about the images
+            if (!description.trim() && globalMedia.length > 0) {
+                const imageCount = globalMedia.length
+                description = `Generate an engaging ${activeTab === 'all' ? 'social media' : activeTab} caption for a post with ${imageCount} ${imageCount === 1 ? 'image' : 'images'}. Make it creative, engaging, and suitable for the platform.`
+            } else if (!description.trim()) {
+                description = 'Write an engaging caption for this post'
+            }
+
+
             const { data, error } = await supabase.functions.invoke('generate-caption', {
                 body: {
-                    description: globalCaption || 'Write a caption for this post',
+                    description,
                     platforms: [activeTab === 'all' ? 'instagram' : activeTab],
                     tone: 'engaging',
                     language: 'en',
@@ -130,10 +143,13 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
                 }
             })
 
+            console.log('Caption generation response:', { data, error, workspaceId })
+
             if (data?.suggestions && data.suggestions.length > 0) {
-                // Append the first suggestion to the current caption or replace it
-                // For now, let's replace as it is a "generator"
+                // Replace with the first suggestion
                 setGlobalCaption(data.suggestions[0])
+            } else if (data?.error) {
+                console.error('Caption generation error from API:', data.error)
             }
         } catch (e) {
             console.error("Caption Gen Error", e)

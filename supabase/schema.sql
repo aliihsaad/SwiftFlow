@@ -182,8 +182,11 @@ CREATE TABLE IF NOT EXISTS generated_assets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
     asset_type TEXT NOT NULL, -- 'image', 'content_idea', 'carousel'
+    source TEXT DEFAULT 'gemini', -- 'gemini', 'unsplash'
     content JSONB, -- { prompt, model, style, etc. }
     image_url TEXT,
+    unsplash_id TEXT, -- Unsplash photo ID
+    attribution JSONB, -- { photographer, username, profileUrl, portfolioUrl }
     used_in_post_id UUID REFERENCES posts(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc', now())
 );

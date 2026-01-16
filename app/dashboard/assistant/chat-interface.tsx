@@ -50,12 +50,14 @@ import { ImagePreview } from "./components/image-preview"
 import { StyleSelector } from "./components/style-selector"
 import { CarouselStyleSelector } from "./components/carousel-style-selector"
 import { IdeaOptionsSelector } from "./components/idea-options-selector"
+import { ImageSourceSelector } from "./components/image-source-selector"
+import { UnsplashResults } from "./components/unsplash-results"
 import { CreatePostModal } from "@/components/create/create-post-modal"
 
 interface Message {
     role: 'user' | 'assistant'
     content: string
-    type?: 'text' | 'content_cards' | 'carousel_slides' | 'image' | 'style_selector' | 'carousel_style_selector' | 'idea_options_selector'
+    type?: 'text' | 'content_cards' | 'carousel_slides' | 'image' | 'style_selector' | 'carousel_style_selector' | 'idea_options_selector' | 'image_source_selector' | 'unsplash_results'
     data?: any
 }
 
@@ -158,10 +160,13 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }
     }, [messages, isLoading])
 
-    const [flowState, setFlowState] = useState<'idle' | 'awaiting_description' | 'awaiting_style' | 'awaiting_carousel_topic' | 'awaiting_carousel_style' | 'awaiting_idea_options'>('idle')
+    const [flowState, setFlowState] = useState<'idle' | 'awaiting_description' | 'awaiting_image_source' | 'awaiting_style' | 'awaiting_unsplash_query' | 'awaiting_carousel_topic' | 'awaiting_carousel_style' | 'awaiting_idea_options'>('idle')
     const [tempImagePrompt, setTempImagePrompt] = useState("")
     const [tempCarouselTopic, setTempCarouselTopic] = useState("")
     const [generatingSlide, setGeneratingSlide] = useState<number | null>(null)
+    const [selectedImageSource, setSelectedImageSource] = useState<'ai' | 'unsplash' | null>(null)
+    const [unsplashResults, setUnsplashResults] = useState<any[]>([])
+    const [selectedUnsplashId, setSelectedUnsplashId] = useState<string | null>(null)
 
     // Create Post Modal State
     const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false)
@@ -216,6 +221,14 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             setTempCarouselTopic(messageText)
             setFlowState('awaiting_carousel_style')
             await saveSession(newMessages, sessionId)
+            return
+        }
+
+        // HANDLE UNSPLASH FLOW STATE: Awaiting Search Query
+        if (flowState === 'awaiting_unsplash_query' && !overrideFunction) {
+            setInput("")
+            setMessages(prev => [...prev, { role: 'user', content: messageText }])
+            handleUnsplashSearch(messageText)
             return
         }
 
@@ -334,11 +347,12 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
     const handleCardClick = (card: typeof ACTION_CARDS[0]) => {
         if (card.functionName === 'generate-image') {
-            // Start Image Flow
-            setFlowState('awaiting_description')
+            // Start Image Flow - Show source selector
+            setFlowState('awaiting_image_source')
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: "What do you want the image to be about?"
+                content: "How would you like to get your image?",
+                type: 'image_source_selector'
             }])
             return
         }
@@ -583,6 +597,117 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
         toast({ title: "Opening Editor...", description: "Image attached to new post draft." })
         setIsCreatePostModalOpen(true)
+    }
+
+    // Unsplash Handlers
+    const handleImageSourceSelect = (source: 'ai' | 'unsplash') => {
+        setSelectedImageSource(source)
+
+        if (source === 'ai') {
+            // Continue with AI generation flow
+            setFlowState('awaiting_description')
+            setMessages(prev => [...prev, {
+                role: 'user',
+                content: "AI Generate"
+            }, {
+                role: 'assistant',
+                content: "What do you want the image to be about?"
+            }])
+        } else {
+            // Start Unsplash search flow
+            setFlowState('awaiting_unsplash_query')
+            setMessages(prev => [...prev, {
+                role: 'user',
+                content: "Search Unsplash"
+            }, {
+                role: 'assistant',
+                content: "What would you like to search for on Unsplash? (e.g., 'coffee shop', 'sunset', 'business meeting')"
+            }])
+        }
+    }
+
+    const handleUnsplashSearch = async (query: string) => {
+        if (!workspaceId) {
+            toast({ title: "Error", description: "No workspace selected" })
+            return
+        }
+
+        setIsLoading(true)
+        try {
+            const { data, error } = await supabase.functions.invoke('search-unsplash', {
+                body: { query, count: 12, workspaceId }
+            })
+
+            if (error) throw new Error(error.message)
+            if (data?.error) throw new Error(data.error)
+
+            const results = data?.result?.data || []
+            setUnsplashResults(results)
+
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `Found ${results.length} photos for "${query}"`,
+                type: 'unsplash_results',
+                data: { results, query }
+            }])
+
+            setFlowState('idle')
+        } catch (e: any) {
+            toast({ title: "Search failed", description: e.message, variant: "destructive" })
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `Error searching Unsplash: ${e.message}`
+            }])
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const handleUnsplashImageSelect = async (photo: any) => {
+        if (!workspaceId) {
+            toast({ title: "Error", description: "No workspace selected" })
+            return
+        }
+
+        setSelectedUnsplashId(photo.id)
+        setIsLoading(true)
+
+        try {
+            const { data, error } = await supabase.functions.invoke('select-unsplash-image', {
+                body: {
+                    unsplashId: photo.id,
+                    downloadLocation: photo.downloadLink,
+                    workspaceId,
+                    photographer: photo.photographer
+                }
+            })
+
+            if (error) throw new Error(error.message)
+            if (data?.error) throw new Error(data.error)
+
+            const imageUrl = data?.result?.imageUrl
+            if (imageUrl) {
+                // Add image message
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: `Selected photo by ${photo.photographer.name}`,
+                    type: 'image',
+                    data: {
+                        id: photo.id,
+                        imageUrl,
+                        source: 'unsplash',
+                        attribution: photo.photographer
+                    }
+                }])
+
+                toast({ title: "Image selected!", description: "Photo added from Unsplash" })
+            }
+        } catch (e: any) {
+            toast({ title: "Selection failed", description: e.message, variant: "destructive" })
+        } finally {
+            setIsLoading(false)
+            setSelectedUnsplashId(null)
+        }
     }
 
     return (
@@ -834,6 +959,28 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                 <IdeaOptionsSelector
                                                     onGenerate={handleIdeaGenerate}
                                                     isLoading={isLoading}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* RENDER IMAGE SOURCE SELECTOR */}
+                                        {msg.type === 'image_source_selector' && (
+                                            <div className="w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
+                                                <ImageSourceSelector
+                                                    onSourceSelect={handleImageSourceSelect}
+                                                    selectedSource={selectedImageSource || undefined}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {/* RENDER UNSPLASH RESULTS */}
+                                        {msg.type === 'unsplash_results' && msg.data?.results && (
+                                            <div className="w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
+                                                <UnsplashResults
+                                                    results={msg.data.results}
+                                                    query={msg.data.query}
+                                                    onSelect={handleUnsplashImageSelect}
+                                                    selectedId={selectedUnsplashId || undefined}
                                                 />
                                             </div>
                                         )}

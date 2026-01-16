@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { CreatePostModal } from "@/components/create/create-post-modal"
+import { useToast } from "@/components/ui/use-toast"
 
 interface CreatePostTriggerProps {
     workspaceId?: string
@@ -17,21 +18,42 @@ function getCookie(name: string): string | undefined {
 
 export function CreatePostTrigger({ workspaceId, children }: CreatePostTriggerProps) {
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | undefined>(workspaceId)
+    const { toast } = useToast()
 
-    // Get workspace ID from cookies if not provided
-    const activeWorkspaceId = workspaceId || getCookie("active_workspace_id") || ""
+    // Get workspace ID from cookies on client side
+    useEffect(() => {
+        if (!workspaceId) {
+            const cookieWorkspaceId = getCookie("active_workspace_id")
+            setActiveWorkspaceId(cookieWorkspaceId)
+        }
+    }, [workspaceId])
+
+    const handleClick = () => {
+        if (!activeWorkspaceId) {
+            toast({
+                title: "No workspace selected",
+                description: "Please select a workspace to create a post",
+                variant: "destructive"
+            })
+            return
+        }
+        setIsModalOpen(true)
+    }
 
     return (
         <>
-            <div onClick={() => setIsModalOpen(true)}>
+            <div onClick={handleClick}>
                 {children}
             </div>
 
-            <CreatePostModal
-                open={isModalOpen}
-                onOpenChange={setIsModalOpen}
-                workspaceId={activeWorkspaceId}
-            />
+            {activeWorkspaceId && (
+                <CreatePostModal
+                    open={isModalOpen}
+                    onOpenChange={setIsModalOpen}
+                    workspaceId={activeWorkspaceId}
+                />
+            )}
         </>
     )
 }

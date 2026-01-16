@@ -16,7 +16,7 @@ serve(async (req) => {
     try {
         const { description, platforms, tone, language, workspaceId } = await req.json()
 
-        if (!workspaceId) {
+        if (!workspaceId || workspaceId.trim() === '') {
             throw new Error('workspaceId is required')
         }
 
@@ -42,12 +42,12 @@ serve(async (req) => {
         }
 
         // Get API key from settings (fallback to env if not set in DB)
-        const apiKey = settings.gemini_api_key || Deno.env.get('GEMINI_API_KEY')
+        const apiKey = settings?.gemini_api_key || Deno.env.get('GEMINI_API_KEY')
         if (!apiKey) {
             throw new Error('Gemini API key not configured. Please add it in Settings > AI Provider')
         }
 
-        const modelName = settings.ai_model_name || 'gemini-1.5-flash'
+        const modelName = settings?.ai_model_name || 'gemini-1.5-flash'
 
         const genAI = new GoogleGenerativeAI(apiKey)
         const model = genAI.getGenerativeModel({

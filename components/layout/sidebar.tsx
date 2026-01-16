@@ -170,7 +170,7 @@ export function Sidebar({ workspaces, activeWorkspace }: SidebarProps) {
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="absolute -right-3 top-20 h-6 w-6 rounded-full border bg-background shadow-md text-muted-foreground hover:text-foreground hidden group-hover:flex z-50"
+                    className="absolute -right-3 top-20 h-6 w-6 rounded-full border bg-background shadow-md text-muted-foreground hover:text-foreground flex z-50"
                     onClick={() => setIsCollapsed(!isCollapsed)}
                 >
                     {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}

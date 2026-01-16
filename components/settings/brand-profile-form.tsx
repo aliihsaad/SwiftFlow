@@ -403,6 +403,87 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                 </CardContent>
             </Card>
 
+            {/* Brand Colors */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>Brand Colors</CardTitle>
+                    <CardDescription>Define your brand color palette for AI-generated content</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                        {/* Primary Color */}
+                        <div className="flex items-center gap-4">
+                            <Label className="w-24">Primary</Label>
+                            <div className="flex items-center gap-2 flex-1">
+                                <div
+                                    className="h-10 w-10 rounded border-2 border-gray-300 shrink-0"
+                                    style={{ backgroundColor: profile?.brand_colors?.primary || '#000000' }}
+                                />
+                                <Input
+                                    value={profile?.brand_colors?.primary || '#000000'}
+                                    onChange={(e) => updateField('brand_colors', { ...profile.brand_colors, primary: e.target.value })}
+                                    placeholder="#000000"
+                                    className="w-32 font-mono text-sm"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Secondary Color */}
+                        <div className="flex items-center gap-4">
+                            <Label className="w-24">Secondary</Label>
+                            <div className="flex items-center gap-2 flex-1">
+                                <div
+                                    className="h-10 w-10 rounded border-2 border-gray-300 shrink-0"
+                                    style={{ backgroundColor: profile?.brand_colors?.secondary || '#666666' }}
+                                />
+                                <Input
+                                    value={profile?.brand_colors?.secondary || '#666666'}
+                                    onChange={(e) => updateField('brand_colors', { ...profile.brand_colors, secondary: e.target.value })}
+                                    placeholder="#666666"
+                                    className="w-32 font-mono text-sm"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Accent Color */}
+                        <div className="flex items-center gap-4">
+                            <Label className="w-24">Accent</Label>
+                            <div className="flex items-center gap-2 flex-1">
+                                <div
+                                    className="h-10 w-10 rounded border-2 border-gray-300 shrink-0"
+                                    style={{ backgroundColor: profile?.brand_colors?.accent || '#0066CC' }}
+                                />
+                                <Input
+                                    value={profile?.brand_colors?.accent || '#0066CC'}
+                                    onChange={(e) => updateField('brand_colors', { ...profile.brand_colors, accent: e.target.value })}
+                                    placeholder="#0066CC"
+                                    className="w-32 font-mono text-sm"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Color Palette Preview */}
+                    <div className="pt-4 border-t">
+                        <Label className="mb-2 block">Color Palette Preview</Label>
+                        <div className="flex gap-2">
+                            <div
+                                className="h-16 flex-1 rounded-lg border-2 border-gray-200 shadow-sm"
+                                style={{ backgroundColor: profile?.brand_colors?.primary || '#000000' }}
+                            />
+                            <div
+                                className="h-16 flex-1 rounded-lg border-2 border-gray-200 shadow-sm"
+                                style={{ backgroundColor: profile?.brand_colors?.secondary || '#666666' }}
+                            />
+                            <div
+                                className="h-16 flex-1 rounded-lg border-2 border-gray-200 shadow-sm"
+                                style={{ backgroundColor: profile?.brand_colors?.accent || '#0066CC' }}
+                            />
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
             {/* Social Media */}
             <Card>
                 <CardHeader>

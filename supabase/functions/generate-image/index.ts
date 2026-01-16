@@ -18,17 +18,40 @@ serve(async (req) => {
 
         const apiKey = settings?.gemini_api_key || Deno.env.get('GEMINI_API_KEY')!
 
+        // Fetch brand profile for color context
+        const { data: brandProfile } = await supabase
+            .from('workspace_brand_profiles')
+            .select('brand_colors, business_name')
+            .eq('workspace_id', workspaceId)
+            .maybeSingle()
+
+        // Build color context for the prompt
+        let colorContext = ''
+        if (brandProfile?.brand_colors) {
+            const colors = brandProfile.brand_colors
+            const colorList = []
+            if (colors.primary) colorList.push(`primary: ${colors.primary}`)
+            if (colors.secondary) colorList.push(`secondary: ${colors.secondary}`)
+            if (colors.accent) colorList.push(`accent: ${colors.accent}`)
+
+            if (colorList.length > 0) {
+                colorContext = ` Use these brand colors: ${colorList.join(', ')}.`
+            }
+        }
+
         // User explicitly requested gemini-3-pro-image-preview for high-fidelity image generation
         const targetModel = 'gemini-3-pro-image-preview'
 
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`
+
+        const enhancedPrompt = `${lastMsg.content}. Style: ${style || 'Photorealistic, cinematic lighting'}.${colorContext}`
 
         const response = await fetch(geminiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 contents: [{
-                    parts: [{ text: `${lastMsg.content}. Style: ${style || 'Photorealistic, cinematic lighting'}` }]
+                    parts: [{ text: enhancedPrompt }]
                 }],
                 // REST API uses generationConfig, SDK uses config
                 generationConfig: {

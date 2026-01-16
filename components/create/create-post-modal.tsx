@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { Platform } from "@/types/post"
 import { MediaUploadZone } from "./media-upload-zone"
 import { SchedulingControls } from "./scheduling-controls"
-import { X, Info, Plus, Instagram, Facebook, Monitor, Clock, Sparkles, RefreshCw, Smile, Bold, Italic, Link, BarChart2, Wand2 } from "lucide-react"
+import { InstagramPostPreview } from "./instagram-post-preview"
+import { X, Info, Plus, Instagram, Facebook, Monitor, Clock, Sparkles, RefreshCw, Smile, Bold, Italic, Link, BarChart2, Wand2, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import EmojiPicker, { Theme } from "emoji-picker-react"
@@ -41,6 +42,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
     const [scheduledAt, setScheduledAt] = useState<Date | undefined>(new Date())
     const [isGeneratingAI, setIsGeneratingAI] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
     // Check for props, draft data, or edit mode when modal opens
     useEffect(() => {
@@ -421,6 +423,15 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
                             </Button>
                             <Button
                                 variant="outline"
+                                onClick={() => setIsPreviewOpen(true)}
+                                className="gap-2"
+                                disabled={globalMedia.length === 0 && !globalCaption}
+                            >
+                                <Eye className="h-4 w-4" />
+                                Preview
+                            </Button>
+                            <Button
+                                variant="outline"
                                 onClick={() => handleSubmit('draft')}
                                 disabled={!isValid || isSubmitting}
                                 className="text-pink-500 border-pink-200 hover:bg-pink-50"
@@ -446,6 +457,29 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
                 </div>
 
             </DialogContent>
+
+            {/* Preview Dialog */}
+            <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+                <DialogContent showCloseButton={false} className="max-w-md bg-transparent border-none shadow-none p-0 overflow-visible flex items-center justify-center">
+                    <DialogTitle className="sr-only">Instagram Post Preview</DialogTitle>
+                    <DialogDescription className="sr-only">Preview of how your post will appear on Instagram</DialogDescription>
+                    <div className="relative w-full">
+                        <Button
+                            variant="secondary"
+                            size="icon"
+                            className="absolute -right-4 -top-4 rounded-full h-8 w-8 z-50 shadow-md bg-white hover:bg-zinc-100 text-black border"
+                            onClick={() => setIsPreviewOpen(false)}
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
+                        <InstagramPostPreview
+                            caption={globalCaption || "Write a caption to see it here..."}
+                            mediaUrls={globalMedia}
+                            username="instagram_user"
+                        />
+                    </div>
+                </DialogContent>
+            </Dialog>
         </Dialog>
     )
 }

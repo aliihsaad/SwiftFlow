@@ -13,6 +13,7 @@ import {
     closestCenter,
     KeyboardSensor,
     PointerSensor,
+    TouchSensor,
     useSensor,
     useSensors,
     DragEndEvent
@@ -49,19 +50,20 @@ function SortableMediaItem({ url, index, onRemove }: { url: string, index: numbe
         transition,
         zIndex: isDragging ? 10 : 1,
         opacity: isDragging ? 0.5 : 1,
+        touchAction: 'none' as const,
     }
 
     return (
         <div
             ref={setNodeRef}
             style={style}
-            className="relative aspect-square rounded-xl overflow-hidden border bg-muted group touch-none"
+            className="relative aspect-square rounded-xl overflow-hidden border bg-muted group"
         >
-            {/* Drag Handle - Now a dedicated Top-Left button */}
+            {/* Drag Handle - Always visible for touch support */}
             <div
                 {...attributes}
                 {...listeners}
-                className="absolute top-2 left-2 z-30 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70 cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+                className="absolute top-2 left-2 z-30 p-1.5 rounded-full bg-black/50 text-white hover:bg-black/70 cursor-grab active:cursor-grabbing backdrop-blur-sm"
             >
                 <GripVertical className="h-3 w-3" />
             </div>
@@ -93,7 +95,7 @@ function SortableMediaItem({ url, index, onRemove }: { url: string, index: numbe
                 <X className="h-3 w-3" />
             </button>
 
-            <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-sm text-white text-[10px] font-medium opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            <div className="absolute bottom-2 left-2 z-20 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-sm text-white text-[10px] font-medium pointer-events-none">
                 {index + 1}
             </div>
         </div>
@@ -106,7 +108,12 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
     const supabase = createClient()
 
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(PointerSensor, {
+            activationConstraint: { distance: 8 }
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: { delay: 150, tolerance: 5 }
+        }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })

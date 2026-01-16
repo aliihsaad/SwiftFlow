@@ -21,6 +21,7 @@ import {
     DragOverlay,
     closestCenter,
     PointerSensor,
+    TouchSensor,
     useSensor,
     useSensors,
     DragEndEvent,
@@ -57,63 +58,55 @@ function DraggablePostBadge({ post, index }: { post: CalendarPost, index: number
     } : undefined
 
     return (
-        <TooltipProvider>
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <div
-                                ref={setNodeRef}
-                                {...listeners}
-                                {...attributes}
-                                className="h-9 w-9 rounded-md bg-cover bg-center transition-transform hover:scale-110 cursor-grab active:cursor-grabbing shadow-sm border border-border relative group"
-                                style={{
-                                    backgroundColor: !post.mediaUrl ? (post.platforms.includes('instagram') ? '#E1306C' : post.platforms.includes('facebook') ? '#1877F2' : '#888') : undefined,
-                                    backgroundImage: post.mediaUrl ? `url(${post.mediaUrl})` : undefined,
-                                    ...style
-                                }}
-                            >
-                                {!post.mediaUrl && (
-                                    <div className="w-full h-full flex items-center justify-center opacity-50">
-                                        <div className="h-2.5 w-2.5 rounded-full bg-white" />
-                                    </div>
-                                )}
-                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                                    <GripVertical className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
-                                </div>
-                            </div>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-60 p-0 text-sm overflow-hidden">
-                            {post.mediaUrl && (
-                                <div className="w-full h-32 bg-muted relative">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                        src={post.mediaUrl}
-                                        alt="Post preview"
-                                        className="w-full h-full object-cover"
-                                    />
-                                </div>
-                            )}
-                            <div className="p-3">
-                                <div className="font-semibold mb-1 flex items-center gap-2">
-                                    {post.date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                                    <div className="flex -space-x-1">
-                                        {post.platforms.includes('facebook') && <Facebook className="h-3 w-3 text-blue-600" />}
-                                        {post.platforms.includes('instagram') && <Instagram className="h-3 w-3 text-pink-600" />}
-                                    </div>
-                                </div>
-                                <p className="text-muted-foreground text-xs line-clamp-3">
-                                    {post.content || "No content"}
-                                </p>
-                            </div>
-                        </PopoverContent>
-                    </Popover>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                    <p>Drag to reschedule</p>
-                </TooltipContent>
-            </Tooltip>
-        </TooltipProvider>
+        <Popover>
+            <PopoverTrigger asChild>
+                <div
+                    ref={setNodeRef}
+                    {...listeners}
+                    {...attributes}
+                    className="h-9 w-9 rounded-md bg-cover bg-center transition-transform hover:scale-110 cursor-grab active:cursor-grabbing shadow-sm border border-border relative group"
+                    style={{
+                        backgroundColor: !post.mediaUrl ? (post.platforms.includes('instagram') ? '#E1306C' : post.platforms.includes('facebook') ? '#1877F2' : '#888') : undefined,
+                        backgroundImage: post.mediaUrl ? `url(${post.mediaUrl})` : undefined,
+                        touchAction: 'none',
+                        ...style
+                    }}
+                >
+                    {!post.mediaUrl && (
+                        <div className="w-full h-full flex items-center justify-center opacity-50">
+                            <div className="h-2.5 w-2.5 rounded-full bg-white" />
+                        </div>
+                    )}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                        <GripVertical className="h-4 w-4 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-md" />
+                    </div>
+                </div>
+            </PopoverTrigger>
+            <PopoverContent className="w-60 p-0 text-sm overflow-hidden">
+                {post.mediaUrl && (
+                    <div className="w-full h-32 bg-muted relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={post.mediaUrl}
+                            alt="Post preview"
+                            className="w-full h-full object-cover"
+                        />
+                    </div>
+                )}
+                <div className="p-3">
+                    <div className="font-semibold mb-1 flex items-center gap-2">
+                        {post.date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                        <div className="flex -space-x-1">
+                            {post.platforms.includes('facebook') && <Facebook className="h-3 w-3 text-blue-600" />}
+                            {post.platforms.includes('instagram') && <Instagram className="h-3 w-3 text-pink-600" />}
+                        </div>
+                    </div>
+                    <p className="text-muted-foreground text-xs line-clamp-3">
+                        {post.content || "No content"}
+                    </p>
+                </div>
+            </PopoverContent>
+        </Popover>
     )
 }
 
@@ -226,6 +219,12 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
         useSensor(PointerSensor, {
             activationConstraint: {
                 distance: 8,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 250,
+                tolerance: 5,
             },
         })
     )

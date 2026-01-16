@@ -421,7 +421,11 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                                 />
                                 <Input
                                     value={profile?.brand_colors?.primary || '#000000'}
-                                    onChange={(e) => updateField('brand_colors', { ...profile.brand_colors, primary: e.target.value })}
+                                    onChange={(e) => updateField('brand_colors', {
+                                        primary: e.target.value,
+                                        secondary: profile?.brand_colors?.secondary || '#666666',
+                                        accent: profile?.brand_colors?.accent || '#0066CC'
+                                    })}
                                     placeholder="#000000"
                                     className="w-32 font-mono text-sm"
                                 />
@@ -438,7 +442,11 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                                 />
                                 <Input
                                     value={profile?.brand_colors?.secondary || '#666666'}
-                                    onChange={(e) => updateField('brand_colors', { ...profile.brand_colors, secondary: e.target.value })}
+                                    onChange={(e) => updateField('brand_colors', {
+                                        primary: profile?.brand_colors?.primary || '#000000',
+                                        secondary: e.target.value,
+                                        accent: profile?.brand_colors?.accent || '#0066CC'
+                                    })}
                                     placeholder="#666666"
                                     className="w-32 font-mono text-sm"
                                 />
@@ -455,7 +463,11 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                                 />
                                 <Input
                                     value={profile?.brand_colors?.accent || '#0066CC'}
-                                    onChange={(e) => updateField('brand_colors', { ...profile.brand_colors, accent: e.target.value })}
+                                    onChange={(e) => updateField('brand_colors', {
+                                        primary: profile?.brand_colors?.primary || '#000000',
+                                        secondary: profile?.brand_colors?.secondary || '#666666',
+                                        accent: e.target.value
+                                    })}
                                     placeholder="#0066CC"
                                     className="w-32 font-mono text-sm"
                                 />

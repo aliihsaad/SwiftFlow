@@ -184,7 +184,7 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
         setIsSearching(true)
         try {
             const { data, error } = await supabase.functions.invoke('search-unsplash', {
-                body: { query: unsplashQuery, count: 20 }
+                body: { query: unsplashQuery, count: 4 }
             })
 
             if (error) throw new Error(error.message)

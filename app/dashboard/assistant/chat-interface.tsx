@@ -635,7 +635,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         setIsLoading(true)
         try {
             const { data, error } = await supabase.functions.invoke('search-unsplash', {
-                body: { query, count: 12, workspaceId }
+                body: { query, count: 4, workspaceId }
             })
 
             if (error) throw new Error(error.message)

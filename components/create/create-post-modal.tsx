@@ -476,6 +476,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
                             caption={globalCaption || "Write a caption to see it here..."}
                             mediaUrls={globalMedia}
                             username="instagram_user"
+                            date={scheduledAt || new Date()}
                         />
                     </div>
                 </DialogContent>

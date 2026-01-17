@@ -5,8 +5,9 @@ import { PostsTabView } from "@/components/scheduled/posts-tab-view"
 export default async function ScheduledPostsPage({
     searchParams,
 }: {
-    searchParams: { [key: string]: string | string[] | undefined }
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
+    const resolvedSearchParams = await searchParams
     const supabase = await createClient()
     const activeWorkspace = await getActiveWorkspace()
 
@@ -51,7 +52,7 @@ export default async function ScheduledPostsPage({
         .order('updated_at', { ascending: false })
 
     // Determine default tab from search params
-    const tab = typeof searchParams.tab === 'string' ? searchParams.tab : 'scheduled'
+    const tab = typeof resolvedSearchParams.tab === 'string' ? resolvedSearchParams.tab : 'scheduled'
     const allowedTabs = ['scheduled', 'drafts', 'posted', 'failed']
     const defaultTab = allowedTabs.includes(tab) ? tab : 'scheduled'
 

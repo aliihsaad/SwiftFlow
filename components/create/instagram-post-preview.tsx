@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight } from "lucide-react"
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight, Battery, Wifi, Signal, ArrowLeft, Home, Search, PlusSquare, Clapperboard, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface InstagramPostPreviewProps {
@@ -11,12 +11,20 @@ interface InstagramPostPreviewProps {
     username?: string
     userImage?: string
     location?: string
+    date?: Date
 }
 
-export function InstagramPostPreview({ caption, mediaUrls, username = "you", userImage, location }: InstagramPostPreviewProps) {
+export function InstagramPostPreview({ caption, mediaUrls, username = "you", userImage, location, date = new Date() }: InstagramPostPreviewProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
     const hasMultipleImages = mediaUrls.length > 1
+
+    // Format date like "14 January 2026"
+    const formattedDate = date.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+    })
 
     const nextImage = () => {
         if (currentImageIndex < mediaUrls.length - 1) {
@@ -31,124 +39,167 @@ export function InstagramPostPreview({ caption, mediaUrls, username = "you", use
     }
 
     return (
-        <div className="w-full max-w-[400px] mx-auto bg-white dark:bg-black border rounded-xl overflow-hidden shadow-sm font-sans">
-            {/* Header */}
-            <div className="flex items-center justify-between p-3">
-                <div className="flex items-center gap-3">
-                    <Avatar className="h-8 w-8 ring-2 ring-transparent">
-                        <AvatarImage src={userImage} />
-                        <AvatarFallback className="bg-gradient-to-tr from-yellow-400 to-fuchsia-600 text-white font-bold text-xs">
-                            {username[0]?.toUpperCase() || 'U'}
-                        </AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col -gap-0.5">
-                        <span className="text-sm font-semibold leading-none">{username}</span>
-                        {location && <span className="text-xs text-muted-foreground">{location}</span>}
-                    </div>
+        <div className="w-[380px] mx-auto bg-black rounded-[3rem] border-8 border-zinc-800 overflow-hidden shadow-2xl font-sans relative aspect-[9/19] select-none text-white">
+
+            {/* Dynamic Island / Notch Area */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-black rounded-b-2xl z-50"></div>
+
+            {/* Status Bar */}
+            <div className="flex items-center justify-between px-6 pt-3 pb-2 text-xs font-semibold z-40 relative">
+                <span className="ml-2">12:29</span>
+                <div className="flex items-center gap-1.5 mr-2">
+                    <Signal className="h-3 w-3 fill-current" />
+                    <Wifi className="h-3 w-3" />
+                    <Battery className="h-3 w-3 fill-current" />
                 </div>
-                <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
             </div>
 
-            {/* Media */}
-            <div className="relative aspect-square bg-zinc-100 dark:bg-zinc-900 group select-none">
-                {mediaUrls.length > 0 ? (
-                    <>
-                        {mediaUrls[currentImageIndex].match(/\.(mp4|webm|ogg|mov)$/i) ? (
-                            <video
-                                src={mediaUrls[currentImageIndex]}
-                                className="w-full h-full object-cover"
-                                controls
-                            />
-                        ) : (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                                src={mediaUrls[currentImageIndex]}
-                                alt="Post content"
-                                className="w-full h-full object-cover"
-                            />
-                        )}
+            {/* App Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-black z-40 relative">
+                <ChevronLeft className="h-6 w-6 stroke-2" />
+                <div className="flex flex-col items-center">
+                    <span className="text-[10px] text-zinc-500 font-bold tracking-wider uppercase">{username}</span>
+                    <span className="text-sm font-bold -mt-0.5">Posts</span>
+                </div>
+                <div className="w-6"></div> {/* Spacer for alignment */}
+            </div>
 
-                        {hasMultipleImages && (
+            {/* Scrollable Content Area */}
+            <div className="bg-black text-white h-[calc(100%-140px)] overflow-y-auto no-scrollbar scroll-smooth relative">
+
+                {/* Post Item */}
+                <div className="pb-4">
+                    {/* Post Header */}
+                    <div className="flex items-center justify-between p-3">
+                        <div className="flex items-center gap-3">
+                            <Avatar className="h-8 w-8 ring-2 ring-transparent">
+                                <AvatarImage src={userImage} />
+                                <AvatarFallback className="bg-gradient-to-tr from-yellow-400 to-fuchsia-600 text-white font-bold text-xs">
+                                    {username[0]?.toUpperCase() || 'U'}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="flex flex-col -gap-0.5">
+                                <span className="text-sm font-semibold leading-none">{username}</span>
+                                {location && <span className="text-xs text-white/80">{location}</span>}
+                            </div>
+                        </div>
+                        <MoreHorizontal className="h-5 w-5" />
+                    </div>
+
+                    {/* Media */}
+                    <div className="relative aspect-square bg-zinc-900 group">
+                        {mediaUrls.length > 0 ? (
                             <>
-                                {currentImageIndex > 0 && (
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); prevImage() }}
-                                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1.5 opacity-70 hover:opacity-100 transition-opacity"
-                                    >
-                                        <ChevronLeft className="h-4 w-4" />
-                                    </button>
+                                {mediaUrls[currentImageIndex].match(/\.(mp4|webm|ogg|mov)$/i) ? (
+                                    <video
+                                        src={mediaUrls[currentImageIndex]}
+                                        className="w-full h-full object-cover"
+                                        controls
+                                    />
+                                ) : (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img
+                                        src={mediaUrls[currentImageIndex]}
+                                        alt="Post content"
+                                        className="w-full h-full object-cover"
+                                    />
                                 )}
-                                {currentImageIndex < mediaUrls.length - 1 && (
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); nextImage() }}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1.5 opacity-70 hover:opacity-100 transition-opacity"
-                                    >
-                                        <ChevronRight className="h-4 w-4" />
-                                    </button>
-                                )}
-                                <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full font-medium">
-                                    {currentImageIndex + 1}/{mediaUrls.length}
-                                </div>
 
-                                {/* Pagination Dots */}
-                                <div className="absolute bottom-[-20px] left-0 right-0 flex justify-center gap-1.5 pointer-events-none">
-                                    {mediaUrls.map((_, idx) => (
-                                        <div
-                                            key={idx}
-                                            className={cn(
-                                                "h-1.5 rounded-full transition-all shadow-sm",
-                                                idx === currentImageIndex ? "w-1.5 bg-blue-500" : "w-1.5 bg-zinc-300 dark:bg-zinc-700"
-                                            )}
-                                        />
-                                    ))}
-                                </div>
+                                {hasMultipleImages && (
+                                    <>
+                                        {currentImageIndex > 0 && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); prevImage() }}
+                                                className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1.5 opacity-70 hover:opacity-100 transition-opacity"
+                                            >
+                                                <ChevronLeft className="h-4 w-4" />
+                                            </button>
+                                        )}
+                                        {currentImageIndex < mediaUrls.length - 1 && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); nextImage() }}
+                                                className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1.5 opacity-70 hover:opacity-100 transition-opacity"
+                                            >
+                                                <ChevronRight className="h-4 w-4" />
+                                            </button>
+                                        )}
+
+                                        <div className="absolute top-3 right-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full font-medium">
+                                            {currentImageIndex + 1}/{mediaUrls.length}
+                                        </div>
+
+                                        {/* Pagination Dots */}
+                                        <div className="absolute bottom-[-24px] left-0 right-0 flex justify-center gap-1.5 pointer-events-none z-10">
+                                            {mediaUrls.map((_, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className={cn(
+                                                        "h-1.5 rounded-full transition-all shadow-sm",
+                                                        idx === currentImageIndex ? "w-1.5 bg-blue-500" : "w-1.5 bg-zinc-700"
+                                                    )}
+                                                />
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
                             </>
+                        ) : (
+                            <div className="flex items-center justify-center w-full h-full text-zinc-500 flex-col gap-2">
+                                <div className="h-12 w-12 rounded-full border-2 border-dashed border-zinc-700" />
+                                <span className="text-sm">No media selected</span>
+                            </div>
                         )}
-                    </>
-                ) : (
-                    <div className="flex items-center justify-center w-full h-full text-muted-foreground bg-muted/30 flex-col gap-2">
-                        <div className="h-12 w-12 rounded-full border-2 border-dashed border-muted-foreground/50" />
-                        <span className="text-sm">No media selected</span>
                     </div>
-                )}
+
+                    {/* Actions */}
+                    <div className="p-3 pt-4">
+                        <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-4">
+                                <Heart className="h-6 w-6 stroke-[2]" />
+                                <MessageCircle className="h-6 w-6 stroke-[2] -rotate-90" />
+                                <Send className="h-6 w-6 stroke-[2]" />
+                            </div>
+                            <Bookmark className="h-6 w-6 stroke-[2]" />
+                        </div>
+
+                        {/* Likes Placeholder */}
+                        <div className="text-sm font-bold mb-2">
+                            2 likes
+                        </div>
+
+                        {/* Caption */}
+                        <div className="text-sm leading-relaxed">
+                            <span className="font-bold mr-2">{username}</span>
+                            <span className="whitespace-pre-wrap font-normal">{caption}</span>
+                        </div>
+
+                        {/* View Comments */}
+                        <div className="text-sm text-zinc-500 mt-2 cursor-pointer">
+                            View all comments
+                        </div>
+
+                        {/* Date */}
+                        <div className="text-[10px] text-zinc-500 mt-1">
+                            {formattedDate}
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            {/* Actions */}
-            <div className="p-3 pb-1">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-4">
-                        <Heart className="h-6 w-6 stroke-[1.5] hover:text-muted-foreground cursor-pointer" />
-                        <MessageCircle className="h-6 w-6 stroke-[1.5] -rotate-90 hover:text-muted-foreground cursor-pointer" />
-                        <Send className="h-6 w-6 stroke-[1.5] hover:text-muted-foreground cursor-pointer" />
-                    </div>
-                    <Bookmark className="h-6 w-6 stroke-[1.5] hover:text-muted-foreground cursor-pointer" />
-                </div>
-
-                {/* Likes Placeholder */}
-                <div className="text-sm font-semibold mb-2">
-                    12 likes
-                </div>
-
-                {/* Caption */}
-                <div className="text-sm leading-relaxed">
-                    <span className="font-semibold mr-2">{username}</span>
-                    <span className="whitespace-pre-wrap">{caption}</span>
-                    {/* Hashtags highlighting could go here */}
-                </div>
-
-                {/* Date */}
-                <div className="text-[10px] text-zinc-500 uppercase mt-2 mb-1">
-                    2 hours ago
-                </div>
-            </div>
-
-            {/* Add Comment */}
-            <div className="px-3 py-3 border-t mt-1 flex items-center gap-3">
-                <Avatar className="h-6 w-6">
-                    <AvatarFallback className="text-[8px] bg-zinc-100 dark:bg-zinc-800">ME</AvatarFallback>
+            {/* Bottom Navigation */}
+            <div className="absolute bottom-0 left-0 right-0 bg-black border-t border-zinc-800 px-6 py-4 flex items-center justify-between z-40 pb-8">
+                <Home className="h-6 w-6 stroke-[2] fill-white" />
+                <Search className="h-6 w-6 stroke-[2]" />
+                <PlusSquare className="h-6 w-6 stroke-[2]" />
+                <Clapperboard className="h-6 w-6 stroke-[2]" />
+                <Avatar className="h-6 w-6 ring-1 ring-white">
+                    <AvatarImage src={userImage} />
+                    <AvatarFallback className="bg-zinc-800 text-[8px] text-white">U</AvatarFallback>
                 </Avatar>
-                <span className="text-sm text-muted-foreground">Add a comment...</span>
             </div>
+
+            {/* Bottom Indicator */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/20 rounded-full z-50"></div>
         </div>
     )
 }

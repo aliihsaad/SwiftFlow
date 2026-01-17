@@ -81,13 +81,6 @@ const ACTION_CARDS = [
         functionName: "generate-carousel"
     },
     {
-        icon: LinkIcon,
-        title: "Turn a link into posts",
-        description: "Transform any URL into social content",
-        prompt: "Turn this link into a LinkedIn post: ",
-        functionName: "repurpose-link"
-    },
-    {
         icon: ImageIcon,
         title: "Create an image",
         description: "Generate AI images for posts",

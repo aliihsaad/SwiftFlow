@@ -10,7 +10,7 @@ const META_TOKEN_URL = 'https://graph.facebook.com/v24.0/oauth/access_token';
  * OAuth Scopes
  * We use ONLY base scopes - page access is implicit for page admins via /me/accounts
  */
-export const META_SCOPE = 'public_profile,pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_insights';
+export const META_SCOPE = 'public_profile,pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_insights,instagram_manage_comments,instagram_manage_messages';
 
 /**
  * Generate Meta OAuth URL

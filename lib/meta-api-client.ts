@@ -81,9 +81,13 @@ export async function fetchInstagramInsights(
 
         data.data?.forEach((metric: any) => {
             const value = metric.values?.[0]?.value || 0;
-            if (metric.name in insights) {
-                insights[metric.name as keyof InstagramInsights] = value;
-            }
+            const metricName = metric.name;
+
+            if (metricName === 'impressions') insights.impressions = value;
+            else if (metricName === 'reach') insights.reach = value;
+            else if (metricName === 'profile_views') insights.profile_views = value;
+            else if (metricName === 'follower_count') insights.follower_count = value;
+            else if (metricName === 'engagement') insights.engagement = value;
         });
 
         return insights;
@@ -141,11 +145,12 @@ export async function fetchFacebookPageInsights(
 
         data.data?.forEach((metric: any) => {
             const value = metric.values?.[0]?.value || 0;
-            if (metric.name === 'page_views_total') {
-                insights.page_views = value;
-            } else if (metric.name in insights) {
-                insights[metric.name as keyof FacebookInsights] = value;
-            }
+            const metricName = metric.name;
+
+            if (metricName === 'page_views_total') insights.page_views = value;
+            else if (metricName === 'page_impressions') insights.page_impressions = value;
+            else if (metricName === 'page_engaged_users') insights.page_engaged_users = value;
+            else if (metricName === 'page_fans') insights.page_fans = value;
         });
 
         return insights;
@@ -202,9 +207,14 @@ export async function fetchInstagramPostInsights(
 
         data.data?.forEach((metric: any) => {
             const value = metric.values?.[0]?.value || 0;
-            if (metric.name in insights) {
-                insights[metric.name as keyof PostInsights] = value;
-            }
+            const metricName = metric.name;
+
+            if (metricName === 'impressions') insights.impressions = value;
+            else if (metricName === 'reach') insights.reach = value;
+            else if (metricName === 'engagement') insights.engagement = value;
+            else if (metricName === 'likes') insights.likes = value;
+            else if (metricName === 'comments') insights.comments = value;
+            else if (metricName === 'saves') insights.saves = value;
         });
 
         return insights;

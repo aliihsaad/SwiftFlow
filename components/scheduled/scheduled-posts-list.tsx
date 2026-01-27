@@ -92,9 +92,9 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                 title: "No posts scheduled",
                 description: "You don't have any posts scheduled for the future. Create a new post to get started!"
             },
-            posted: {
+            published: {
                 icon: <CalendarDays className="h-8 w-8 text-primary" />,
-                title: "No posted content",
+                title: "No published content",
                 description: "You haven't published any posts yet. Once your scheduled posts go live, they'll appear here!"
             },
             failed: {

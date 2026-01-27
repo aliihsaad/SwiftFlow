@@ -33,7 +33,7 @@ export default async function DashboardPage() {
     const { count: postedCount } = await supabase
         .from('posts')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'posted')
+        .eq('status', 'published')
         .eq('workspace_id', activeWorkspace.id)
 
     // Draft counts
@@ -75,7 +75,7 @@ export default async function DashboardPage() {
     if (posts) {
         posts.forEach(post => {
             let dateKey = ''
-            if (post.status === 'posted' && post.published_at) {
+            if (post.status === 'published' && post.published_at) {
                 dateKey = new Date(post.published_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' })
                 if (chartMap.has(dateKey)) {
                     chartMap.get(dateKey).posted++
@@ -129,7 +129,7 @@ export default async function DashboardPage() {
                 description: 'Draft saved',
                 timestamp: formatDistanceToNow(new Date(post.created_at), { addSuffix: true })
             })
-        } else if (post.status === 'posted') {
+        } else if (post.status === 'published') {
             recentActivities.push({
                 id: Math.random().toString(),
                 type: 'published',

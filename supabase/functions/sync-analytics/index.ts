@@ -17,7 +17,27 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const { data: posts } = await supabase
+    console.log(`[Sync] Looking for posts in workspace: ${workspaceId}`);
+    console.log(`[Sync] Date filter: >= ${thirtyDaysAgo.toISOString()}`);
+
+    // First, let's see all published posts for this workspace (without date filter for debugging)
+    const { data: allPosts, error: allPostsError } = await supabase
+        .from('posts')
+        .select('id, workspace_id, status, published_at')
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'published');
+
+    console.log(`[Sync] All published posts in workspace (no date filter):`, allPosts?.length || 0);
+    if (allPostsError) {
+        console.error(`[Sync] Error fetching all posts:`, allPostsError);
+    }
+    if (allPosts && allPosts.length > 0) {
+        console.log(`[Sync] Sample post:`, JSON.stringify(allPosts[0]));
+    }
+
+    // Now get posts with published_posts - don't filter by posts.published_at
+    // Instead, we'll use the published_posts.published_at
+    const { data: posts, error: postsError } = await supabase
         .from('posts')
         .select(`
             *,
@@ -25,14 +45,33 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
         `)
         .eq('workspace_id', workspaceId)
         .eq('status', 'published')
-        .gte('published_at', thirtyDaysAgo.toISOString())
-        .order('published_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
-    console.log(`[Sync] Found ${posts?.length || 0} published posts for workspace ${workspaceId}`);
-
-    if (!posts || posts.length === 0) {
-        return { synced: 0, message: 'No published posts found' };
+    if (postsError) {
+        console.error(`[Sync] Error fetching posts with published_posts:`, postsError);
     }
+
+    // Filter posts that have published_posts with recent published_at
+    const recentPosts = posts?.filter((post: any) => {
+        if (!post.published_posts || post.published_posts.length === 0) {
+            return false;
+        }
+        // Check if any published_post is within the date range
+        return post.published_posts.some((pp: any) => {
+            const publishedAt = new Date(pp.published_at);
+            return publishedAt >= thirtyDaysAgo;
+        });
+    }) || [];
+
+    console.log(`[Sync] Found ${posts?.length || 0} published posts total`);
+    console.log(`[Sync] Found ${recentPosts.length} posts with recent published_posts`);
+
+    if (!recentPosts || recentPosts.length === 0) {
+        return { synced: 0, message: 'No published posts found in the last 30 days' };
+    }
+
+    // Use recentPosts for the rest of the function
+    const postsToSync = recentPosts;
 
     // Get social accounts
     const { data: accounts } = await supabase
@@ -53,7 +92,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
 
     let syncedCount = 0;
 
-    for (const post of posts) {
+    for (const post of postsToSync) {
         if (!post.published_posts || post.published_posts.length === 0) {
             console.log(`[Sync] Post ${post.id} has no published_posts, skipping`);
             continue;

@@ -1,12 +1,18 @@
 "use client"
 
 import { useState } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { ScheduledPostsList } from "./scheduled-posts-list"
 import { Calendar, FileText, CheckCircle2, XCircle, RefreshCw } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
 interface PostsTabViewProps {
     scheduledPosts: any[]
@@ -17,7 +23,10 @@ interface PostsTabViewProps {
     defaultTab?: string
 }
 
+type PostView = "scheduled" | "drafts" | "posted" | "failed"
+
 export function PostsTabView({ scheduledPosts, draftPosts, postedPosts, failedPosts, workspaceId, defaultTab = "scheduled" }: PostsTabViewProps) {
+    const [activeView, setActiveView] = useState<PostView>(defaultTab as PostView);
     const [isSyncing, setIsSyncing] = useState(false);
     const { toast } = useToast();
     const router = useRouter();
@@ -53,74 +62,96 @@ export function PostsTabView({ scheduledPosts, draftPosts, postedPosts, failedPo
         }
     };
 
+    const viewConfig = {
+        scheduled: {
+            icon: Calendar,
+            label: "Scheduled",
+            posts: scheduledPosts,
+            status: "scheduled" as const,
+        },
+        drafts: {
+            icon: FileText,
+            label: "Drafts",
+            posts: draftPosts,
+            status: "draft" as const,
+        },
+        posted: {
+            icon: CheckCircle2,
+            label: "Posted",
+            posts: postedPosts,
+            status: "published" as const,
+        },
+        failed: {
+            icon: XCircle,
+            label: "Failed",
+            posts: failedPosts,
+            status: "failed" as const,
+        },
+    };
+
+    const currentView = viewConfig[activeView];
+    const Icon = currentView.icon;
+
     return (
-        <Tabs defaultValue={defaultTab} className="w-full">
-            <div className="flex items-center justify-between mb-4">
-                <TabsList className="grid max-w-2xl grid-cols-4">
-                <TabsTrigger value="scheduled" className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Scheduled
-                    {scheduledPosts.length > 0 && (
-                        <span className="ml-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium">
-                            {scheduledPosts.length}
-                        </span>
-                    )}
-                </TabsTrigger>
-                <TabsTrigger value="drafts" className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Drafts
-                    {draftPosts.length > 0 && (
-                        <span className="ml-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium">
-                            {draftPosts.length}
-                        </span>
-                    )}
-                </TabsTrigger>
-                <TabsTrigger value="posted" className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Posted
-                    {postedPosts.length > 0 && (
-                        <span className="ml-1 rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium">
-                            {postedPosts.length}
-                        </span>
-                    )}
-                </TabsTrigger>
-                <TabsTrigger value="failed" className="flex items-center gap-2">
-                    <XCircle className="h-4 w-4" />
-                    Failed
-                    {failedPosts.length > 0 && (
-                        <span className="ml-1 rounded-full bg-destructive/20 px-2 py-0.5 text-xs font-medium text-destructive">
-                            {failedPosts.length}
-                        </span>
-                    )}
-                </TabsTrigger>
-            </TabsList>
+        <div className="w-full space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:justify-between">
+                <Select value={activeView} onValueChange={(value) => setActiveView(value as PostView)}>
+                    <SelectTrigger className="w-full sm:w-[280px]">
+                        <SelectValue>
+                            <div className="flex items-center gap-2">
+                                <Icon className="h-4 w-4" />
+                                <span>{currentView.label}</span>
+                                {currentView.posts.length > 0 && (
+                                    <span className={`ml-1 rounded-full px-2 py-0.5 text-xs font-medium ${activeView === 'failed'
+                                            ? 'bg-destructive/20 text-destructive'
+                                            : 'bg-primary/20'
+                                        }`}>
+                                        {currentView.posts.length}
+                                    </span>
+                                )}
+                            </div>
+                        </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                        {Object.entries(viewConfig).map(([key, config]) => {
+                            const ViewIcon = config.icon;
+                            return (
+                                <SelectItem key={key} value={key}>
+                                    <div className="flex items-center gap-2">
+                                        <ViewIcon className="h-4 w-4" />
+                                        <span>{config.label}</span>
+                                        {config.posts.length > 0 && (
+                                            <span className={`ml-1 rounded-full px-2 py-0.5 text-xs font-medium ${key === 'failed'
+                                                    ? 'bg-destructive/20 text-destructive'
+                                                    : 'bg-primary/20'
+                                                }`}>
+                                                {config.posts.length}
+                                            </span>
+                                        )}
+                                    </div>
+                                </SelectItem>
+                            );
+                        })}
+                    </SelectContent>
+                </Select>
+
                 <Button
                     onClick={handleSyncAnalytics}
                     disabled={isSyncing}
                     variant="outline"
                     size="sm"
-                    className="ml-auto"
+                    className="w-full sm:w-auto"
                 >
                     <RefreshCw className={`h-4 w-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
                     {isSyncing ? 'Syncing...' : 'Sync Insights'}
                 </Button>
             </div>
 
-            <TabsContent value="scheduled" className="mt-6">
-                <ScheduledPostsList posts={scheduledPosts} workspaceId={workspaceId} status="scheduled" />
-            </TabsContent>
-
-            <TabsContent value="drafts" className="mt-6">
-                <ScheduledPostsList posts={draftPosts} workspaceId={workspaceId} status="draft" />
-            </TabsContent>
-
-            <TabsContent value="posted" className="mt-6">
-                <ScheduledPostsList posts={postedPosts} workspaceId={workspaceId} status="published" />
-            </TabsContent>
-
-            <TabsContent value="failed" className="mt-6">
-                <ScheduledPostsList posts={failedPosts} workspaceId={workspaceId} status="failed" />
-            </TabsContent>
-        </Tabs>
+            <ScheduledPostsList
+                posts={currentView.posts}
+                workspaceId={workspaceId}
+                status={currentView.status}
+            />
+        </div>
     )
 }

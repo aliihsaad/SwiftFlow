@@ -1,0 +1,89 @@
+You are Claude Opus running in a terminal with full access to this codebase (frontend + backend + edge/functions). Your job is to produce a Meta App Review submission document that I can paste into Meta Developer Dashboard and also use internally.
+
+Context:
+- App: Swift Digital Sol Social (social media management platform)
+- Business portfolio: Swift Digital Solutions (verified)
+- Core capabilities already implemented and tested on real accounts:
+  1) Meta OAuth integration to connect Facebook Pages + Instagram Business accounts
+  2) Facebook Page publishing (auto-post)
+  3) Instagram direct publishing
+  4) Scheduling engine (cron/edge function) for scheduled posts
+  5) Calendar drag-and-drop rescheduling
+  6) Post creator modal (create from anywhere)
+  7) AI assistant for post creation (content prepared in-app; only final content is published)
+  8) Instagram comments management (view/reply/hide)
+- Known limitations: Instagram DMs/messages require `instagram_manage_messages` and will be submitted later if not ready for the first review.
+- Goal: pass Meta App Review with minimal risk and minimal permissions.
+
+What you must do (deliverables):
+Create a single markdown document at:
+  ./docs/meta-app-review-submission.md
+
+The document must include these sections (use exact headings):
+
+1. App Summary (2–4 sentences, boring operational language, no marketing, no “growth”, no “AI automation” claims)
+2. Declared Use Cases (only the two we selected)
+   - “Manage messaging & content on Instagram”
+   - “Manage everything on your Page”
+   Explain in plain language how the app uses each.
+3. Permissions Requested (authoritative list + justification)
+   - Inspect the codebase to find the exact Meta permissions/scopes we request during OAuth and any API calls.
+   - Output the final list as bullet points with:
+     - Permission name
+     - Why it is required (1 sentence)
+     - Where it is used in the product (file paths + brief reference to function/component name)
+   - If you find any permission that is not essential for the two use cases, flag it and propose removing it.
+4. Data Handling & Storage (privacy-review friendly)
+   - What data we store from Meta (tokens, page/ig ids, post content, comment ids, etc.)
+   - Where it is stored (DB tables / schemas; include table names and column names)
+   - Token lifecycle handling (expiry, refresh, re-auth flow) based on code
+   - Confirmation that we do not sell/share Meta data; only use it to provide requested functionality.
+5. Reviewer Test Instructions (step-by-step)
+   - Provide clear steps a Meta reviewer can follow using a test account/workspace:
+     a) Login/signup
+     b) Connect Meta account (Pages + IG business)
+     c) Create a post (image + caption)
+     d) Publish immediately to IG and/or Facebook
+     e) Schedule a post and show how it publishes
+     f) Open comments manager and reply/hide a comment
+   - Mention any prerequisites (must be IG Business connected to a Page).
+6. Screencast Script (2–3 minutes)
+   - A narrated script with timestamps (00:00–03:00)
+   - Must explicitly say “This permission is used here…” at the moment it’s demonstrated.
+   - Keep it calm and factual.
+7. Compliance Notes / “What We Do Not Do”
+   - Explicitly state we do NOT request unnecessary Facebook user profile data.
+   - We do NOT scrape personal data.
+   - We do NOT automate spam engagement.
+   - We only act on business assets that explicitly authorize access.
+8. URLs & Contact
+   - App website: https://social.swiftdigital-s.com
+   - Provide placeholders for privacy policy URL and terms URL (https://social.swiftdigital-s.com/privacy / https://social.swiftdigital-s.com/terms).
+   - Support email (info@swiftdigital-s.com).
+
+Codebase analysis requirements (very important):
+- Locate OAuth implementation(s) and list:
+  - authorization URL scopes
+  - token exchange endpoints used
+  - token storage code paths
+- Locate posting implementation(s) for:
+  - Facebook Page publishing endpoints
+  - Instagram publishing endpoints
+- Locate scheduling/cron/edge function that publishes scheduled posts
+- Locate comments manager endpoints and permissions needed (reply/hide)
+- Identify configuration files (.env examples) and document required env vars (redact secrets).
+
+Output quality constraints:
+- Document must be professional, concise, and reviewer-friendly.
+- No buzzwords. No “AI growth”. No “revolutionary”.
+- Every permission must map to a specific demonstrated feature.
+- Include file paths as evidence. Use code references, not code blocks.
+- If there are multiple ways the app works (e.g., optional AI), frame AI as “content preparation” only.
+
+After creating the markdown file:
+- Print a short terminal summary:
+  - “Generated: ./docs/meta-app-review-submission.md”
+  - “Permissions found: X”
+  - “Potential removals: …”
+
+Now perform the analysis and write the document.

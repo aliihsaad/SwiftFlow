@@ -44,24 +44,57 @@ export async function GET(request: NextRequest) {
             )
         }
 
-        // Fetch Social Connections for this workspace
-        const { data: connections } = await supabase
-            .from('social_connections')
+        // Fetch social accounts for this workspace
+        const { data: socialAccounts } = await supabase
+            .from('social_accounts')
             .select('*')
             .eq('workspace_id', activeWorkspace.id)
 
-        // If we were using Real API, we'd iterate over connections here.
-        // For now, check if we have tokens (or just fallback to mock if env vars missing/mock mode)
+        // Check if we have connected accounts with valid tokens
+        const hasValidAccounts = socialAccounts && socialAccounts.length > 0 &&
+            socialAccounts.some(acc => acc.access_token)
 
-        // TODO: Replace with real Meta API integration when credentials are available
-        // For now, use mock data for development
-        const useMockData = !process.env.FACEBOOK_ACCESS_TOKEN || !process.env.INSTAGRAM_ACCESS_TOKEN
-
-        if (useMockData) {
-            // We could customize mock data based on workspace name/id to prove isolation
+        if (!hasValidAccounts) {
+            // No connected accounts, return mock data
+            console.log('[Analytics] No connected accounts found, returning mock data')
             const mockData = generateMockAnalyticsData(range, granularity)
             return NextResponse.json(mockData)
         }
+
+        // Fetch real analytics from database
+        console.log('[Analytics] Fetching real analytics data...')
+
+        // Get published posts with analytics
+        const { data: publishedPosts } = await supabase
+            .from('posts')
+            .select(`
+                *,
+                published_posts(
+                    *,
+                    post_analytics(*)
+                )
+            `)
+            .eq('workspace_id', activeWorkspace.id)
+            .eq('status', 'published')
+            .order('published_at', { ascending: false })
+            .limit(50)
+
+        // Get account analytics
+        const accountIds = socialAccounts.map(a => a.id)
+        const { data: accountAnalytics } = await supabase
+            .from('account_analytics')
+            .select('*')
+            .in('social_account_id', accountIds)
+            .order('date', { ascending: false })
+            .limit(90)
+
+        console.log('[Analytics] Published posts:', publishedPosts?.length || 0)
+        console.log('[Analytics] Account analytics:', accountAnalytics?.length || 0)
+
+        // For now, return mock data but log that we have real data available
+        // TODO: Transform real data into analytics format
+        const mockData = generateMockAnalyticsData(range, granularity)
+        return NextResponse.json(mockData)
 
         // Real API implementation (commented out for now)
         /*

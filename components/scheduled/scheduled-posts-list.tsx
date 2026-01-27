@@ -15,7 +15,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { CreatePostModal } from "@/components/create/create-post-modal"
-import { Pencil, CalendarDays, FileText, Trash2 } from "lucide-react"
+import { Pencil, CalendarDays, FileText, Trash2, Eye, Heart, MessageCircle, Share2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
@@ -195,6 +195,50 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                                 })()}
                             </div>
 
+                            {/* Show insights for published posts */}
+                            {status === 'published' && post.published_posts && post.published_posts.length > 0 && (
+                                <div className="mt-4 pt-4 border-t">
+                                    {post.published_posts.map((pp: any) => {
+                                        const analytics = pp.post_analytics?.[0];
+                                        if (!analytics) return null;
+
+                                        return (
+                                            <div key={pp.id} className="space-y-2">
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                    <Badge variant="outline" className="capitalize">{pp.platform}</Badge>
+                                                    <span>Insights</span>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {analytics.views > 0 && (
+                                                        <div className="flex items-center gap-2 text-sm">
+                                                            <Eye className="h-4 w-4 text-muted-foreground" />
+                                                            <span>{analytics.views.toLocaleString()}</span>
+                                                        </div>
+                                                    )}
+                                                    {analytics.likes > 0 && (
+                                                        <div className="flex items-center gap-2 text-sm">
+                                                            <Heart className="h-4 w-4 text-muted-foreground" />
+                                                            <span>{analytics.likes.toLocaleString()}</span>
+                                                        </div>
+                                                    )}
+                                                    {analytics.comments > 0 && (
+                                                        <div className="flex items-center gap-2 text-sm">
+                                                            <MessageCircle className="h-4 w-4 text-muted-foreground" />
+                                                            <span>{analytics.comments.toLocaleString()}</span>
+                                                        </div>
+                                                    )}
+                                                    {analytics.shares > 0 && (
+                                                        <div className="flex items-center gap-2 text-sm">
+                                                            <Share2 className="h-4 w-4 text-muted-foreground" />
+                                                            <span>{analytics.shares.toLocaleString()}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
 
                             <div className="absolute top-2 right-2 flex gap-1">
                                 <Button

@@ -269,24 +269,54 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                         />
                     </div>
 
-                    <div className="space-y-2">
-                        <Label>Brand Voice</Label>
-                        <Select
-                            value={profile?.brand_voice || 'professional'}
-                            onValueChange={(value) => updateField('brand_voice', value)}
-                        >
-                            <SelectTrigger>
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="professional">Professional</SelectItem>
-                                <SelectItem value="casual">Casual</SelectItem>
-                                <SelectItem value="friendly">Friendly</SelectItem>
-                                <SelectItem value="authoritative">Authoritative</SelectItem>
-                                <SelectItem value="playful">Playful</SelectItem>
-                                <SelectItem value="inspirational">Inspirational</SelectItem>
-                            </SelectContent>
-                        </Select>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>Brand Voice</Label>
+                            <Select
+                                value={profile?.brand_voice || 'professional'}
+                                onValueChange={(value) => updateField('brand_voice', value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="professional">Professional</SelectItem>
+                                    <SelectItem value="casual">Casual</SelectItem>
+                                    <SelectItem value="friendly">Friendly</SelectItem>
+                                    <SelectItem value="authoritative">Authoritative</SelectItem>
+                                    <SelectItem value="playful">Playful</SelectItem>
+                                    <SelectItem value="inspirational">Inspirational</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Language</Label>
+                            <Select
+                                value={profile?.language || 'en'}
+                                onValueChange={(value) => updateField('language', value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="en">English</SelectItem>
+                                    <SelectItem value="es">Spanish</SelectItem>
+                                    <SelectItem value="fr">French</SelectItem>
+                                    <SelectItem value="de">German</SelectItem>
+                                    <SelectItem value="it">Italian</SelectItem>
+                                    <SelectItem value="pt">Portuguese</SelectItem>
+                                    <SelectItem value="nl">Dutch</SelectItem>
+                                    <SelectItem value="ar">Arabic</SelectItem>
+                                    <SelectItem value="zh">Chinese</SelectItem>
+                                    <SelectItem value="ja">Japanese</SelectItem>
+                                    <SelectItem value="ko">Korean</SelectItem>
+                                    <SelectItem value="hi">Hindi</SelectItem>
+                                    <SelectItem value="ru">Russian</SelectItem>
+                                    <SelectItem value="tr">Turkish</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

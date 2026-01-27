@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS workspace_brand_profiles (
     business_description TEXT,
     target_audience TEXT,
     brand_voice TEXT,
+    language TEXT DEFAULT 'en',
     services JSONB DEFAULT '[]',
     unique_selling_points TEXT[],
     logo_url TEXT,

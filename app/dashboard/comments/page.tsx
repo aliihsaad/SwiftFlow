@@ -7,6 +7,14 @@ import { CommentsList } from "@/components/comments/comments-list"
 import { CommentsLoadingSkeleton } from "@/components/comments/comments-loading"
 import { useToast } from "@/components/ui/use-toast"
 
+interface PostInfo {
+    published_post_id: string
+    platform_post_id: string
+    permalink: string | null
+    content: string
+    media_urls: string[]
+}
+
 interface Comment {
     id: string
     platform_comment_id: string
@@ -21,6 +29,7 @@ interface Comment {
         account_name: string
     } | null
     replies: Comment[]
+    post: PostInfo | null
 }
 
 interface CommentsResponse {

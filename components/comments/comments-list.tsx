@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -24,7 +24,14 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
-import { generateCommentReply } from "@/app/actions/generate-reply"
+import { createClient } from "@/utils/supabase/client"
+
+function getCookie(name: string): string | undefined {
+    if (typeof window === 'undefined') return undefined
+    const value = `; ${document.cookie}`
+    const parts = value.split(`; ${name}=`)
+    if (parts.length === 2) return parts.pop()?.split(';').shift()
+}
 
 interface PostInfo {
     published_post_id: string
@@ -94,13 +101,24 @@ export function CommentsList({
         setReplyingTo(comment.id)
 
         try {
-            const reply = await generateCommentReply({
-                comment: comment.message,
-                authorUsername: comment.author_username,
-                postContent: comment.post?.content || null,
-                platform: comment.social_accounts?.platform || 'instagram'
+            const workspaceId = getCookie('active_workspace_id')
+            if (!workspaceId) {
+                throw new Error('No active workspace')
+            }
+
+            const supabase = createClient()
+            const { data, error } = await supabase.functions.invoke('generate-reply', {
+                body: {
+                    comment: comment.message,
+                    authorUsername: comment.author_username,
+                    postContent: comment.post?.content || null,
+                    platform: comment.social_accounts?.platform || 'instagram',
+                    workspaceId
+                }
             })
-            setReplyText(reply)
+
+            if (error) throw error
+            setReplyText(data?.reply || '')
         } catch (error) {
             console.error('AI reply generation failed:', error)
         } finally {

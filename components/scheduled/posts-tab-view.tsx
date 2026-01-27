@@ -65,7 +65,7 @@ export function PostsTabView({ scheduledPosts, draftPosts, postedPosts, failedPo
             </TabsContent>
 
             <TabsContent value="posted" className="mt-6">
-                <ScheduledPostsList posts={postedPosts} workspaceId={workspaceId} status="posted" />
+                <ScheduledPostsList posts={postedPosts} workspaceId={workspaceId} status="published" />
             </TabsContent>
 
             <TabsContent value="failed" className="mt-6">

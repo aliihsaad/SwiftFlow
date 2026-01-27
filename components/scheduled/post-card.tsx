@@ -7,7 +7,7 @@ import { MoreHorizontal, Calendar, Instagram, Facebook } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 interface PostCardProps {
-    status: 'scheduled' | 'posted' | 'failed'
+    status: 'scheduled' | 'published' | 'failed'
     platform: 'instagram' | 'facebook' | 'both'
     content: string
     date: string
@@ -17,7 +17,7 @@ interface PostCardProps {
 export function PostCard({ status, platform, content, date, image }: PostCardProps) {
     const statusColor = {
         scheduled: "bg-blue-100 text-blue-700 hover:bg-blue-100/80 dark:bg-blue-500/20 dark:text-blue-400",
-        posted: "bg-green-100 text-green-700 hover:bg-green-100/80 dark:bg-green-500/20 dark:text-green-400",
+        published: "bg-green-100 text-green-700 hover:bg-green-100/80 dark:bg-green-500/20 dark:text-green-400",
         failed: "bg-red-100 text-red-700 hover:bg-red-100/80 dark:bg-red-500/20 dark:text-red-400",
     }
 

@@ -40,7 +40,7 @@ export default async function ScheduledPostsPage({
     const { data: postedPosts } = await supabase
         .from('posts')
         .select('*')
-        .eq('status', 'posted')
+        .eq('status', 'published')
         .eq('workspace_id', activeWorkspace.id)
         .order('published_at', { ascending: false })
 

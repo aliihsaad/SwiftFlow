@@ -23,7 +23,7 @@ import { createClient } from "@/utils/supabase/client"
 interface ScheduledPostsListProps {
     posts: any[]
     workspaceId: string
-    status?: 'scheduled' | 'draft' | 'posted' | 'failed'
+    status?: 'scheduled' | 'draft' | 'published' | 'failed'
 }
 
 export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }: ScheduledPostsListProps) {
@@ -168,7 +168,7 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                                 <div className="flex gap-2 items-center">
                                     <Badge
                                         variant={
-                                            post.status === 'posted' ? 'default' :
+                                            post.status === 'published' ? 'default' :
                                                 post.status === 'failed' ? 'destructive' :
                                                     'outline'
                                         }

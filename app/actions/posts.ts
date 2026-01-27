@@ -60,7 +60,7 @@ export async function createPostAction(formData: FormData) {
     const { error } = await supabaseAdmin.from('posts').insert({
         content,
         platforms: { selected: platforms },
-        status: action === 'post' ? 'posted' : (action === 'schedule' ? 'scheduled' : 'draft'),
+        status: action === 'post' ? 'published' : (action === 'schedule' ? 'scheduled' : 'draft'),
         workspace_id: workspaceId,
         posted_at: action === 'post' ? new Date().toISOString() : null,
         scheduled_for: action === 'schedule' ? new Date(Date.now() + 86400000).toISOString() : null

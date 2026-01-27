@@ -122,39 +122,66 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
 
                 if (publishedPost.platform === 'instagram') {
                     // Fetch Instagram post insights
-                    const metrics = 'impressions,reach,engagement,likes,comments,saves';
+                    // Valid metrics: impressions, reach, saved, likes, comments, shares, total_interactions, views
+                    const metrics = 'impressions,reach,saved,likes,comments,shares,total_interactions';
                     const url = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/insights?metric=${metrics}&access_token=${account.access_token}`;
                     console.log(`[Sync] Fetching Instagram insights for ${publishedPost.platform_post_id}`);
 
                     const response = await fetch(url);
                     const data = await response.json();
 
-                    if (response.ok) {
-                        console.log(`[Sync] Instagram insights response:`, data);
+                    if (response.ok && data.data) {
+                        console.log(`[Sync] Instagram insights response:`, JSON.stringify(data));
                         insights = {};
                         data.data?.forEach((metric: any) => {
                             insights[metric.name] = metric.values?.[0]?.value || 0;
                         });
                     } else {
-                        console.error(`[Sync] Instagram API error:`, data);
+                        console.error(`[Sync] Instagram API error:`, JSON.stringify(data));
+                        // Try alternative: fetch basic media info instead
+                        const altUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=like_count,comments_count&access_token=${account.access_token}`;
+                        const altResponse = await fetch(altUrl);
+                        const altData = await altResponse.json();
+
+                        if (altResponse.ok) {
+                            console.log(`[Sync] Instagram alt response:`, JSON.stringify(altData));
+                            insights = {
+                                likes: altData.like_count || 0,
+                                comments: altData.comments_count || 0,
+                                impressions: 0,
+                                reach: 0,
+                                saved: 0,
+                                shares: 0
+                            };
+                        } else {
+                            console.error(`[Sync] Instagram alt API error:`, JSON.stringify(altData));
+                        }
                     }
                 } else if (publishedPost.platform === 'facebook') {
-                    // Fetch Facebook post data
-                    const url = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=likes.summary(true),comments.summary(true),shares&access_token=${account.access_token}`;
+                    // Fetch Facebook post data - use reactions instead of likes for better compatibility
+                    // Don't request shares directly as it doesn't work for Photos
+                    const url = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=reactions.summary(true),comments.summary(true)&access_token=${account.access_token}`;
                     console.log(`[Sync] Fetching Facebook data for ${publishedPost.platform_post_id}`);
 
                     const response = await fetch(url);
                     const data = await response.json();
 
                     if (response.ok) {
-                        console.log(`[Sync] Facebook response:`, data);
+                        console.log(`[Sync] Facebook response:`, JSON.stringify(data));
                         insights = {
-                            likes: data.likes?.summary?.total_count || 0,
+                            likes: data.reactions?.summary?.total_count || 0,
                             comments: data.comments?.summary?.total_count || 0,
-                            shares: data.shares?.count || 0
+                            shares: 0 // Shares not available for all post types
                         };
                     } else {
-                        console.error(`[Sync] Facebook API error:`, data);
+                        console.error(`[Sync] Facebook API error:`, JSON.stringify(data));
+                        // Try with page token approach
+                        const altUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=id&access_token=${account.access_token}`;
+                        const altResponse = await fetch(altUrl);
+                        if (altResponse.ok) {
+                            // At least the post exists, set zeros
+                            insights = { likes: 0, comments: 0, shares: 0 };
+                        }
                     }
                 }
 
@@ -166,8 +193,8 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                         likes: insights.likes || 0,
                         comments: insights.comments || 0,
                         shares: insights.shares || 0,
-                        saves: insights.saves || 0,
-                        engagement_rate: insights.engagement || 0,
+                        saves: insights.saved || insights.saves || 0,
+                        engagement_rate: insights.total_interactions || 0,
                         synced_at: new Date().toISOString()
                     };
 

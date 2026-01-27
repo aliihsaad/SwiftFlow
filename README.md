@@ -385,14 +385,17 @@ For issues or questions:
 ## 🔮 Roadmap
 
 ### ✅ Recently Completed
+- [x] **Meta OAuth Integration** - Connect Facebook Pages and Instagram Business accounts
+- [x] **Facebook Auto-Posting** - Publish posts directly to Facebook Pages via Meta API
+- [x] **Instagram Direct Publishing** - Publish posts to Instagram Business accounts
+- [x] **Scheduled Post Processing** - Cron-based edge function for auto-publishing scheduled posts
 - [x] **Calendar Drag-and-Drop Rescheduling** - Move posts between dates with optimistic updates
 - [x] **Modal-Based Post Creation** - Create posts from anywhere without page navigation
 - [x] **AI Assistant Integration** - Direct post creation from AI-generated content
 
 ### 🚧 In Progress
-- [ ] Instagram Direct Publishing
-- [ ] Facebook Auto-Posting
 - [ ] Advanced Analytics Dashboard
+- [ ] Multi-image Carousel Publishing
 
 ### 📋 Planned Features
 - [ ] Team Collaboration Features

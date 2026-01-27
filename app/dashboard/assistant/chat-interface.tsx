@@ -823,7 +823,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                         {messages.length === 0 && (
                             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 animate-in fade-in zoom-in duration-500">
                                 <div className="text-center space-y-2">
-                                    <h1 className="text-4xl font-bold tracking-tight bg-gradient-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">
+                                    <h1 className="text-4xl font-bold tracking-tight bg-linear-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">
                                         AI Assistant
                                     </h1>
                                     <p className="text-muted-foreground text-lg">Your social media copilot. Ask me anything!</p>
@@ -852,7 +852,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                             {messages.map((msg, i) => (
                                 <div key={i} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                     {msg.role === 'assistant' && (
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center shrink-0 shadow-lg ring-2 ring-background">
+                                        <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-violet-500 flex items-center justify-center shrink-0 shadow-lg ring-2 ring-background">
                                             <Bot className="w-4 h-4 text-white" />
                                         </div>
                                     )}
@@ -990,7 +990,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
                             {isLoading && (
                                 <div className="flex gap-4">
-                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center animate-pulse">
+                                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-violet-500 flex items-center justify-center animate-pulse">
                                         <Bot className="w-4 h-4 text-white" />
                                     </div>
                                     <div className="p-4 rounded-2xl bg-muted/50 border rounded-bl-sm flex items-center gap-2">

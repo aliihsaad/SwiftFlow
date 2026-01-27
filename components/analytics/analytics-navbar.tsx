@@ -17,14 +17,14 @@ export function AnalyticsNavbar() {
     const pathname = usePathname()
 
     return (
-        <nav className="border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <nav className="border-b border-border/40 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
             <div className="flex h-16 items-center justify-between px-6">
                 {/* Left side */}
                 <div className="flex items-center gap-8">
                     {/* Logo */}
                     <Link href="/dashboard" className="flex items-center gap-2">
                         <Sparkles className="h-5 w-5 text-primary" />
-                        <span className="text-lg font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+                        <span className="text-lg font-bold bg-linear-to-r from-primary to-purple-600 bg-clip-text text-transparent">
                             SocialRails
                         </span>
                     </Link>

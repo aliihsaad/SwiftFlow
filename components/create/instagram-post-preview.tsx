@@ -39,7 +39,7 @@ export function InstagramPostPreview({ caption, mediaUrls, username = "you", use
     }
 
     return (
-        <div className="w-[380px] mx-auto bg-black rounded-[3rem] border-8 border-zinc-800 overflow-hidden shadow-2xl font-sans relative aspect-[9/19] select-none text-white">
+        <div className="w-[380px] mx-auto bg-black rounded-[3rem] border-8 border-zinc-800 overflow-hidden shadow-2xl font-sans relative aspect-9/19 select-none text-white">
 
             {/* Dynamic Island / Notch Area */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-black rounded-b-2xl z-50"></div>
@@ -74,7 +74,7 @@ export function InstagramPostPreview({ caption, mediaUrls, username = "you", use
                         <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8 ring-2 ring-transparent">
                                 <AvatarImage src={userImage} />
-                                <AvatarFallback className="bg-gradient-to-tr from-yellow-400 to-fuchsia-600 text-white font-bold text-xs">
+                                <AvatarFallback className="bg-linear-to-tr from-yellow-400 to-fuchsia-600 text-white font-bold text-xs">
                                     {username[0]?.toUpperCase() || 'U'}
                                 </AvatarFallback>
                             </Avatar>
@@ -155,11 +155,11 @@ export function InstagramPostPreview({ caption, mediaUrls, username = "you", use
                     <div className="p-3 pt-4">
                         <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-4">
-                                <Heart className="h-6 w-6 stroke-[2]" />
-                                <MessageCircle className="h-6 w-6 stroke-[2] -rotate-90" />
-                                <Send className="h-6 w-6 stroke-[2]" />
+                                <Heart className="h-6 w-6 stroke-2" />
+                                <MessageCircle className="h-6 w-6 stroke-2 -rotate-90" />
+                                <Send className="h-6 w-6 stroke-2" />
                             </div>
-                            <Bookmark className="h-6 w-6 stroke-[2]" />
+                            <Bookmark className="h-6 w-6 stroke-2" />
                         </div>
 
                         {/* Likes Placeholder */}
@@ -188,10 +188,10 @@ export function InstagramPostPreview({ caption, mediaUrls, username = "you", use
 
             {/* Bottom Navigation */}
             <div className="absolute bottom-0 left-0 right-0 bg-black border-t border-zinc-800 px-6 py-4 flex items-center justify-between z-40 pb-8">
-                <Home className="h-6 w-6 stroke-[2] fill-white" />
-                <Search className="h-6 w-6 stroke-[2]" />
-                <PlusSquare className="h-6 w-6 stroke-[2]" />
-                <Clapperboard className="h-6 w-6 stroke-[2]" />
+                <Home className="h-6 w-6 stroke-2 fill-white" />
+                <Search className="h-6 w-6 stroke-2" />
+                <PlusSquare className="h-6 w-6 stroke-2" />
+                <Clapperboard className="h-6 w-6 stroke-2" />
                 <Avatar className="h-6 w-6 ring-1 ring-white">
                     <AvatarImage src={userImage} />
                     <AvatarFallback className="bg-zinc-800 text-[8px] text-white">U</AvatarFallback>

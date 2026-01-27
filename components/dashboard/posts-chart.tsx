@@ -25,7 +25,7 @@ export function PostsChart({ data }: PostsChartProps) {
             <CardHeader className="pb-4 border-b border-gray-100 dark:border-gray-800">
                 <div className="flex items-center justify-between">
                     <div>
-                        <CardTitle className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+                        <CardTitle className="text-xl font-bold bg-linear-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
                             Post Activity
                         </CardTitle>
                         <p className="text-sm text-muted-foreground mt-1.5">Track your posting performance over time</p>

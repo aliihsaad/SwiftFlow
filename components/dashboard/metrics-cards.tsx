@@ -56,7 +56,7 @@ export function MetricsCards({ draftCount, scheduledCount, postedCount, workspac
         <TooltipProvider>
             <div className="grid gap-6 md:grid-cols-3">
                 <Link href="/dashboard/scheduled?tab=drafts">
-                    <Card className="relative overflow-hidden transition-all duration-300 shadow-sm hover:shadow-md hover:scale-[1.02] bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-950/20 dark:to-yellow-950/20 border-amber-200 dark:border-amber-900 group cursor-pointer">
+                    <Card className="relative overflow-hidden transition-all duration-300 shadow-sm hover:shadow-md hover:scale-[1.02] bg-linear-to-br from-amber-50 to-yellow-50 dark:from-amber-950/20 dark:to-yellow-950/20 border-amber-200 dark:border-amber-900 group cursor-pointer">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium text-amber-900 dark:text-amber-100 flex items-center gap-2">
                                 Drafts
@@ -92,7 +92,7 @@ export function MetricsCards({ draftCount, scheduledCount, postedCount, workspac
                 </Link>
 
                 <div className="group">
-                    <Card className="relative overflow-hidden transition-all duration-300 shadow-sm hover:shadow-md hover:scale-[1.02] bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200 dark:border-blue-900">
+                    <Card className="relative overflow-hidden transition-all duration-300 shadow-sm hover:shadow-md hover:scale-[1.02] bg-linear-to-br from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200 dark:border-blue-900">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium text-blue-900 dark:text-blue-100 flex items-center gap-2">
                                 Scheduled
@@ -137,7 +137,7 @@ export function MetricsCards({ draftCount, scheduledCount, postedCount, workspac
                 </div>
 
                 <div className="group">
-                    <Card className="relative overflow-hidden transition-all duration-300 shadow-sm hover:shadow-md hover:scale-[1.02] bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-900">
+                    <Card className="relative overflow-hidden transition-all duration-300 shadow-sm hover:shadow-md hover:scale-[1.02] bg-linear-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-900">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium text-green-900 dark:text-green-100 flex items-center gap-2">
                                 Posted

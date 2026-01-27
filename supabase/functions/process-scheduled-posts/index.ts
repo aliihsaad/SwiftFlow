@@ -1,0 +1,227 @@
+// @ts-nocheck - Deno runtime, not Node.js
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+
+const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
+
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+interface PublishResult {
+    success: boolean;
+    platform: string;
+    platformPostId?: string;
+    error?: string;
+}
+
+/**
+ * Publish to Facebook Page
+ */
+async function publishToFacebook(
+    pageId: string,
+    accessToken: string,
+    message: string,
+    imageUrl?: string
+): Promise<PublishResult> {
+    try {
+        let endpoint = `${META_GRAPH_URL}/${pageId}/feed`;
+        let body: Record<string, string> = { message, access_token: accessToken };
+
+        // If image, use photos endpoint
+        if (imageUrl) {
+            endpoint = `${META_GRAPH_URL}/${pageId}/photos`;
+            body = { url: imageUrl, caption: message, access_token: accessToken };
+        }
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            return { success: false, platform: 'facebook', error: data.error?.message };
+        }
+
+        return { success: true, platform: 'facebook', platformPostId: data.id || data.post_id };
+    } catch (error) {
+        return { success: false, platform: 'facebook', error: String(error) };
+    }
+}
+
+/**
+ * Publish to Instagram Business Account
+ */
+async function publishToInstagram(
+    igAccountId: string,
+    accessToken: string,
+    caption: string,
+    imageUrl: string
+): Promise<PublishResult> {
+    try {
+        // Step 1: Create container
+        const containerRes = await fetch(`${META_GRAPH_URL}/${igAccountId}/media`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                image_url: imageUrl,
+                caption,
+                access_token: accessToken
+            })
+        });
+
+        const containerData = await containerRes.json();
+        if (!containerRes.ok) {
+            return { success: false, platform: 'instagram', error: containerData.error?.message };
+        }
+
+        // Wait for processing
+        await new Promise(r => setTimeout(r, 2000));
+
+        // Step 2: Publish
+        const publishRes = await fetch(`${META_GRAPH_URL}/${igAccountId}/media_publish`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                creation_id: containerData.id,
+                access_token: accessToken
+            })
+        });
+
+        const publishData = await publishRes.json();
+        if (!publishRes.ok) {
+            return { success: false, platform: 'instagram', error: publishData.error?.message };
+        }
+
+        return { success: true, platform: 'instagram', platformPostId: publishData.id };
+    } catch (error) {
+        return { success: false, platform: 'instagram', error: String(error) };
+    }
+}
+
+serve(async (req) => {
+    if (req.method === 'OPTIONS') {
+        return new Response('ok', { headers: corsHeaders });
+    }
+
+    try {
+        const supabase = createClient(
+            Deno.env.get('SUPABASE_URL')!,
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+        );
+
+        // Find posts that are due for publishing
+        const now = new Date().toISOString();
+        const { data: duePosts, error: fetchError } = await supabase
+            .from('posts')
+            .select('*')
+            .eq('status', 'scheduled')
+            .lte('scheduled_for', now)
+            .limit(10);
+
+        if (fetchError) {
+            console.error('Error fetching due posts:', fetchError);
+            return new Response(JSON.stringify({ error: fetchError.message }), {
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 500
+            });
+        }
+
+        console.log(`Found ${duePosts?.length || 0} posts to publish`);
+
+        const results: { postId: string; results: PublishResult[] }[] = [];
+
+        for (const post of duePosts || []) {
+            const postResults: PublishResult[] = [];
+            const platforms = post.platforms as string[];
+            const mediaUrls = post.media_urls as string[];
+            const content = post.content || '';
+
+            // Get social accounts for this workspace
+            const { data: accounts } = await supabase
+                .from('social_accounts')
+                .select('*')
+                .eq('workspace_id', post.workspace_id);
+
+            for (const platform of platforms) {
+                const account = accounts?.find(a => a.platform === platform);
+
+                if (!account) {
+                    postResults.push({
+                        success: false,
+                        platform,
+                        error: `No ${platform} account connected`
+                    });
+                    continue;
+                }
+
+                let result: PublishResult;
+
+                if (platform === 'facebook') {
+                    result = await publishToFacebook(
+                        account.account_id,
+                        account.access_token,
+                        content,
+                        mediaUrls[0]
+                    );
+                } else if (platform === 'instagram') {
+                    if (!mediaUrls[0]) {
+                        result = { success: false, platform: 'instagram', error: 'Image required' };
+                    } else {
+                        result = await publishToInstagram(
+                            account.account_id,
+                            account.access_token,
+                            content,
+                            mediaUrls[0]
+                        );
+                    }
+                } else {
+                    result = { success: false, platform, error: 'Unsupported platform' };
+                }
+
+                postResults.push(result);
+
+                // Store in published_posts if successful
+                if (result.success && result.platformPostId) {
+                    await supabase.from('published_posts').insert({
+                        post_id: post.id,
+                        platform,
+                        platform_post_id: result.platformPostId
+                    });
+                }
+            }
+
+            // Update post status
+            const allSucceeded = postResults.every(r => r.success);
+            await supabase
+                .from('posts')
+                .update({
+                    status: allSucceeded ? 'published' : 'failed',
+                    published_at: allSucceeded ? new Date().toISOString() : null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', post.id);
+
+            results.push({ postId: post.id, results: postResults });
+        }
+
+        return new Response(JSON.stringify({
+            processed: duePosts?.length || 0,
+            results
+        }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200
+        });
+
+    } catch (error: any) {
+        console.error('Process scheduled posts error:', error);
+        return new Response(JSON.stringify({ error: error.message }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500
+        });
+    }
+});

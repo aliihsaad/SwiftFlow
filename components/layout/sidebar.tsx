@@ -74,7 +74,7 @@ export function Sidebar({ workspaces, activeWorkspace }: SidebarProps) {
                                     <CreatePostTrigger workspaceId={activeWorkspace?.id}>
                                         <Button
                                             variant="default"
-                                            className="justify-center px-2 h-10 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white"
+                                            className="justify-center px-2 h-10 bg-linear-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white"
                                         >
                                             <PenSquare className="h-5 w-5 shrink-0" />
                                         </Button>
@@ -86,7 +86,7 @@ export function Sidebar({ workspaces, activeWorkspace }: SidebarProps) {
                             <CreatePostTrigger workspaceId={activeWorkspace?.id}>
                                 <Button
                                     variant="default"
-                                    className="w-full justify-start gap-3 px-3 py-2.5 h-auto text-sm font-medium bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white shadow-lg shadow-purple-500/20"
+                                    className="w-full justify-start gap-3 px-3 py-2.5 h-auto text-sm font-medium bg-linear-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white shadow-lg shadow-purple-500/20"
                                 >
                                     <PenSquare className="h-5 w-5 shrink-0" />
                                     <span className="truncate">Create Post</span>

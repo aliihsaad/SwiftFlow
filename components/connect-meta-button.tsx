@@ -8,9 +8,9 @@ import { Facebook } from "lucide-react"
  * Connect Meta/Facebook Button
  * Initiates OAuth flow to connect user's Facebook account
  */
-export function ConnectMetaButton() {
+export function ConnectMetaButton({ workspaceId }: { workspaceId?: string }) {
     const handleConnect = () => {
-        redirectToMetaOAuth();
+        redirectToMetaOAuth(workspaceId);
     };
 
     return (

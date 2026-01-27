@@ -11,21 +11,18 @@ const supabaseAdmin = createClient(
 const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
 
 /**
- * Meta OAuth Callback Route
- * 
- * Flow:
- * 1. User authorizes app with basic permissions (email, public_profile)
- * 2. We exchange the code for a user access token
- * 3. We call /me/accounts to get pages the user administers (implicit access)
- * 4. Store pages in database
+ * Meta OAuth Callback Route - COMPLETE REWRITE WITH DEBUGGING
  */
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
+    const debugLog: string[] = [];
 
-    console.log('[META_CALLBACK] Received callback', {
-        params: Object.fromEntries(searchParams.entries()),
-        timestamp: new Date().toISOString()
-    });
+    const log = (msg: string) => {
+        console.log(`[META_CALLBACK] ${msg}`);
+        debugLog.push(msg);
+    };
+
+    log(`Callback received at ${new Date().toISOString()}`);
 
     const code = searchParams.get('code');
     const workspaceId = searchParams.get('state');
@@ -34,125 +31,219 @@ export async function GET(request: NextRequest) {
 
     // Handle OAuth errors
     if (error) {
-        console.error('[META_CALLBACK] OAuth error', { error, errorDescription });
+        log(`OAuth error: ${errorDescription || error}`);
         return NextResponse.redirect(
             new URL(`/dashboard/settings/brand?error=${encodeURIComponent(errorDescription || error)}`, request.url)
         );
     }
 
     if (!code) {
+        log('Missing code parameter');
         return NextResponse.redirect(
             new URL('/dashboard/settings/brand?error=missing_code', request.url)
         );
     }
 
     if (!workspaceId) {
+        log('Missing workspaceId (state) parameter');
         return NextResponse.redirect(
             new URL('/dashboard/settings/brand?error=missing_workspace_id', request.url)
         );
     }
 
+    log(`Code: ${code.substring(0, 20)}..., WorkspaceId: ${workspaceId}`);
+
     try {
-        // 1. Exchange code for User Access Token
-        console.log('[META_CALLBACK] Exchanging code for token');
+        // Step 1: Exchange code for token
+        log('Step 1: Exchanging code for token...');
         const tokenData = await exchangeCodeForToken(code);
         const userAccessToken = tokenData.access_token;
 
-        console.log('[META_CALLBACK] Token exchange success', {
-            hasToken: !!userAccessToken,
-            expiresIn: tokenData.expires_in
-        });
+        if (!userAccessToken) {
+            log('ERROR: No access token received from Meta');
+            return NextResponse.redirect(
+                new URL('/dashboard/settings/brand?error=no_access_token', request.url)
+            );
+        }
+        log(`Step 1 SUCCESS: Got token (expires in ${tokenData.expires_in}s)`);
 
-        // 2. Fetch pages the user administers (implicit via /me/accounts)
-        console.log('[META_CALLBACK] Fetching user pages via /me/accounts');
-        const pagesResponse = await fetch(
-            `${META_GRAPH_URL}/me/accounts?access_token=${userAccessToken}`
-        );
+        // Step 2: Fetch pages
+        log('Step 2: Fetching pages from /me/accounts...');
+        const pagesUrl = `${META_GRAPH_URL}/me/accounts?access_token=${userAccessToken}`;
+        log(`Fetching: ${pagesUrl.substring(0, 80)}...`);
+
+        const pagesResponse = await fetch(pagesUrl, { cache: 'no-store' });
 
         if (!pagesResponse.ok) {
             const errorText = await pagesResponse.text();
-            console.error('[META_CALLBACK] Pages fetch failed', { status: pagesResponse.status, error: errorText });
-
-            // Even if pages fetch fails, the login succeeded
+            log(`ERROR: Pages fetch failed with status ${pagesResponse.status}`);
+            log(`Response: ${errorText.substring(0, 200)}`);
             return NextResponse.redirect(
-                new URL(`/dashboard/settings/brand?success=meta_connected&pages_count=0&note=pages_fetch_failed`, request.url)
+                new URL(`/dashboard/settings/brand?error=pages_fetch_failed&status=${pagesResponse.status}`, request.url)
             );
         }
 
-        const pagesData = await pagesResponse.json();
+        const rawText = await pagesResponse.text();
+        log(`Step 2 Raw Response: ${rawText.substring(0, 300)}`);
+
+        let pagesData;
+        try {
+            pagesData = JSON.parse(rawText);
+        } catch (e) {
+            log(`ERROR: Failed to parse JSON: ${e}`);
+            return NextResponse.redirect(
+                new URL('/dashboard/settings/brand?error=json_parse_failed', request.url)
+            );
+        }
+
         const pages = pagesData.data || [];
+        log(`Step 2 SUCCESS: Found ${pages.length} page(s)`);
 
-        console.log('[META_CALLBACK] Pages fetched', {
-            count: pages.length,
-            pageNames: pages.map((p: any) => p.name)
-        });
+        if (pages.length === 0) {
+            log('WARNING: No pages returned by Meta API');
+            return NextResponse.redirect(
+                new URL('/dashboard/settings/brand?error=no_pages&debug=' + encodeURIComponent(debugLog.join('|')), request.url)
+            );
+        }
 
-        // 3. Enrich with Instagram Business Account IDs
-        if (pages.length > 0) {
-            for (const page of pages) {
-                try {
-                    const igResponse = await fetch(
-                        `${META_GRAPH_URL}/${page.id}?fields=instagram_business_account&access_token=${page.access_token}`
-                    );
-                    if (igResponse.ok) {
-                        const igData = await igResponse.json();
-                        if (igData.instagram_business_account) {
-                            page.instagram_business_account = igData.instagram_business_account;
-                            console.log('[META_CALLBACK] Found Instagram for page', {
-                                pageName: page.name,
-                                igId: igData.instagram_business_account.id
-                            });
-                        }
+        // Step 3: Store each page in database
+        log('Step 3: Storing pages in database...');
+
+        for (let i = 0; i < pages.length; i++) {
+            const page = pages[i];
+            log(`Processing page ${i + 1}/${pages.length}: ${page.name} (ID: ${page.id})`);
+
+            // Check for Instagram
+            let igAccountId = null;
+            try {
+                const igUrl = `${META_GRAPH_URL}/${page.id}?fields=instagram_business_account&access_token=${page.access_token}`;
+                log(`  Checking for Instagram at: ${igUrl.substring(0, 100)}...`);
+
+                const igResponse = await fetch(igUrl, { cache: 'no-store' });
+                const igRawText = await igResponse.text();
+                log(`  Instagram API response (status ${igResponse.status}): ${igRawText.substring(0, 200)}`);
+
+                if (igResponse.ok) {
+                    const igData = JSON.parse(igRawText);
+                    if (igData.instagram_business_account) {
+                        igAccountId = igData.instagram_business_account.id;
+                        log(`  SUCCESS: Found Instagram Business Account: ${igAccountId}`);
+                    } else {
+                        log(`  No instagram_business_account field in response`);
                     }
-                } catch (e) {
-                    console.warn('[META_CALLBACK] Instagram fetch failed for page', page.name);
+                } else {
+                    log(`  Instagram API failed with status ${igResponse.status}`);
+                }
+            } catch (e) {
+                log(`  Instagram fetch ERROR: ${e}`);
+            }
+
+            // Prepare data
+            const accountData = {
+                workspace_id: workspaceId,
+                platform: 'facebook',
+                account_name: page.name,
+                account_id: page.id,
+                access_token: page.access_token,
+                token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+                metadata: {
+                    category: page.category,
+                    tasks: page.tasks,
+                    user_access_token: userAccessToken,
+                    instagram_business_account_id: igAccountId
+                }
+            };
+
+            // Check if exists
+            const { data: existing, error: selectError } = await supabaseAdmin
+                .from('social_accounts')
+                .select('id')
+                .eq('workspace_id', workspaceId)
+                .eq('account_id', page.id)
+                .maybeSingle(); // Use maybeSingle instead of single to avoid error on no rows
+
+            if (selectError) {
+                log(`  ERROR checking existing: ${JSON.stringify(selectError)}`);
+            }
+
+            // Insert or Update
+            if (existing) {
+                log(`  Updating existing record (id: ${existing.id})...`);
+                const { error: updateError } = await supabaseAdmin
+                    .from('social_accounts')
+                    .update({ ...accountData, updated_at: new Date().toISOString() })
+                    .eq('id', existing.id);
+
+                if (updateError) {
+                    log(`  ERROR updating: ${JSON.stringify(updateError)}`);
+                } else {
+                    log(`  SUCCESS: Updated ${page.name}`);
+                }
+            } else {
+                log(`  Inserting new record...`);
+                const { data: insertData, error: insertError } = await supabaseAdmin
+                    .from('social_accounts')
+                    .insert(accountData)
+                    .select();
+
+                if (insertError) {
+                    log(`  ERROR inserting: ${JSON.stringify(insertError)}`);
+                } else {
+                    log(`  SUCCESS: Inserted ${page.name}, returned: ${JSON.stringify(insertData)}`);
                 }
             }
 
-            // 4. Store pages in database
-            console.log('[META_CALLBACK] Storing pages in database');
-            for (const page of pages) {
-                const { data: existing } = await supabaseAdmin
-                    .from('social_accounts')
-                    .select('id')
-                    .eq('workspace_id', workspaceId)
-                    .eq('account_id', page.id)
-                    .single();
-
-                const accountData = {
+            // Handle Instagram
+            if (igAccountId) {
+                log(`  Processing Instagram account...`);
+                const igAccountData = {
                     workspace_id: workspaceId,
-                    platform: 'facebook',
-                    account_name: page.name,
-                    account_id: page.id,
+                    platform: 'instagram',
+                    account_name: `${page.name} (IG)`,
+                    account_id: igAccountId,
                     access_token: page.access_token,
                     token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
                     metadata: {
-                        category: page.category,
-                        tasks: page.tasks,
-                        user_access_token: userAccessToken,
-                        instagram_business_account_id: page.instagram_business_account?.id
+                        connected_page_id: page.id,
+                        user_access_token: userAccessToken
                     }
                 };
 
-                if (existing) {
-                    await supabaseAdmin
+                const { data: existingIg } = await supabaseAdmin
+                    .from('social_accounts')
+                    .select('id')
+                    .eq('workspace_id', workspaceId)
+                    .eq('account_id', igAccountId)
+                    .maybeSingle();
+
+                if (existingIg) {
+                    const { error: igUpdateError } = await supabaseAdmin
                         .from('social_accounts')
-                        .update({ ...accountData, updated_at: new Date().toISOString() })
-                        .eq('id', existing.id);
+                        .update({ ...igAccountData, updated_at: new Date().toISOString() })
+                        .eq('id', existingIg.id);
+                    if (igUpdateError) log(`  ERROR updating IG: ${JSON.stringify(igUpdateError)}`);
+                    else log(`  SUCCESS: Updated IG for ${page.name}`);
                 } else {
-                    await supabaseAdmin.from('social_accounts').insert(accountData);
+                    const { error: igInsertError } = await supabaseAdmin
+                        .from('social_accounts')
+                        .insert(igAccountData);
+                    if (igInsertError) log(`  ERROR inserting IG: ${JSON.stringify(igInsertError)}`);
+                    else log(`  SUCCESS: Inserted IG for ${page.name}`);
                 }
             }
-
-            console.log('[META_CALLBACK] Pages stored successfully');
         }
 
+        log('Step 3 COMPLETE: All pages processed');
+        log('=== FULL DEBUG LOG ===');
+        debugLog.forEach((l, i) => console.log(`${i + 1}. ${l}`));
+
         return NextResponse.redirect(
-            new URL(`/dashboard/settings/brand?success=meta_connected&pages_count=${pages.length}`, request.url)
+            new URL(`/dashboard/settings/brand?success=pages_connected&count=${pages.length}`, request.url)
         );
 
     } catch (error) {
-        console.error('[META_CALLBACK] Error', error);
+        log(`FATAL ERROR: ${error instanceof Error ? error.message : String(error)}`);
+        console.error('[META_CALLBACK] Full error:', error);
         return NextResponse.redirect(
             new URL(`/dashboard/settings/brand?error=${encodeURIComponent(
                 error instanceof Error ? error.message : 'Unknown error'

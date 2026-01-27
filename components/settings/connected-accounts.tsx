@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Facebook, Instagram, AlertCircle, CheckCircle, Info } from "lucide-react"
+import { InstagramConnectDialog } from "./instagram-connect-dialog"
 import { redirectToMetaOAuth } from "@/utils/meta-oauth"
 
 interface ConnectedAccountsProps {
@@ -172,15 +173,23 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                             </p>
                         </div>
                     </div>
-                    <Button variant="outline" disabled>
-                        {status.instagram ? "Connected" : "Via Facebook Pages"}
-                    </Button>
+                    <InstagramConnectDialog
+                        workspaceId={workspaceId}
+                        trigger={
+                            <Button
+                                variant={status.instagram ? "outline" : "default"}
+                                className={status.instagram ? "text-green-600 border-green-200 bg-green-50 hover:bg-green-100" : "bg-pink-600 hover:bg-pink-700 text-white"}
+                            >
+                                {status.instagram ? "Reconnect Instagram" : "Connect Instagram"}
+                            </Button>
+                        }
+                    />
                 </div>
 
                 {/* Info Note */}
                 <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
                     <p className="flex items-start gap-2">
-                        <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                        <Info className="h-4 w-4 mt-0.5 shrink-0" />
                         <span>
                             <strong>Note:</strong> Instagram Business accounts are connected through Facebook Pages.
                             Connect your Facebook Page first, and any linked Instagram Business accounts will be available automatically.

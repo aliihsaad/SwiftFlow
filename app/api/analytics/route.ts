@@ -259,21 +259,58 @@ export async function GET(request: NextRequest) {
 
         // Fetch real analytics from database
         console.log('[Analytics] Fetching real analytics data...')
+        console.log('[Analytics] Workspace ID:', activeWorkspace.id)
 
-        // Get published posts with analytics
-        const { data: publishedPosts } = await supabase
+        // Fetch posts separately (avoiding nested query issues with PostgREST)
+        const { data: posts, error: postsError } = await supabase
             .from('posts')
-            .select(`
-                *,
-                published_posts(
-                    *,
-                    post_analytics(*)
-                )
-            `)
+            .select('*')
             .eq('workspace_id', activeWorkspace.id)
             .eq('status', 'published')
-            .order('published_at', { ascending: false })
+            .order('created_at', { ascending: false })
             .limit(50)
+
+        if (postsError) {
+            console.error('[Analytics] Error fetching posts:', postsError)
+        }
+
+        console.log('[Analytics] Posts found:', posts?.length || 0)
+
+        // Fetch published_posts for these posts
+        const postIds = posts?.map(p => p.id) || []
+        let publishedPostsData: any[] = []
+
+        if (postIds.length > 0) {
+            const { data: pubPosts, error: pubError } = await supabase
+                .from('published_posts')
+                .select('*')
+                .in('post_id', postIds)
+
+            if (pubError) {
+                console.error('[Analytics] Error fetching published_posts:', pubError)
+            }
+            publishedPostsData = pubPosts || []
+        }
+
+        console.log('[Analytics] Published posts records:', publishedPostsData.length)
+
+        // Fetch post_analytics for these published posts
+        const publishedPostIds = publishedPostsData.map(pp => pp.id)
+        let postAnalyticsData: any[] = []
+
+        if (publishedPostIds.length > 0) {
+            const { data: analytics, error: analyticsError } = await supabase
+                .from('post_analytics')
+                .select('*')
+                .in('published_post_id', publishedPostIds)
+
+            if (analyticsError) {
+                console.error('[Analytics] Error fetching post_analytics:', analyticsError)
+            }
+            postAnalyticsData = analytics || []
+        }
+
+        console.log('[Analytics] Post analytics records:', postAnalyticsData.length)
 
         // Get account analytics
         const accountIds = socialAccounts.map(a => a.id)
@@ -284,29 +321,29 @@ export async function GET(request: NextRequest) {
             .order('date', { ascending: false })
             .limit(90)
 
-        console.log('[Analytics] Published posts:', publishedPosts?.length || 0)
         console.log('[Analytics] Account analytics:', accountAnalytics?.length || 0)
 
-        // Log detailed info about published posts
-        if (publishedPosts && publishedPosts.length > 0) {
-            const postsWithPublished = publishedPosts.filter(p => p.published_posts?.length > 0)
-            console.log('[Analytics] Posts with published_posts:', postsWithPublished.length)
+        // Manually join the data
+        const publishedPosts = posts?.map(post => {
+            const postPublishedPosts = publishedPostsData
+                .filter(pp => pp.post_id === post.id)
+                .map(pp => ({
+                    ...pp,
+                    post_analytics: postAnalyticsData.filter(pa => pa.published_post_id === pp.id)
+                }))
 
-            const totalPublishedPosts = publishedPosts.reduce((sum, p) => sum + (p.published_posts?.length || 0), 0)
-            console.log('[Analytics] Total published_posts records:', totalPublishedPosts)
+            return {
+                ...post,
+                published_posts: postPublishedPosts
+            }
+        }) || []
 
-            const postsWithAnalytics = publishedPosts.filter(p =>
-                p.published_posts?.some((pp: any) => pp.post_analytics?.length > 0)
-            )
-            console.log('[Analytics] Posts with analytics:', postsWithAnalytics.length)
-        }
-
-        // Check if we have any published posts
-        const hasPublishedPosts = publishedPosts && publishedPosts.length > 0 &&
+        // Check if we have any published posts with published_posts records
+        const hasPublishedPosts = publishedPosts.length > 0 &&
             publishedPosts.some(p => p.published_posts?.length > 0)
 
         if (!hasPublishedPosts) {
-            console.log('[Analytics] No published posts found, returning mock data')
+            console.log('[Analytics] No published posts with platform records found, returning mock data')
             return NextResponse.json(generateMockAnalyticsData(range, granularity))
         }
 

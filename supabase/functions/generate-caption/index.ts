@@ -64,6 +64,17 @@ serve(async (req) => {
             .eq('workspace_id', workspaceId)
             .maybeSingle()
 
+        // Language names mapping
+        const LANGUAGE_NAMES: Record<string, string> = {
+            en: 'English', es: 'Spanish', fr: 'French', de: 'German',
+            it: 'Italian', pt: 'Portuguese', nl: 'Dutch', ar: 'Arabic',
+            zh: 'Chinese', ja: 'Japanese', ko: 'Korean', hi: 'Hindi',
+            ru: 'Russian', tr: 'Turkish'
+        }
+
+        const brandLanguage = brandProfile?.language || language || 'en'
+        const languageName = LANGUAGE_NAMES[brandLanguage] || 'English'
+
         // Build brand context
         let brandContext = ''
         if (brandProfile) {
@@ -76,6 +87,7 @@ Business: ${brandProfile.business_name || 'Not specified'}
 Industry: ${brandProfile.industry || 'Not specified'}
 Brand Voice: ${brandProfile.brand_voice || 'professional'}
 Target Audience: ${brandProfile.target_audience || 'General audience'}
+Language: ${languageName}
 ${services ? `Services: ${services}` : ''}
 ${usps ? `USPs: ${usps}` : ''}
 ${themes ? `Content Themes: ${themes}` : ''}
@@ -84,20 +96,23 @@ ${themes ? `Content Themes: ${themes}` : ''}
 
         const prompt = `${brandContext}
 Act as a social media expert. Generate 5 distinct caption suggestions for a post on ${platformNames}.
-      
+
+IMPORTANT: Write ALL captions in ${languageName} language.
+
 Topic/Description: "${description}"
 Tone: ${brandProfile?.brand_voice || tone || 'professional'}
-Language: ${language || 'en'}
-      
+Language: ${languageName}
+
 Requirements:
+- Write all captions in ${languageName}
 - Align with the brand voice and target audience above
 - Include relevant hashtags
 - Use engaging emojis
 - Optimize for engagement on the selected platforms
 - Keep it concise but impactful
 ${brandProfile?.business_name ? `- Subtly reflect ${brandProfile.business_name}'s brand identity` : ''}
-      
-Return ONLY the captions as a JSON array of strings. No markdown formatting.
+
+Return ONLY the captions (in ${languageName}) as a JSON array of strings. No markdown formatting.
     `
 
         const result = await model.generateContent(prompt)

@@ -51,7 +51,7 @@ serve(async (req) => {
         // Fetch brand profile for context
         const { data: brandProfile } = await supabase
             .from('workspace_brand_profiles')
-            .select('business_name, business_description, brand_voice, target_audience, industry')
+            .select('business_name, business_description, brand_voice, target_audience, industry, language')
             .eq('workspace_id', workspaceId)
             .maybeSingle()
 
@@ -101,6 +101,14 @@ interface BrandProfile {
     brand_voice: string | null
     target_audience: string | null
     industry: string | null
+    language: string | null
+}
+
+const LANGUAGE_NAMES: Record<string, string> = {
+    en: 'English', es: 'Spanish', fr: 'French', de: 'German',
+    it: 'Italian', pt: 'Portuguese', nl: 'Dutch', ar: 'Arabic',
+    zh: 'Chinese', ja: 'Japanese', ko: 'Korean', hi: 'Hindi',
+    ru: 'Russian', tr: 'Turkish'
 }
 
 function buildReplyPrompt({
@@ -151,8 +159,12 @@ function buildReplyPrompt({
         parts.push(postContent)
     }
 
+    const language = brandProfile?.language || 'en'
+    const languageName = LANGUAGE_NAMES[language] || 'English'
+
     parts.push('')
     parts.push('=== INSTRUCTIONS ===')
+    parts.push(`- IMPORTANT: Write the reply in ${languageName} language`)
     parts.push('- Write a personalized reply that matches the brand voice')
     parts.push('- Be warm, authentic, and engaging')
     parts.push('- Keep it concise (1-3 sentences max)')
@@ -164,7 +176,7 @@ function buildReplyPrompt({
     parts.push('- Do NOT use hashtags in replies')
     parts.push('- Do NOT be overly promotional')
     parts.push('')
-    parts.push('Reply only with the response text, nothing else:')
+    parts.push(`Reply only with the response text in ${languageName}, nothing else:`)
 
     return parts.join('\n')
 }

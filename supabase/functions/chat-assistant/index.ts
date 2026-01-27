@@ -56,6 +56,24 @@ serve(async (req) => {
             console.error('Settings error:', settingsError)
         }
 
+        // Fetch brand profile for language
+        const { data: brandProfile } = await supabase
+            .from('workspace_brand_profiles')
+            .select('language, brand_voice, business_name')
+            .eq('workspace_id', workspaceId)
+            .maybeSingle()
+
+        // Language names mapping
+        const LANGUAGE_NAMES: Record<string, string> = {
+            en: 'English', es: 'Spanish', fr: 'French', de: 'German',
+            it: 'Italian', pt: 'Portuguese', nl: 'Dutch', ar: 'Arabic',
+            zh: 'Chinese', ja: 'Japanese', ko: 'Korean', hi: 'Hindi',
+            ru: 'Russian', tr: 'Turkish'
+        }
+
+        const language = brandProfile?.language || 'en'
+        const languageName = LANGUAGE_NAMES[language] || 'English'
+
         // Debug logging
         console.log(`Processing for workspace: ${workspaceId}`)
         console.log(`Settings found: ${settings ? 'Yes' : 'No'}`)
@@ -92,13 +110,16 @@ serve(async (req) => {
             model: modelName,
             systemInstruction: `You are an expert Social Media Manager AI Assistant. Your role is to help users create engaging content, plan schedules, and analyze social media strategies for platforms like Instagram, Facebook, LinkedIn, and Twitter.
 
+IMPORTANT: Respond in ${languageName} language. All your responses, captions, and content suggestions must be in ${languageName}.
+
 Guidelines:
 1. Be concise, professional, and creative.
-2. When asked for captions, provide multiple variations (e.g., Short, Funny, Professional).
+2. When asked for captions, provide multiple variations (e.g., Short, Funny, Professional) - all in ${languageName}.
 3. Suggest relevant hashtags.
 4. If asked about technical issues, guide them to the Settings page.
 5. Do not just list generic capabilities; actively help them with their specific request.
-6. Use emoji where appropriate to match the social media vibe.`,
+6. Use emoji where appropriate to match the social media vibe.
+7. ALL content must be in ${languageName}.`,
             generationConfig: {
                 temperature: temperature,
                 maxOutputTokens: maxTokens,

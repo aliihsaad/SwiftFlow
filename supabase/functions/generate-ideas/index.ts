@@ -80,6 +80,17 @@ serve(async (req) => {
             modelName = 'gemini-2.0-flash'
         }
 
+        // Language names mapping
+        const LANGUAGE_NAMES: Record<string, string> = {
+            en: 'English', es: 'Spanish', fr: 'French', de: 'German',
+            it: 'Italian', pt: 'Portuguese', nl: 'Dutch', ar: 'Arabic',
+            zh: 'Chinese', ja: 'Japanese', ko: 'Korean', hi: 'Hindi',
+            ru: 'Russian', tr: 'Turkish'
+        }
+
+        const language = brandProfile?.language || 'en'
+        const languageName = LANGUAGE_NAMES[language] || 'English'
+
         // Build brand context for system instruction
         let brandContext = ''
         if (brandProfile) {
@@ -92,7 +103,9 @@ ${brandProfile.target_audience ? `Target Audience: ${brandProfile.target_audienc
 ${brandProfile.brand_voice ? `Brand Voice: ${brandProfile.brand_voice}` : ''}
 ${brandProfile.unique_selling_points?.length ? `USPs: ${brandProfile.unique_selling_points.join(', ')}` : ''}
 ${brandProfile.content_themes?.length ? `Content Themes: ${brandProfile.content_themes.join(', ')}` : ''}
+Language: ${languageName}
 
+IMPORTANT: Generate ALL content in ${languageName} language.
 Use this brand context to generate highly relevant, on-brand content ideas.
 `
         }
@@ -100,30 +113,33 @@ Use this brand context to generate highly relevant, on-brand content ideas.
         const genAI = new GoogleGenerativeAI(apiKey)
         const model = genAI.getGenerativeModel({
             model: modelName,
-            systemInstruction: `You are a Social Media Content Strategist. 
-            
+            systemInstruction: `You are a Social Media Content Strategist.
+
             ${brandContext}
 
             Your goal is to generate high-quality, engaging content ideas based on the user's input.
-            
+
+            IMPORTANT: Generate ALL content (titles, body text) in ${languageName} language.
+
             RETURN JSON ONLY. The response must match this schema:
             {
               "type": "content_cards",
               "data": [
                 {
                   "id": "unique_string",
-                  "title": "Catchy Hook or Title",
-                  "body": "The main caption or content summary...",
+                  "title": "Catchy Hook or Title in ${languageName}",
+                  "body": "The main caption or content summary in ${languageName}...",
                   "platform": "instagram" | "facebook" | "linkedin" | "twitter"
                 }
               ]
             }
 
             Guidelines:
-            1. Title should be punchy and scroll-stopping.
-            2. Body should be actionable and align with the brand voice.
+            1. Title should be punchy and scroll-stopping (in ${languageName}).
+            2. Body should be actionable and align with the brand voice (in ${languageName}).
             3. Provide the number of ideas requested by the user (default to 5 if not specified).
-            4. Tailor content to the target audience and industry.`,
+            4. Tailor content to the target audience and industry.
+            5. ALL text content MUST be in ${languageName}.`,
             generationConfig: {
                 temperature: 0.8,
                 responseMimeType: "application/json"

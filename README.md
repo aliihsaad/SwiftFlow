@@ -35,10 +35,18 @@ A powerful, AI-driven social media management platform built with Next.js, Supab
 - **Multi-Platform Support**: Instagram, Facebook, LinkedIn, Twitter
 - **Smart Empty States**: Context-aware messages for each post status
 
+### 💬 Comments Management
+- **Instagram Comments Sync**: View comments from your Instagram posts
+- **AI-Powered Replies**: Generate personalized replies using your brand voice and language
+- **Post Context**: See which post each comment belongs to with thumbnail preview
+- **Reply & Hide**: Reply directly or hide unwanted comments
+- **Reply Status Tracking**: Track which comments have been responded to
+
 ### 🎨 Brand Profile
 - **Comprehensive Brand Settings**: Business name, industry, description
 - **Target Audience Definition**: Define your ideal customer
 - **Brand Voice Configuration**: Set your unique communication style
+- **Language Setting**: Configure your brand's primary language for AI-generated content
 - **USPs & Content Themes**: Define what makes you unique
 - **Visual Identity**: Logo, brand colors, reference images
 - **Social Account Integration**: Connect Instagram and Facebook
@@ -292,6 +300,7 @@ Stores comprehensive brand information:
 - business_description
 - target_audience
 - brand_voice
+- language (for AI content generation)
 - unique_selling_points (array)
 - content_themes (array)
 - logo_url
@@ -392,10 +401,16 @@ For issues or questions:
 - [x] **Calendar Drag-and-Drop Rescheduling** - Move posts between dates with optimistic updates
 - [x] **Modal-Based Post Creation** - Create posts from anywhere without page navigation
 - [x] **AI Assistant Integration** - Direct post creation from AI-generated content
+- [x] **Instagram Comments Management** - View, reply, and hide Instagram comments
+- [x] **AI Reply Generation** - Generate personalized comment replies using brand context
+- [x] **Multi-Language AI Support** - All AI features respect brand profile language setting
+- [x] **Brand Profile Language** - Configure language for AI-generated content (14 languages)
+- [x] **Advanced Analytics Dashboard** - Performance tracking and insights
+- [x] **Multi-image Carousel Publishing** - Publish carousel posts to Instagram
 
-### 🚧 In Progress
-- [ ] Advanced Analytics Dashboard
-- [ ] Multi-image Carousel Publishing
+### 🐛 Known Issues (To Be Fixed)
+- [ ] **Facebook Comments** - Comments sync for Facebook Pages needs API permission fixes
+- [ ] **Instagram DMs/Messages** - Requires `instagram_manage_messages` permission (Meta App Review needed)
 
 ### 📋 Planned Features
 - [ ] Team Collaboration Features

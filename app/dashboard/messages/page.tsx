@@ -54,7 +54,12 @@ interface MessagesResponse {
     }
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const fetcher = async (url: string) => {
+    const res = await fetch(url)
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch')
+    return data
+}
 
 export default function MessagesPage() {
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
@@ -176,7 +181,7 @@ export default function MessagesPage() {
             )}
 
             {/* Main content - Split pane layout */}
-            {conversationsData && !conversationsLoading && (
+            {conversationsData?.conversations && !conversationsLoading && (
                 <div className="flex h-[calc(100%-5rem)] mt-6 border rounded-lg overflow-hidden bg-background">
                     {/* Conversation list - Left pane */}
                     <div className="w-80 border-r flex-shrink-0 overflow-hidden">
@@ -200,7 +205,7 @@ export default function MessagesPage() {
             )}
 
             {/* Empty state */}
-            {conversationsData && conversationsData.conversations.length === 0 && !conversationsLoading && (
+            {conversationsData?.conversations && conversationsData.conversations.length === 0 && !conversationsLoading && (
                 <div className="rounded-lg border border-border/50 bg-muted/20 p-12 text-center mt-6">
                     <p className="text-muted-foreground font-medium">No conversations yet</p>
                     <p className="text-sm text-muted-foreground mt-2">

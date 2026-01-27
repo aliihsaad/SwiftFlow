@@ -33,7 +33,12 @@ interface CommentsResponse {
     }
 }
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const fetcher = async (url: string) => {
+    const res = await fetch(url)
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Failed to fetch')
+    return data
+}
 
 export default function CommentsPage() {
     const [page, setPage] = useState(1)
@@ -159,7 +164,7 @@ export default function CommentsPage() {
             )}
 
             {/* Comments list */}
-            {data && !isLoading && (
+            {data?.comments && data.comments.length > 0 && !isLoading && (
                 <CommentsList
                     comments={data.comments}
                     pagination={data.pagination}
@@ -170,7 +175,7 @@ export default function CommentsPage() {
             )}
 
             {/* Empty state */}
-            {data && data.comments.length === 0 && !isLoading && (
+            {data?.comments && data.comments.length === 0 && !isLoading && (
                 <div className="rounded-lg border border-border/50 bg-muted/20 p-12 text-center">
                     <p className="text-muted-foreground font-medium">No comments yet</p>
                     <p className="text-sm text-muted-foreground mt-2">

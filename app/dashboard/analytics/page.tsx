@@ -10,7 +10,7 @@ import { LatestPostCard } from "@/components/analytics/latest-post-card"
 import { AccountAnalyticsCard } from "@/components/analytics/account-analytics-card"
 import { OtherPostsList } from "@/components/analytics/other-posts-list"
 import { AnalyticsLoadingSkeleton } from "@/components/analytics/analytics-loading"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "@/components/ui/use-toast"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 

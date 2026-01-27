@@ -28,8 +28,10 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
         .gte('published_at', thirtyDaysAgo.toISOString())
         .order('published_at', { ascending: false });
 
+    console.log(`[Sync] Found ${posts?.length || 0} published posts for workspace ${workspaceId}`);
+
     if (!posts || posts.length === 0) {
-        return { synced: 0 };
+        return { synced: 0, message: 'No published posts found' };
     }
 
     // Get social accounts
@@ -38,18 +40,33 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
         .select('*')
         .eq('workspace_id', workspaceId);
 
+    console.log(`[Sync] Found ${accounts?.length || 0} social accounts`);
+
     if (!accounts || accounts.length === 0) {
         return { synced: 0, error: 'No social accounts found' };
     }
 
+    // Log which accounts have tokens
+    accounts.forEach(acc => {
+        console.log(`[Sync] Account ${acc.platform} (${acc.id}): ${acc.access_token ? 'Has token' : 'No token'}`);
+    });
+
     let syncedCount = 0;
 
     for (const post of posts) {
-        if (!post.published_posts || post.published_posts.length === 0) continue;
+        if (!post.published_posts || post.published_posts.length === 0) {
+            console.log(`[Sync] Post ${post.id} has no published_posts, skipping`);
+            continue;
+        }
 
         for (const publishedPost of post.published_posts) {
+            console.log(`[Sync] Processing published post ${publishedPost.id} (${publishedPost.platform})`);
+
             const account = accounts.find((a: any) => a.platform === publishedPost.platform);
-            if (!account || !account.access_token) continue;
+            if (!account || !account.access_token) {
+                console.log(`[Sync] No account with token found for platform ${publishedPost.platform}`);
+                continue;
+            }
 
             try {
                 let insights = null;
@@ -57,36 +74,44 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                 if (publishedPost.platform === 'instagram') {
                     // Fetch Instagram post insights
                     const metrics = 'impressions,reach,engagement,likes,comments,saves';
-                    const response = await fetch(
-                        `${META_GRAPH_URL}/${publishedPost.platform_post_id}/insights?metric=${metrics}&access_token=${account.access_token}`
-                    );
+                    const url = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/insights?metric=${metrics}&access_token=${account.access_token}`;
+                    console.log(`[Sync] Fetching Instagram insights for ${publishedPost.platform_post_id}`);
+
+                    const response = await fetch(url);
+                    const data = await response.json();
 
                     if (response.ok) {
-                        const data = await response.json();
+                        console.log(`[Sync] Instagram insights response:`, data);
                         insights = {};
                         data.data?.forEach((metric: any) => {
                             insights[metric.name] = metric.values?.[0]?.value || 0;
                         });
+                    } else {
+                        console.error(`[Sync] Instagram API error:`, data);
                     }
                 } else if (publishedPost.platform === 'facebook') {
                     // Fetch Facebook post data
-                    const response = await fetch(
-                        `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=likes.summary(true),comments.summary(true),shares&access_token=${account.access_token}`
-                    );
+                    const url = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=likes.summary(true),comments.summary(true),shares&access_token=${account.access_token}`;
+                    console.log(`[Sync] Fetching Facebook data for ${publishedPost.platform_post_id}`);
+
+                    const response = await fetch(url);
+                    const data = await response.json();
 
                     if (response.ok) {
-                        const data = await response.json();
+                        console.log(`[Sync] Facebook response:`, data);
                         insights = {
                             likes: data.likes?.summary?.total_count || 0,
                             comments: data.comments?.summary?.total_count || 0,
                             shares: data.shares?.count || 0
                         };
+                    } else {
+                        console.error(`[Sync] Facebook API error:`, data);
                     }
                 }
 
                 if (insights) {
                     // Upsert post analytics
-                    await supabase.from('post_analytics').upsert({
+                    const analyticsData = {
                         published_post_id: publishedPost.id,
                         views: insights.impressions || insights.reach || 0,
                         likes: insights.likes || 0,
@@ -95,11 +120,25 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                         saves: insights.saves || 0,
                         engagement_rate: insights.engagement || 0,
                         synced_at: new Date().toISOString()
-                    }, {
-                        onConflict: 'published_post_id'
-                    });
+                    };
 
+                    console.log(`[Sync] Upserting analytics for post ${publishedPost.id}:`, analyticsData);
+
+                    const { data: upsertResult, error: upsertError } = await supabase
+                        .from('post_analytics')
+                        .upsert(analyticsData, {
+                            onConflict: 'published_post_id'
+                        });
+
+                    if (upsertError) {
+                        console.error(`[Sync] Failed to upsert analytics for post ${publishedPost.id}:`, upsertError);
+                        throw upsertError;
+                    }
+
+                    console.log(`[Sync] Successfully synced post ${publishedPost.id}`);
                     syncedCount++;
+                } else {
+                    console.log(`[Sync] No insights returned for post ${publishedPost.id}`);
                 }
             } catch (error) {
                 console.error(`Error syncing insights for post ${publishedPost.id}:`, error);

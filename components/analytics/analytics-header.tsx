@@ -9,7 +9,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Download } from "lucide-react"
+import { Download, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface AnalyticsHeaderProps {
@@ -18,6 +18,8 @@ interface AnalyticsHeaderProps {
     onDateRangeChange: (range: DateRange) => void
     onGranularityChange: (granularity: Granularity) => void
     onExport: () => void
+    onSync?: () => void
+    isSyncing?: boolean
 }
 
 export function AnalyticsHeader({
@@ -26,6 +28,8 @@ export function AnalyticsHeader({
     onDateRangeChange,
     onGranularityChange,
     onExport,
+    onSync,
+    isSyncing = false,
 }: AnalyticsHeaderProps) {
     const granularityOptions: { value: Granularity; label: string }[] = [
         { value: 'daily', label: 'Daily' },
@@ -74,6 +78,19 @@ export function AnalyticsHeader({
                         </button>
                     ))}
                 </div>
+
+                {/* Sync button */}
+                {onSync && (
+                    <Button
+                        onClick={onSync}
+                        variant="outline"
+                        size="sm"
+                        disabled={isSyncing}
+                    >
+                        <RefreshCw className={cn("mr-2 h-4 w-4", isSyncing && "animate-spin")} />
+                        {isSyncing ? 'Syncing...' : 'Sync'}
+                    </Button>
+                )}
 
                 {/* Export button */}
                 <Button onClick={onExport} variant="outline" size="sm">

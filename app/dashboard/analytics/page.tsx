@@ -10,15 +10,18 @@ import { LatestPostCard } from "@/components/analytics/latest-post-card"
 import { AccountAnalyticsCard } from "@/components/analytics/account-analytics-card"
 import { OtherPostsList } from "@/components/analytics/other-posts-list"
 import { AnalyticsLoadingSkeleton } from "@/components/analytics/analytics-loading"
+import { useToast } from "@/hooks/use-toast"
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json())
 
 export default function AnalyticsPage() {
     const [dateRange, setDateRange] = useState<DateRange>('last_7_days')
     const [granularity, setGranularity] = useState<Granularity>('daily')
+    const [isSyncing, setIsSyncing] = useState(false)
+    const { toast } = useToast()
 
     // Fetch analytics data
-    const { data, error, isLoading } = useSWR<AnalyticsResponse>(
+    const { data, error, isLoading, mutate } = useSWR<AnalyticsResponse>(
         `/api/analytics?range=${dateRange}&granularity=${granularity}`,
         fetcher,
         {
@@ -26,6 +29,38 @@ export default function AnalyticsPage() {
             dedupingInterval: 60000, // 1 minute
         }
     )
+
+    const handleSync = async () => {
+        setIsSyncing(true)
+        try {
+            const response = await fetch('/api/sync-analytics', {
+                method: 'POST'
+            })
+
+            if (!response.ok) {
+                throw new Error('Failed to sync analytics')
+            }
+
+            const result = await response.json()
+
+            toast({
+                title: "Analytics synced",
+                description: `Successfully synced ${result.synced || 0} posts`,
+            })
+
+            // Refresh analytics data
+            mutate()
+        } catch (error) {
+            console.error('Sync error:', error)
+            toast({
+                title: "Sync failed",
+                description: "Failed to sync analytics. Please try again.",
+                variant: "destructive",
+            })
+        } finally {
+            setIsSyncing(false)
+        }
+    }
 
     const handleExport = () => {
         // TODO: Implement export functionality
@@ -42,6 +77,8 @@ export default function AnalyticsPage() {
                 onDateRangeChange={setDateRange}
                 onGranularityChange={setGranularity}
                 onExport={handleExport}
+                onSync={handleSync}
+                isSyncing={isSyncing}
             />
 
             {/* Loading state */}

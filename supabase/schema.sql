@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS account_analytics (
 
 CREATE TABLE IF NOT EXISTS post_analytics (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    published_post_id UUID REFERENCES published_posts(id) ON DELETE CASCADE,
+    published_post_id UUID UNIQUE NOT NULL REFERENCES published_posts(id) ON DELETE CASCADE,
     views INTEGER DEFAULT 0,
     likes INTEGER DEFAULT 0,
     comments INTEGER DEFAULT 0,

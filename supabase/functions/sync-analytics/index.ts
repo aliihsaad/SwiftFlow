@@ -2,7 +2,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
+// Use v21.0 to maintain compatibility with older metric names
+// v22.0+ removed 'impressions' metric for Instagram media
+const META_GRAPH_URL = 'https://graph.facebook.com/v21.0';
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -121,67 +123,93 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                 let insights = null;
 
                 if (publishedPost.platform === 'instagram') {
-                    // Fetch Instagram post insights
-                    // Valid metrics: impressions, reach, saved, likes, comments, shares, total_interactions, views
-                    const metrics = 'impressions,reach,saved,likes,comments,shares,total_interactions';
-                    const url = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/insights?metric=${metrics}&access_token=${account.access_token}`;
-                    console.log(`[Sync] Fetching Instagram insights for ${publishedPost.platform_post_id}`);
+                    // First try to get basic media info (most reliable)
+                    const basicUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=like_count,comments_count,media_type&access_token=${account.access_token}`;
+                    console.log(`[Sync] Fetching Instagram basic info for ${publishedPost.platform_post_id}`);
 
-                    const response = await fetch(url);
-                    const data = await response.json();
+                    const basicResponse = await fetch(basicUrl);
+                    const basicData = await basicResponse.json();
 
-                    if (response.ok && data.data) {
-                        console.log(`[Sync] Instagram insights response:`, JSON.stringify(data));
-                        insights = {};
-                        data.data?.forEach((metric: any) => {
-                            insights[metric.name] = metric.values?.[0]?.value || 0;
-                        });
-                    } else {
-                        console.error(`[Sync] Instagram API error:`, JSON.stringify(data));
-                        // Try alternative: fetch basic media info instead
-                        const altUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=like_count,comments_count&access_token=${account.access_token}`;
-                        const altResponse = await fetch(altUrl);
-                        const altData = await altResponse.json();
+                    if (basicResponse.ok) {
+                        console.log(`[Sync] Instagram basic response:`, JSON.stringify(basicData));
+                        insights = {
+                            likes: basicData.like_count || 0,
+                            comments: basicData.comments_count || 0,
+                            reach: 0,
+                            saved: 0,
+                            shares: 0,
+                            impressions: 0
+                        };
 
-                        if (altResponse.ok) {
-                            console.log(`[Sync] Instagram alt response:`, JSON.stringify(altData));
-                            insights = {
-                                likes: altData.like_count || 0,
-                                comments: altData.comments_count || 0,
-                                impressions: 0,
-                                reach: 0,
-                                saved: 0,
-                                shares: 0
-                            };
-                        } else {
-                            console.error(`[Sync] Instagram alt API error:`, JSON.stringify(altData));
+                        // Try to get additional insights (reach, saved) - these may fail but that's ok
+                        try {
+                            const insightsMetrics = 'reach,saved,shares';
+                            const insightsUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/insights?metric=${insightsMetrics}&access_token=${account.access_token}`;
+                            const insightsResponse = await fetch(insightsUrl);
+                            const insightsData = await insightsResponse.json();
+
+                            if (insightsResponse.ok && insightsData.data) {
+                                insightsData.data.forEach((metric: any) => {
+                                    insights[metric.name] = metric.values?.[0]?.value || 0;
+                                });
+                                console.log(`[Sync] Instagram insights added:`, JSON.stringify(insights));
+                            }
+                        } catch (insightsError) {
+                            console.log(`[Sync] Could not fetch additional insights, using basic data only`);
                         }
+                    } else {
+                        console.error(`[Sync] Instagram API error:`, JSON.stringify(basicData));
                     }
                 } else if (publishedPost.platform === 'facebook') {
-                    // Fetch Facebook post data - use reactions instead of likes for better compatibility
-                    // Don't request shares directly as it doesn't work for Photos
-                    const url = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=reactions.summary(true),comments.summary(true)&access_token=${account.access_token}`;
+                    // For Facebook, try multiple approaches
                     console.log(`[Sync] Fetching Facebook data for ${publishedPost.platform_post_id}`);
 
-                    const response = await fetch(url);
-                    const data = await response.json();
+                    // Approach 1: Try to get basic object info
+                    const basicUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=id,created_time&access_token=${account.access_token}`;
+                    const basicResponse = await fetch(basicUrl);
+                    const basicData = await basicResponse.json();
 
-                    if (response.ok) {
-                        console.log(`[Sync] Facebook response:`, JSON.stringify(data));
-                        insights = {
-                            likes: data.reactions?.summary?.total_count || 0,
-                            comments: data.comments?.summary?.total_count || 0,
-                            shares: 0 // Shares not available for all post types
-                        };
-                    } else {
-                        console.error(`[Sync] Facebook API error:`, JSON.stringify(data));
-                        // Try with page token approach
-                        const altUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=id&access_token=${account.access_token}`;
-                        const altResponse = await fetch(altUrl);
-                        if (altResponse.ok) {
-                            // At least the post exists, set zeros
-                            insights = { likes: 0, comments: 0, shares: 0 };
+                    if (basicResponse.ok) {
+                        console.log(`[Sync] Facebook object exists:`, JSON.stringify(basicData));
+
+                        // Try to get likes/comments using the graph edge approach
+                        let likesCount = 0;
+                        let commentsCount = 0;
+
+                        // Try getting likes count
+                        try {
+                            const likesUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/likes?summary=true&access_token=${account.access_token}`;
+                            const likesResponse = await fetch(likesUrl);
+                            const likesData = await likesResponse.json();
+                            if (likesResponse.ok && likesData.summary) {
+                                likesCount = likesData.summary.total_count || 0;
+                            }
+                        } catch (e) {
+                            console.log(`[Sync] Could not fetch likes edge`);
                         }
+
+                        // Try getting comments count
+                        try {
+                            const commentsUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/comments?summary=true&access_token=${account.access_token}`;
+                            const commentsResponse = await fetch(commentsUrl);
+                            const commentsData = await commentsResponse.json();
+                            if (commentsResponse.ok && commentsData.summary) {
+                                commentsCount = commentsData.summary.total_count || 0;
+                            }
+                        } catch (e) {
+                            console.log(`[Sync] Could not fetch comments edge`);
+                        }
+
+                        insights = {
+                            likes: likesCount,
+                            comments: commentsCount,
+                            shares: 0
+                        };
+                        console.log(`[Sync] Facebook final insights:`, JSON.stringify(insights));
+                    } else {
+                        console.error(`[Sync] Facebook API error:`, JSON.stringify(basicData));
+                        // Post might not be accessible, set zeros anyway so we don't keep retrying
+                        insights = { likes: 0, comments: 0, shares: 0 };
                     }
                 }
 

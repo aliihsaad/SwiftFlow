@@ -40,6 +40,7 @@ interface CommentsResponse {
         total: number
         totalPages: number
     }
+    workspaceId: string
 }
 
 const fetcher = async (url: string) => {
@@ -180,6 +181,7 @@ export default function CommentsPage() {
                     onPageChange={setPage}
                     onReply={handleReply}
                     onHide={handleHide}
+                    workspaceId={data.workspaceId}
                 />
             )}
 

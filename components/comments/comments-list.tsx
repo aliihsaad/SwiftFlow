@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -25,13 +25,6 @@ import {
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
 import { createClient } from "@/utils/supabase/client"
-
-function getCookie(name: string): string | undefined {
-    if (typeof window === 'undefined') return undefined
-    const value = `; ${document.cookie}`
-    const parts = value.split(`; ${name}=`)
-    if (parts.length === 2) return parts.pop()?.split(';').shift()
-}
 
 interface PostInfo {
     published_post_id: string
@@ -69,6 +62,7 @@ interface CommentsListProps {
     onPageChange: (page: number) => void
     onReply: (commentId: string, message: string) => Promise<void>
     onHide: (commentId: string) => Promise<void>
+    workspaceId: string
 }
 
 export function CommentsList({
@@ -76,7 +70,8 @@ export function CommentsList({
     pagination,
     onPageChange,
     onReply,
-    onHide
+    onHide,
+    workspaceId
 }: CommentsListProps) {
     const [replyingTo, setReplyingTo] = useState<string | null>(null)
     const [replyText, setReplyText] = useState("")
@@ -101,11 +96,6 @@ export function CommentsList({
         setReplyingTo(comment.id)
 
         try {
-            const workspaceId = getCookie('active_workspace_id')
-            if (!workspaceId) {
-                throw new Error('No active workspace')
-            }
-
             const supabase = createClient()
             const { data, error } = await supabase.functions.invoke('generate-reply', {
                 body: {

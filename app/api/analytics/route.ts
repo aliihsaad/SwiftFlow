@@ -93,40 +93,7 @@ export async function GET(request: NextRequest) {
 
         // For now, return mock data but log that we have real data available
         // TODO: Transform real data into analytics format
-        const mockData = generateMockAnalyticsData(range, granularity)
-        return NextResponse.json(mockData)
-
-        // Real API implementation (commented out for now)
-        /*
-        const { since, until } = getDateRangeTimestamps(range)
-        const metaClient = createMetaAPIClient()
-    
-        // Parallel fetch from both platforms
-        const [igInsights, igMedia, fbInsights, fbPosts, followerCounts] = await Promise.all([
-          metaClient.fetchInstagramInsights(['impressions', 'reach', 'profile_views'], since, until),
-          metaClient.fetchInstagramMedia(50),
-          metaClient.fetchFacebookInsights(['page_impressions', 'page_engaged_users', 'page_fans'], since, until),
-          metaClient.fetchFacebookPosts(50),
-          metaClient.getFollowerCounts()
-        ])
-    
-        // Transform and aggregate data
-        const analyticsData = transformMetaAPIData({
-          igInsights,
-          igMedia,
-          fbInsights,
-          fbPosts,
-          followerCounts,
-          range,
-          granularity
-        })
-    
-        return NextResponse.json(analyticsData)
-        */
-
-        // Fallback to mock data
-        const mockData = generateMockAnalyticsData(range, granularity)
-        return NextResponse.json(mockData)
+        return NextResponse.json(generateMockAnalyticsData(range, granularity))
 
     } catch (error) {
         console.error('Analytics API error:', error)

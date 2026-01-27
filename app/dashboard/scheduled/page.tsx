@@ -37,43 +37,12 @@ export default async function ScheduledPostsPage({
         // Order drafts by updated_at instead of created_at for better relevance
         .order('updated_at', { ascending: false })
 
-    // Fetch published posts with their analytics
-    const { data: postedPosts, error: postedError } = await supabase
+    const { data: postedPosts } = await supabase
         .from('posts')
         .select('*')
         .eq('status', 'published')
         .eq('workspace_id', activeWorkspace.id)
         .order('published_at', { ascending: false })
-
-    // Fetch published_posts and analytics separately
-    if (postedPosts && postedPosts.length > 0) {
-        const postIds = postedPosts.map(p => p.id)
-
-        const { data: publishedPostsData } = await supabase
-            .from('published_posts')
-            .select('*')
-            .in('post_id', postIds)
-
-        const publishedPostIds = publishedPostsData?.map(pp => pp.id) || []
-
-        const { data: analyticsData } = await supabase
-            .from('post_analytics')
-            .select('*')
-            .in('published_post_id', publishedPostIds)
-
-        // Attach the data to posts
-        postedPosts.forEach(post => {
-            const relatedPublishedPosts = publishedPostsData?.filter(pp => pp.post_id === post.id) || []
-            relatedPublishedPosts.forEach(pp => {
-                pp.post_analytics = analyticsData?.filter(a => a.published_post_id === pp.id) || []
-            })
-            post.published_posts = relatedPublishedPosts
-        })
-    }
-
-    if (postedError) {
-        console.error('Error fetching posted posts:', postedError)
-    }
 
     const { data: failedPosts } = await supabase
         .from('posts')

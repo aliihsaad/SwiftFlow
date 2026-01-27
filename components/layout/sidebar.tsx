@@ -16,7 +16,9 @@ import {
     LogOut,
     Sparkles,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    MessageCircle,
+    Inbox
 } from "lucide-react"
 import {
     Tooltip,
@@ -34,6 +36,8 @@ const sidebarItems = [
     { icon: CalendarDays, label: "Scheduled", href: "/dashboard/scheduled" },
     { icon: Bot, label: "AI Assistant", href: "/dashboard/assistant" },
     { icon: BarChart3, label: "Analytics", href: "/dashboard/analytics" },
+    { icon: MessageCircle, label: "Comments", href: "/dashboard/comments" },
+    { icon: Inbox, label: "Messages", href: "/dashboard/messages" },
     { icon: Sparkles, label: "Brand Profile", href: "/dashboard/settings/brand" },
     { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ]

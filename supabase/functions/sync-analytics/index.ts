@@ -253,6 +253,120 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
     return { synced: syncedCount };
 }
 
+/**
+ * Sync account-level analytics (follower counts, etc.)
+ * This populates account_analytics for the follower growth chart
+ */
+async function syncAccountAnalytics(supabase: any, workspaceId: string) {
+    console.log(`[AccountSync] Starting account analytics sync for workspace: ${workspaceId}`);
+
+    // Get all social accounts for this workspace
+    const { data: accounts, error: accountsError } = await supabase
+        .from('social_accounts')
+        .select('*')
+        .eq('workspace_id', workspaceId);
+
+    if (accountsError) {
+        console.error(`[AccountSync] Error fetching accounts:`, accountsError);
+        return { synced: 0, error: accountsError.message };
+    }
+
+    if (!accounts || accounts.length === 0) {
+        console.log(`[AccountSync] No social accounts found`);
+        return { synced: 0, message: 'No social accounts found' };
+    }
+
+    console.log(`[AccountSync] Found ${accounts.length} social accounts`);
+
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    let syncedCount = 0;
+
+    for (const account of accounts) {
+        if (!account.access_token) {
+            console.log(`[AccountSync] Account ${account.id} (${account.platform}) has no access token, skipping`);
+            continue;
+        }
+
+        try {
+            let accountData = null;
+
+            if (account.platform === 'instagram') {
+                // Instagram: GET /{ig-user-id}?fields=followers_count,follows_count,media_count
+                const igUserId = account.account_id;
+                const url = `${META_GRAPH_URL}/${igUserId}?fields=followers_count,follows_count,media_count&access_token=${account.access_token}`;
+
+                console.log(`[AccountSync] Fetching Instagram account data for ${igUserId}`);
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (response.ok) {
+                    console.log(`[AccountSync] Instagram account data:`, JSON.stringify(data));
+                    accountData = {
+                        followers: data.followers_count || 0,
+                        following: data.follows_count || 0,
+                        posts_count: data.media_count || 0
+                    };
+                } else {
+                    console.error(`[AccountSync] Instagram API error:`, JSON.stringify(data));
+                }
+            } else if (account.platform === 'facebook') {
+                // Facebook: GET /{page-id}?fields=fan_count,followers_count
+                const pageId = account.account_id;
+                const url = `${META_GRAPH_URL}/${pageId}?fields=fan_count,followers_count&access_token=${account.access_token}`;
+
+                console.log(`[AccountSync] Fetching Facebook page data for ${pageId}`);
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (response.ok) {
+                    console.log(`[AccountSync] Facebook page data:`, JSON.stringify(data));
+                    accountData = {
+                        followers: data.followers_count || data.fan_count || 0,
+                        following: 0, // Pages don't follow other pages
+                        posts_count: 0 // Would need separate API call
+                    };
+                } else {
+                    console.error(`[AccountSync] Facebook API error:`, JSON.stringify(data));
+                }
+            }
+
+            if (accountData) {
+                // Upsert to account_analytics
+                const analyticsRecord = {
+                    social_account_id: account.id,
+                    date: today,
+                    followers: accountData.followers,
+                    following: accountData.following,
+                    posts_count: accountData.posts_count,
+                    engagement_rate: 0, // Could calculate from post analytics
+                    synced_at: new Date().toISOString()
+                };
+
+                console.log(`[AccountSync] Upserting account analytics:`, analyticsRecord);
+
+                const { error: upsertError } = await supabase
+                    .from('account_analytics')
+                    .upsert(analyticsRecord, {
+                        onConflict: 'social_account_id,date'
+                    });
+
+                if (upsertError) {
+                    console.error(`[AccountSync] Failed to upsert account analytics:`, upsertError);
+                } else {
+                    console.log(`[AccountSync] Successfully synced account ${account.id}`);
+                    syncedCount++;
+                }
+            }
+        } catch (error) {
+            console.error(`[AccountSync] Error syncing account ${account.id}:`, error);
+        }
+    }
+
+    return { synced: syncedCount };
+}
+
 serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
@@ -273,11 +387,15 @@ serve(async (req) => {
             );
         }
 
-        // Sync post-level insights
-        const results = await syncPostInsights(supabase, workspaceId);
+        // Sync both post-level insights and account-level analytics
+        const postResults = await syncPostInsights(supabase, workspaceId);
+        const accountResults = await syncAccountAnalytics(supabase, workspaceId);
 
         return new Response(
-            JSON.stringify(results),
+            JSON.stringify({
+                posts: postResults,
+                accounts: accountResults
+            }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
         );
 

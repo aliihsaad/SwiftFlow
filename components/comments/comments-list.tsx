@@ -1,0 +1,263 @@
+"use client"
+
+import { useState } from "react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import {
+    ChevronLeft,
+    ChevronRight,
+    Reply,
+    EyeOff,
+    Send,
+    X,
+    Instagram,
+    Facebook,
+    Clock,
+    CheckCircle
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { formatDistanceToNow } from "date-fns"
+
+interface Comment {
+    id: string
+    platform_comment_id: string
+    author_username: string | null
+    author_profile_picture: string | null
+    message: string
+    is_hidden: boolean
+    replied_at: string | null
+    platform_created_at: string
+    social_accounts: {
+        platform: string
+        account_name: string
+    } | null
+    replies: Comment[]
+}
+
+interface CommentsListProps {
+    comments: Comment[]
+    pagination: {
+        page: number
+        limit: number
+        total: number
+        totalPages: number
+    }
+    onPageChange: (page: number) => void
+    onReply: (commentId: string, message: string) => Promise<void>
+    onHide: (commentId: string) => Promise<void>
+}
+
+export function CommentsList({
+    comments,
+    pagination,
+    onPageChange,
+    onReply,
+    onHide
+}: CommentsListProps) {
+    const [replyingTo, setReplyingTo] = useState<string | null>(null)
+    const [replyText, setReplyText] = useState("")
+    const [isSubmitting, setIsSubmitting] = useState(false)
+
+    const handleSubmitReply = async (commentId: string) => {
+        if (!replyText.trim()) return
+
+        setIsSubmitting(true)
+        try {
+            await onReply(commentId, replyText)
+            setReplyText("")
+            setReplyingTo(null)
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const PlatformIcon = ({ platform }: { platform: string }) => {
+        if (platform === 'instagram') {
+            return <Instagram className="h-3.5 w-3.5" />
+        }
+        return <Facebook className="h-3.5 w-3.5" />
+    }
+
+    return (
+        <div className="space-y-4">
+            {comments.map((comment) => (
+                <Card key={comment.id} className={cn(
+                    "transition-opacity",
+                    comment.is_hidden && "opacity-50"
+                )}>
+                    <CardContent className="p-4">
+                        <div className="flex gap-4">
+                            {/* Avatar */}
+                            <Avatar className="h-10 w-10 shrink-0">
+                                <AvatarImage src={comment.author_profile_picture || undefined} />
+                                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white">
+                                    {(comment.author_username || 'U')[0].toUpperCase()}
+                                </AvatarFallback>
+                            </Avatar>
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                                {/* Header */}
+                                <div className="flex flex-wrap items-center gap-2 mb-1">
+                                    <span className="font-medium text-sm">
+                                        {comment.author_username || 'Unknown User'}
+                                    </span>
+
+                                    {comment.social_accounts && (
+                                        <Badge variant="secondary" className="gap-1 text-xs">
+                                            <PlatformIcon platform={comment.social_accounts.platform} />
+                                            {comment.social_accounts.account_name}
+                                        </Badge>
+                                    )}
+
+                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                        <Clock className="h-3 w-3" />
+                                        {formatDistanceToNow(new Date(comment.platform_created_at), { addSuffix: true })}
+                                    </span>
+
+                                    {comment.replied_at && (
+                                        <Badge variant="outline" className="gap-1 text-xs text-green-600 border-green-600/30">
+                                            <CheckCircle className="h-3 w-3" />
+                                            Replied
+                                        </Badge>
+                                    )}
+
+                                    {comment.is_hidden && (
+                                        <Badge variant="outline" className="gap-1 text-xs text-orange-600 border-orange-600/30">
+                                            <EyeOff className="h-3 w-3" />
+                                            Hidden
+                                        </Badge>
+                                    )}
+                                </div>
+
+                                {/* Message */}
+                                <p className="text-sm text-foreground/90 whitespace-pre-wrap break-words">
+                                    {comment.message}
+                                </p>
+
+                                {/* Replies */}
+                                {comment.replies && comment.replies.length > 0 && (
+                                    <div className="mt-3 pl-4 border-l-2 border-border/50 space-y-3">
+                                        {comment.replies.map((reply) => (
+                                            <div key={reply.id} className="flex gap-3">
+                                                <Avatar className="h-7 w-7 shrink-0">
+                                                    <AvatarImage src={reply.author_profile_picture || undefined} />
+                                                    <AvatarFallback className="text-xs bg-muted">
+                                                        {(reply.author_username || 'U')[0].toUpperCase()}
+                                                    </AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                        <span className="font-medium text-xs">
+                                                            {reply.author_username || 'Unknown'}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {formatDistanceToNow(new Date(reply.platform_created_at), { addSuffix: true })}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-sm text-foreground/80">
+                                                        {reply.message}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Actions */}
+                                <div className="flex items-center gap-2 mt-3">
+                                    {!comment.is_hidden && (
+                                        <>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 text-xs gap-1.5"
+                                                onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                                            >
+                                                <Reply className="h-3.5 w-3.5" />
+                                                Reply
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-orange-600"
+                                                onClick={() => onHide(comment.id)}
+                                            >
+                                                <EyeOff className="h-3.5 w-3.5" />
+                                                Hide
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Reply input */}
+                                {replyingTo === comment.id && (
+                                    <div className="mt-3 space-y-2">
+                                        <Textarea
+                                            placeholder="Write a reply..."
+                                            value={replyText}
+                                            onChange={(e) => setReplyText(e.target.value)}
+                                            className="min-h-[80px] resize-none"
+                                        />
+                                        <div className="flex items-center gap-2 justify-end">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                    setReplyingTo(null)
+                                                    setReplyText("")
+                                                }}
+                                            >
+                                                <X className="h-4 w-4 mr-1" />
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleSubmitReply(comment.id)}
+                                                disabled={!replyText.trim() || isSubmitting}
+                                                className="gap-1.5"
+                                            >
+                                                <Send className="h-3.5 w-3.5" />
+                                                {isSubmitting ? "Sending..." : "Send Reply"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            ))}
+
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-4">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onPageChange(pagination.page - 1)}
+                        disabled={pagination.page <= 1}
+                    >
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground px-4">
+                        Page {pagination.page} of {pagination.totalPages}
+                    </span>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onPageChange(pagination.page + 1)}
+                        disabled={pagination.page >= pagination.totalPages}
+                    >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            )}
+        </div>
+    )
+}

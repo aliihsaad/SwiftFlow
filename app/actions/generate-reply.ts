@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+'use server'
+
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { generateText } from '@/lib/gemini';
@@ -11,66 +12,58 @@ interface BrandProfile {
     industry: string | null;
 }
 
-export async function POST(request: NextRequest) {
-    try {
-        const supabase = await createClient();
+interface GenerateReplyInput {
+    comment: string;
+    authorUsername: string | null;
+    postContent: string | null;
+    platform: string;
+}
 
-        // Auth check
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+export async function generateCommentReply(input: GenerateReplyInput): Promise<string> {
+    const supabase = await createClient();
 
-        // Get active workspace
-        const activeWorkspace = await getActiveWorkspace();
-        if (!activeWorkspace) {
-            return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
-        }
-
-        const body = await request.json();
-        const { comment, authorUsername, postContent, platform } = body;
-
-        if (!comment) {
-            return NextResponse.json(
-                { error: 'comment is required' },
-                { status: 400 }
-            );
-        }
-
-        // Fetch brand profile for context
-        const { data: brandProfile } = await supabase
-            .from('workspace_brand_profiles')
-            .select('business_name, business_description, brand_voice, target_audience, industry')
-            .eq('workspace_id', activeWorkspace.id)
-            .maybeSingle();
-
-        // Build context-aware prompt
-        const prompt = buildReplyPrompt({
-            comment,
-            authorUsername,
-            postContent,
-            platform,
-            brandProfile
-        });
-
-        // Generate reply using Gemini
-        const reply = await generateText(prompt, activeWorkspace.id);
-
-        // Clean up the reply (remove quotes if wrapped)
-        const cleanReply = reply
-            .replace(/^["']|["']$/g, '')
-            .replace(/^Reply:\s*/i, '')
-            .trim();
-
-        return NextResponse.json({ reply: cleanReply });
-
-    } catch (error: any) {
-        console.error('Generate reply API error:', error);
-        return NextResponse.json(
-            { error: error.message || 'Failed to generate reply' },
-            { status: 500 }
-        );
+    // Auth check
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        throw new Error('Unauthorized');
     }
+
+    // Get active workspace
+    const activeWorkspace = await getActiveWorkspace();
+    if (!activeWorkspace) {
+        throw new Error('No active workspace found');
+    }
+
+    const { comment, authorUsername, postContent, platform } = input;
+
+    if (!comment) {
+        throw new Error('comment is required');
+    }
+
+    // Fetch brand profile for context
+    const { data: brandProfile } = await supabase
+        .from('workspace_brand_profiles')
+        .select('business_name, business_description, brand_voice, target_audience, industry')
+        .eq('workspace_id', activeWorkspace.id)
+        .maybeSingle();
+
+    // Build context-aware prompt
+    const prompt = buildReplyPrompt({
+        comment,
+        authorUsername,
+        postContent,
+        platform,
+        brandProfile
+    });
+
+    // Generate reply using Gemini
+    const reply = await generateText(prompt, activeWorkspace.id);
+
+    // Clean up the reply
+    return reply
+        .replace(/^["']|["']$/g, '')
+        .replace(/^Reply:\s*/i, '')
+        .trim();
 }
 
 function buildReplyPrompt({
@@ -91,7 +84,6 @@ function buildReplyPrompt({
     parts.push('Generate a friendly, engaging reply to this social media comment.');
     parts.push('');
 
-    // Add brand context if available
     if (brandProfile) {
         parts.push('=== BRAND CONTEXT ===');
         if (brandProfile.business_name) {

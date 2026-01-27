@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
+import { generateCommentReply } from "@/app/actions/generate-reply"
 
 interface PostInfo {
     published_post_id: string
@@ -93,23 +94,13 @@ export function CommentsList({
         setReplyingTo(comment.id)
 
         try {
-            const response = await fetch('/api/generate-reply', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    comment: comment.message,
-                    authorUsername: comment.author_username,
-                    postContent: comment.post?.content || '',
-                    platform: comment.social_accounts?.platform || 'instagram'
-                })
+            const reply = await generateCommentReply({
+                comment: comment.message,
+                authorUsername: comment.author_username,
+                postContent: comment.post?.content || null,
+                platform: comment.social_accounts?.platform || 'instagram'
             })
-
-            if (!response.ok) {
-                throw new Error('Failed to generate reply')
-            }
-
-            const data = await response.json()
-            setReplyText(data.reply || '')
+            setReplyText(reply)
         } catch (error) {
             console.error('AI reply generation failed:', error)
         } finally {

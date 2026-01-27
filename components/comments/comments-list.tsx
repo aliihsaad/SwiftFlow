@@ -16,10 +16,22 @@ import {
     Instagram,
     Facebook,
     Clock,
-    CheckCircle
+    CheckCircle,
+    Sparkles,
+    ExternalLink,
+    Image as ImageIcon,
+    Loader2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
+
+interface PostInfo {
+    published_post_id: string
+    platform_post_id: string
+    permalink: string | null
+    content: string
+    media_urls: string[]
+}
 
 interface Comment {
     id: string
@@ -35,6 +47,7 @@ interface Comment {
         account_name: string
     } | null
     replies: Comment[]
+    post: PostInfo | null
 }
 
 interface CommentsListProps {
@@ -60,6 +73,7 @@ export function CommentsList({
     const [replyingTo, setReplyingTo] = useState<string | null>(null)
     const [replyText, setReplyText] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [generatingAI, setGeneratingAI] = useState<string | null>(null)
 
     const handleSubmitReply = async (commentId: string) => {
         if (!replyText.trim()) return
@@ -74,11 +88,50 @@ export function CommentsList({
         }
     }
 
+    const handleAIReply = async (comment: Comment) => {
+        setGeneratingAI(comment.id)
+        setReplyingTo(comment.id)
+
+        try {
+            const response = await fetch('/api/generate-reply', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    comment: comment.message,
+                    authorUsername: comment.author_username,
+                    postContent: comment.post?.content || '',
+                    platform: comment.social_accounts?.platform || 'instagram'
+                })
+            })
+
+            if (!response.ok) {
+                throw new Error('Failed to generate reply')
+            }
+
+            const data = await response.json()
+            setReplyText(data.reply || '')
+        } catch (error) {
+            console.error('AI reply generation failed:', error)
+        } finally {
+            setGeneratingAI(null)
+        }
+    }
+
     const PlatformIcon = ({ platform }: { platform: string }) => {
         if (platform === 'instagram') {
             return <Instagram className="h-3.5 w-3.5" />
         }
         return <Facebook className="h-3.5 w-3.5" />
+    }
+
+    const getFirstMediaUrl = (mediaUrls: string[]): string | null => {
+        if (!mediaUrls || mediaUrls.length === 0) return null
+        const first = mediaUrls[0]
+        if (typeof first === 'string') return first
+        if (typeof first === 'object' && first !== null) {
+            return (first as any).url || (first as any).publicUrl || null
+        }
+        return null
     }
 
     return (
@@ -89,6 +142,43 @@ export function CommentsList({
                     comment.is_hidden && "opacity-50"
                 )}>
                     <CardContent className="p-4">
+                        {/* Post Preview */}
+                        {comment.post && (
+                            <div className="mb-3 p-3 bg-muted/30 rounded-lg border border-border/50">
+                                <div className="flex gap-3">
+                                    {/* Post thumbnail */}
+                                    {getFirstMediaUrl(comment.post.media_urls) ? (
+                                        <img
+                                            src={getFirstMediaUrl(comment.post.media_urls)!}
+                                            alt="Post"
+                                            className="w-16 h-16 object-cover rounded-md shrink-0"
+                                        />
+                                    ) : (
+                                        <div className="w-16 h-16 bg-muted rounded-md flex items-center justify-center shrink-0">
+                                            <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                                        </div>
+                                    )}
+                                    {/* Post content preview */}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs text-muted-foreground mb-1">Comment on post:</p>
+                                        <p className="text-sm line-clamp-2">
+                                            {comment.post.content || 'No caption'}
+                                        </p>
+                                        {comment.post.permalink && (
+                                            <a
+                                                href={comment.post.permalink}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-1"
+                                            >
+                                                View post <ExternalLink className="h-3 w-3" />
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="flex gap-4">
                             {/* Avatar */}
                             <Avatar className="h-10 w-10 shrink-0">
@@ -179,6 +269,20 @@ export function CommentsList({
                                             >
                                                 <Reply className="h-3.5 w-3.5" />
                                                 Reply
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 text-xs gap-1.5 text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                                                onClick={() => handleAIReply(comment)}
+                                                disabled={generatingAI === comment.id}
+                                            >
+                                                {generatingAI === comment.id ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                    <Sparkles className="h-3.5 w-3.5" />
+                                                )}
+                                                AI Reply
                                             </Button>
                                             <Button
                                                 variant="ghost"

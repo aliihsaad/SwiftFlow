@@ -47,7 +47,39 @@ export async function GET(request: NextRequest) {
             throw error;
         }
 
-        // Fetch replies for each comment
+        // Get all published_post_ids from comments
+        const publishedPostIds = [...new Set((comments || []).map(c => c.published_post_id).filter(Boolean))];
+
+        // Fetch published posts with their original posts
+        let postsMap: Record<string, any> = {};
+        if (publishedPostIds.length > 0) {
+            const { data: publishedPosts } = await supabase
+                .from('published_posts')
+                .select('id, post_id, platform, platform_post_id, permalink')
+                .in('id', publishedPostIds);
+
+            if (publishedPosts && publishedPosts.length > 0) {
+                const postIds = publishedPosts.map(pp => pp.post_id).filter(Boolean);
+                const { data: posts } = await supabase
+                    .from('posts')
+                    .select('id, content, media_urls')
+                    .in('id', postIds);
+
+                // Create a map of published_post_id -> post info
+                for (const pp of publishedPosts) {
+                    const post = posts?.find(p => p.id === pp.post_id);
+                    postsMap[pp.id] = {
+                        published_post_id: pp.id,
+                        platform_post_id: pp.platform_post_id,
+                        permalink: pp.permalink,
+                        content: post?.content || '',
+                        media_urls: post?.media_urls || []
+                    };
+                }
+            }
+        }
+
+        // Fetch replies for each comment and attach post info
         const commentsWithReplies = await Promise.all(
             (comments || []).map(async (comment) => {
                 const { data: replies } = await supabase
@@ -58,7 +90,8 @@ export async function GET(request: NextRequest) {
 
                 return {
                     ...comment,
-                    replies: replies || []
+                    replies: replies || [],
+                    post: comment.published_post_id ? postsMap[comment.published_post_id] || null : null
                 };
             })
         );

@@ -112,11 +112,48 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const pages = pagesData.data || [];
-        log(`Step 2 SUCCESS: Found ${pages.length} page(s)`);
+        let pages = pagesData.data || [];
+        log(`Step 2: /me/accounts returned ${pages.length} page(s)`);
+
+        // Fallback: if /me/accounts returns empty, extract target page IDs from
+        // debug_token's granular_scopes and fetch each page directly.
+        if (pages.length === 0) {
+            log('Step 2b: /me/accounts empty — trying fallback via debug_token target_ids...');
+            try {
+                const debugData = JSON.parse(debugText);
+                const granularScopes = debugData?.data?.granular_scopes || [];
+                const pagesScope = granularScopes.find((s: any) => s.scope === 'pages_show_list');
+                const targetIds: string[] = pagesScope?.target_ids || [];
+                log(`Step 2b: Found ${targetIds.length} target page IDs: ${targetIds.join(', ')}`);
+
+                for (const pageId of targetIds) {
+                    try {
+                        const pageUrl = `${META_GRAPH_URL}/${pageId}?fields=id,name,access_token,category&access_token=${userAccessToken}`;
+                        log(`Step 2b: Fetching page ${pageId} directly...`);
+                        const pageResp = await fetch(pageUrl, { cache: 'no-store' });
+                        const pageText = await pageResp.text();
+                        log(`Step 2b: Page ${pageId} response (${pageResp.status}): ${pageText.substring(0, 300)}`);
+
+                        if (pageResp.ok) {
+                            const pageData = JSON.parse(pageText);
+                            if (pageData.id) {
+                                pages.push(pageData);
+                                log(`Step 2b: Successfully fetched page: ${pageData.name} (${pageData.id})`);
+                            }
+                        }
+                    } catch (pageError) {
+                        log(`Step 2b: Error fetching page ${pageId}: ${pageError}`);
+                    }
+                }
+
+                log(`Step 2b: Fallback recovered ${pages.length} page(s)`);
+            } catch (fallbackError) {
+                log(`Step 2b: Fallback failed: ${fallbackError}`);
+            }
+        }
 
         if (pages.length === 0) {
-            log('WARNING: No pages returned by Meta API');
+            log('WARNING: No pages returned by Meta API (even after fallback)');
             return NextResponse.redirect(
                 new URL('/dashboard/settings/brand?error=no_pages&debug=' + encodeURIComponent(debugLog.join('|')), request.url)
             );

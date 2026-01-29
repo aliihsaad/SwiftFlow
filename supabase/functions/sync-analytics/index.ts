@@ -161,47 +161,24 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                         console.error(`[Sync] Instagram API error:`, JSON.stringify(basicData));
                     }
                 } else if (publishedPost.platform === 'facebook') {
-                    // For Facebook, fetch post fields + engagement edges + page insights
+                    // For Facebook, fetch engagement data as post fields to avoid
+                    // needing pages_read_engagement permission
                     console.log(`[Sync] Fetching Facebook data for ${publishedPost.platform_post_id}`);
 
-                    // Fetch basic post fields including shares count
-                    const basicUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=id,created_time,shares&access_token=${account.access_token}`;
-                    const basicResponse = await fetch(basicUrl);
-                    const basicData = await basicResponse.json();
+                    // Fetch post with engagement counts as nested fields
+                    const postUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=id,created_time,shares,likes.summary(true),comments.summary(true)&access_token=${account.access_token}`;
+                    const postResponse = await fetch(postUrl);
+                    const postData = await postResponse.json();
 
-                    if (basicResponse.ok) {
-                        console.log(`[Sync] Facebook post data:`, JSON.stringify(basicData));
+                    if (postResponse.ok) {
+                        console.log(`[Sync] Facebook post data:`, JSON.stringify(postData));
 
-                        let likesCount = 0;
-                        let commentsCount = 0;
-                        let sharesCount = basicData.shares?.count || 0;
+                        const likesCount = postData.likes?.summary?.total_count || 0;
+                        const commentsCount = postData.comments?.summary?.total_count || 0;
+                        const sharesCount = postData.shares?.count || 0;
                         let impressions = 0;
 
-                        // Fetch likes count
-                        try {
-                            const likesUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/likes?summary=true&access_token=${account.access_token}`;
-                            const likesResponse = await fetch(likesUrl);
-                            const likesData = await likesResponse.json();
-                            if (likesResponse.ok && likesData.summary) {
-                                likesCount = likesData.summary.total_count || 0;
-                            }
-                        } catch (e) {
-                            console.log(`[Sync] Could not fetch likes edge`);
-                        }
-
-                        // Fetch comments count
-                        try {
-                            const commentsUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/comments?summary=true&access_token=${account.access_token}`;
-                            const commentsResponse = await fetch(commentsUrl);
-                            const commentsData = await commentsResponse.json();
-                            if (commentsResponse.ok && commentsData.summary) {
-                                commentsCount = commentsData.summary.total_count || 0;
-                            }
-                        } catch (e) {
-                            console.log(`[Sync] Could not fetch comments edge`);
-                        }
-
-                        // Fetch post impressions via insights (requires pages_read_engagement)
+                        // Try post insights for impressions (may fail without pages_read_engagement)
                         try {
                             const insightsUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/insights?metric=post_impressions&access_token=${account.access_token}`;
                             const insightsResponse = await fetch(insightsUrl);
@@ -212,9 +189,8 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                                     impressions = impressionMetric.values[0].value;
                                 }
                             }
-                            console.log(`[Sync] Facebook impressions: ${impressions}`);
                         } catch (e) {
-                            console.log(`[Sync] Could not fetch post insights`);
+                            // pages_read_engagement not approved — skip impressions
                         }
 
                         insights = {
@@ -225,8 +201,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                         };
                         console.log(`[Sync] Facebook final insights:`, JSON.stringify(insights));
                     } else {
-                        console.error(`[Sync] Facebook API error:`, JSON.stringify(basicData));
-                        // Post might not be accessible, set zeros anyway so we don't keep retrying
+                        console.error(`[Sync] Facebook API error:`, JSON.stringify(postData));
                         insights = { likes: 0, comments: 0, shares: 0 };
                     }
                 }

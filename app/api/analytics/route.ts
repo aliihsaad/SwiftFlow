@@ -74,21 +74,34 @@ function transformRealDataToAnalytics(
         granularity
     )
 
-    // Calculate current followers (most recent analytics)
-    const latestAccountAnalytics = accountAnalytics
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
-    const currentFollowers = latestAccountAnalytics?.followers || 0
+    // Calculate current followers — sum the most recent entry per social account
+    const latestByAccount = new Map<string, number>()
+    accountAnalytics
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .forEach(a => {
+            if (!latestByAccount.has(a.social_account_id)) {
+                latestByAccount.set(a.social_account_id, a.followers || 0)
+            }
+        })
+    const currentFollowers = Array.from(latestByAccount.values()).reduce((sum, f) => sum + f, 0)
 
-    // Calculate previous period followers for change percentage
+    // Calculate previous period followers — sum the most recent entry per account within previous period
     const previousPeriodStart = subDays(startDate, daysCount)
-    const previousPeriodAnalytics = accountAnalytics
+    const previousByAccount = new Map<string, number>()
+    accountAnalytics
         .filter(a => {
             const date = new Date(a.date)
             return date >= previousPeriodStart && date < startDate
         })
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
-
-    const previousFollowers = previousPeriodAnalytics?.followers || currentFollowers
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .forEach(a => {
+            if (!previousByAccount.has(a.social_account_id)) {
+                previousByAccount.set(a.social_account_id, a.followers || 0)
+            }
+        })
+    const previousFollowers = previousByAccount.size > 0
+        ? Array.from(previousByAccount.values()).reduce((sum, f) => sum + f, 0)
+        : currentFollowers
     const followersChange = previousFollowers > 0
         ? ((currentFollowers - previousFollowers) / previousFollowers) * 100
         : 0

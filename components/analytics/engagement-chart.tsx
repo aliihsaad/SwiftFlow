@@ -3,18 +3,36 @@
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FollowerGrowthData } from "@/types/analytics"
-import { TrendingUp, Calendar, BarChart3 } from "lucide-react"
+import { TrendingUp, Calendar, BarChart3, Info } from "lucide-react"
 
 interface FollowerGrowthChartProps {
     data: FollowerGrowthData
 }
 
 export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
-    const chartData = data.labels.map((label, index) => ({
+    let chartData = data.labels.map((label, index) => ({
         label,
         facebook: data.facebookValues?.[index] ?? 0,
         instagram: data.instagramValues?.[index] ?? 0,
     }))
+
+    // AreaChart needs 2+ points to render lines/fills. If we have fewer,
+    // pad with earlier "empty" points so the chart draws a rising line to the current value.
+    if (chartData.length === 1) {
+        chartData = [
+            { label: '', facebook: 0, instagram: 0 },
+            { label: '', facebook: 0, instagram: 0 },
+            { label: '', facebook: 0, instagram: 0 },
+            { label: '', facebook: 0, instagram: 0 },
+            chartData[0],
+        ]
+    } else if (chartData.length === 2) {
+        chartData = [
+            { label: '', facebook: 0, instagram: 0 },
+            { label: '', facebook: 0, instagram: 0 },
+            ...chartData,
+        ]
+    }
 
     return (
         <Card className="col-span-full overflow-hidden">
@@ -39,6 +57,12 @@ export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
                 </div>
             </CardHeader>
             <CardContent className="pt-0">
+                {data.labels.length <= 1 && (
+                    <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs">
+                        <Info className="h-3.5 w-3.5 shrink-0" />
+                        <span>Limited data available. The chart will fill in as more daily syncs run.</span>
+                    </div>
+                )}
                 {/* Chart */}
                 <div className="h-[320px] w-full -ml-2">
                     <ResponsiveContainer width="100%" height="100%">

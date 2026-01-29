@@ -35,8 +35,6 @@ export function getMetaOAuthUrl(workspaceId?: string): string {
         redirect_uri: redirectUri,
         response_type: 'code',
         scope: META_SCOPE,
-        // Force complete reauthorization including asset selection
-        auth_type: 'reauthorize',
         // Return granted scopes in callback for debugging
         return_scopes: 'true',
     };

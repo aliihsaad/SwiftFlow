@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Send, Image, Loader2, MessageSquare } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Send, Image, Loader2, MessageSquare, Sparkles } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
+import { createClient } from "@/utils/supabase/client"
 
 interface Message {
     id: string
@@ -33,11 +35,13 @@ interface MessageThreadProps {
     messages: Message[]
     isLoading: boolean
     onSendMessage: (message: string) => Promise<void>
+    workspaceId: string | null
 }
 
-export function MessageThread({ conversation, messages, isLoading, onSendMessage }: MessageThreadProps) {
+export function MessageThread({ conversation, messages, isLoading, onSendMessage, workspaceId }: MessageThreadProps) {
     const [inputValue, setInputValue] = useState("")
     const [isSending, setIsSending] = useState(false)
+    const [isGeneratingAI, setIsGeneratingAI] = useState(false)
     const scrollAreaRef = useRef<HTMLDivElement>(null)
 
     // Scroll to bottom when messages change
@@ -71,6 +75,44 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
         }
     }
 
+    const handleAIReply = async () => {
+        if (!conversation || !workspaceId || messages.length === 0) return
+
+        // Find the last message from the customer to reply to
+        const lastCustomerMessage = [...messages].reverse().find(m => !m.is_from_page && m.message)
+        if (!lastCustomerMessage?.message) return
+
+        setIsGeneratingAI(true)
+        try {
+            const supabase = createClient()
+
+            // Get recent conversation history (last 10 messages for context)
+            const recentMessages = messages.slice(-10).map(m => ({
+                message: m.message,
+                is_from_page: m.is_from_page
+            }))
+
+            const { data, error } = await supabase.functions.invoke('generate-message-reply', {
+                body: {
+                    message: lastCustomerMessage.message,
+                    participantUsername: conversation.participant_username,
+                    conversationHistory: recentMessages,
+                    platform: 'instagram',
+                    workspaceId
+                }
+            })
+
+            if (error) throw error
+            if (data?.reply) {
+                setInputValue(data.reply)
+            }
+        } catch (error) {
+            console.error('AI message reply generation failed:', error)
+        } finally {
+            setIsGeneratingAI(false)
+        }
+    }
+
     // Empty state - no conversation selected
     if (!conversation) {
         return (
@@ -94,6 +136,9 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
             return []
         }
     }
+
+    // Check if there's a customer message to generate AI reply for
+    const hasCustomerMessage = messages.some(m => !m.is_from_page && m.message)
 
     return (
         <div className="flex flex-col h-full">
@@ -220,6 +265,28 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
                         className="min-h-[44px] max-h-32 resize-none"
                         rows={1}
                     />
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    size="icon"
+                                    variant="outline"
+                                    onClick={handleAIReply}
+                                    disabled={isGeneratingAI || !hasCustomerMessage || !workspaceId}
+                                    className="h-11 w-11 shrink-0 text-purple-600 border-purple-200 hover:bg-purple-50 hover:text-purple-700"
+                                >
+                                    {isGeneratingAI ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Sparkles className="h-4 w-4" />
+                                    )}
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>AI Reply</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                     <Button
                         size="icon"
                         onClick={handleSend}

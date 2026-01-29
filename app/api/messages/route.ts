@@ -102,7 +102,8 @@ export async function GET(request: NextRequest) {
                     limit,
                     total: count || 0,
                     totalPages: Math.ceil((count || 0) / limit)
-                }
+                },
+                workspaceId: activeWorkspace.id
             });
         }
 

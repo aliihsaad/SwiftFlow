@@ -42,6 +42,7 @@ interface ConversationsResponse {
         total: number
         totalPages: number
     }
+    workspaceId: string
 }
 
 interface MessagesResponse {
@@ -199,6 +200,7 @@ export default function MessagesPage() {
                             messages={messagesData?.messages || []}
                             isLoading={messagesLoading}
                             onSendMessage={handleSendMessage}
+                            workspaceId={conversationsData?.workspaceId || null}
                         />
                     </div>
                 </div>

@@ -59,6 +59,8 @@ export async function GET(request: NextRequest) {
         // Step 1: Exchange code for token
         log('Step 1: Exchanging code for token...');
         const tokenData = await exchangeCodeForToken(code);
+        log(`Step 1 Full token response keys: ${Object.keys(tokenData).join(', ')}`);
+        log(`Step 1 Token type: ${tokenData.token_type}, expires_in: ${tokenData.expires_in}, scope: ${tokenData.scope}`);
         const userAccessToken = tokenData.access_token;
 
         if (!userAccessToken) {
@@ -67,11 +69,23 @@ export async function GET(request: NextRequest) {
                 new URL('/dashboard/settings/brand?error=no_access_token', request.url)
             );
         }
-        log(`Step 1 SUCCESS: Got token (expires in ${tokenData.expires_in}s)`);
+        log(`Step 1 SUCCESS: Got token (${userAccessToken.substring(0, 20)}..., expires in ${tokenData.expires_in}s)`);
+
+        // Step 1b: Verify token by calling /me
+        log('Step 1b: Verifying token with /me...');
+        const meResponse = await fetch(`${META_GRAPH_URL}/me?fields=id,name&access_token=${userAccessToken}`, { cache: 'no-store' });
+        const meText = await meResponse.text();
+        log(`Step 1b /me response (${meResponse.status}): ${meText.substring(0, 200)}`);
+
+        // Step 1c: Debug token to check type and scopes
+        log('Step 1c: Debugging token...');
+        const debugResponse = await fetch(`${META_GRAPH_URL}/debug_token?input_token=${userAccessToken}&access_token=${process.env.NEXT_PUBLIC_META_APP_ID}|${process.env.META_APP_SECRET}`, { cache: 'no-store' });
+        const debugText = await debugResponse.text();
+        log(`Step 1c debug_token response (${debugResponse.status}): ${debugText.substring(0, 500)}`);
 
         // Step 2: Fetch pages
         log('Step 2: Fetching pages from /me/accounts...');
-        const pagesUrl = `${META_GRAPH_URL}/me/accounts?access_token=${userAccessToken}`;
+        const pagesUrl = `${META_GRAPH_URL}/me/accounts?fields=id,name,access_token,category&access_token=${userAccessToken}`;
         log(`Fetching: ${pagesUrl.substring(0, 80)}...`);
 
         const pagesResponse = await fetch(pagesUrl, { cache: 'no-store' });
@@ -86,7 +100,7 @@ export async function GET(request: NextRequest) {
         }
 
         const rawText = await pagesResponse.text();
-        log(`Step 2 Raw Response: ${rawText.substring(0, 300)}`);
+        log(`Step 2 Raw Response: ${rawText.substring(0, 500)}`);
 
         let pagesData;
         try {

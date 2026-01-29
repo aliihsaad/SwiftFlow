@@ -20,9 +20,16 @@ export interface KPIData {
     display?: string
 }
 
+export interface FollowersKPIData extends KPIData {
+    facebook: number
+    instagram: number
+}
+
 export interface FollowerGrowthData {
     labels: string[]
     values: number[]
+    facebookValues: number[]
+    instagramValues: number[]
     bestDay: string
     avgDaily: string
     totalGain: string
@@ -32,13 +39,15 @@ export interface AccountAnalytics {
     totalReach: number
     totalEngagement: number
     followers: number
+    facebookFollowers: number
+    instagramFollowers: number
 }
 
 export interface AnalyticsResponse {
     kpis: {
         engagement: KPIData
         views: KPIData
-        followers: KPIData
+        followers: FollowersKPIData
         growthRate: KPIData
     }
     followerGrowth: FollowerGrowthData

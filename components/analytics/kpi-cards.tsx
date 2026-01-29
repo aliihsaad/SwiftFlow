@@ -1,14 +1,14 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { KPIData } from "@/types/analytics"
+import { KPIData, FollowersKPIData } from "@/types/analytics"
 import { TrendingUp, TrendingDown, Eye, Users, Activity, Percent } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface KPICardsProps {
     engagement: KPIData
     views: KPIData
-    followers: KPIData
+    followers: FollowersKPIData
     growthRate: KPIData
 }
 
@@ -40,6 +40,7 @@ export function KPICards({ engagement, views, followers, growthRate }: KPICardsP
             gradient: "from-green-500/20 to-emerald-500/20",
             iconColor: "text-green-500",
             borderColor: "border-green-500/20",
+            breakdown: { facebook: followers.facebook || 0, instagram: followers.instagram || 0 },
         },
         {
             title: "Growth Rate",
@@ -76,6 +77,18 @@ export function KPICards({ engagement, views, followers, growthRate }: KPICardsP
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{kpi.value}</div>
+                            {kpi.breakdown && (
+                                <div className="flex items-center gap-3 mt-1">
+                                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                        <span className="h-2 w-2 rounded-full bg-blue-500 inline-block" />
+                                        FB: {kpi.breakdown.facebook.toLocaleString()}
+                                    </span>
+                                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                        <span className="h-2 w-2 rounded-full bg-pink-500 inline-block" />
+                                        IG: {kpi.breakdown.instagram.toLocaleString()}
+                                    </span>
+                                </div>
+                            )}
                             <div className="flex items-center gap-1 mt-1">
                                 <ChangeIcon
                                     className={cn(

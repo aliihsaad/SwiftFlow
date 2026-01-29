@@ -51,6 +51,18 @@ export function AccountAnalyticsCard({ data }: AccountAnalyticsCardProps) {
                                     <p className="text-2xl font-bold">{stat.value}</p>
                                     <p className="text-xs text-muted-foreground mt-1">{stat.label}</p>
                                 </div>
+                                {stat.label === "Followers" && (data.facebookFollowers > 0 || data.instagramFollowers > 0) && (
+                                    <div className="flex items-center justify-center gap-3">
+                                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                            <span className="h-2 w-2 rounded-full bg-blue-500 inline-block" />
+                                            FB: {data.facebookFollowers.toLocaleString()}
+                                        </span>
+                                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                            <span className="h-2 w-2 rounded-full bg-pink-500 inline-block" />
+                                            IG: {data.instagramFollowers.toLocaleString()}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         )
                     })}

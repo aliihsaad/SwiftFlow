@@ -1,9 +1,8 @@
 "use client"
 
-import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts"
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { FollowerGrowthData } from "@/types/analytics"
-import { cn } from "@/lib/utils"
 
 interface FollowerGrowthChartProps {
     data: FollowerGrowthData
@@ -12,13 +11,10 @@ interface FollowerGrowthChartProps {
 export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
     const chartData = data.labels.map((label, index) => ({
         label,
-        followers: data.values[index],
+        total: data.values[index],
+        facebook: data.facebookValues?.[index] ?? 0,
+        instagram: data.instagramValues?.[index] ?? 0,
     }))
-
-    const platforms = [
-        { name: 'Facebook', color: 'bg-blue-500' },
-        { name: 'Instagram', color: 'bg-pink-500' },
-    ]
 
     return (
         <Card className="col-span-full">
@@ -48,7 +44,7 @@ export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
                                 fontSize={12}
                                 tickLine={false}
                                 axisLine={false}
-                                tickFormatter={(value) => `${value}`}
+                                tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(1)}k` : `${value}`}
                             />
                             <Tooltip
                                 contentStyle={{
@@ -58,13 +54,34 @@ export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
                                     boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
                                 }}
                                 labelStyle={{ color: 'hsl(var(--foreground))' }}
+                                formatter={(value?: number, name?: string) => {
+                                    const label = name === 'facebook' ? 'Facebook' : name === 'instagram' ? 'Instagram' : 'Total'
+                                    return [(value ?? 0).toLocaleString(), label]
+                                }}
+                            />
+                            <Legend
+                                verticalAlign="top"
+                                align="right"
+                                iconType="circle"
+                                iconSize={8}
+                                formatter={(value: string) =>
+                                    value === 'facebook' ? 'Facebook' : value === 'instagram' ? 'Instagram' : 'Total'
+                                }
                             />
                             <Line
                                 type="monotone"
-                                dataKey="followers"
-                                stroke="hsl(var(--primary))"
+                                dataKey="facebook"
+                                stroke="#3b82f6"
                                 strokeWidth={2}
-                                dot={{ r: 4, fill: 'hsl(var(--primary))' }}
+                                dot={{ r: 4, fill: '#3b82f6' }}
+                                activeDot={{ r: 6 }}
+                            />
+                            <Line
+                                type="monotone"
+                                dataKey="instagram"
+                                stroke="#ec4899"
+                                strokeWidth={2}
+                                dot={{ r: 4, fill: '#ec4899' }}
                                 activeDot={{ r: 6 }}
                             />
                         </LineChart>
@@ -86,19 +103,6 @@ export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
                             <p className="text-xs text-muted-foreground">Total Gain</p>
                             <p className="text-sm font-semibold text-green-500">{data.totalGain}</p>
                         </div>
-                    </div>
-
-                    {/* Platform chips */}
-                    <div className="flex items-center gap-2">
-                        {platforms.map((platform) => (
-                            <div
-                                key={platform.name}
-                                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary text-xs font-medium"
-                            >
-                                <div className={cn("h-2 w-2 rounded-full", platform.color)} />
-                                {platform.name}
-                            </div>
-                        ))}
                     </div>
                 </div>
             </CardContent>

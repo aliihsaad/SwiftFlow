@@ -74,6 +74,12 @@ function transformRealDataToAnalytics(
         granularity
     )
 
+    // Build a map of social_account_id -> platform for per-platform breakdown
+    const accountPlatformMap = new Map<string, string>()
+    socialAccounts.forEach(acc => {
+        accountPlatformMap.set(acc.id, acc.platform)
+    })
+
     // Calculate current followers — sum the most recent entry per social account
     const latestByAccount = new Map<string, number>()
     accountAnalytics
@@ -84,6 +90,15 @@ function transformRealDataToAnalytics(
             }
         })
     const currentFollowers = Array.from(latestByAccount.values()).reduce((sum, f) => sum + f, 0)
+
+    // Per-platform follower counts
+    let facebookFollowers = 0
+    let instagramFollowers = 0
+    latestByAccount.forEach((followers, accountId) => {
+        const platform = accountPlatformMap.get(accountId)
+        if (platform === 'facebook') facebookFollowers += followers
+        else if (platform === 'instagram') instagramFollowers += followers
+    })
 
     // Calculate previous period followers — sum the most recent entry per account within previous period
     const previousPeriodStart = subDays(startDate, daysCount)
@@ -123,6 +138,8 @@ function transformRealDataToAnalytics(
             followers: {
                 value: currentFollowers,
                 changePct: Number(followersChange.toFixed(1)),
+                facebook: facebookFollowers,
+                instagram: instagramFollowers,
             },
             growthRate: {
                 value: Number(followersChange.toFixed(1)),
@@ -135,12 +152,14 @@ function transformRealDataToAnalytics(
             totalReach,
             totalEngagement,
             followers: currentFollowers,
+            facebookFollowers,
+            instagramFollowers,
         },
         otherPosts,
     }
 }
 
-// Generate follower growth chart data
+// Generate follower growth chart data with per-platform breakdown
 function generateFollowerGrowthData(
     accountAnalytics: any[],
     socialAccounts: any[],
@@ -149,43 +168,71 @@ function generateFollowerGrowthData(
 ) {
     const labels: string[] = []
     const values: number[] = []
+    const facebookValues: number[] = []
+    const instagramValues: number[] = []
+
+    // Build account ID -> platform map
+    const accountPlatformMap = new Map<string, string>()
+    socialAccounts.forEach(acc => {
+        accountPlatformMap.set(acc.id, acc.platform)
+    })
 
     // If we have account analytics data, use it
     if (accountAnalytics.length > 0) {
-        // Group by date and sum followers across accounts
-        const followersByDate = new Map<string, number>()
+        // Group by date, per platform and total
+        const totalByDate = new Map<string, number>()
+        const fbByDate = new Map<string, number>()
+        const igByDate = new Map<string, number>()
 
         accountAnalytics.forEach(analytics => {
             const date = format(new Date(analytics.date), 'yyyy-MM-dd')
-            const current = followersByDate.get(date) || 0
-            followersByDate.set(date, current + (analytics.followers || 0))
+            const followers = analytics.followers || 0
+            const platform = accountPlatformMap.get(analytics.social_account_id)
+
+            totalByDate.set(date, (totalByDate.get(date) || 0) + followers)
+            if (platform === 'facebook') {
+                fbByDate.set(date, (fbByDate.get(date) || 0) + followers)
+            } else if (platform === 'instagram') {
+                igByDate.set(date, (igByDate.get(date) || 0) + followers)
+            }
         })
 
         // Sort dates and create labels/values
-        const sortedDates = Array.from(followersByDate.keys()).sort()
+        const sortedDates = Array.from(totalByDate.keys()).sort()
         sortedDates.forEach(date => {
             const dateObj = new Date(date)
+            let include = false
+            let label = ''
+
             if (granularity === 'daily') {
-                labels.push(format(dateObj, 'MMM d'))
-                values.push(followersByDate.get(date) || 0)
+                include = true
+                label = format(dateObj, 'MMM d')
             } else if (granularity === 'weekly' && dateObj.getDay() === 0) {
-                labels.push(format(dateObj, 'MMM d'))
-                values.push(followersByDate.get(date) || 0)
+                include = true
+                label = format(dateObj, 'MMM d')
             } else if (granularity === 'monthly' && dateObj.getDate() === 1) {
-                labels.push(format(dateObj, 'MMM yyyy'))
-                values.push(followersByDate.get(date) || 0)
+                include = true
+                label = format(dateObj, 'MMM yyyy')
+            }
+
+            if (include) {
+                labels.push(label)
+                values.push(totalByDate.get(date) || 0)
+                facebookValues.push(fbByDate.get(date) || 0)
+                instagramValues.push(igByDate.get(date) || 0)
             }
         })
     }
 
-    // If we don't have enough data points, use current follower count
+    // If we don't have enough data points, fill with zeros
     if (labels.length === 0) {
-        const currentFollowers = 0
         for (let i = daysCount - 1; i >= 0; i--) {
             const date = subDays(new Date(), i)
             if (granularity === 'daily') {
                 labels.push(format(date, 'MMM d'))
-                values.push(currentFollowers)
+                values.push(0)
+                facebookValues.push(0)
+                instagramValues.push(0)
             }
         }
     }
@@ -208,6 +255,8 @@ function generateFollowerGrowthData(
     return {
         labels,
         values,
+        facebookValues,
+        instagramValues,
         bestDay: bestDayLabel,
         avgDaily: avgDaily >= 0 ? `+${avgDaily}` : `${avgDaily}`,
         totalGain: totalGain >= 0 ? `+${totalGain}` : `${totalGain}`,

@@ -144,6 +144,8 @@ export function generateMockAnalyticsData(range: DateRange, granularity: Granula
             followers: {
                 value: currentFollowers,
                 changePct: 5.7,
+                facebook: 0,
+                instagram: 0,
             },
             growthRate: {
                 value: 4.2,
@@ -153,6 +155,8 @@ export function generateMockAnalyticsData(range: DateRange, granularity: Granula
         followerGrowth: {
             labels,
             values,
+            facebookValues: values.map(() => 0),
+            instagramValues: values.map(() => 0),
             bestDay: bestDayLabel,
             avgDaily: `+${avgDaily}`,
             totalGain: `+${totalGain}`,
@@ -162,6 +166,8 @@ export function generateMockAnalyticsData(range: DateRange, granularity: Granula
             totalReach: 45280,
             totalEngagement: totalEngagement,
             followers: currentFollowers,
+            facebookFollowers: 0,
+            instagramFollowers: 0,
         },
         otherPosts,
     }

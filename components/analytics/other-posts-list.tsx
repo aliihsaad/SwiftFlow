@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PostData } from "@/types/analytics"
+import { Badge } from "@/components/ui/badge"
 import { Heart, MessageCircle, Share2 } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -36,8 +37,20 @@ export function OtherPostsList({ posts }: OtherPostsListProps) {
                                 key={post.id}
                                 className="pb-4 border-b last:border-0 last:pb-0 space-y-3"
                             >
-                                {/* Time ago */}
-                                <p className="text-xs text-muted-foreground">{post.timeAgo}</p>
+                                {/* Time ago + platform */}
+                                <div className="flex items-center gap-2">
+                                    <p className="text-xs text-muted-foreground">{post.timeAgo}</p>
+                                    <Badge
+                                        variant="outline"
+                                        className={
+                                            post.platform === 'instagram'
+                                                ? 'border-pink-500 text-pink-600 dark:text-pink-400 text-[10px] px-1.5 py-0'
+                                                : 'border-blue-500 text-blue-600 dark:text-blue-400 text-[10px] px-1.5 py-0'
+                                        }
+                                    >
+                                        {post.platform === 'instagram' ? 'IG' : 'FB'}
+                                    </Badge>
+                                </div>
 
                                 {/* Caption */}
                                 <p className="text-sm leading-relaxed line-clamp-3">

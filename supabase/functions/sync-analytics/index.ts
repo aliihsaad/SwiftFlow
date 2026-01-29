@@ -161,22 +161,23 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                         console.error(`[Sync] Instagram API error:`, JSON.stringify(basicData));
                     }
                 } else if (publishedPost.platform === 'facebook') {
-                    // For Facebook, try multiple approaches
+                    // For Facebook, fetch post fields + engagement edges + page insights
                     console.log(`[Sync] Fetching Facebook data for ${publishedPost.platform_post_id}`);
 
-                    // Approach 1: Try to get basic object info
-                    const basicUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=id,created_time&access_token=${account.access_token}`;
+                    // Fetch basic post fields including shares count
+                    const basicUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=id,created_time,shares&access_token=${account.access_token}`;
                     const basicResponse = await fetch(basicUrl);
                     const basicData = await basicResponse.json();
 
                     if (basicResponse.ok) {
-                        console.log(`[Sync] Facebook object exists:`, JSON.stringify(basicData));
+                        console.log(`[Sync] Facebook post data:`, JSON.stringify(basicData));
 
-                        // Try to get likes/comments using the graph edge approach
                         let likesCount = 0;
                         let commentsCount = 0;
+                        let sharesCount = basicData.shares?.count || 0;
+                        let impressions = 0;
 
-                        // Try getting likes count
+                        // Fetch likes count
                         try {
                             const likesUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/likes?summary=true&access_token=${account.access_token}`;
                             const likesResponse = await fetch(likesUrl);
@@ -188,7 +189,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                             console.log(`[Sync] Could not fetch likes edge`);
                         }
 
-                        // Try getting comments count
+                        // Fetch comments count
                         try {
                             const commentsUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/comments?summary=true&access_token=${account.access_token}`;
                             const commentsResponse = await fetch(commentsUrl);
@@ -200,10 +201,27 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                             console.log(`[Sync] Could not fetch comments edge`);
                         }
 
+                        // Fetch post impressions via insights (requires pages_read_engagement)
+                        try {
+                            const insightsUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/insights?metric=post_impressions&access_token=${account.access_token}`;
+                            const insightsResponse = await fetch(insightsUrl);
+                            const insightsData = await insightsResponse.json();
+                            if (insightsResponse.ok && insightsData.data) {
+                                const impressionMetric = insightsData.data.find((m: any) => m.name === 'post_impressions');
+                                if (impressionMetric?.values?.[0]?.value) {
+                                    impressions = impressionMetric.values[0].value;
+                                }
+                            }
+                            console.log(`[Sync] Facebook impressions: ${impressions}`);
+                        } catch (e) {
+                            console.log(`[Sync] Could not fetch post insights`);
+                        }
+
                         insights = {
                             likes: likesCount,
                             comments: commentsCount,
-                            shares: 0
+                            shares: sharesCount,
+                            impressions: impressions,
                         };
                         console.log(`[Sync] Facebook final insights:`, JSON.stringify(insights));
                     } else {

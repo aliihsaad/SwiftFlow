@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
             workspace_id: activeWorkspace.id,
             conversation_id: conversation.id,
             platform_message_id: result.message_id || `local_${Date.now()}`,
-            sender_id: igUserId,
+            sender_id: pageId,
             is_from_page: true,
             message,
             is_read: true,

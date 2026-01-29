@@ -19,7 +19,7 @@ export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
     return (
         <Card className="col-span-full border-none shadow-md bg-linear-to-br from-card to-card/50">
             <CardHeader>
-                <CardTitle>Audience Growth</CardTitle>
+                <CardTitle>Audience Growth Overview</CardTitle>
                 <CardDescription>
                     Track how your audience is growing across platforms
                 </CardDescription>

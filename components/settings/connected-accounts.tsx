@@ -27,6 +27,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     const pagesCount = searchParams.get('count');
     const errorMessage = searchParams.get('message');
     const errorDetails = searchParams.get('details');
+    const callbackWorkspace = searchParams.get('workspace');
 
     useEffect(() => {
         const fetchStatus = async () => {
@@ -70,6 +71,12 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                             Connected {pagesCount || '0'} Facebook Page(s) to your workspace.
                             You can now schedule posts to Facebook and Instagram.
                         </div>
+                        {callbackWorkspace && callbackWorkspace !== workspaceId && (
+                            <div className="mt-2 text-xs text-amber-600 font-medium">
+                                Warning: Pages were connected to a different workspace ({callbackWorkspace.substring(0, 8)}...).
+                                Please switch to that workspace or reconnect.
+                            </div>
+                        )}
                     </div>
                 )}
 

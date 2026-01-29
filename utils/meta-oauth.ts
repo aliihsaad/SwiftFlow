@@ -37,8 +37,6 @@ export function getMetaOAuthUrl(workspaceId?: string): string {
         scope: META_SCOPE,
         // Force complete reauthorization including asset selection
         auth_type: 'reauthorize',
-        // Enable profile/page selector  
-        enable_profile_selector: 'true',
         // Return granted scopes in callback for debugging
         return_scopes: 'true',
     };

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForToken } from '@/utils/meta-oauth';
 import { createClient } from '@supabase/supabase-js';
+import { revalidatePath } from 'next/cache';
 
 // Initialize Supabase Admin Client for database operations
 const supabaseAdmin = createClient(
@@ -51,7 +52,8 @@ export async function GET(request: NextRequest) {
         );
     }
 
-    log(`Code: ${code.substring(0, 20)}..., WorkspaceId: ${workspaceId}`);
+    log(`Code: ${code.substring(0, 20)}...`);
+    log(`WorkspaceId from state: ${workspaceId}`);
 
     try {
         // Step 1: Exchange code for token
@@ -234,11 +236,29 @@ export async function GET(request: NextRequest) {
         }
 
         log('Step 3 COMPLETE: All pages processed');
+        log(`Workspace used: ${workspaceId}`);
+
+        // Step 4: Verify records were saved
+        const { data: savedAccounts, error: verifyError } = await supabaseAdmin
+            .from('social_accounts')
+            .select('id, platform, account_name, account_id')
+            .eq('workspace_id', workspaceId);
+
+        if (verifyError) {
+            log(`VERIFY ERROR: ${JSON.stringify(verifyError)}`);
+        } else {
+            log(`VERIFY: Found ${savedAccounts?.length || 0} accounts for workspace ${workspaceId}`);
+            savedAccounts?.forEach(a => log(`  - ${a.platform}: ${a.account_name} (${a.account_id})`));
+        }
+
         log('=== FULL DEBUG LOG ===');
         debugLog.forEach((l, i) => console.log(`${i + 1}. ${l}`));
 
+        // Revalidate so the brand settings page re-renders with fresh data
+        revalidatePath('/dashboard/settings/brand');
+
         return NextResponse.redirect(
-            new URL(`/dashboard/settings/brand?success=pages_connected&count=${pages.length}`, request.url)
+            new URL(`/dashboard/settings/brand?success=pages_connected&count=${pages.length}&workspace=${workspaceId}`, request.url)
         );
 
     } catch (error) {

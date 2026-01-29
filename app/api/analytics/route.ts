@@ -77,8 +77,7 @@ function transformRealDataToAnalytics(
     // Calculate current followers (most recent analytics)
     const latestAccountAnalytics = accountAnalytics
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
-    const currentFollowers = latestAccountAnalytics?.followers ||
-        socialAccounts.reduce((sum, acc) => sum + (acc.followers_count || 0), 0)
+    const currentFollowers = latestAccountAnalytics?.followers || 0
 
     // Calculate previous period followers for change percentage
     const previousPeriodStart = subDays(startDate, daysCount)
@@ -168,7 +167,7 @@ function generateFollowerGrowthData(
 
     // If we don't have enough data points, use current follower count
     if (labels.length === 0) {
-        const currentFollowers = socialAccounts.reduce((sum, acc) => sum + (acc.followers_count || 0), 0)
+        const currentFollowers = 0
         for (let i = daysCount - 1; i >= 0; i--) {
             const date = subDays(new Date(), i)
             if (granularity === 'daily') {

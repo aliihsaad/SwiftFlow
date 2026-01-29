@@ -340,8 +340,7 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
                     followers: accountData.followers,
                     following: accountData.following,
                     posts_count: accountData.posts_count,
-                    engagement_rate: 0, // Could calculate from post analytics
-                    synced_at: new Date().toISOString()
+                    avg_engagement_rate: 0
                 };
 
                 console.log(`[AccountSync] Upserting account analytics:`, analyticsRecord);

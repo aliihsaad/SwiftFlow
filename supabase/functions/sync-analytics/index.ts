@@ -161,49 +161,9 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                         console.error(`[Sync] Instagram API error:`, JSON.stringify(basicData));
                     }
                 } else if (publishedPost.platform === 'facebook') {
-                    // For Facebook, fetch engagement data as post fields to avoid
-                    // needing pages_read_engagement permission
-                    console.log(`[Sync] Fetching Facebook data for ${publishedPost.platform_post_id}`);
-
-                    // Fetch post with engagement counts as nested fields
-                    const postUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=id,created_time,shares,likes.summary(true),comments.summary(true)&access_token=${account.access_token}`;
-                    const postResponse = await fetch(postUrl);
-                    const postData = await postResponse.json();
-
-                    if (postResponse.ok) {
-                        console.log(`[Sync] Facebook post data:`, JSON.stringify(postData));
-
-                        const likesCount = postData.likes?.summary?.total_count || 0;
-                        const commentsCount = postData.comments?.summary?.total_count || 0;
-                        const sharesCount = postData.shares?.count || 0;
-                        let impressions = 0;
-
-                        // Try post insights for impressions (may fail without pages_read_engagement)
-                        try {
-                            const insightsUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/insights?metric=post_impressions&access_token=${account.access_token}`;
-                            const insightsResponse = await fetch(insightsUrl);
-                            const insightsData = await insightsResponse.json();
-                            if (insightsResponse.ok && insightsData.data) {
-                                const impressionMetric = insightsData.data.find((m: any) => m.name === 'post_impressions');
-                                if (impressionMetric?.values?.[0]?.value) {
-                                    impressions = impressionMetric.values[0].value;
-                                }
-                            }
-                        } catch (e) {
-                            // pages_read_engagement not approved — skip impressions
-                        }
-
-                        insights = {
-                            likes: likesCount,
-                            comments: commentsCount,
-                            shares: sharesCount,
-                            impressions: impressions,
-                        };
-                        console.log(`[Sync] Facebook final insights:`, JSON.stringify(insights));
-                    } else {
-                        console.error(`[Sync] Facebook API error:`, JSON.stringify(postData));
-                        insights = { likes: 0, comments: 0, shares: 0 };
-                    }
+                    // Facebook post insights require pages_read_engagement which needs Meta App Review
+                    // Skipping until permission is approved
+                    console.log(`[Sync] Skipping Facebook post ${publishedPost.platform_post_id} — pages_read_engagement not approved`);
                 }
 
                 if (insights) {

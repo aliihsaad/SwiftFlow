@@ -96,35 +96,9 @@ async function syncComments(supabase: any, workspaceId: string) {
                         console.error(`[CommentSync] Instagram API error:`, data.error);
                     }
                 } else if (account.platform === 'facebook') {
-                    // Facebook: Fetch comments as a field on the post object
-                    // This uses pages_manage_posts instead of pages_read_engagement
-                    const url = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=comments{id,message,created_time,from,comments{id,message,created_time,from}}&access_token=${account.access_token}`;
-
-                    console.log(`[CommentSync] Fetching Facebook comments for ${publishedPost.platform_post_id}`);
-
-                    const response = await fetch(url);
-                    const data = await response.json();
-
-                    if (response.ok && data.comments?.data) {
-                        comments = data.comments.data;
-                        console.log(`[CommentSync] Found ${comments.length} comments`);
-                    } else if (data.error) {
-                        console.error(`[CommentSync] Facebook API error:`, data.error);
-                        // Fallback: try the direct comments edge
-                        console.log(`[CommentSync] Trying direct comments edge as fallback...`);
-                        const fallbackUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/comments?fields=id,message,created_time,from,comments{id,message,created_time,from}&access_token=${account.access_token}`;
-                        const fallbackResponse = await fetch(fallbackUrl);
-                        const fallbackData = await fallbackResponse.json();
-                        if (fallbackResponse.ok && fallbackData.data) {
-                            comments = fallbackData.data;
-                            console.log(`[CommentSync] Fallback found ${comments.length} comments`);
-                        } else if (fallbackData.error) {
-                            console.error(`[CommentSync] Fallback also failed:`, fallbackData.error);
-                        }
-                    } else {
-                        // Response OK but no comments field — post has no comments
-                        console.log(`[CommentSync] No comments on this post`);
-                    }
+                    // Facebook comments require pages_read_engagement which needs Meta App Review
+                    // Skipping until permission is approved
+                    console.log(`[CommentSync] Skipping Facebook post ${publishedPost.platform_post_id} — pages_read_engagement not approved`);
                 }
 
                 // Upsert comments

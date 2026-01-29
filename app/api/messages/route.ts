@@ -166,9 +166,9 @@ export async function POST(request: NextRequest) {
         }
 
         // Send message via Meta API
-        // Instagram: POST /{ig-user-id}/messages
-        const igUserId = account.account_id;
-        const sendUrl = `${META_GRAPH_URL}/${igUserId}/messages`;
+        // Instagram messaging requires the Page ID, not the IG user ID
+        const pageId = account.metadata?.connected_page_id || account.account_id;
+        const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
 
         const response = await fetch(sendUrl, {
             method: 'POST',

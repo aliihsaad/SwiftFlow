@@ -54,7 +54,7 @@ async function publishToFacebook(
 }
 
 /**
- * Publish to Instagram Business Account
+ * Publish a single image to Instagram Business Account
  */
 async function publishToInstagram(
     igAccountId: string,
@@ -100,6 +100,145 @@ async function publishToInstagram(
         return { success: true, platform: 'instagram', platformPostId: publishData.id };
     } catch (error) {
         return { success: false, platform: 'instagram', error: String(error) };
+    }
+}
+
+/**
+ * Publish a carousel (multiple images) to Instagram Business Account
+ * 1. Create individual child containers for each image
+ * 2. Create a carousel container referencing all children
+ * 3. Publish the carousel container
+ */
+async function publishToInstagramCarousel(
+    igAccountId: string,
+    accessToken: string,
+    caption: string,
+    imageUrls: string[]
+): Promise<PublishResult> {
+    try {
+        console.log(`Publishing Instagram carousel with ${imageUrls.length} images`);
+
+        // Step 1: Create child containers
+        const childIds: string[] = [];
+        for (const imageUrl of imageUrls) {
+            const res = await fetch(`${META_GRAPH_URL}/${igAccountId}/media`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    image_url: imageUrl,
+                    is_carousel_item: true,
+                    access_token: accessToken
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                return { success: false, platform: 'instagram', error: data.error?.message || 'Failed to create carousel item' };
+            }
+            childIds.push(data.id);
+        }
+
+        // Wait for processing
+        await new Promise(r => setTimeout(r, 3000));
+
+        // Step 2: Create carousel container
+        const carouselRes = await fetch(`${META_GRAPH_URL}/${igAccountId}/media`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                media_type: 'CAROUSEL',
+                children: childIds,
+                caption,
+                access_token: accessToken
+            })
+        });
+
+        const carouselData = await carouselRes.json();
+        if (!carouselRes.ok) {
+            return { success: false, platform: 'instagram', error: carouselData.error?.message || 'Failed to create carousel' };
+        }
+
+        // Wait for carousel to be ready
+        await new Promise(r => setTimeout(r, 2000));
+
+        // Step 3: Publish the carousel
+        const publishRes = await fetch(`${META_GRAPH_URL}/${igAccountId}/media_publish`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                creation_id: carouselData.id,
+                access_token: accessToken
+            })
+        });
+
+        const publishData = await publishRes.json();
+        if (!publishRes.ok) {
+            return { success: false, platform: 'instagram', error: publishData.error?.message || 'Failed to publish carousel' };
+        }
+
+        return { success: true, platform: 'instagram', platformPostId: publishData.id };
+    } catch (error) {
+        return { success: false, platform: 'instagram', error: String(error) };
+    }
+}
+
+/**
+ * Publish multiple photos to Facebook as a multi-photo post
+ * 1. Upload each photo as unpublished
+ * 2. Create a feed post with all photos attached
+ */
+async function publishToFacebookMultiPhoto(
+    pageId: string,
+    accessToken: string,
+    message: string,
+    imageUrls: string[]
+): Promise<PublishResult> {
+    try {
+        console.log(`Publishing Facebook multi-photo with ${imageUrls.length} images`);
+
+        // Step 1: Upload each photo as unpublished
+        const photoIds: string[] = [];
+        for (const imageUrl of imageUrls) {
+            const res = await fetch(`${META_GRAPH_URL}/${pageId}/photos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url: imageUrl,
+                    published: false,
+                    access_token: accessToken
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                return { success: false, platform: 'facebook', error: data.error?.message || 'Failed to upload photo' };
+            }
+            photoIds.push(data.id);
+        }
+
+        // Step 2: Create feed post with attached media
+        const feedBody: Record<string, any> = {
+            message,
+            access_token: accessToken
+        };
+        photoIds.forEach((id, index) => {
+            feedBody[`attached_media[${index}]`] = JSON.stringify({ media_fbid: id });
+        });
+
+        const feedRes = await fetch(`${META_GRAPH_URL}/${pageId}/feed`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(feedBody)
+        });
+
+        const feedData = await feedRes.json();
+        if (!feedRes.ok) {
+            return { success: false, platform: 'facebook', error: feedData.error?.message || 'Failed to create multi-photo post' };
+        }
+
+        return { success: true, platform: 'facebook', platformPostId: feedData.id };
+    } catch (error) {
+        return { success: false, platform: 'facebook', error: String(error) };
     }
 }
 
@@ -162,15 +301,31 @@ serve(async (req) => {
                 let result: PublishResult;
 
                 if (platform === 'facebook') {
-                    result = await publishToFacebook(
-                        account.account_id,
-                        account.access_token,
-                        content,
-                        mediaUrls[0]
-                    );
+                    if (mediaUrls.length > 1) {
+                        result = await publishToFacebookMultiPhoto(
+                            account.account_id,
+                            account.access_token,
+                            content,
+                            mediaUrls
+                        );
+                    } else {
+                        result = await publishToFacebook(
+                            account.account_id,
+                            account.access_token,
+                            content,
+                            mediaUrls[0]
+                        );
+                    }
                 } else if (platform === 'instagram') {
                     if (!mediaUrls[0]) {
                         result = { success: false, platform: 'instagram', error: 'Image required' };
+                    } else if (mediaUrls.length > 1) {
+                        result = await publishToInstagramCarousel(
+                            account.account_id,
+                            account.access_token,
+                            content,
+                            mediaUrls
+                        );
                     } else {
                         result = await publishToInstagram(
                             account.account_id,

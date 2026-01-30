@@ -272,10 +272,20 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
         setGlobalMedia(newUrls)
     }
 
+    // --- Instagram limits ---
+    const IG_CAPTION_LIMIT = 2200
+    const IG_HASHTAG_LIMIT = 5
+
     // --- Validation ---
     const hasContent = globalCaption.length > 0 || globalMedia.length > 0
-    const isValid = hasContent
+    const instagramSelected = activeTab === 'instagram' || activeTab === 'all'
+    const instagramNeedsMedia = instagramSelected && globalMedia.length === 0
     const charCount = globalCaption.length
+    const hashtagCount = (globalCaption.match(/#[a-zA-Z0-9_]+/g) || []).length
+    const captionOverLimit = instagramSelected && charCount > IG_CAPTION_LIMIT
+    const hashtagsOverLimit = instagramSelected && hashtagCount > IG_HASHTAG_LIMIT
+    const isValid = hasContent
+    const canPublish = isValid && !instagramNeedsMedia && !captionOverLimit && !hashtagsOverLimit
 
     // --- Render ---
     return (
@@ -359,7 +369,16 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
                                     <Wand2 className={cn("h-4 w-4 text-purple-500", isGeneratingAI && "animate-spin")} />
                                 </button>
                             </div>
-                            <span className="text-xs text-muted-foreground">{charCount}</span>
+                            <div className="flex items-center gap-2">
+                                {instagramSelected && hashtagCount > 0 && (
+                                    <span className={cn("text-xs", hashtagsOverLimit ? "text-red-500 font-medium" : "text-muted-foreground")}>
+                                        #{hashtagCount}/{IG_HASHTAG_LIMIT}
+                                    </span>
+                                )}
+                                <span className={cn("text-xs", captionOverLimit ? "text-red-500 font-medium" : "text-muted-foreground")}>
+                                    {charCount}{instagramSelected ? `/${IG_CAPTION_LIMIT}` : ''}
+                                </span>
+                            </div>
                         </div>
                     </div>
 
@@ -412,6 +431,26 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
                         />
                     </div>
 
+                    {/* Instagram validation warnings */}
+                    {instagramNeedsMedia && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                            <Info className="h-3.5 w-3.5 shrink-0" />
+                            Instagram requires at least one image to publish. Add media to schedule or post.
+                        </p>
+                    )}
+                    {captionOverLimit && (
+                        <p className="text-xs text-red-500 flex items-center gap-1.5">
+                            <Info className="h-3.5 w-3.5 shrink-0" />
+                            Caption exceeds Instagram's {IG_CAPTION_LIMIT} character limit by {charCount - IG_CAPTION_LIMIT} characters.
+                        </p>
+                    )}
+                    {hashtagsOverLimit && (
+                        <p className="text-xs text-red-500 flex items-center gap-1.5">
+                            <Info className="h-3.5 w-3.5 shrink-0" />
+                            Instagram allows a maximum of {IG_HASHTAG_LIMIT} hashtags per post. You have {hashtagCount}.
+                        </p>
+                    )}
+
                     {/* Actions Row */}
                     <div className="flex items-center justify-between">
                         <Button variant="ghost" size="sm" className="gap-1.5">
@@ -440,14 +479,14 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
                             </Button>
                             <Button
                                 onClick={() => handleSubmit('scheduled')}
-                                disabled={!isValid || isSubmitting}
+                                disabled={!canPublish || isSubmitting}
                                 className="bg-blue-500 hover:bg-blue-600 text-white"
                             >
                                 {postToEdit && postToEdit.status === 'scheduled' ? 'Save Changes' : 'Schedule Post'}
                             </Button>
                             <Button
                                 onClick={() => handleSubmit('published')}
-                                disabled={!isValid || isSubmitting}
+                                disabled={!canPublish || isSubmitting}
                                 className="bg-pink-500 hover:bg-pink-600 text-white"
                             >
                                 Post Now

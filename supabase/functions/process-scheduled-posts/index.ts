@@ -4,6 +4,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
 
+const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.avi', '.wmv', '.flv', '.webm', '.mkv', '.m4v'];
+
+function isVideoUrl(url: string): boolean {
+    const lower = url.toLowerCase().split('?')[0]; // strip query params
+    return VIDEO_EXTENSIONS.some(ext => lower.endsWith(ext));
+}
+
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -100,6 +107,116 @@ async function publishToInstagram(
         return { success: true, platform: 'instagram', platformPostId: publishData.id };
     } catch (error) {
         return { success: false, platform: 'instagram', error: String(error) };
+    }
+}
+
+/**
+ * Publish a video (Reel) to Instagram Business Account
+ * Videos require: video_url, media_type=REELS, and polling for processing status
+ */
+async function publishToInstagramVideo(
+    igAccountId: string,
+    accessToken: string,
+    caption: string,
+    videoUrl: string
+): Promise<PublishResult> {
+    try {
+        console.log('Publishing Instagram Reel:', igAccountId);
+
+        // Step 1: Create video container
+        const containerRes = await fetch(`${META_GRAPH_URL}/${igAccountId}/media`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                video_url: videoUrl,
+                caption,
+                media_type: 'REELS',
+                access_token: accessToken
+            })
+        });
+
+        const containerData = await containerRes.json();
+        if (!containerRes.ok) {
+            return { success: false, platform: 'instagram', error: containerData.error?.message || 'Failed to create video container' };
+        }
+
+        const containerId = containerData.id;
+        console.log('Instagram video container created:', containerId);
+
+        // Step 2: Poll for processing status (videos take longer than images)
+        let status = 'IN_PROGRESS';
+        let attempts = 0;
+        const maxAttempts = 30; // up to ~60 seconds
+
+        while (status === 'IN_PROGRESS' && attempts < maxAttempts) {
+            await new Promise(r => setTimeout(r, 2000));
+            attempts++;
+
+            const statusRes = await fetch(
+                `${META_GRAPH_URL}/${containerId}?fields=status_code&access_token=${accessToken}`
+            );
+            const statusData = await statusRes.json();
+            status = statusData.status_code || 'IN_PROGRESS';
+            console.log(`Instagram video status (attempt ${attempts}): ${status}`);
+        }
+
+        if (status !== 'FINISHED') {
+            return { success: false, platform: 'instagram', error: `Video processing failed with status: ${status}` };
+        }
+
+        // Step 3: Publish
+        const publishRes = await fetch(`${META_GRAPH_URL}/${igAccountId}/media_publish`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                creation_id: containerId,
+                access_token: accessToken
+            })
+        });
+
+        const publishData = await publishRes.json();
+        if (!publishRes.ok) {
+            return { success: false, platform: 'instagram', error: publishData.error?.message || 'Failed to publish video' };
+        }
+
+        console.log('Instagram Reel published:', publishData.id);
+        return { success: true, platform: 'instagram', platformPostId: publishData.id };
+    } catch (error) {
+        return { success: false, platform: 'instagram', error: String(error) };
+    }
+}
+
+/**
+ * Publish a video to a Facebook Page
+ */
+async function publishToFacebookVideo(
+    pageId: string,
+    accessToken: string,
+    message: string,
+    videoUrl: string
+): Promise<PublishResult> {
+    try {
+        console.log('Publishing Facebook video:', pageId);
+
+        const res = await fetch(`${META_GRAPH_URL}/${pageId}/videos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                file_url: videoUrl,
+                description: message,
+                access_token: accessToken
+            })
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+            return { success: false, platform: 'facebook', error: data.error?.message || 'Failed to publish video' };
+        }
+
+        console.log('Facebook video published:', data.id);
+        return { success: true, platform: 'facebook', platformPostId: data.id };
+    } catch (error) {
+        return { success: false, platform: 'facebook', error: String(error) };
     }
 }
 
@@ -311,9 +428,17 @@ serve(async (req) => {
                 }
 
                 let result: PublishResult;
+                const hasVideo = mediaUrls.length === 1 && isVideoUrl(mediaUrls[0]);
 
                 if (platform === 'facebook') {
-                    if (mediaUrls.length > 1) {
+                    if (hasVideo) {
+                        result = await publishToFacebookVideo(
+                            account.account_id,
+                            account.access_token,
+                            content,
+                            mediaUrls[0]
+                        );
+                    } else if (mediaUrls.length > 1) {
                         result = await publishToFacebookMultiPhoto(
                             account.account_id,
                             account.access_token,
@@ -330,7 +455,14 @@ serve(async (req) => {
                     }
                 } else if (platform === 'instagram') {
                     if (!mediaUrls[0]) {
-                        result = { success: false, platform: 'instagram', error: 'Image required' };
+                        result = { success: false, platform: 'instagram', error: 'Media required' };
+                    } else if (hasVideo) {
+                        result = await publishToInstagramVideo(
+                            account.account_id,
+                            account.access_token,
+                            content,
+                            mediaUrls[0]
+                        );
                     } else if (mediaUrls.length > 1) {
                         result = await publishToInstagramCarousel(
                             account.account_id,

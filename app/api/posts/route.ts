@@ -110,6 +110,11 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
+        const activeWorkspace = await getActiveWorkspace()
+        if (!activeWorkspace) {
+            return NextResponse.json({ error: 'No active workspace found' }, { status: 404 })
+        }
+
         const body = await request.json()
         const { id, platforms, captionByPlatform, mediaUrls, status, scheduledAt } = body
 
@@ -118,16 +123,18 @@ export async function PUT(request: NextRequest) {
         }
 
         const mainCaption = captionByPlatform?.instagram || captionByPlatform?.facebook || ''
+        const shouldPublishNow = status === 'published'
 
+        // Update the post in DB (set to 'scheduled' temporarily if publishing now)
         const { data: post, error } = await supabase
             .from('posts')
             .update({
                 content: mainCaption,
                 media_urls: mediaUrls || [],
                 platforms: platforms,
-                status: status,
+                status: shouldPublishNow ? 'scheduled' : status,
                 scheduled_for: status === 'scheduled' ? scheduledAt : null,
-                published_at: status === 'published' ? new Date().toISOString() : null,
+                published_at: null,
                 updated_at: new Date().toISOString()
             })
             .eq('id', id)
@@ -137,6 +144,40 @@ export async function PUT(request: NextRequest) {
         if (error) {
             console.error('Database Error:', error)
             return NextResponse.json({ error: error.message }, { status: 500 })
+        }
+
+        // If "Post Now", actually publish to social media
+        if (shouldPublishNow) {
+            console.log('[POSTS_API] PUT - Publishing immediately to platforms:', platforms)
+
+            const { results, allSucceeded } = await publishPost(
+                activeWorkspace.id,
+                post.id,
+                platforms,
+                mainCaption,
+                mediaUrls || []
+            )
+
+            console.log('[POSTS_API] PUT - Publish results:', results)
+
+            const { error: updateError } = await supabase
+                .from('posts')
+                .update({
+                    status: allSucceeded ? 'published' : 'failed',
+                    published_at: allSucceeded ? new Date().toISOString() : null,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', post.id)
+
+            if (updateError) {
+                console.error('[POSTS_API] PUT - Status update error:', updateError)
+            }
+
+            return NextResponse.json({
+                ...post,
+                status: allSucceeded ? 'published' : 'failed',
+                publishResults: results
+            })
         }
 
         return NextResponse.json(post)

@@ -9,7 +9,7 @@ import { Platform } from "@/types/post"
 import { MediaUploadZone } from "./media-upload-zone"
 import { SchedulingControls } from "./scheduling-controls"
 import { InstagramPostPreview } from "./instagram-post-preview"
-import { X, Info, Plus, Instagram, Facebook, Monitor, Clock, Sparkles, RefreshCw, Smile, Bold, Italic, Link, BarChart2, Wand2, Eye } from "lucide-react"
+import { X, Info, Plus, Instagram, Facebook, Monitor, Clock, Sparkles, RefreshCw, Smile, Bold, Italic, Link, BarChart2, Wand2, Eye, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import EmojiPicker, { Theme } from "emoji-picker-react"
@@ -42,6 +42,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
     const [scheduledAt, setScheduledAt] = useState<Date | undefined>(new Date())
     const [isGeneratingAI, setIsGeneratingAI] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isPosting, setIsPosting] = useState(false)
     const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
     // Check for props, draft data, or edit mode when modal opens
@@ -208,6 +209,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
 
     const handleSubmit = async (status: 'draft' | 'scheduled' | 'published') => {
         setIsSubmitting(true)
+        if (status === 'published') setIsPosting(true)
         const supabase = createClient()
 
         try {
@@ -259,21 +261,11 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
             try {
                 responseData = await res.json()
             } catch {
-                // Response may not be JSON (e.g. 504 gateway timeout)
+                // Response may not be JSON (e.g. timeout)
             }
             console.log('[CREATE_POST] API response:', res.status, responseData)
 
             if (!res.ok) throw new Error(responseData?.error || `Request failed (${res.status})`)
-
-            // Check if publish was triggered via edge function
-            if (status === 'published' && responseData?.publishTriggered) {
-                if (responseData.edgeError) {
-                    console.error('[CREATE_POST] Edge function error:', responseData.edgeError)
-                    alert(`Post saved but publishing may have failed: ${responseData.edgeError}`)
-                } else {
-                    console.log('[CREATE_POST] Publish triggered successfully:', responseData.edgeResult)
-                }
-            }
 
             onOpenChange(false)
             router.refresh()
@@ -282,6 +274,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
             alert(e.message || 'Failed to create post')
         } finally {
             setIsSubmitting(false)
+            setIsPosting(false)
         }
     }
 
@@ -499,16 +492,18 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
                             <Button
                                 onClick={() => handleSubmit('scheduled')}
                                 disabled={!canPublish || isSubmitting}
-                                className="bg-blue-500 hover:bg-blue-600 text-white"
+                                className="bg-blue-500 hover:bg-blue-600 text-white gap-2"
                             >
+                                {(isSubmitting && !isPosting) && <Loader2 className="h-4 w-4 animate-spin" />}
                                 {postToEdit && postToEdit.status === 'scheduled' ? 'Save Changes' : 'Schedule Post'}
                             </Button>
                             <Button
                                 onClick={() => handleSubmit('published')}
                                 disabled={!canPublish || isSubmitting}
-                                className="bg-pink-500 hover:bg-pink-600 text-white"
+                                className="bg-pink-500 hover:bg-pink-600 text-white gap-2"
                             >
-                                Post Now
+                                {isPosting && <Loader2 className="h-4 w-4 animate-spin" />}
+                                {isPosting ? 'Posting...' : 'Post Now'}
                             </Button>
                         </div>
                     </div>

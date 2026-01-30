@@ -4,23 +4,18 @@ import { PostData } from '@/types/post'
 import { getActiveWorkspace } from '@/lib/workspace-utils'
 
 /**
- * Trigger the process-scheduled-posts edge function to publish due posts.
- * Runs on Supabase infrastructure (no Vercel timeout).
+ * Trigger the process-scheduled-posts edge function (fire-and-forget).
+ * The edge function runs on Supabase infrastructure — we don't wait for it.
  */
-async function triggerPublishEdgeFunction(supabase: any) {
-    try {
-        console.log('[POSTS_API] Triggering process-scheduled-posts edge function')
-        const { data, error } = await supabase.functions.invoke('process-scheduled-posts')
-        if (error) {
-            console.error('[POSTS_API] Edge function error:', error)
-        } else {
-            console.log('[POSTS_API] Edge function result:', data)
+function triggerPublishEdgeFunction(supabase: any) {
+    supabase.functions.invoke('process-scheduled-posts').then(
+        ({ data, error }: any) => {
+            if (error) console.error('[POSTS_API] Edge function error:', error)
+            else console.log('[POSTS_API] Edge function result:', data)
         }
-        return { data, error }
-    } catch (e) {
+    ).catch((e: any) => {
         console.error('[POSTS_API] Edge function invoke failed:', e)
-        return { data: null, error: e }
-    }
+    })
 }
 
 export async function POST(request: NextRequest) {
@@ -75,20 +70,13 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: error.message }, { status: 500 })
         }
 
-        // If "Post Now", trigger the edge function to publish
+        // If "Post Now", fire off the edge function (don't wait for it)
         if (shouldPublishNow) {
             console.log('[POSTS_API] Post Now - triggering edge function for post:', post.id)
-            const { data: edgeResult, error: edgeError } = await triggerPublishEdgeFunction(supabase)
-
-            return NextResponse.json({
-                ...post,
-                publishTriggered: true,
-                edgeResult: edgeResult,
-                edgeError: edgeError?.message || null
-            })
+            triggerPublishEdgeFunction(supabase)
         }
 
-        return NextResponse.json(post)
+        return NextResponse.json({ ...post, publishTriggered: shouldPublishNow })
 
     } catch (error) {
         console.error('Post Creation Error:', error)
@@ -144,20 +132,13 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: error.message }, { status: 500 })
         }
 
-        // If "Post Now", trigger the edge function to publish
+        // If "Post Now", fire off the edge function (don't wait for it)
         if (shouldPublishNow) {
             console.log('[POSTS_API] PUT Post Now - triggering edge function for post:', post.id)
-            const { data: edgeResult, error: edgeError } = await triggerPublishEdgeFunction(supabase)
-
-            return NextResponse.json({
-                ...post,
-                publishTriggered: true,
-                edgeResult: edgeResult,
-                edgeError: edgeError?.message || null
-            })
+            triggerPublishEdgeFunction(supabase)
         }
 
-        return NextResponse.json(post)
+        return NextResponse.json({ ...post, publishTriggered: shouldPublishNow })
 
     } catch (error) {
         console.error('Post Update Error:', error)

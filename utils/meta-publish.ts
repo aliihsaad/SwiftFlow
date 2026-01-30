@@ -405,22 +405,18 @@ export async function publishToFacebookMultiPhoto(
             photoIds.push(data.id);
         }
 
-        // Step 2: Create feed post with all attached media
-        const attachedMedia: Record<string, { media_fbid: string }> = {};
+        // Step 2: Create feed post with attached media using form-urlencoded
+        // Facebook requires attached_media to be sent as form params, not JSON
+        const params = new URLSearchParams();
+        params.append('message', message);
+        params.append('access_token', accessToken);
         photoIds.forEach((id, index) => {
-            attachedMedia[`attached_media[${index}]`] = { media_fbid: id };
+            params.append(`attached_media[${index}]`, JSON.stringify({ media_fbid: id }));
         });
-
-        const feedBody: Record<string, any> = {
-            message,
-            access_token: accessToken,
-            ...attachedMedia
-        };
 
         const feedResponse = await fetch(`${META_GRAPH_URL}/${pageId}/feed`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(feedBody)
+            body: params
         });
 
         const feedData = await feedResponse.json();

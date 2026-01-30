@@ -185,7 +185,7 @@ async function publishToInstagramCarousel(
 /**
  * Publish multiple photos to Facebook as a multi-photo post
  * 1. Upload each photo as unpublished
- * 2. Create a feed post with all photos attached
+ * 2. Create a feed post with all photos attached (form-urlencoded)
  */
 async function publishToFacebookMultiPhoto(
     pageId: string,
@@ -213,26 +213,27 @@ async function publishToFacebookMultiPhoto(
             if (!res.ok) {
                 return { success: false, platform: 'facebook', error: data.error?.message || 'Failed to upload photo' };
             }
+            console.log(`Facebook unpublished photo uploaded: ${data.id}`);
             photoIds.push(data.id);
         }
 
-        // Step 2: Create feed post with attached media
-        const feedBody: Record<string, any> = {
-            message,
-            access_token: accessToken
-        };
+        // Step 2: Create feed post with attached media using form-urlencoded
+        // Facebook requires attached_media to be sent as form params, not JSON
+        const params = new URLSearchParams();
+        params.append('message', message);
+        params.append('access_token', accessToken);
         photoIds.forEach((id, index) => {
-            feedBody[`attached_media[${index}]`] = JSON.stringify({ media_fbid: id });
+            params.append(`attached_media[${index}]`, JSON.stringify({ media_fbid: id }));
         });
 
         const feedRes = await fetch(`${META_GRAPH_URL}/${pageId}/feed`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(feedBody)
+            body: params
         });
 
         const feedData = await feedRes.json();
         if (!feedRes.ok) {
+            console.error('Facebook multi-photo feed error:', feedData);
             return { success: false, platform: 'facebook', error: feedData.error?.message || 'Failed to create multi-photo post' };
         }
 
@@ -271,6 +272,17 @@ serve(async (req) => {
         }
 
         console.log(`Found ${duePosts?.length || 0} posts to publish`);
+
+        // Immediately lock all due posts by setting status to 'publishing'
+        // This prevents duplicate processing if the function is invoked again
+        if (duePosts && duePosts.length > 0) {
+            const postIds = duePosts.map(p => p.id);
+            await supabase
+                .from('posts')
+                .update({ status: 'publishing', updated_at: new Date().toISOString() })
+                .in('id', postIds);
+            console.log(`Locked ${postIds.length} posts with status 'publishing'`);
+        }
 
         const results: { postId: string; results: PublishResult[] }[] = [];
 

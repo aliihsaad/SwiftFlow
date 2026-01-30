@@ -2,7 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { PostData } from '@/types/post'
 import { getActiveWorkspace } from '@/lib/workspace-utils'
-import { publishPost } from '@/utils/meta-publish'
+
+/**
+ * Trigger the process-scheduled-posts edge function to publish due posts.
+ * Runs on Supabase infrastructure (no Vercel timeout).
+ */
+async function triggerPublishEdgeFunction(supabase: any) {
+    try {
+        console.log('[POSTS_API] Triggering process-scheduled-posts edge function')
+        const { data, error } = await supabase.functions.invoke('process-scheduled-posts')
+        if (error) {
+            console.error('[POSTS_API] Edge function error:', error)
+        } else {
+            console.log('[POSTS_API] Edge function result:', data)
+        }
+        return { data, error }
+    } catch (e) {
+        console.error('[POSTS_API] Edge function invoke failed:', e)
+        return { data: null, error: e }
+    }
+}
 
 export async function POST(request: NextRequest) {
     try {
@@ -35,7 +54,8 @@ export async function POST(request: NextRequest) {
         const mainCaption = captionByPlatform?.instagram || captionByPlatform?.facebook || ''
         const shouldPublishNow = status === 'published'
 
-        // Insert post (initially as 'scheduled' if publishing now, so we have an ID)
+        // For "Post Now": save as 'scheduled' with scheduled_for = now
+        // so the edge function picks it up immediately
         const { data: post, error } = await supabase
             .from('posts')
             .insert({
@@ -43,8 +63,8 @@ export async function POST(request: NextRequest) {
                 content: mainCaption,
                 media_urls: mediaUrls || [],
                 platforms: platforms,
-                status: shouldPublishNow ? 'scheduled' : status, // Temporarily scheduled
-                scheduled_for: scheduledAt || new Date().toISOString(),
+                status: shouldPublishNow ? 'scheduled' : status,
+                scheduled_for: shouldPublishNow ? new Date().toISOString() : (scheduledAt || new Date().toISOString()),
                 published_at: null
             })
             .select()
@@ -55,38 +75,16 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: error.message }, { status: 500 })
         }
 
-        // If "Post Now" was clicked, actually publish to social media
+        // If "Post Now", trigger the edge function to publish
         if (shouldPublishNow) {
-            console.log('[POSTS_API] Publishing immediately to platforms:', platforms)
-
-            const { results, allSucceeded } = await publishPost(
-                activeWorkspace.id,
-                post.id,
-                platforms,
-                mainCaption,
-                mediaUrls || []
-            )
-
-            console.log('[POSTS_API] Publish results:', results)
-
-            // Update post status based on results
-            const { error: updateError } = await supabase
-                .from('posts')
-                .update({
-                    status: allSucceeded ? 'published' : 'failed',
-                    published_at: allSucceeded ? new Date().toISOString() : null,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', post.id)
-
-            if (updateError) {
-                console.error('[POSTS_API] Status update error:', updateError)
-            }
+            console.log('[POSTS_API] Post Now - triggering edge function for post:', post.id)
+            const { data: edgeResult, error: edgeError } = await triggerPublishEdgeFunction(supabase)
 
             return NextResponse.json({
                 ...post,
-                status: allSucceeded ? 'published' : 'failed',
-                publishResults: results
+                publishTriggered: true,
+                edgeResult: edgeResult,
+                edgeError: edgeError?.message || null
             })
         }
 
@@ -125,7 +123,7 @@ export async function PUT(request: NextRequest) {
         const mainCaption = captionByPlatform?.instagram || captionByPlatform?.facebook || ''
         const shouldPublishNow = status === 'published'
 
-        // Update the post in DB (set to 'scheduled' temporarily if publishing now)
+        // For "Post Now": save as 'scheduled' with scheduled_for = now
         const { data: post, error } = await supabase
             .from('posts')
             .update({
@@ -133,7 +131,7 @@ export async function PUT(request: NextRequest) {
                 media_urls: mediaUrls || [],
                 platforms: platforms,
                 status: shouldPublishNow ? 'scheduled' : status,
-                scheduled_for: status === 'scheduled' ? scheduledAt : null,
+                scheduled_for: shouldPublishNow ? new Date().toISOString() : (status === 'scheduled' ? scheduledAt : null),
                 published_at: null,
                 updated_at: new Date().toISOString()
             })
@@ -146,37 +144,16 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: error.message }, { status: 500 })
         }
 
-        // If "Post Now", actually publish to social media
+        // If "Post Now", trigger the edge function to publish
         if (shouldPublishNow) {
-            console.log('[POSTS_API] PUT - Publishing immediately to platforms:', platforms)
-
-            const { results, allSucceeded } = await publishPost(
-                activeWorkspace.id,
-                post.id,
-                platforms,
-                mainCaption,
-                mediaUrls || []
-            )
-
-            console.log('[POSTS_API] PUT - Publish results:', results)
-
-            const { error: updateError } = await supabase
-                .from('posts')
-                .update({
-                    status: allSucceeded ? 'published' : 'failed',
-                    published_at: allSucceeded ? new Date().toISOString() : null,
-                    updated_at: new Date().toISOString()
-                })
-                .eq('id', post.id)
-
-            if (updateError) {
-                console.error('[POSTS_API] PUT - Status update error:', updateError)
-            }
+            console.log('[POSTS_API] PUT Post Now - triggering edge function for post:', post.id)
+            const { data: edgeResult, error: edgeError } = await triggerPublishEdgeFunction(supabase)
 
             return NextResponse.json({
                 ...post,
-                status: allSucceeded ? 'published' : 'failed',
-                publishResults: results
+                publishTriggered: true,
+                edgeResult: edgeResult,
+                edgeError: edgeError?.message || null
             })
         }
 

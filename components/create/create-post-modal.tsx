@@ -255,18 +255,23 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
                 body: JSON.stringify(payload)
             })
 
-            const responseData = await res.json()
-            console.log('[CREATE_POST] API response:', responseData)
+            let responseData: any = null
+            try {
+                responseData = await res.json()
+            } catch {
+                // Response may not be JSON (e.g. 504 gateway timeout)
+            }
+            console.log('[CREATE_POST] API response:', res.status, responseData)
 
-            if (!res.ok) throw new Error(responseData?.error || 'Failed to save')
+            if (!res.ok) throw new Error(responseData?.error || `Request failed (${res.status})`)
 
-            // Check publish results for "Post Now"
-            if (status === 'published' && responseData.publishResults) {
-                const failed = responseData.publishResults.filter((r: any) => !r.success)
-                if (failed.length > 0) {
-                    const errors = failed.map((r: any) => `${r.platform}: ${r.error}`).join('\n')
-                    console.error('[CREATE_POST] Publish failures:', failed)
-                    alert(`Some platforms failed to publish:\n${errors}`)
+            // Check if publish was triggered via edge function
+            if (status === 'published' && responseData?.publishTriggered) {
+                if (responseData.edgeError) {
+                    console.error('[CREATE_POST] Edge function error:', responseData.edgeError)
+                    alert(`Post saved but publishing may have failed: ${responseData.edgeError}`)
+                } else {
+                    console.log('[CREATE_POST] Publish triggered successfully:', responseData.edgeResult)
                 }
             }
 

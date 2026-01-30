@@ -121,7 +121,7 @@ async function publishToInstagramVideo(
     videoUrl: string
 ): Promise<PublishResult> {
     try {
-        console.log('Publishing Instagram Reel:', igAccountId);
+        console.log('Publishing Instagram Reel:', igAccountId, 'video:', videoUrl);
 
         // Step 1: Create video container
         const containerRes = await fetch(`${META_GRAPH_URL}/${igAccountId}/media`, {
@@ -136,7 +136,9 @@ async function publishToInstagramVideo(
         });
 
         const containerData = await containerRes.json();
+        console.log('Instagram video container response:', JSON.stringify(containerData));
         if (!containerRes.ok) {
+            console.error('Instagram video container FAILED:', containerData);
             return { success: false, platform: 'instagram', error: containerData.error?.message || 'Failed to create video container' };
         }
 
@@ -161,6 +163,7 @@ async function publishToInstagramVideo(
         }
 
         if (status !== 'FINISHED') {
+            console.error('Instagram video processing did not finish. Final status:', status);
             return { success: false, platform: 'instagram', error: `Video processing failed with status: ${status}` };
         }
 
@@ -175,13 +178,16 @@ async function publishToInstagramVideo(
         });
 
         const publishData = await publishRes.json();
+        console.log('Instagram video publish response:', JSON.stringify(publishData));
         if (!publishRes.ok) {
+            console.error('Instagram video publish FAILED:', publishData);
             return { success: false, platform: 'instagram', error: publishData.error?.message || 'Failed to publish video' };
         }
 
         console.log('Instagram Reel published:', publishData.id);
         return { success: true, platform: 'instagram', platformPostId: publishData.id };
     } catch (error) {
+        console.error('Instagram video EXCEPTION:', error);
         return { success: false, platform: 'instagram', error: String(error) };
     }
 }
@@ -196,7 +202,7 @@ async function publishToFacebookVideo(
     videoUrl: string
 ): Promise<PublishResult> {
     try {
-        console.log('Publishing Facebook video:', pageId);
+        console.log('Publishing Facebook video:', pageId, 'video:', videoUrl);
 
         const res = await fetch(`${META_GRAPH_URL}/${pageId}/videos`, {
             method: 'POST',
@@ -209,13 +215,16 @@ async function publishToFacebookVideo(
         });
 
         const data = await res.json();
+        console.log('Facebook video response:', JSON.stringify(data));
         if (!res.ok) {
+            console.error('Facebook video FAILED:', data);
             return { success: false, platform: 'facebook', error: data.error?.message || 'Failed to publish video' };
         }
 
         console.log('Facebook video published:', data.id);
         return { success: true, platform: 'facebook', platformPostId: data.id };
     } catch (error) {
+        console.error('Facebook video EXCEPTION:', error);
         return { success: false, platform: 'facebook', error: String(error) };
     }
 }
@@ -482,6 +491,7 @@ serve(async (req) => {
                     result = { success: false, platform, error: 'Unsupported platform' };
                 }
 
+                console.log(`Platform ${platform} result:`, JSON.stringify(result));
                 postResults.push(result);
 
                 // Store in published_posts if successful
@@ -495,6 +505,7 @@ serve(async (req) => {
             }
 
             // Update post status
+            console.log(`Post ${post.id} results:`, JSON.stringify(postResults));
             const allSucceeded = postResults.every(r => r.success);
             await supabase
                 .from('posts')

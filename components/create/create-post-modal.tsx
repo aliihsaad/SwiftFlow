@@ -255,12 +255,26 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
                 body: JSON.stringify(payload)
             })
 
-            if (!res.ok) throw new Error('Failed to save')
+            const responseData = await res.json()
+            console.log('[CREATE_POST] API response:', responseData)
+
+            if (!res.ok) throw new Error(responseData?.error || 'Failed to save')
+
+            // Check publish results for "Post Now"
+            if (status === 'published' && responseData.publishResults) {
+                const failed = responseData.publishResults.filter((r: any) => !r.success)
+                if (failed.length > 0) {
+                    const errors = failed.map((r: any) => `${r.platform}: ${r.error}`).join('\n')
+                    console.error('[CREATE_POST] Publish failures:', failed)
+                    alert(`Some platforms failed to publish:\n${errors}`)
+                }
+            }
 
             onOpenChange(false)
             router.refresh()
-        } catch (e) {
-            console.error(e)
+        } catch (e: any) {
+            console.error('[CREATE_POST] Error:', e)
+            alert(e.message || 'Failed to create post')
         } finally {
             setIsSubmitting(false)
         }

@@ -161,14 +161,16 @@ export default function MessagesPage() {
     const totalUnread = conversationsData?.conversations?.reduce((sum, conv) => sum + (conv.unread_count || 0), 0) || 0
 
     return (
-        <div className="h-[calc(100vh-8rem)]">
+        <div className="flex flex-col h-full overflow-hidden">
             {/* Page header */}
-            <MessagesHeader
-                onSync={handleSync}
-                isSyncing={isSyncing}
-                totalConversations={conversationsData?.pagination?.total || 0}
-                unreadCount={totalUnread}
-            />
+            <div className="shrink-0">
+                <MessagesHeader
+                    onSync={handleSync}
+                    isSyncing={isSyncing}
+                    totalConversations={conversationsData?.pagination?.total || 0}
+                    unreadCount={totalUnread}
+                />
+            </div>
 
             {/* Loading state */}
             {conversationsLoading && <MessagesLoadingSkeleton />}
@@ -183,9 +185,9 @@ export default function MessagesPage() {
 
             {/* Main content - Split pane layout */}
             {conversationsData?.conversations && !conversationsLoading && (
-                <div className="flex h-[calc(100%-5rem)] mt-6 border rounded-lg overflow-hidden bg-background">
+                <div className="flex flex-1 min-h-0 mt-6 border rounded-lg overflow-hidden bg-background">
                     {/* Conversation list - Left pane */}
-                    <div className="w-80 border-r flex-shrink-0 overflow-hidden">
+                    <div className="w-80 border-r flex flex-col shrink-0 h-full">
                         <ConversationList
                             conversations={conversationsData.conversations}
                             selectedId={selectedConversation?.id}
@@ -194,7 +196,7 @@ export default function MessagesPage() {
                     </div>
 
                     {/* Message thread - Right pane */}
-                    <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full">
                         <MessageThread
                             conversation={selectedConversation}
                             messages={messagesData?.messages || []}

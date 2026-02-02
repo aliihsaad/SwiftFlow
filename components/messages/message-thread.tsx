@@ -141,9 +141,9 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
     const hasCustomerMessage = messages.some(m => !m.is_from_page && m.message)
 
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full min-h-0">
             {/* Header */}
-            <div className="flex items-center gap-3 p-4 border-b">
+            <div className="flex-shrink-0 flex items-center gap-3 p-4 border-b">
                 <Avatar className="h-9 w-9">
                     <AvatarImage src={conversation.participant_profile_picture || undefined} />
                     <AvatarFallback className="bg-gradient-to-br from-pink-500 to-purple-500 text-white text-sm">
@@ -159,7 +159,7 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
             </div>
 
             {/* Messages */}
-            <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+            <ScrollArea className="flex-1 min-h-0 p-4" ref={scrollAreaRef}>
                 {isLoading ? (
                     <div className="space-y-4">
                         {[...Array(5)].map((_, i) => (
@@ -255,7 +255,7 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
             </ScrollArea>
 
             {/* Input */}
-            <div className="p-4 border-t">
+            <div className="flex-shrink-0 p-4 border-t bg-background">
                 <div className="flex gap-2">
                     <Textarea
                         placeholder="Type a message..."

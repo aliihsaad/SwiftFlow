@@ -204,6 +204,7 @@ export async function POST(request: NextRequest) {
             await supabase.from('comments').insert({
                 workspace_id: activeWorkspace.id,
                 social_account_id: account.id,
+                account_id: account.account_id,
                 published_post_id: comment.published_post_id,
                 platform_comment_id: result.id,
                 platform_post_id: comment.platform_post_id,

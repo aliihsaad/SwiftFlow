@@ -96,9 +96,20 @@ async function syncComments(supabase: any, workspaceId: string) {
                         console.error(`[CommentSync] Instagram API error:`, data.error);
                     }
                 } else if (account.platform === 'facebook') {
-                    // Facebook comments require pages_read_engagement which needs Meta App Review
-                    // Skipping until permission is approved
-                    console.log(`[CommentSync] Skipping Facebook post ${publishedPost.platform_post_id} — pages_read_engagement not approved`);
+                    // Facebook: GET /{post-id}/comments?fields=id,message,created_time,from
+                    const url = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/comments?fields=id,message,created_time,from{id,name},comments{id,message,created_time,from{id,name}}&access_token=${account.access_token}`;
+
+                    console.log(`[CommentSync] Fetching Facebook comments for ${publishedPost.platform_post_id}`);
+
+                    const response = await fetch(url);
+                    const data = await response.json();
+
+                    if (response.ok && data.data) {
+                        comments = data.data;
+                        console.log(`[CommentSync] Found ${comments.length} Facebook comments`);
+                    } else if (data.error) {
+                        console.error(`[CommentSync] Facebook API error:`, data.error);
+                    }
                 }
 
                 // Upsert comments
@@ -106,6 +117,7 @@ async function syncComments(supabase: any, workspaceId: string) {
                     const commentRecord = {
                         workspace_id: workspaceId,
                         social_account_id: account.id,
+                        account_id: account.account_id,
                         published_post_id: publishedPost.id,
                         platform_comment_id: comment.id,
                         platform_post_id: publishedPost.platform_post_id,
@@ -141,6 +153,7 @@ async function syncComments(supabase: any, workspaceId: string) {
                         const replyRecord = {
                             workspace_id: workspaceId,
                             social_account_id: account.id,
+                            account_id: account.account_id,
                             published_post_id: publishedPost.id,
                             platform_comment_id: reply.id,
                             platform_post_id: publishedPost.platform_post_id,

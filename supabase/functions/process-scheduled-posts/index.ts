@@ -380,35 +380,29 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
         );
 
-        // Find posts that are due for publishing
+        // ATOMIC: Claim posts by updating status in a single operation
+        // This prevents race conditions where multiple function invocations
+        // could fetch the same post before either locks it.
+        // Only rows that are actually updated (status changed from 'scheduled' to 'publishing')
+        // will be returned, ensuring each post is processed exactly once.
         const now = new Date().toISOString();
         const { data: duePosts, error: fetchError } = await supabase
             .from('posts')
-            .select('*')
+            .update({ status: 'publishing', updated_at: now })
             .eq('status', 'scheduled')
             .lte('scheduled_for', now)
+            .select('*')
             .limit(10);
 
         if (fetchError) {
-            console.error('Error fetching due posts:', fetchError);
+            console.error('Error claiming posts:', fetchError);
             return new Response(JSON.stringify({ error: fetchError.message }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 500
             });
         }
 
-        console.log(`Found ${duePosts?.length || 0} posts to publish`);
-
-        // Immediately lock all due posts by setting status to 'publishing'
-        // This prevents duplicate processing if the function is invoked again
-        if (duePosts && duePosts.length > 0) {
-            const postIds = duePosts.map(p => p.id);
-            await supabase
-                .from('posts')
-                .update({ status: 'publishing', updated_at: new Date().toISOString() })
-                .in('id', postIds);
-            console.log(`Locked ${postIds.length} posts with status 'publishing'`);
-        }
+        console.log(`Claimed ${duePosts?.length || 0} posts for publishing`);
 
         const results: { postId: string; results: PublishResult[] }[] = [];
 

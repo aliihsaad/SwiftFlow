@@ -235,7 +235,10 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
         </Card>
 
         {/* Meta App Configuration Section */}
-        <MetaAppConfig workspaceId={workspaceId} />
+        <MetaAppConfig
+            workspaceId={workspaceId}
+            onConfigSaved={() => setMetaAppConfigured(true)}
+        />
     </>
     )
 }

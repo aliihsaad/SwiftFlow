@@ -10,9 +10,10 @@ import { META_SCOPE } from "@/utils/meta-oauth"
 
 interface MetaAppConfigProps {
     workspaceId: string
+    onConfigSaved?: () => void
 }
 
-export function MetaAppConfig({ workspaceId }: MetaAppConfigProps) {
+export function MetaAppConfig({ workspaceId, onConfigSaved }: MetaAppConfigProps) {
     const [appId, setAppId] = useState("")
     const [appSecret, setAppSecret] = useState("")
     const [showSecret, setShowSecret] = useState(false)
@@ -68,6 +69,10 @@ export function MetaAppConfig({ workspaceId }: MetaAppConfigProps) {
                 setSaved(true)
                 setIsConfigured(!!appId && !!appSecret)
                 setTimeout(() => setSaved(false), 3000)
+                // Notify parent component
+                if (onConfigSaved) {
+                    onConfigSaved()
+                }
             }
         } catch (error) {
             console.error("Failed to save settings:", error)

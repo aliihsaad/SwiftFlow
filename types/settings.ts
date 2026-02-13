@@ -12,11 +12,9 @@ export interface WorkspaceSettings {
   ai_temperature: number
   ai_max_tokens: number
 
-  // Social Media API Keys
-  facebook_app_id: string | null
-  facebook_app_secret: string | null
-  instagram_app_id: string | null
-  instagram_app_secret: string | null
+  // Meta App Credentials (per-workspace)
+  meta_app_id: string | null
+  meta_app_secret: string | null
 
   // Other Settings
   timezone: string
@@ -37,11 +35,9 @@ export interface UpdateSettingsInput {
   ai_temperature?: number
   ai_max_tokens?: number
 
-  // Social Media API Keys
-  facebook_app_id?: string
-  facebook_app_secret?: string
-  instagram_app_id?: string
-  instagram_app_secret?: string
+  // Meta App Credentials
+  meta_app_id?: string
+  meta_app_secret?: string
 
   // Other Settings
   timezone?: string

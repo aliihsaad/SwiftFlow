@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exchangeCodeForToken } from '@/utils/meta-oauth';
+import { exchangeCodeForTokenWithCredentials } from '@/utils/meta-oauth';
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 
@@ -12,7 +12,8 @@ const supabaseAdmin = createClient(
 const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
 
 /**
- * Meta OAuth Callback Route - COMPLETE REWRITE WITH DEBUGGING
+ * Meta OAuth Callback Route
+ * Uses workspace-specific Meta app credentials for token exchange
  */
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
@@ -56,9 +57,34 @@ export async function GET(request: NextRequest) {
     log(`WorkspaceId from state: ${workspaceId}`);
 
     try {
-        // Step 1: Exchange code for token
+        // Step 0: Fetch workspace Meta app credentials
+        log('Step 0: Fetching workspace Meta app credentials...');
+        const { data: settings, error: settingsError } = await supabaseAdmin
+            .from('workspace_settings')
+            .select('meta_app_id, meta_app_secret')
+            .eq('workspace_id', workspaceId)
+            .maybeSingle();
+
+        if (settingsError) {
+            log(`ERROR fetching workspace settings: ${JSON.stringify(settingsError)}`);
+            return NextResponse.redirect(
+                new URL('/dashboard/settings/brand?error=settings_fetch_failed', request.url)
+            );
+        }
+
+        if (!settings?.meta_app_id || !settings?.meta_app_secret) {
+            log('ERROR: No Meta app credentials configured for this workspace');
+            return NextResponse.redirect(
+                new URL('/dashboard/settings/brand?error=meta_app_not_configured', request.url)
+            );
+        }
+
+        const { meta_app_id: appId, meta_app_secret: appSecret } = settings;
+        log(`Step 0 SUCCESS: Found Meta app credentials (App ID: ${appId.substring(0, 8)}...)`);
+
+        // Step 1: Exchange code for token using workspace credentials
         log('Step 1: Exchanging code for token...');
-        const tokenData = await exchangeCodeForToken(code);
+        const tokenData = await exchangeCodeForTokenWithCredentials(code, appId, appSecret);
         log(`Step 1 Full token response keys: ${Object.keys(tokenData).join(', ')}`);
         log(`Step 1 Token type: ${tokenData.token_type}, expires_in: ${tokenData.expires_in}, scope: ${tokenData.scope}`);
         const userAccessToken = tokenData.access_token;
@@ -79,7 +105,7 @@ export async function GET(request: NextRequest) {
 
         // Step 1c: Debug token to check type and scopes
         log('Step 1c: Debugging token...');
-        const debugResponse = await fetch(`${META_GRAPH_URL}/debug_token?input_token=${userAccessToken}&access_token=${process.env.NEXT_PUBLIC_META_APP_ID}|${process.env.META_APP_SECRET}`, { cache: 'no-store' });
+        const debugResponse = await fetch(`${META_GRAPH_URL}/debug_token?input_token=${userAccessToken}&access_token=${appId}|${appSecret}`, { cache: 'no-store' });
         const debugText = await debugResponse.text();
         log(`Step 1c debug_token response (${debugResponse.status}): ${debugText.substring(0, 500)}`);
 

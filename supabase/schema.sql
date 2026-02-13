@@ -41,6 +41,9 @@ CREATE TABLE IF NOT EXISTS workspace_settings (
     ai_max_tokens INTEGER DEFAULT 2048,
     timezone TEXT DEFAULT 'UTC',
     default_language TEXT DEFAULT 'en',
+    -- Meta App Credentials (per-workspace to bypass app review)
+    meta_app_id TEXT,
+    meta_app_secret TEXT,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
 );

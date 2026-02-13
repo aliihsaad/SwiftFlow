@@ -4,9 +4,10 @@ import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Facebook, Instagram, AlertCircle, CheckCircle, Info } from "lucide-react"
+import { Facebook, Instagram, AlertCircle, CheckCircle, Info, Settings } from "lucide-react"
 import { InstagramConnectDialog } from "./instagram-connect-dialog"
 import { redirectToMetaOAuth } from "@/utils/meta-oauth"
+import { MetaAppConfig } from "./meta-app-config"
 
 interface ConnectedAccountsProps {
     workspaceId: string;
@@ -20,6 +21,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
         accounts: []
     });
     const [loading, setLoading] = useState(true);
+    const [metaAppConfigured, setMetaAppConfigured] = useState<boolean | null>(null);
 
     // URL params for feedback
     const error = searchParams.get('error');
@@ -30,21 +32,29 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     const callbackWorkspace = searchParams.get('workspace');
 
     useEffect(() => {
-        const fetchStatus = async () => {
+        const fetchData = async () => {
             try {
-                const res = await fetch(`/api/brand/social-status?workspaceId=${workspaceId}`);
-                if (res.ok) {
-                    const data = await res.json();
+                // Fetch social status
+                const statusRes = await fetch(`/api/brand/social-status?workspaceId=${workspaceId}`);
+                if (statusRes.ok) {
+                    const data = await statusRes.json();
                     setStatus(data);
                 }
+
+                // Check if Meta app is configured
+                const settingsRes = await fetch(`/api/workspace/settings?workspaceId=${workspaceId}`);
+                if (settingsRes.ok) {
+                    const settings = await settingsRes.json();
+                    setMetaAppConfigured(!!settings.meta_app_id && !!settings.meta_app_secret);
+                }
             } catch (error) {
-                console.error("Failed to fetch status:", error);
+                console.error("Failed to fetch data:", error);
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchStatus();
+        fetchData();
     }, [workspaceId]);
 
     const handleConnectPages = () => {
@@ -52,6 +62,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     };
 
     return (
+    <>
         <Card>
             <CardHeader>
                 <CardTitle>Connected Accounts</CardTitle>
@@ -132,8 +143,22 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                     </div>
                 )}
 
+                {/* Error: Meta App Not Configured */}
+                {error === 'meta_app_not_configured' && (
+                    <div className="p-4 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                        <div className="flex items-center gap-2 font-medium">
+                            <Settings className="h-4 w-4" />
+                            Meta App Not Configured
+                        </div>
+                        <div className="mt-1 text-sm">
+                            You need to configure your Meta app credentials before connecting Facebook Pages.
+                            Scroll down to set up your Meta App.
+                        </div>
+                    </div>
+                )}
+
                 {/* Generic Error */}
-                {error && error !== 'no_pages' && error !== 'pages_fetch_failed' && (
+                {error && error !== 'no_pages' && error !== 'pages_fetch_failed' && error !== 'meta_app_not_configured' && (
                     <div className="p-4 rounded-md bg-destructive/15 text-destructive border border-destructive/20">
                         <div className="flex items-center gap-2 font-medium">
                             <AlertCircle className="h-4 w-4" />
@@ -154,13 +179,16 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                             <p className="text-sm text-muted-foreground">
                                 {status.facebook
                                     ? `${status.accounts.filter(a => a.platform === 'facebook').length} page(s) connected`
-                                    : "Not connected"}
+                                    : metaAppConfigured === false
+                                        ? "Configure Meta app first"
+                                        : "Not connected"}
                             </p>
                         </div>
                     </div>
                     <Button
                         variant={status.facebook ? "outline" : "default"}
                         onClick={handleConnectPages}
+                        disabled={metaAppConfigured === false}
                         className={status.facebook ? "text-green-600 border-green-200 bg-green-50 hover:bg-green-100" : ""}
                     >
                         {status.facebook ? "Reconnect Pages" : "Connect Facebook Pages"}
@@ -205,5 +233,9 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                 </div>
             </CardContent>
         </Card>
+
+        {/* Meta App Configuration Section */}
+        <MetaAppConfig workspaceId={workspaceId} />
+    </>
     )
 }

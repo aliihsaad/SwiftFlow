@@ -159,6 +159,20 @@ export async function POST(request: NextRequest) {
             throw createError;
         }
 
+        // Insert placeholder row in handled_comments to prevent n8n automation failures
+        const { error: placeholderError } = await supabase
+            .from('handled_comments')
+            .insert({
+                workspace_id: activeWorkspace.id,
+                automation_id: automation.id,
+                comment_id: '00000000000'
+            });
+
+        if (placeholderError) {
+            console.error('Failed to create placeholder handled_comment:', placeholderError);
+            // Non-critical error, don't fail the automation creation
+        }
+
         return NextResponse.json({
             success: true,
             automation

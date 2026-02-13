@@ -11,7 +11,7 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { ChevronsUpDown, Plus, Settings, Check } from "lucide-react"
+import { ChevronsUpDown, Plus, Settings, Check, Loader2 } from "lucide-react"
 import { Workspace } from "@/types/workspace"
 import { switchWorkspace } from "@/app/actions/workspace"
 import { AddWorkspaceModal } from "@/components/workspace/add-workspace-modal"
@@ -27,15 +27,19 @@ interface WorkspaceSwitcherProps {
 export function WorkspaceSwitcher({ activeWorkspace, workspaces, isCollapsed }: WorkspaceSwitcherProps) {
     const [isPending, startTransition] = useTransition()
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+    const [isSwitching, setIsSwitching] = useState(false)
     const router = useRouter()
 
     const handleSwitch = (workspaceId: string) => {
+        setIsSwitching(true)
         startTransition(async () => {
             try {
                 await switchWorkspace(workspaceId)
-                router.refresh()
+                // Hard reload to clear URL params and refresh all data
+                window.location.href = window.location.pathname
             } catch (error) {
                 console.error("Failed to switch workspace", error)
+                setIsSwitching(false)
             }
         })
     }
@@ -128,6 +132,16 @@ export function WorkspaceSwitcher({ activeWorkspace, workspaces, isCollapsed }: 
                 open={isAddModalOpen}
                 onOpenChange={setIsAddModalOpen}
             />
+
+            {/* Full-screen loading overlay when switching workspaces */}
+            {isSwitching && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+                    <div className="flex flex-col items-center gap-3">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                        <p className="text-sm text-muted-foreground">Switching workspace...</p>
+                    </div>
+                </div>
+            )}
         </>
     )
 }

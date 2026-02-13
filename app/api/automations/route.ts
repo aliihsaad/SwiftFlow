@@ -29,8 +29,30 @@ export async function GET(request: NextRequest) {
             throw error;
         }
 
+        // Get actual counts from automation_logs for each automation
+        const automationsWithStats = await Promise.all(
+            (automations || []).map(async (automation) => {
+                const { count: totalTriggered } = await supabase
+                    .from('automation_logs')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('automation_id', automation.id);
+
+                const { count: totalDmsSent } = await supabase
+                    .from('automation_logs')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('automation_id', automation.id)
+                    .eq('dm_sent', true);
+
+                return {
+                    ...automation,
+                    total_triggered: totalTriggered || 0,
+                    total_dms_sent: totalDmsSent || 0
+                };
+            })
+        );
+
         return NextResponse.json({
-            automations: automations || []
+            automations: automationsWithStats
         });
 
     } catch (error: any) {

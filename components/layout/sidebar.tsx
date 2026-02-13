@@ -18,7 +18,8 @@ import {
     ChevronLeft,
     ChevronRight,
     MessageCircle,
-    Inbox
+    Inbox,
+    Zap
 } from "lucide-react"
 import {
     Tooltip,
@@ -38,6 +39,7 @@ const sidebarItems = [
     { icon: BarChart3, label: "Analytics", href: "/dashboard/analytics" },
     { icon: MessageCircle, label: "Comments", href: "/dashboard/comments" },
     { icon: Inbox, label: "Messages", href: "/dashboard/messages" },
+    { icon: Zap, label: "Automation", href: "/dashboard/automation" },
     { icon: Sparkles, label: "Brand Profile", href: "/dashboard/settings/brand" },
     { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ]

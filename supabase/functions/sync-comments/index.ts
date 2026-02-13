@@ -28,6 +28,7 @@ interface Comment {
 
 /**
  * Sync comments from Instagram and Facebook for all posts in a workspace
+ * Note: Automation processing is handled by n8n workflow
  */
 async function syncComments(supabase: any, workspaceId: string) {
     console.log(`[CommentSync] Starting comments sync for workspace: ${workspaceId}`);
@@ -63,6 +64,15 @@ async function syncComments(supabase: any, workspaceId: string) {
     }
 
     console.log(`[CommentSync] Found ${publishedPosts?.length || 0} published posts`);
+
+    // Get active automations to also sync their target posts
+    const { data: activeAutomations } = await supabase
+        .from('automations')
+        .select('platform_post_id, social_account_id')
+        .eq('workspace_id', workspaceId)
+        .eq('is_active', true);
+
+    console.log(`[CommentSync] Found ${activeAutomations?.length || 0} active automations`);
 
     let syncedCount = 0;
 
@@ -183,7 +193,69 @@ async function syncComments(supabase: any, workspaceId: string) {
         }
     }
 
+    // Also sync comments for posts with active automations (even if not published through app)
+    if (activeAutomations && activeAutomations.length > 0) {
+        console.log(`[CommentSync] Syncing comments for automation target posts...`);
+
+        for (const automation of activeAutomations) {
+            // Find the account for this automation
+            const account = accounts.find(a => a.id === automation.social_account_id);
+            if (!account?.access_token) {
+                console.log(`[CommentSync] No account/token for automation post ${automation.platform_post_id}`);
+                continue;
+            }
+
+            // Skip if we already processed this post (it was in published_posts)
+            const alreadyProcessed = publishedPosts?.some(p => p.platform_post_id === automation.platform_post_id);
+            if (alreadyProcessed) {
+                continue;
+            }
+
+            try {
+                console.log(`[CommentSync] Fetching comments for automation post ${automation.platform_post_id}`);
+                const url = `${META_GRAPH_URL}/${automation.platform_post_id}/comments?fields=id,text,timestamp,username,from{id,username},replies{id,text,timestamp,username,from{id,username}}&access_token=${account.access_token}`;
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (response.ok && data.data) {
+                    console.log(`[CommentSync] Found ${data.data.length} comments on automation post`);
+
+                    for (const comment of data.data) {
+                        const commentRecord = {
+                            workspace_id: workspaceId,
+                            social_account_id: account.id,
+                            account_id: account.account_id,
+                            platform_comment_id: comment.id,
+                            platform_post_id: automation.platform_post_id,
+                            author_id: comment.from?.id || null,
+                            author_username: comment.from?.username || comment.username || null,
+                            message: comment.text || '',
+                            platform_created_at: comment.timestamp || new Date().toISOString()
+                        };
+
+                        const { error: upsertError } = await supabase
+                            .from('comments')
+                            .upsert(commentRecord, {
+                                onConflict: 'workspace_id,platform_comment_id'
+                            });
+
+                        if (!upsertError) {
+                            syncedCount++;
+                        }
+                    }
+                } else if (data.error) {
+                    console.error(`[CommentSync] Error fetching automation post comments:`, data.error);
+                }
+            } catch (error) {
+                console.error(`[CommentSync] Error processing automation post ${automation.platform_post_id}:`, error);
+            }
+        }
+    }
+
     console.log(`[CommentSync] Sync complete. Total comments synced: ${syncedCount}`);
+
+    // Note: Automation processing is handled by n8n workflow
     return { synced: syncedCount };
 }
 

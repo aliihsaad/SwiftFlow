@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import useSWR from "swr"
 import { PostCard } from "@/components/posts/post-card"
 import { PostCommentsDrawer } from "@/components/posts/post-comments-drawer"
+import { createClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
 import {
     Instagram,
@@ -53,6 +54,24 @@ export default function PostsPage() {
     const [activePlatform, setActivePlatform] = useState<'instagram' | 'facebook'>('instagram')
     const [selectedPost, setSelectedPost] = useState<PostData | null>(null)
     const [drawerOpen, setDrawerOpen] = useState(false)
+    const [workspaceId, setWorkspaceId] = useState<string | null>(null)
+
+    // Fetch active workspace ID client-side
+    useEffect(() => {
+        const fetchWorkspace = async () => {
+            const supabase = createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return
+            const { data } = await supabase
+                .from('workspace_members')
+                .select('workspace_id')
+                .eq('user_id', user.id)
+                .limit(1)
+                .single()
+            if (data) setWorkspaceId(data.workspace_id)
+        }
+        fetchWorkspace()
+    }, [])
 
     // Fetch media for the active platform
     const { data, error, isLoading, mutate } = useSWR<MediaResponse>(
@@ -207,7 +226,7 @@ export default function PostsPage() {
                 onOpenChange={setDrawerOpen}
                 post={selectedPost}
                 platform={activePlatform}
-                workspaceId=""
+                workspaceId={workspaceId || ""}
             />
         </div>
     )

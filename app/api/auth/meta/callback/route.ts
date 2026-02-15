@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForTokenWithCredentials } from '@/utils/meta-oauth';
 import { createClient } from '@supabase/supabase-js';
-import { revalidatePath } from 'next/cache';
 
 // Initialize Supabase Admin Client for database operations
 const supabaseAdmin = createClient(
@@ -13,7 +12,10 @@ const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
 
 /**
  * Meta OAuth Callback Route
- * Uses workspace-specific Meta app credentials for token exchange
+ * 
+ * Exchanges the OAuth code for tokens, fetches all available pages,
+ * then redirects to a PAGE SELECTOR so the user picks exactly 1 page
+ * (+ its linked Instagram) for this workspace.
  */
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
@@ -85,8 +87,7 @@ export async function GET(request: NextRequest) {
         // Step 1: Exchange code for token using workspace credentials
         log('Step 1: Exchanging code for token...');
         const tokenData = await exchangeCodeForTokenWithCredentials(code, appId, appSecret);
-        log(`Step 1 Full token response keys: ${Object.keys(tokenData).join(', ')}`);
-        log(`Step 1 Token type: ${tokenData.token_type}, expires_in: ${tokenData.expires_in}, scope: ${tokenData.scope}`);
+        log(`Step 1 Token type: ${tokenData.token_type}, expires_in: ${tokenData.expires_in}`);
         const userAccessToken = tokenData.access_token;
 
         if (!userAccessToken) {
@@ -95,39 +96,29 @@ export async function GET(request: NextRequest) {
                 new URL('/dashboard/settings/brand?error=no_access_token', request.url)
             );
         }
-        log(`Step 1 SUCCESS: Got token (${userAccessToken.substring(0, 20)}..., expires in ${tokenData.expires_in}s)`);
+        log(`Step 1 SUCCESS: Got user access token`);
 
-        // Step 1b: Verify token by calling /me
-        log('Step 1b: Verifying token with /me...');
-        const meResponse = await fetch(`${META_GRAPH_URL}/me?fields=id,name&access_token=${userAccessToken}`, { cache: 'no-store' });
-        const meText = await meResponse.text();
-        log(`Step 1b /me response (${meResponse.status}): ${meText.substring(0, 200)}`);
-
-        // Step 1c: Debug token to check type and scopes
-        log('Step 1c: Debugging token...');
+        // Step 1b: Debug token to check scopes
+        log('Step 1b: Debugging token...');
         const debugResponse = await fetch(`${META_GRAPH_URL}/debug_token?input_token=${userAccessToken}&access_token=${appId}|${appSecret}`, { cache: 'no-store' });
         const debugText = await debugResponse.text();
-        log(`Step 1c debug_token response (${debugResponse.status}): ${debugText.substring(0, 500)}`);
+        log(`Step 1b debug_token response (${debugResponse.status}): ${debugText.substring(0, 500)}`);
 
         // Step 2: Fetch pages
         log('Step 2: Fetching pages from /me/accounts...');
         const pagesUrl = `${META_GRAPH_URL}/me/accounts?fields=id,name,access_token,category&access_token=${userAccessToken}`;
-        log(`Fetching: ${pagesUrl.substring(0, 80)}...`);
 
         const pagesResponse = await fetch(pagesUrl, { cache: 'no-store' });
 
         if (!pagesResponse.ok) {
             const errorText = await pagesResponse.text();
             log(`ERROR: Pages fetch failed with status ${pagesResponse.status}`);
-            log(`Response: ${errorText.substring(0, 200)}`);
             return NextResponse.redirect(
                 new URL(`/dashboard/settings/brand?error=pages_fetch_failed&status=${pagesResponse.status}`, request.url)
             );
         }
 
         const rawText = await pagesResponse.text();
-        log(`Step 2 Raw Response: ${rawText.substring(0, 500)}`);
-
         let pagesData;
         try {
             pagesData = JSON.parse(rawText);
@@ -155,187 +146,101 @@ export async function GET(request: NextRequest) {
                 for (const pageId of targetIds) {
                     try {
                         const pageUrl = `${META_GRAPH_URL}/${pageId}?fields=id,name,access_token,category&access_token=${userAccessToken}`;
-                        log(`Step 2b: Fetching page ${pageId} directly...`);
                         const pageResp = await fetch(pageUrl, { cache: 'no-store' });
-                        const pageText = await pageResp.text();
-                        log(`Step 2b: Page ${pageId} response (${pageResp.status}): ${pageText.substring(0, 300)}`);
-
                         if (pageResp.ok) {
-                            const pageData = JSON.parse(pageText);
+                            const pageData = await pageResp.json();
                             if (pageData.id) {
                                 pages.push(pageData);
-                                log(`Step 2b: Successfully fetched page: ${pageData.name} (${pageData.id})`);
+                                log(`Step 2b: Recovered page: ${pageData.name} (${pageData.id})`);
                             }
                         }
                     } catch (pageError) {
                         log(`Step 2b: Error fetching page ${pageId}: ${pageError}`);
                     }
                 }
-
-                log(`Step 2b: Fallback recovered ${pages.length} page(s)`);
             } catch (fallbackError) {
                 log(`Step 2b: Fallback failed: ${fallbackError}`);
             }
         }
 
         if (pages.length === 0) {
-            log('WARNING: No pages returned by Meta API (even after fallback)');
+            log('WARNING: No pages returned by Meta API');
             return NextResponse.redirect(
-                new URL('/dashboard/settings/brand?error=no_pages&debug=' + encodeURIComponent(debugLog.join('|')), request.url)
+                new URL('/dashboard/settings/brand?error=no_pages', request.url)
             );
         }
 
-        // Step 3: Store each page in database
-        log('Step 3: Storing pages in database...');
+        // Step 3: For each page, check for linked Instagram Business Account
+        log('Step 3: Checking for linked Instagram accounts...');
+        const pagesWithIg = [];
 
-        for (let i = 0; i < pages.length; i++) {
-            const page = pages[i];
-            log(`Processing page ${i + 1}/${pages.length}: ${page.name} (ID: ${page.id})`);
-
-            // Check for Instagram
+        for (const page of pages) {
             let igAccountId = null;
+            let igUsername = null;
+
             try {
                 const igUrl = `${META_GRAPH_URL}/${page.id}?fields=instagram_business_account&access_token=${page.access_token}`;
-                log(`  Checking for Instagram at: ${igUrl.substring(0, 100)}...`);
-
                 const igResponse = await fetch(igUrl, { cache: 'no-store' });
-                const igRawText = await igResponse.text();
-                log(`  Instagram API response (status ${igResponse.status}): ${igRawText.substring(0, 200)}`);
 
                 if (igResponse.ok) {
-                    const igData = JSON.parse(igRawText);
+                    const igData = await igResponse.json();
                     if (igData.instagram_business_account) {
                         igAccountId = igData.instagram_business_account.id;
-                        log(`  SUCCESS: Found Instagram Business Account: ${igAccountId}`);
-                    } else {
-                        log(`  No instagram_business_account field in response`);
+
+                        // Fetch IG username for display
+                        try {
+                            const igProfileUrl = `${META_GRAPH_URL}/${igAccountId}?fields=username&access_token=${page.access_token}`;
+                            const igProfileResp = await fetch(igProfileUrl, { cache: 'no-store' });
+                            if (igProfileResp.ok) {
+                                const igProfile = await igProfileResp.json();
+                                igUsername = igProfile.username || null;
+                            }
+                        } catch { /* ignore */ }
+
+                        log(`  Page "${page.name}": Found IG account ${igAccountId} (@${igUsername})`);
                     }
-                } else {
-                    log(`  Instagram API failed with status ${igResponse.status}`);
                 }
             } catch (e) {
-                log(`  Instagram fetch ERROR: ${e}`);
+                log(`  Error checking IG for page ${page.id}: ${e}`);
             }
 
-            // Prepare data
-            const accountData = {
-                workspace_id: workspaceId,
-                platform: 'facebook',
-                account_name: page.name,
-                account_id: page.id,
+            pagesWithIg.push({
+                id: page.id,
+                name: page.name,
+                category: page.category || '',
                 access_token: page.access_token,
-                token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-                metadata: {
-                    category: page.category,
-                    tasks: page.tasks,
-                    user_access_token: userAccessToken,
-                    instagram_business_account_id: igAccountId
-                }
-            };
-
-            // Check if exists
-            const { data: existing, error: selectError } = await supabaseAdmin
-                .from('social_accounts')
-                .select('id')
-                .eq('workspace_id', workspaceId)
-                .eq('account_id', page.id)
-                .maybeSingle(); // Use maybeSingle instead of single to avoid error on no rows
-
-            if (selectError) {
-                log(`  ERROR checking existing: ${JSON.stringify(selectError)}`);
-            }
-
-            // Insert or Update
-            if (existing) {
-                log(`  Updating existing record (id: ${existing.id})...`);
-                const { error: updateError } = await supabaseAdmin
-                    .from('social_accounts')
-                    .update({ ...accountData, updated_at: new Date().toISOString() })
-                    .eq('id', existing.id);
-
-                if (updateError) {
-                    log(`  ERROR updating: ${JSON.stringify(updateError)}`);
-                } else {
-                    log(`  SUCCESS: Updated ${page.name}`);
-                }
-            } else {
-                log(`  Inserting new record...`);
-                const { data: insertData, error: insertError } = await supabaseAdmin
-                    .from('social_accounts')
-                    .insert(accountData)
-                    .select();
-
-                if (insertError) {
-                    log(`  ERROR inserting: ${JSON.stringify(insertError)}`);
-                } else {
-                    log(`  SUCCESS: Inserted ${page.name}, returned: ${JSON.stringify(insertData)}`);
-                }
-            }
-
-            // Handle Instagram
-            if (igAccountId) {
-                log(`  Processing Instagram account...`);
-                const igAccountData = {
-                    workspace_id: workspaceId,
-                    platform: 'instagram',
-                    account_name: `${page.name} (IG)`,
-                    account_id: igAccountId,
-                    access_token: page.access_token,
-                    token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-                    metadata: {
-                        connected_page_id: page.id,
-                        user_access_token: userAccessToken
-                    }
-                };
-
-                const { data: existingIg } = await supabaseAdmin
-                    .from('social_accounts')
-                    .select('id')
-                    .eq('workspace_id', workspaceId)
-                    .eq('account_id', igAccountId)
-                    .maybeSingle();
-
-                if (existingIg) {
-                    const { error: igUpdateError } = await supabaseAdmin
-                        .from('social_accounts')
-                        .update({ ...igAccountData, updated_at: new Date().toISOString() })
-                        .eq('id', existingIg.id);
-                    if (igUpdateError) log(`  ERROR updating IG: ${JSON.stringify(igUpdateError)}`);
-                    else log(`  SUCCESS: Updated IG for ${page.name}`);
-                } else {
-                    const { error: igInsertError } = await supabaseAdmin
-                        .from('social_accounts')
-                        .insert(igAccountData);
-                    if (igInsertError) log(`  ERROR inserting IG: ${JSON.stringify(igInsertError)}`);
-                    else log(`  SUCCESS: Inserted IG for ${page.name}`);
-                }
-            }
+                ig_account_id: igAccountId,
+                ig_username: igUsername,
+            });
         }
 
-        log('Step 3 COMPLETE: All pages processed');
-        log(`Workspace used: ${workspaceId}`);
+        log(`Step 3 COMPLETE: ${pagesWithIg.length} page(s) ready for selection`);
 
-        // Step 4: Verify records were saved
-        const { data: savedAccounts, error: verifyError } = await supabaseAdmin
-            .from('social_accounts')
-            .select('id, platform, account_name, account_id')
-            .eq('workspace_id', workspaceId);
+        // Step 4: Store pages data temporarily and redirect to page selector
+        // We store in a temporary DB table to avoid exposing tokens in URLs
+        const sessionId = crypto.randomUUID();
+        const { error: sessionError } = await supabaseAdmin
+            .from('oauth_page_sessions')
+            .insert({
+                id: sessionId,
+                workspace_id: workspaceId,
+                user_access_token: userAccessToken,
+                pages_data: pagesWithIg,
+                expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 min expiry
+            });
 
-        if (verifyError) {
-            log(`VERIFY ERROR: ${JSON.stringify(verifyError)}`);
-        } else {
-            log(`VERIFY: Found ${savedAccounts?.length || 0} accounts for workspace ${workspaceId}`);
-            savedAccounts?.forEach(a => log(`  - ${a.platform}: ${a.account_name} (${a.account_id})`));
+        if (sessionError) {
+            log(`ERROR storing page session: ${JSON.stringify(sessionError)}`);
+            return NextResponse.redirect(
+                new URL('/dashboard/settings/brand?error=session_storage_failed', request.url)
+            );
         }
 
-        log('=== FULL DEBUG LOG ===');
-        debugLog.forEach((l, i) => console.log(`${i + 1}. ${l}`));
+        log(`Step 4: Stored page session ${sessionId}, redirecting to selector`);
 
-        // Revalidate so the brand settings page re-renders with fresh data
-        revalidatePath('/dashboard/settings/brand');
-
+        // Redirect to page selector UI
         return NextResponse.redirect(
-            new URL(`/dashboard/settings/brand?success=pages_connected&count=${pages.length}&workspace=${workspaceId}`, request.url)
+            new URL(`/dashboard/settings/select-page?session=${sessionId}`, request.url)
         );
 
     } catch (error) {

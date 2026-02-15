@@ -83,13 +83,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
 
-    console.log('[WEBHOOK] Event received:', JSON.stringify(body).substring(0, 500));
+    console.log('[WEBHOOK] Event received:', JSON.stringify(body).substring(0, 1000));
+    console.log('[WEBHOOK] Object type:', body.object);
+    console.log('[WEBHOOK] Entries:', body.entry?.length || 0);
 
-    // Step 3: Process events asynchronously but return 200 immediately
-    // Meta expects a fast 200 response; processing happens after
-    processWebhookEvents(body).catch(err => {
+    // Process events synchronously — Vercel serverless terminates after response,
+    // so we MUST await processing before returning.
+    try {
+        await processWebhookEvents(body);
+    } catch (err) {
         console.error('[WEBHOOK] Error processing events:', err);
-    });
+    }
 
     return NextResponse.json({ received: true }, { status: 200 });
 }

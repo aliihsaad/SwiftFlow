@@ -51,8 +51,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
     }
 
-    // Step 1: Read raw body and verify signature
-    const rawBody = await request.text();
+    // Step 1: Read raw body as bytes and verify signature
+    const rawBuffer = Buffer.from(await request.arrayBuffer());
+    const rawBody = rawBuffer.toString('utf8');
     const signature = request.headers.get('x-hub-signature-256');
 
     if (!signature) {
@@ -62,17 +63,14 @@ export async function POST(request: NextRequest) {
 
     const expectedSignature = 'sha256=' + crypto
         .createHmac('sha256', appSecret.trim())
-        .update(rawBody)
+        .update(rawBuffer)
         .digest('hex');
 
     console.log('[WEBHOOK] Signature debug:', {
         receivedPrefix: signature.substring(0, 20),
         expectedPrefix: expectedSignature.substring(0, 20),
-        receivedLen: signature.length,
-        expectedLen: expectedSignature.length,
-        bodyLen: rawBody.length,
-        secretLen: appSecret.length,
-        secretPrefix: appSecret.substring(0, 4) + '...',
+        match: signature === expectedSignature,
+        bodyLen: rawBuffer.length,
     });
 
     // Constant-time comparison to prevent timing attacks

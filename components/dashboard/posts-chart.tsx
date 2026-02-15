@@ -40,7 +40,7 @@ export function PostsChart({ data }: PostsChartProps) {
                 </div>
             </CardHeader>
             <CardContent className="pl-2 pr-4 pt-6">
-                <ResponsiveContainer width="100%" height={200}>
+                <ResponsiveContainer width="100%" height={200} minWidth={0}>
                     <AreaChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                         <defs>
                             <linearGradient id="colorPosted" x1="0" y1="0" x2="0" y2="1">

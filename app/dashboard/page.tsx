@@ -11,16 +11,14 @@ import { createClient } from "@/utils/supabase/server"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { formatDistanceToNow } from "date-fns"
 
+import { redirect } from "next/navigation"
+
 export default async function DashboardPage() {
     const supabase = await createClient()
     const activeWorkspace = await getActiveWorkspace()
 
     if (!activeWorkspace) {
-        return (
-            <div className="flex h-full flex-col items-center justify-center space-y-4">
-                <p>No active workspace selected.</p>
-            </div>
-        )
+        redirect('/dashboard/onboarding')
     }
 
     // 1. Fetch Counts

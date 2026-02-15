@@ -6,23 +6,26 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Sparkles, Loader2, KeyRound } from "lucide-react"
+import { Sparkles, Loader2, KeyRound, UserPlus } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function LoginPage() {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
+    const [confirmPassword, setConfirmPassword] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [success, setSuccess] = useState<string | null>(null)
 
     const router = useRouter()
     const supabase = createClient()
 
-    const handleAuth = async (e: React.FormEvent) => {
+    const handleSignIn = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsLoading(true)
         setError(null)
+        setSuccess(null)
 
         try {
             const { error } = await supabase.auth.signInWithPassword({
@@ -34,6 +37,48 @@ export default function LoginPage() {
         } catch (error: any) {
             console.error(error)
             setError(error.message || "Authentication failed")
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const handleSignUp = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setIsLoading(true)
+        setError(null)
+        setSuccess(null)
+
+        if (password !== confirmPassword) {
+            setError("Passwords do not match")
+            setIsLoading(false)
+            return
+        }
+
+        if (password.length < 6) {
+            setError("Password must be at least 6 characters")
+            setIsLoading(false)
+            return
+        }
+
+        try {
+            const { data, error } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    emailRedirectTo: `${location.origin}/auth/callback`,
+                }
+            })
+            if (error) throw error
+
+            // If Supabase is configured to auto-confirm, redirect immediately
+            if (data.session) {
+                router.push('/dashboard')
+            } else {
+                setSuccess("Check your email for a confirmation link to complete your registration.")
+            }
+        } catch (error: any) {
+            console.error(error)
+            setError(error.message || "Sign up failed")
         } finally {
             setIsLoading(false)
         }
@@ -62,48 +107,118 @@ export default function LoginPage() {
                     </div>
                     <CardTitle className="text-2xl">SocialAI</CardTitle>
                     <CardDescription>
-                        Internal Social Media Management
+                        Social Media Management Platform
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <form onSubmit={handleAuth} className="grid gap-4">
-                        {error && (
-                            <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/10 rounded-md">
-                                {error}
-                            </div>
-                        )}
-                        <div className="grid gap-2">
-                            <Label htmlFor="email">Email</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                placeholder="you@company.com"
-                                required
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                disabled={isLoading}
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="password">Password</Label>
-                            <Input
-                                id="password"
-                                type="password"
-                                required
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                disabled={isLoading}
-                            />
-                        </div>
-                        <Button type="submit" className="w-full" disabled={isLoading}>
-                            {isLoading ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                                <KeyRound className="mr-2 h-4 w-4" />
-                            )}
-                            Sign In
-                        </Button>
-                    </form>
+                    <Tabs defaultValue="signin" onValueChange={() => { setError(null); setSuccess(null) }}>
+                        <TabsList className="grid w-full grid-cols-2 mb-4">
+                            <TabsTrigger value="signin">Sign In</TabsTrigger>
+                            <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                        </TabsList>
+
+                        {/* Sign In Tab */}
+                        <TabsContent value="signin">
+                            <form onSubmit={handleSignIn} className="grid gap-4">
+                                {error && (
+                                    <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/10 rounded-md">
+                                        {error}
+                                    </div>
+                                )}
+                                <div className="grid gap-2">
+                                    <Label htmlFor="signin-email">Email</Label>
+                                    <Input
+                                        id="signin-email"
+                                        type="email"
+                                        placeholder="you@company.com"
+                                        required
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="signin-password">Password</Label>
+                                    <Input
+                                        id="signin-password"
+                                        type="password"
+                                        required
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                                <Button type="submit" className="w-full" disabled={isLoading}>
+                                    {isLoading ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <KeyRound className="mr-2 h-4 w-4" />
+                                    )}
+                                    Sign In
+                                </Button>
+                            </form>
+                        </TabsContent>
+
+                        {/* Sign Up Tab */}
+                        <TabsContent value="signup">
+                            <form onSubmit={handleSignUp} className="grid gap-4">
+                                {error && (
+                                    <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/10 rounded-md">
+                                        {error}
+                                    </div>
+                                )}
+                                {success && (
+                                    <div className="p-3 text-sm text-green-600 bg-green-50 dark:bg-green-900/10 rounded-md">
+                                        {success}
+                                    </div>
+                                )}
+                                <div className="grid gap-2">
+                                    <Label htmlFor="signup-email">Email</Label>
+                                    <Input
+                                        id="signup-email"
+                                        type="email"
+                                        placeholder="you@company.com"
+                                        required
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="signup-password">Password</Label>
+                                    <Input
+                                        id="signup-password"
+                                        type="password"
+                                        placeholder="Min. 6 characters"
+                                        required
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="confirm-password">Confirm Password</Label>
+                                    <Input
+                                        id="confirm-password"
+                                        type="password"
+                                        placeholder="Confirm your password"
+                                        required
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                                <Button type="submit" className="w-full" disabled={isLoading}>
+                                    {isLoading ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <UserPlus className="mr-2 h-4 w-4" />
+                                    )}
+                                    Create Account
+                                </Button>
+                            </form>
+                        </TabsContent>
+                    </Tabs>
 
                     <div className="mt-4 relative">
                         <div className="absolute inset-0 flex items-center">

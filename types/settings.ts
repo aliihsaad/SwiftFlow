@@ -12,9 +12,6 @@ export interface WorkspaceSettings {
   ai_temperature: number
   ai_max_tokens: number
 
-  // Meta App Credentials (per-workspace)
-  meta_app_id: string | null
-  meta_app_secret: string | null
 
   // Other Settings
   timezone: string
@@ -35,9 +32,6 @@ export interface UpdateSettingsInput {
   ai_temperature?: number
   ai_max_tokens?: number
 
-  // Meta App Credentials
-  meta_app_id?: string
-  meta_app_secret?: string
 
   // Other Settings
   timezone?: string

@@ -219,8 +219,6 @@ supabase functions deploy generate-image
 supabase functions deploy generate-carousel
 supabase functions deploy publish-post
 supabase functions deploy sync-analytics
-supabase functions deploy sync-comments
-supabase functions deploy sync-messages
 supabase functions deploy process-automations
 ```
 

@@ -9,7 +9,7 @@ const supabaseAdmin = createClient(
 
 /**
  * GET /api/workspace/settings
- * Fetch workspace settings including Meta app credentials
+ * Fetch workspace settings
  */
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
@@ -41,8 +41,6 @@ export async function GET(request: NextRequest) {
         if (!data) {
             return NextResponse.json({
                 workspace_id: workspaceId,
-                meta_app_id: null,
-                meta_app_secret: null,
                 ai_provider: 'gemini',
                 timezone: 'UTC',
                 default_language: 'en'

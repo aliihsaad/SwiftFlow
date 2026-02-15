@@ -121,6 +121,10 @@ export default function MessagesPage() {
 
     // Subscribe to Supabase Realtime for webhook-triggered message updates
     const channelRef = useRef<any>(null)
+    const mutateConversationsRef = useRef(mutateConversations)
+    const mutateMessagesRef = useRef(mutateMessages)
+    mutateConversationsRef.current = mutateConversations
+    mutateMessagesRef.current = mutateMessages
 
     useEffect(() => {
         let cancelled = false
@@ -143,8 +147,8 @@ export default function MessagesPage() {
             const channel = supabase.channel(`messages:${data.workspace_id}`)
             channel.on('broadcast', { event: 'new_message' }, () => {
                 console.log('[REALTIME] New message event — refreshing...')
-                mutateConversations()
-                mutateMessages()
+                mutateConversationsRef.current()
+                mutateMessagesRef.current()
             }).subscribe()
 
             channelRef.current = channel
@@ -159,7 +163,7 @@ export default function MessagesPage() {
                 supabase.removeChannel(channelRef.current)
             }
         }
-    }, [mutateConversations, mutateMessages])
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
     const conversations = conversationsData?.conversations || []
     const noAccount = conversationsData?.error && !conversations.length

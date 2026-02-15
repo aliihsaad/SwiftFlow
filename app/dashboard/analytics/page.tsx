@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import useSWR from "swr"
 import { DateRange, Granularity, AnalyticsResponse } from "@/types/analytics"
 import { AnalyticsHeader } from "@/components/analytics/analytics-header"
@@ -29,6 +29,28 @@ export default function AnalyticsPage() {
             dedupingInterval: 60000, // 1 minute
         }
     )
+
+    // Auto-sync analytics on page load (since cron is not available)
+    const hasSynced = useRef(false)
+    useEffect(() => {
+        if (hasSynced.current) return
+        hasSynced.current = true
+
+        const autoSync = async () => {
+            setIsSyncing(true)
+            try {
+                const response = await fetch('/api/sync-analytics', { method: 'POST' })
+                if (response.ok) {
+                    mutate() // Refresh data after sync
+                }
+            } catch (e) {
+                console.error('Auto-sync failed:', e)
+            } finally {
+                setIsSyncing(false)
+            }
+        }
+        autoSync()
+    }, [mutate])
 
     const handleSync = async () => {
         setIsSyncing(true)

@@ -144,10 +144,10 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
     return (
         <div className="flex flex-col h-full min-h-0">
             {/* Header */}
-            <div className="flex-shrink-0 flex items-center gap-3 p-4 border-b">
+            <div className="shrink-0 flex items-center gap-3 p-4 border-b">
                 <Avatar className="h-9 w-9">
                     <AvatarImage src={conversation.participant_profile_picture || undefined} />
-                    <AvatarFallback className="bg-gradient-to-br from-pink-500 to-purple-500 text-white text-sm">
+                    <AvatarFallback className="bg-linear-to-br from-pink-500 to-purple-500 text-white text-sm">
                         {(conversation.participant_username || 'U')[0].toUpperCase()}
                     </AvatarFallback>
                 </Avatar>
@@ -218,7 +218,7 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
                                                         ? "bg-pink-500 text-white rounded-br-sm"
                                                         : "bg-muted rounded-bl-sm"
                                                 )}>
-                                                    <p className="whitespace-pre-wrap break-words">
+                                                    <p className="whitespace-pre-wrap wrap-break-word">
                                                         {message.message}
                                                     </p>
                                                 </div>
@@ -256,7 +256,7 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
             </ScrollArea>
 
             {/* Input */}
-            <div className="flex-shrink-0 p-4 border-t bg-background">
+            <div className="shrink-0 p-4 border-t bg-background">
                 <div className="flex gap-2">
                     <Textarea
                         placeholder="Type a message..."

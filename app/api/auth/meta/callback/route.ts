@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exchangeCodeForTokenWithCredentials } from '@/utils/meta-oauth';
+import { exchangeCodeForToken } from '@/utils/meta-oauth';
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase Admin Client for database operations
@@ -59,34 +59,22 @@ export async function GET(request: NextRequest) {
     log(`WorkspaceId from state: ${workspaceId}`);
 
     try {
-        // Step 0: Fetch workspace Meta app credentials
-        log('Step 0: Fetching workspace Meta app credentials...');
-        const { data: settings, error: settingsError } = await supabaseAdmin
-            .from('workspace_settings')
-            .select('meta_app_id, meta_app_secret')
-            .eq('workspace_id', workspaceId)
-            .maybeSingle();
+        // Use shared Meta app credentials from environment
+        const appId = process.env.NEXT_PUBLIC_META_APP_ID!;
+        const appSecret = process.env.META_APP_SECRET!;
 
-        if (settingsError) {
-            log(`ERROR fetching workspace settings: ${JSON.stringify(settingsError)}`);
-            return NextResponse.redirect(
-                new URL('/dashboard/settings/brand?error=settings_fetch_failed', request.url)
-            );
-        }
-
-        if (!settings?.meta_app_id || !settings?.meta_app_secret) {
-            log('ERROR: No Meta app credentials configured for this workspace');
+        if (!appId || !appSecret) {
+            log('ERROR: Missing NEXT_PUBLIC_META_APP_ID or META_APP_SECRET env vars');
             return NextResponse.redirect(
                 new URL('/dashboard/settings/brand?error=meta_app_not_configured', request.url)
             );
         }
 
-        const { meta_app_id: appId, meta_app_secret: appSecret } = settings;
-        log(`Step 0 SUCCESS: Found Meta app credentials (App ID: ${appId.substring(0, 8)}...)`);
+        log(`Using shared Meta app (App ID: ${appId.substring(0, 8)}...)`);
 
-        // Step 1: Exchange code for token using workspace credentials
+        // Step 1: Exchange code for token using shared credentials
         log('Step 1: Exchanging code for token...');
-        const tokenData = await exchangeCodeForTokenWithCredentials(code, appId, appSecret);
+        const tokenData = await exchangeCodeForToken(code);
         log(`Step 1 Token type: ${tokenData.token_type}, expires_in: ${tokenData.expires_in}`);
         const userAccessToken = tokenData.access_token;
 

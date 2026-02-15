@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import useSWR from "swr"
+import { createClient } from "@/utils/supabase/client"
 import { ConversationList } from "@/components/messages/conversation-list"
 import { MessageThread } from "@/components/messages/message-thread"
 import { useToast } from "@/components/ui/use-toast"
@@ -117,6 +118,48 @@ export default function MessagesPage() {
             refreshInterval: 10000,
         }
     )
+
+    // Subscribe to Supabase Realtime for webhook-triggered message updates
+    const channelRef = useRef<any>(null)
+
+    useEffect(() => {
+        let cancelled = false
+
+        const setupRealtime = async () => {
+            const supabase = createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user || cancelled) return
+
+            const { data } = await supabase
+                .from('workspace_members')
+                .select('workspace_id')
+                .eq('user_id', user.id)
+                .limit(1)
+                .single()
+
+            if (!data?.workspace_id || cancelled) return
+
+            // Subscribe to webhook broadcast channel
+            const channel = supabase.channel(`messages:${data.workspace_id}`)
+            channel.on('broadcast', { event: 'new_message' }, () => {
+                console.log('[REALTIME] New message event — refreshing...')
+                mutateConversations()
+                mutateMessages()
+            }).subscribe()
+
+            channelRef.current = channel
+        }
+
+        setupRealtime()
+
+        return () => {
+            cancelled = true
+            if (channelRef.current) {
+                const supabase = createClient()
+                supabase.removeChannel(channelRef.current)
+            }
+        }
+    }, [mutateConversations, mutateMessages])
 
     const conversations = conversationsData?.conversations || []
     const noAccount = conversationsData?.error && !conversations.length

@@ -108,13 +108,13 @@ export default function AutomationPage() {
     return (
         <div className="space-y-8">
             {/* Page Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-                        <Zap className="h-6 w-6 text-yellow-500" />
+                    <h1 className="text-xl sm:text-2xl font-semibold tracking-tight flex items-center gap-2">
+                        <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-500" />
                         Automation
                     </h1>
-                    <p className="text-muted-foreground mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                         Automate your Instagram engagement with smart triggers and actions.
                     </p>
                 </div>
@@ -164,7 +164,7 @@ export default function AutomationPage() {
                 )}
 
                 {data?.automations && data.automations.length === 0 && !isLoading && (
-                    <div className="rounded-lg border border-border/50 bg-muted/20 p-12 text-center">
+                    <div className="rounded-lg border border-border/50 bg-muted/20 p-8 sm:p-12 text-center">
                         <Zap className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
                         <p className="text-muted-foreground font-medium">No automations yet</p>
                         <p className="text-sm text-muted-foreground mt-2 mb-4">

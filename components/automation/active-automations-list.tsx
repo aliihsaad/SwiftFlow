@@ -62,9 +62,9 @@ export function ActiveAutomationsList({
                 {automations.map((automation) => (
                     <Card key={automation.id} className="overflow-hidden">
                         <CardContent className="p-0">
-                            <div className="flex items-stretch">
+                            <div className="flex flex-col sm:flex-row sm:items-stretch">
                                 {/* Post Thumbnail */}
-                                <div className="relative w-24 h-24 shrink-0 bg-muted">
+                                <div className="relative w-full sm:w-24 h-32 sm:h-24 shrink-0 bg-muted">
                                     {automation.post_thumbnail_url ? (
                                         <img
                                             src={automation.post_thumbnail_url}
@@ -79,14 +79,14 @@ export function ActiveAutomationsList({
                                 </div>
 
                                 {/* Content */}
-                                <div className="flex-1 p-4 flex items-center justify-between gap-4">
+                                <div className="flex-1 p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <h3 className="font-medium truncate">{automation.name}</h3>
+                                            <h3 className="font-medium truncate text-sm sm:text-base">{automation.name}</h3>
                                             <Badge
                                                 variant={automation.is_active ? "default" : "secondary"}
                                                 className={cn(
-                                                    "text-xs",
+                                                    "text-xs shrink-0",
                                                     automation.is_active && "bg-green-500 hover:bg-green-600"
                                                 )}
                                             >
@@ -94,7 +94,7 @@ export function ActiveAutomationsList({
                                             </Badge>
                                         </div>
 
-                                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                                             {/* Trigger type */}
                                             <span className="flex items-center gap-1">
                                                 {automation.trigger_config.trigger_type === 'keywords' ? (
@@ -118,14 +118,14 @@ export function ActiveAutomationsList({
                                         </div>
 
                                         {automation.post_caption && (
-                                            <p className="text-xs text-muted-foreground mt-1 truncate max-w-md">
+                                            <p className="text-xs text-muted-foreground mt-1 truncate max-w-[200px] sm:max-w-md">
                                                 {automation.post_caption}
                                             </p>
                                         )}
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex items-center gap-3 self-end sm:self-center">
                                         <Switch
                                             checked={automation.is_active}
                                             onCheckedChange={(checked) => onToggle(automation.id, checked)}

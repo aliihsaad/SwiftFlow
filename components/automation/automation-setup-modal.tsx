@@ -199,7 +199,7 @@ export function AutomationSetupModal({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-4xl p-0 gap-0 overflow-hidden bg-white dark:bg-zinc-900 max-h-[90vh] flex flex-col">
+            <DialogContent className="max-w-4xl w-full p-0 gap-0 overflow-hidden bg-white dark:bg-zinc-900 max-h-dvh sm:max-h-[90vh] h-full sm:h-auto flex flex-col">
                 <DialogTitle className="sr-only">
                     {automation ? 'Edit Automation' : 'Create Auto-DM Automation'}
                 </DialogTitle>
@@ -208,18 +208,18 @@ export function AutomationSetupModal({
                 </DialogDescription>
 
                 {/* Header with Steps */}
-                <div className="border-b px-6 py-4">
-                    <div className="flex items-center gap-2 mb-4">
+                <div className="border-b px-4 sm:px-6 py-3 sm:py-4 shrink-0">
+                    <div className="flex items-center gap-2 mb-3 sm:mb-4">
                         <Zap className="h-5 w-5 text-yellow-500" />
-                        <h2 className="font-semibold">
+                        <h2 className="font-semibold text-sm sm:text-base">
                             {automation ? 'Edit Automation' : 'Create Auto-DM Automation'}
                         </h2>
                     </div>
 
                     {/* Step Indicators */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-1 -mb-1 scrollbar-hide">
                         {STEPS.map((step, index) => (
-                            <div key={step.id} className="flex items-center">
+                            <div key={step.id} className="flex items-center shrink-0">
                                 <button
                                     onClick={() => {
                                         if (index <= currentStepIndex) {
@@ -228,7 +228,7 @@ export function AutomationSetupModal({
                                     }}
                                     disabled={index > currentStepIndex}
                                     className={cn(
-                                        "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-colors",
+                                        "flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-full text-xs sm:text-sm transition-colors whitespace-nowrap",
                                         currentStep === step.id
                                             ? "bg-primary text-primary-foreground"
                                             : index < currentStepIndex
@@ -238,7 +238,7 @@ export function AutomationSetupModal({
                                     )}
                                 >
                                     {index < currentStepIndex ? (
-                                        <Check className="h-3.5 w-3.5" />
+                                        <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                                     ) : (
                                         <span className="w-4 h-4 rounded-full bg-current/20 flex items-center justify-center text-xs">
                                             {index + 1}
@@ -247,7 +247,7 @@ export function AutomationSetupModal({
                                     <span className="hidden sm:inline">{step.title}</span>
                                 </button>
                                 {index < STEPS.length - 1 && (
-                                    <ChevronRight className="h-4 w-4 text-muted-foreground mx-1" />
+                                    <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground mx-0.5 sm:mx-1" />
                                 )}
                             </div>
                         ))}
@@ -255,7 +255,7 @@ export function AutomationSetupModal({
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6">
                     {currentStep === 'select-post' && (
                         <PostSelector
                             selectedPost={selectedPost}
@@ -305,41 +305,41 @@ export function AutomationSetupModal({
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
                                     placeholder="e.g., Free Guide DM"
-                                    className="max-w-md"
+                                    className="w-full sm:max-w-md"
                                 />
                             </div>
 
-                            <div className="border rounded-lg p-4 space-y-4">
+                            <div className="border rounded-lg p-3 sm:p-4 space-y-4">
                                 <h3 className="font-medium">Summary</h3>
 
                                 <div className="grid gap-3 text-sm">
-                                    <div className="flex justify-between py-2 border-b">
+                                    <div className="flex flex-col sm:flex-row sm:justify-between py-2 border-b gap-1">
                                         <span className="text-muted-foreground">Post</span>
-                                        <span className="font-medium truncate max-w-xs">
+                                        <span className="font-medium truncate sm:max-w-xs sm:text-right">
                                             {selectedPost?.caption?.substring(0, 50) || 'Selected post'}
                                             {selectedPost?.caption && selectedPost.caption.length > 50 && '...'}
                                         </span>
                                     </div>
 
-                                    <div className="flex justify-between py-2 border-b">
+                                    <div className="flex flex-col sm:flex-row sm:justify-between py-2 border-b gap-1">
                                         <span className="text-muted-foreground">Trigger</span>
-                                        <span className="font-medium">
+                                        <span className="font-medium sm:text-right">
                                             {triggerConfig.trigger_type === 'any_comment'
                                                 ? 'Any comment'
                                                 : `Keywords: ${triggerConfig.keywords.join(', ')}`}
                                         </span>
                                     </div>
 
-                                    <div className="flex justify-between py-2 border-b">
+                                    <div className="flex flex-col sm:flex-row sm:justify-between py-2 border-b gap-1">
                                         <span className="text-muted-foreground">Comment Reply</span>
                                         <span className="font-medium">
                                             {commentReplyConfig.enabled ? 'Enabled' : 'Disabled'}
                                         </span>
                                     </div>
 
-                                    <div className="flex justify-between py-2 border-b">
+                                    <div className="flex flex-col sm:flex-row sm:justify-between py-2 border-b gap-1">
                                         <span className="text-muted-foreground">DM Link</span>
-                                        <span className="font-medium truncate max-w-xs">
+                                        <span className="font-medium truncate sm:max-w-xs sm:text-right">
                                             {dmConfig.link_url}
                                         </span>
                                     </div>
@@ -352,31 +352,36 @@ export function AutomationSetupModal({
                 </div>
 
                 {/* Footer */}
-                <div className="border-t p-4 flex items-center justify-between">
+                <div className="border-t p-3 sm:p-4 flex items-center justify-between shrink-0">
                     <Button
                         variant="ghost"
+                        size="sm"
                         onClick={currentStepIndex === 0 ? () => onOpenChange(false) : goToPrevious}
+                        className="sm:size-default"
                     >
-                        <ChevronLeft className="h-4 w-4 mr-2" />
+                        <ChevronLeft className="h-4 w-4 mr-1 sm:mr-2" />
                         {currentStepIndex === 0 ? 'Cancel' : 'Back'}
                     </Button>
 
                     {currentStep === 'review' ? (
                         <Button
+                            size="sm"
                             onClick={handleSave}
                             disabled={!canProceed() || isSaving}
-                            className="bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white"
+                            className="bg-linear-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white sm:size-default"
                         >
                             {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                             {automation ? 'Save Changes' : 'Create Automation'}
                         </Button>
                     ) : (
                         <Button
+                            size="sm"
                             onClick={goToNext}
                             disabled={!canProceed()}
+                            className="sm:size-default"
                         >
                             Continue
-                            <ChevronRight className="h-4 w-4 ml-2" />
+                            <ChevronRight className="h-4 w-4 ml-1 sm:ml-2" />
                         </Button>
                     )}
                 </div>

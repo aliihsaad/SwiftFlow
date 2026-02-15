@@ -35,7 +35,7 @@ A powerful, AI-driven social media management platform built with Next.js, Supab
 - **Multi-Platform Support**: Instagram, Facebook, LinkedIn, Twitter
 - **Smart Empty States**: Context-aware messages for each post status
 
-### 💬 Posts & Messages (Live Polling)
+### 💬 Posts & Messages (Live Polling + Webhooks)
 - **Unified Posts Feed**: Live-poll Instagram and Facebook posts directly from Meta API
 - **Live Comments**: View and reply to comments in real-time (no database sync required)
 - **Live Messages**: Poll Instagram DMs and Facebook Messages directly from Meta API
@@ -44,6 +44,8 @@ A powerful, AI-driven social media management platform built with Next.js, Supab
 - **Reply & Hide**: Reply directly or hide unwanted comments via Meta API
 - **Conversation Threading**: View full conversation history with participants
 - **Platform Tabs**: Seamlessly switch between Instagram and Facebook feeds
+- **Instagram Webhooks**: Real-time event delivery for comments and messages (no polling delay)
+- **Supabase Realtime**: Instant UI updates when new messages arrive via webhooks
 
 ### 🎨 Brand Profile
 - **Comprehensive Brand Settings**: Business name, industry, description
@@ -63,11 +65,14 @@ A powerful, AI-driven social media management platform built with Next.js, Supab
 - **Trend Analysis**: Identify what content performs best
 
 ### ⚡ Automation Engine
+- **Webhook-Triggered Automations**: Instagram comments instantly trigger automations via webhooks (no polling delay)
 - **Comment-to-DM Automations**: Automatically send DMs to users who comment on your Instagram posts
 - **Keyword Triggers**: Trigger on any comment or only when specific keywords are mentioned
 - **Auto Comment Reply**: Optionally reply to triggering comments with configurable messages
 - **DM with Links**: Send opening message + button template with link (falls back to plain text)
 - **Duplicate Prevention**: Tracks processed comments to avoid sending duplicate DMs
+- **Webhook Signature Verification**: HMAC SHA256 verification of all incoming Meta webhook events
+- **Idempotency Protection**: `webhook_events` table prevents duplicate event processing
 - **Automation Logs**: Full audit trail of every trigger, reply, and DM sent
 - **Per-Workspace Scoping**: Each automation is linked to a specific workspace and Instagram account
 - **Multi-Step Setup Wizard**: Guided post selection → trigger config → reply config → DM config → review
@@ -150,6 +155,10 @@ NEXT_PUBLIC_META_APP_ID=your_meta_app_id
 META_APP_SECRET=your_meta_app_secret
 NEXT_PUBLIC_APP_URL=https://yourdomain.com
 
+# Instagram Webhooks
+INSTAGRAM_APP_SECRET=your_instagram_app_secret
+META_WEBHOOK_VERIFY_TOKEN=your_random_verify_token
+
 # Optional: Custom AI Model
 # AI_MODEL_NAME=gemini-2.0-flash
 ```
@@ -185,6 +194,7 @@ The database schema includes:
 - `automations` - Automation rules (comment-to-DM triggers)
 - `automation_logs` - Audit trail of automation executions
 - `processed_comments` - Tracks comments already handled by automations
+- `webhook_events` - Idempotency table for deduplicating webhook events
 
 #### Set Permissions
 Run this SQL in your Supabase SQL Editor:
@@ -244,6 +254,8 @@ Social-Media-Manager-AI-Tool/
 │   │   │   ├── instagram-accounts/ # List IG accounts
 │   │   │   ├── instagram-media/ # Fetch IG posts for selection
 │   │   │   └── process/         # Trigger automation processing
+│   │   ├── webhooks/
+│   │   │   └── instagram/       # Instagram webhook endpoint (comments & messages)
 │   │   ├── posts-media/         # Live media polling from Meta
 │   │   ├── live-messages/       # Live messages polling from Meta
 │   │   ├── sync-analytics/      # Analytics sync trigger
@@ -341,9 +353,10 @@ AI-powered image generation using Google's Imagen or similar models.
 Creates multi-slide carousel content with coordinated messaging.
 
 #### `process-automations`
-Automation execution engine that runs on a cron schedule:
+Automation execution engine triggered by Instagram webhooks:
+- **Primary trigger**: Instagram webhooks deliver comment events in real-time
+- **Fallback**: Cron schedule polls for any missed comments
 - Fetches active automations with their linked Instagram accounts
-- Polls Meta Graph API for new comments on monitored posts
 - Matches comments against trigger config (any comment or keywords)
 - Sends DMs to commenters via `/{connected_page_id}/messages`
 - Optionally replies to comments via `/{comment_id}/replies`
@@ -456,6 +469,8 @@ SUPABASE_SERVICE_ROLE_KEY
 GEMINI_API_KEY
 NEXT_PUBLIC_META_APP_ID
 META_APP_SECRET
+INSTAGRAM_APP_SECRET
+META_WEBHOOK_VERIFY_TOKEN
 NEXT_PUBLIC_APP_URL
 ```
 
@@ -527,6 +542,10 @@ For issues or questions:
 - [x] **Live Posts Page** - Replaced DB-sync with live Meta API polling for posts and comments
 - [x] **Live Messages Page** - Replaced DB-sync with live Meta API polling for DMs and Facebook messages
 - [x] **Analytics Auto-Sync** - Automatic background syncing of analytics data on page load
+- [x] **Instagram Webhooks** - Real-time webhook events for comments and messages, replacing polling
+- [x] **Webhook Signature Verification** - HMAC SHA256 verification with separate Instagram app secret
+- [x] **Instant Automation Triggers** - Automations fire immediately on comment via webhooks
+- [x] **Supabase Realtime Messages** - Instant UI updates for new messages via Realtime broadcast
 
 ### 📋 Planned Features
 - [ ] Team Collaboration Features

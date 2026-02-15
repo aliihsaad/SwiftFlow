@@ -2,16 +2,25 @@
 
 import { useState } from "react"
 import useSWR from "swr"
-import { MessagesHeader } from "@/components/messages/messages-header"
 import { ConversationList } from "@/components/messages/conversation-list"
 import { MessageThread } from "@/components/messages/message-thread"
-import { MessagesLoadingSkeleton } from "@/components/messages/messages-loading"
 import { useToast } from "@/components/ui/use-toast"
+import { cn } from "@/lib/utils"
+import {
+    Instagram,
+    Facebook,
+    Loader2,
+    RefreshCw,
+    Inbox,
+    AlertCircle
+} from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface Message {
     id: string
     platform_message_id: string
     sender_id: string
+    sender_name?: string
     is_from_page: boolean
     message: string | null
     attachments: string
@@ -36,40 +45,42 @@ interface Conversation {
 
 interface ConversationsResponse {
     conversations: Conversation[]
-    pagination: {
-        page: number
-        limit: number
-        total: number
-        totalPages: number
-    }
+    account: {
+        id: string
+        account_id: string
+        account_name: string
+        platform: string
+    } | null
     workspaceId: string
+    pageId: string
+    error?: string
 }
 
 interface MessagesResponse {
     messages: Message[]
-    pagination: {
-        page: number
-        limit: number
-        total: number
-        totalPages: number
-    }
+    pageId: string
 }
 
 const fetcher = async (url: string) => {
     const res = await fetch(url)
     const data = await res.json()
-    if (!res.ok) throw new Error(data.error || 'Failed to fetch')
+    if (!res.ok && res.status !== 200) throw new Error(data.error || 'Failed to fetch')
     return data
 }
 
 export default function MessagesPage() {
+    const [activePlatform, setActivePlatform] = useState<'instagram' | 'facebook'>('instagram')
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
-    const [isSyncing, setIsSyncing] = useState(false)
     const { toast } = useToast()
 
-    // Fetch conversations
-    const { data: conversationsData, error: conversationsError, isLoading: conversationsLoading, mutate: mutateConversations } = useSWR<ConversationsResponse>(
-        '/api/messages',
+    // Fetch conversations live from Meta API
+    const {
+        data: conversationsData,
+        error: conversationsError,
+        isLoading: conversationsLoading,
+        mutate: mutateConversations
+    } = useSWR<ConversationsResponse>(
+        `/api/live-messages?platform=${activePlatform}`,
         fetcher,
         {
             revalidateOnFocus: false,
@@ -78,67 +89,48 @@ export default function MessagesPage() {
     )
 
     // Fetch messages for selected conversation
-    const { data: messagesData, error: messagesError, isLoading: messagesLoading, mutate: mutateMessages } = useSWR<MessagesResponse>(
-        selectedConversation ? `/api/messages?conversationId=${selectedConversation.id}` : null,
+    const {
+        data: messagesData,
+        error: messagesError,
+        isLoading: messagesLoading,
+        mutate: mutateMessages
+    } = useSWR<MessagesResponse>(
+        selectedConversation
+            ? `/api/live-messages?conversationId=${selectedConversation.platform_conversation_id}&platform=${activePlatform}`
+            : null,
         fetcher,
         {
             revalidateOnFocus: false,
-            refreshInterval: 10000, // Poll for new messages every 10 seconds
+            refreshInterval: 10000, // Poll every 10s for new messages
         }
     )
 
-    const handleSync = async () => {
-        setIsSyncing(true)
-        try {
-            const response = await fetch('/api/sync-messages', {
-                method: 'POST'
-            })
-
-            if (!response.ok) {
-                throw new Error('Failed to sync messages')
-            }
-
-            const result = await response.json()
-
-            toast({
-                title: "Messages synced",
-                description: `Synced ${result.conversations || 0} conversations and ${result.messages || 0} messages`,
-            })
-
-            // Refresh conversations
-            mutateConversations()
-            if (selectedConversation) {
-                mutateMessages()
-            }
-        } catch (error) {
-            console.error('Sync error:', error)
-            toast({
-                title: "Sync failed",
-                description: "Failed to sync messages. Please try again.",
-                variant: "destructive",
-            })
-        } finally {
-            setIsSyncing(false)
-        }
-    }
+    const conversations = conversationsData?.conversations || []
+    const noAccount = conversationsData?.error && !conversations.length
 
     const handleSendMessage = async (message: string) => {
         if (!selectedConversation) return
 
         try {
-            const response = await fetch('/api/messages', {
+            const response = await fetch('/api/live-messages/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    conversationId: selectedConversation.id,
-                    message
-                })
+                    recipientId: selectedConversation.participant_id,
+                    message,
+                    platform: activePlatform,
+                }),
             })
 
             if (!response.ok) {
-                const error = await response.json()
-                throw new Error(error.error || 'Failed to send message')
+                const err = await response.json()
+                throw new Error(err.error || 'Failed to send message')
             }
+
+            toast({
+                title: "Message sent",
+                description: "Your message has been sent.",
+            })
 
             // Refresh messages
             mutateMessages()
@@ -147,7 +139,7 @@ export default function MessagesPage() {
             console.error('Send message error:', error)
             toast({
                 title: "Send failed",
-                description: error.message || "Failed to send message. Please try again.",
+                description: error.message || "Failed to send message.",
                 variant: "destructive",
             })
             throw error
@@ -158,38 +150,126 @@ export default function MessagesPage() {
         setSelectedConversation(conversation)
     }
 
-    const totalUnread = conversationsData?.conversations?.reduce((sum, conv) => sum + (conv.unread_count || 0), 0) || 0
+    // Reset selection when switching platforms
+    const handlePlatformSwitch = (platform: 'instagram' | 'facebook') => {
+        setActivePlatform(platform)
+        setSelectedConversation(null)
+    }
+
+    const tabs = [
+        {
+            id: 'instagram' as const,
+            label: 'Instagram',
+            icon: Instagram,
+            color: 'from-pink-500 to-purple-600',
+        },
+        {
+            id: 'facebook' as const,
+            label: 'Facebook',
+            icon: Facebook,
+            color: 'from-blue-500 to-blue-700',
+        },
+    ]
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
-            {/* Page header */}
-            <div className="shrink-0">
-                <MessagesHeader
-                    onSync={handleSync}
-                    isSyncing={isSyncing}
-                    totalConversations={conversationsData?.pagination?.total || 0}
-                    unreadCount={totalUnread}
-                />
+            {/* Header */}
+            <div className="shrink-0 space-y-4 mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">Messages</h1>
+                        <p className="text-sm text-muted-foreground mt-1">
+                            View and reply to your DMs
+                        </p>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                            mutateConversations()
+                            if (selectedConversation) mutateMessages()
+                        }}
+                        disabled={conversationsLoading}
+                        className="gap-2 self-start"
+                    >
+                        <RefreshCw className={cn("h-4 w-4", conversationsLoading && "animate-spin")} />
+                        Refresh
+                    </Button>
+                </div>
+
+                {/* Platform Tabs */}
+                <div className="flex gap-2">
+                    {tabs.map((tab) => {
+                        const isActive = activePlatform === tab.id
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => handlePlatformSwitch(tab.id)}
+                                className={cn(
+                                    "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                                    isActive
+                                        ? `bg-linear-to-r ${tab.color} text-white shadow-lg`
+                                        : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-border/50"
+                                )}
+                            >
+                                <tab.icon className="h-4 w-4" />
+                                {tab.label}
+                            </button>
+                        )
+                    })}
+                </div>
+
+                {/* Account info */}
+                {conversationsData?.account && (
+                    <div className="text-xs text-muted-foreground flex items-center gap-2">
+                        <div className={cn(
+                            "w-2 h-2 rounded-full",
+                            activePlatform === 'instagram' ? "bg-pink-500" : "bg-blue-500"
+                        )} />
+                        Connected as <span className="font-medium text-foreground">{conversationsData.account.account_name}</span>
+                    </div>
+                )}
             </div>
 
-            {/* Loading state */}
-            {conversationsLoading && <MessagesLoadingSkeleton />}
+            {/* Loading */}
+            {conversationsLoading && (
+                <div className="flex items-center justify-center py-20">
+                    <div className="text-center space-y-3">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto" />
+                        <p className="text-sm text-muted-foreground">Loading conversations...</p>
+                    </div>
+                </div>
+            )}
 
-            {/* Error state */}
-            {conversationsError && (
-                <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center mt-6">
-                    <p className="text-destructive font-medium">Failed to load messages</p>
-                    <p className="text-sm text-muted-foreground mt-2">Please try again later</p>
+            {/* Error */}
+            {conversationsError && !conversationsLoading && (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+                    <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-3" />
+                    <p className="text-sm font-medium text-destructive">Failed to load conversations</p>
+                    <p className="text-xs text-muted-foreground mt-1">{conversationsError.message}</p>
+                </div>
+            )}
+
+            {/* No account connected */}
+            {noAccount && !conversationsLoading && (
+                <div className="rounded-xl border border-border/50 bg-muted/20 p-12 text-center">
+                    <Inbox className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+                    <p className="text-muted-foreground font-medium">
+                        No {activePlatform === 'instagram' ? 'Instagram' : 'Facebook'} account connected
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                        Connect your account in Settings to view messages.
+                    </p>
                 </div>
             )}
 
             {/* Main content - Split pane layout */}
-            {conversationsData?.conversations && !conversationsLoading && (
-                <div className="flex flex-1 min-h-0 mt-6 border rounded-lg overflow-hidden bg-background">
+            {!conversationsLoading && !conversationsError && conversations.length > 0 && (
+                <div className="flex flex-1 min-h-0 border rounded-lg overflow-hidden bg-background">
                     {/* Conversation list - Left pane */}
                     <div className="w-80 border-r flex flex-col shrink-0 h-full">
                         <ConversationList
-                            conversations={conversationsData.conversations}
+                            conversations={conversations}
                             selectedId={selectedConversation?.id}
                             onSelect={handleSelectConversation}
                         />
@@ -203,17 +283,21 @@ export default function MessagesPage() {
                             isLoading={messagesLoading}
                             onSendMessage={handleSendMessage}
                             workspaceId={conversationsData?.workspaceId || null}
+                            platform={activePlatform}
                         />
                     </div>
                 </div>
             )}
 
-            {/* Empty state */}
-            {conversationsData?.conversations && conversationsData.conversations.length === 0 && !conversationsLoading && (
-                <div className="rounded-lg border border-border/50 bg-muted/20 p-12 text-center mt-6">
+            {/* Empty state (account connected but no conversations) */}
+            {!conversationsLoading && !conversationsError && !noAccount && conversations.length === 0 && (
+                <div className="rounded-xl border border-border/50 bg-muted/20 p-12 text-center">
+                    <Inbox className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
                     <p className="text-muted-foreground font-medium">No conversations yet</p>
                     <p className="text-sm text-muted-foreground mt-2">
-                        Sync your Instagram account to start seeing DMs.
+                        {activePlatform === 'instagram'
+                            ? 'Instagram DMs will appear here once you receive messages.'
+                            : 'Facebook messages will appear here once you receive messages.'}
                     </p>
                 </div>
             )}

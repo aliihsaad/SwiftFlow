@@ -36,9 +36,10 @@ interface MessageThreadProps {
     isLoading: boolean
     onSendMessage: (message: string) => Promise<void>
     workspaceId: string | null
+    platform?: string
 }
 
-export function MessageThread({ conversation, messages, isLoading, onSendMessage, workspaceId }: MessageThreadProps) {
+export function MessageThread({ conversation, messages, isLoading, onSendMessage, workspaceId, platform = 'instagram' }: MessageThreadProps) {
     const [inputValue, setInputValue] = useState("")
     const [isSending, setIsSending] = useState(false)
     const [isGeneratingAI, setIsGeneratingAI] = useState(false)
@@ -97,7 +98,7 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
                     message: lastCustomerMessage.message,
                     participantUsername: conversation.participant_username,
                     conversationHistory: recentMessages,
-                    platform: 'instagram',
+                    platform,
                     workspaceId
                 }
             })
@@ -154,7 +155,7 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
                     <h3 className="font-medium text-sm">
                         {conversation.participant_username || 'Unknown User'}
                     </h3>
-                    <p className="text-xs text-muted-foreground">Instagram DM</p>
+                    <p className="text-xs text-muted-foreground">{platform === 'instagram' ? 'Instagram' : 'Facebook'} DM</p>
                 </div>
             </div>
 

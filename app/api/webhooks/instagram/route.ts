@@ -61,9 +61,19 @@ export async function POST(request: NextRequest) {
     }
 
     const expectedSignature = 'sha256=' + crypto
-        .createHmac('sha256', appSecret)
+        .createHmac('sha256', appSecret.trim())
         .update(rawBody)
         .digest('hex');
+
+    console.log('[WEBHOOK] Signature debug:', {
+        receivedPrefix: signature.substring(0, 20),
+        expectedPrefix: expectedSignature.substring(0, 20),
+        receivedLen: signature.length,
+        expectedLen: expectedSignature.length,
+        bodyLen: rawBody.length,
+        secretLen: appSecret.length,
+        secretPrefix: appSecret.substring(0, 4) + '...',
+    });
 
     // Constant-time comparison to prevent timing attacks
     const sigBuffer = Buffer.from(signature);

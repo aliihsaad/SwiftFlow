@@ -49,14 +49,43 @@ async function syncComments(supabase: any, workspaceId: string) {
         return { synced: 0, message: 'No social accounts found' };
     }
 
-    // Get published posts from the last 30 days
+    // Get published posts from the last 30 days, scoped to THIS workspace only
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const { data: publishedPosts, error: postsError } = await supabase
-        .from('published_posts')
-        .select('*')
-        .gte('published_at', thirtyDaysAgo.toISOString());
+    // Step A: Get this workspace's post IDs (published_posts doesn't have workspace_id)
+    const { data: workspacePosts, error: wpError } = await supabase
+        .from('posts')
+        .select('id')
+        .eq('workspace_id', workspaceId)
+        .eq('status', 'published');
+
+    if (wpError) {
+        console.error(`[CommentSync] Error fetching workspace posts:`, wpError);
+        return { synced: 0, error: wpError.message };
+    }
+
+    const postIds = (workspacePosts || []).map((p: any) => p.id);
+    console.log(`[CommentSync] Found ${postIds.length} published posts in workspace`);
+
+    if (postIds.length === 0) {
+        console.log(`[CommentSync] No published posts in workspace, skipping published posts sync`);
+    }
+
+    // Step B: Get published_posts only for this workspace's posts
+    let publishedPosts: any[] = [];
+    let postsError: any = null;
+
+    if (postIds.length > 0) {
+        const result = await supabase
+            .from('published_posts')
+            .select('*')
+            .in('post_id', postIds)
+            .gte('published_at', thirtyDaysAgo.toISOString());
+
+        publishedPosts = result.data || [];
+        postsError = result.error;
+    }
 
     if (postsError) {
         console.error(`[CommentSync] Error fetching published posts:`, postsError);

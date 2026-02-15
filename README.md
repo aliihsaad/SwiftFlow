@@ -35,14 +35,15 @@ A powerful, AI-driven social media management platform built with Next.js, Supab
 - **Multi-Platform Support**: Instagram, Facebook, LinkedIn, Twitter
 - **Smart Empty States**: Context-aware messages for each post status
 
-### 💬 Comments & Messages Management
-- **Instagram Comments Sync**: View comments from your Instagram posts
-- **Instagram Direct Messages**: Manage DMs and conversations from Instagram Business accounts
+### 💬 Posts & Messages (Live Polling)
+- **Unified Posts Feed**: Live-poll Instagram and Facebook posts directly from Meta API
+- **Live Comments**: View and reply to comments in real-time (no database sync required)
+- **Live Messages**: Poll Instagram DMs and Facebook Messages directly from Meta API
 - **AI-Powered Replies**: Generate personalized replies using your brand voice and language
 - **Post Context**: See which post each comment belongs to with thumbnail preview
-- **Reply & Hide**: Reply directly or hide unwanted comments
-- **Reply Status Tracking**: Track which comments have been responded to
+- **Reply & Hide**: Reply directly or hide unwanted comments via Meta API
 - **Conversation Threading**: View full conversation history with participants
+- **Platform Tabs**: Seamlessly switch between Instagram and Facebook feeds
 
 ### 🎨 Brand Profile
 - **Comprehensive Brand Settings**: Business name, industry, description
@@ -61,12 +62,22 @@ A powerful, AI-driven social media management platform built with Next.js, Supab
 - **Account Analytics**: Individual account performance with platform indicators
 - **Trend Analysis**: Identify what content performs best
 
+### ⚡ Automation Engine
+- **Comment-to-DM Automations**: Automatically send DMs to users who comment on your Instagram posts
+- **Keyword Triggers**: Trigger on any comment or only when specific keywords are mentioned
+- **Auto Comment Reply**: Optionally reply to triggering comments with configurable messages
+- **DM with Links**: Send opening message + button template with link (falls back to plain text)
+- **Duplicate Prevention**: Tracks processed comments to avoid sending duplicate DMs
+- **Automation Logs**: Full audit trail of every trigger, reply, and DM sent
+- **Per-Workspace Scoping**: Each automation is linked to a specific workspace and Instagram account
+- **Multi-Step Setup Wizard**: Guided post selection → trigger config → reply config → DM config → review
+
 ### 🔐 Multi-Workspace Support
 - **Workspace Isolation**: Separate data for different brands/clients
 - **Team Collaboration**: Multiple users per workspace
 - **Workspace Switching**: Easy navigation between workspaces
-- **Per-Workspace Social Accounts**: Connect different Facebook/Instagram pages to each workspace
-- **Seamless OAuth Flow**: Robust multi-workspace connection with automatic fallback handling
+- **Per-Workspace Social Accounts**: Connect exactly **one Facebook Page and one Instagram Business Account** per workspace
+- **Smart Page Selector**: New OAuth flow allows selecting specific pages for each workspace to prevent token mixing
 
 ## 🛠️ Tech Stack
 
@@ -171,6 +182,9 @@ The database schema includes:
 - `comments` - Instagram/Facebook comments
 - `conversations` - Instagram DM conversations
 - `messages` - Individual DM messages
+- `automations` - Automation rules (comment-to-DM triggers)
+- `automation_logs` - Audit trail of automation executions
+- `processed_comments` - Tracks comments already handled by automations
 
 #### Set Permissions
 Run this SQL in your Supabase SQL Editor:
@@ -197,6 +211,7 @@ supabase functions deploy publish-post
 supabase functions deploy sync-analytics
 supabase functions deploy sync-comments
 supabase functions deploy sync-messages
+supabase functions deploy process-automations
 ```
 
 #### Set Function Secrets
@@ -223,13 +238,20 @@ Social-Media-Manager-AI-Tool/
 │   │   ├── chat/
 │   │   │   └── sessions/        # Chat history endpoints
 │   │   ├── posts/               # Post CRUD operations
+│   │   ├── automations/         # Automation CRUD & processing
+│   │   │   ├── [id]/            # Single automation GET/PUT/DELETE
+│   │   │   │   └── toggle/      # Toggle active/inactive
+│   │   │   ├── instagram-accounts/ # List IG accounts
+│   │   │   ├── instagram-media/ # Fetch IG posts for selection
+│   │   │   └── process/         # Trigger automation processing
+│   │   ├── posts-media/         # Live media polling from Meta
+│   │   ├── live-messages/       # Live messages polling from Meta
 │   │   ├── sync-analytics/      # Analytics sync trigger
-│   │   ├── sync-comments/       # Comments sync trigger
-│   │   └── sync-messages/       # Messages sync trigger
 │   ├── dashboard/
 │   │   ├── assistant/           # AI Assistant interface
 │   │   ├── scheduled/           # Scheduled posts with calendar
 │   │   ├── analytics/           # Analytics dashboard
+│   │   ├── automation/          # Automation management
 │   │   ├── comments/            # Comments management
 │   │   ├── messages/            # DM/Messages management
 │   │   └── settings/
@@ -237,6 +259,12 @@ Social-Media-Manager-AI-Tool/
 │   └── layout.tsx
 ├── components/
 │   ├── analytics/               # Analytics charts & cards
+│   ├── automation/              # Automation components
+│   │   ├── automation-setup-modal.tsx  # Multi-step wizard
+│   │   ├── post-selector.tsx    # IG post picker
+│   │   ├── trigger-config.tsx   # Trigger configuration
+│   │   ├── dm-config.tsx        # DM message builder
+│   │   └── active-automations-list.tsx
 │   ├── dashboard/               # Dashboard components
 │   ├── layout/                  # Layout components (Sidebar)
 │   ├── settings/                # Settings forms
@@ -251,7 +279,8 @@ Social-Media-Manager-AI-Tool/
 │   │   ├── publish-post/        # Post publishing to Meta
 │   │   ├── sync-analytics/      # Follower metrics sync
 │   │   ├── sync-comments/       # Comments sync
-│   │   └── sync-messages/       # DM sync
+│   │   ├── sync-messages/       # DM sync
+│   │   └── process-automations/ # Automation execution engine
 │   ├── migrations/              # Database migrations
 │   └── schema.sql               # Database schema
 ├── lib/                         # Utility functions
@@ -311,6 +340,17 @@ AI-powered image generation using Google's Imagen or similar models.
 #### `generate-carousel`
 Creates multi-slide carousel content with coordinated messaging.
 
+#### `process-automations`
+Automation execution engine that runs on a cron schedule:
+- Fetches active automations with their linked Instagram accounts
+- Polls Meta Graph API for new comments on monitored posts
+- Matches comments against trigger config (any comment or keywords)
+- Sends DMs to commenters via `/{connected_page_id}/messages`
+- Optionally replies to comments via `/{comment_id}/replies`
+- Logs all actions in `automation_logs` table
+- Tracks processed comments in `processed_comments` to prevent duplicates
+- Supports workspace-scoped and automation-scoped filtering
+
 ## 🔧 Configuration
 
 ### AI Model Selection
@@ -368,6 +408,36 @@ Multi-platform post management with status tracking:
 - metrics (jsonb)
 - created_at
 - updated_at
+```
+
+### `automations`
+Comment-to-DM automation rules:
+```sql
+- workspace_id
+- social_account_id
+- type ('comment_to_dm')
+- name
+- is_active
+- platform_post_id
+- trigger_config (jsonb: trigger_type, keywords)
+- comment_reply_config (jsonb: enabled, messages)
+- dm_config (jsonb: opening_message, button_text, link_url)
+- total_triggered
+- total_dms_sent
+```
+
+### `automation_logs`
+Audit trail of automation executions:
+```sql
+- automation_id
+- trigger_comment_id
+- commenter_id
+- commenter_username
+- comment_reply_sent
+- dm_sent
+- status ('pending' | 'processing' | 'completed' | 'failed')
+- error_message
+- triggered_at
 ```
 
 ## 🚢 Deployment
@@ -435,6 +505,7 @@ For issues or questions:
 ### ✅ Recently Completed
 - [x] **Meta OAuth Integration** - Connect Facebook Pages and Instagram Business accounts
 - [x] **Multi-Workspace OAuth Fix** - Resolved empty `/me/accounts` issue with debug_token fallback
+- [x] **Smart Page Selector** - Implemented page selection flow to enforce 1-to-1 workspace-to-page mapping and prevent token mixing
 - [x] **Facebook Auto-Posting** - Publish posts directly to Facebook Pages via Meta API
 - [x] **Instagram Direct Publishing** - Publish posts to Instagram Business accounts
 - [x] **Scheduled Post Processing** - Cron-based edge function for auto-publishing scheduled posts
@@ -450,10 +521,12 @@ For issues or questions:
 - [x] **Enhanced Chart UI** - AreaChart with gradients, smart data padding for limited datasets
 - [x] **Platform Badges** - Visual indicators (FB/IG) on posts and analytics
 - [x] **Multi-image Carousel Publishing** - Publish carousel posts to Instagram
-
-### ⚠️ Limitations
-- **Facebook Post Engagement** - Comments, likes, shares analytics for Facebook posts require `pages_read_engagement` permission (pending Meta App Review approval)
-- **Facebook Comments Sync** - Disabled until `pages_read_engagement` is approved by Meta
+- [x] **Automation Engine** - Comment-to-DM automations with keyword triggers, auto-replies, and link DMs
+- [x] **Automation Processing Edge Function** - Background engine polling comments and sending DMs via Meta Graph API
+- [x] **Automation Management UI** - Full CRUD with multi-step setup wizard (post selection → trigger → reply → DM → review)
+- [x] **Live Posts Page** - Replaced DB-sync with live Meta API polling for posts and comments
+- [x] **Live Messages Page** - Replaced DB-sync with live Meta API polling for DMs and Facebook messages
+- [x] **Analytics Auto-Sync** - Automatic background syncing of analytics data on page load
 
 ### 📋 Planned Features
 - [ ] Team Collaboration Features

@@ -45,9 +45,10 @@ export async function GET(request: NextRequest) {
  * 5. Return 200 immediately
  */
 export async function POST(request: NextRequest) {
-    const appSecret = process.env.META_APP_SECRET;
+    // Use Instagram-specific app secret for webhook verification (separate from OAuth app secret)
+    const appSecret = process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET;
     if (!appSecret) {
-        console.error('[WEBHOOK] Missing META_APP_SECRET');
+        console.error('[WEBHOOK] Missing INSTAGRAM_APP_SECRET or META_APP_SECRET');
         return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
     }
 
@@ -78,9 +79,8 @@ export async function POST(request: NextRequest) {
     const expectedBuffer = Buffer.from(expectedSignature);
 
     if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
-        // TODO: Re-enable strict verification before production launch
-        // For now, log warning but continue processing in Development Mode
-        console.warn('[WEBHOOK] Signature mismatch (continuing in dev mode)');
+        console.warn('[WEBHOOK] Signature verification failed');
+        return new NextResponse('Invalid signature', { status: 401 });
     }
 
     // Step 2: Parse the event payload

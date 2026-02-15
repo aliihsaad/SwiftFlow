@@ -39,11 +39,33 @@ interface MessageThreadProps {
     platform?: string
 }
 
-export function MessageThread({ conversation, messages, isLoading, onSendMessage, workspaceId, platform = 'instagram' }: MessageThreadProps) {
+export function MessageThread({ conversation, messages, isLoading, onSendMessage, workspaceId: propWorkspaceId, platform = 'instagram' }: MessageThreadProps) {
     const [inputValue, setInputValue] = useState("")
     const [isSending, setIsSending] = useState(false)
     const [isGeneratingAI, setIsGeneratingAI] = useState(false)
     const scrollAreaRef = useRef<HTMLDivElement>(null)
+    const [internalWorkspaceId, setInternalWorkspaceId] = useState<string | null>(null)
+
+    // Resolve workspaceId: prefer prop, fall back to client-side fetch
+    const workspaceId = propWorkspaceId || internalWorkspaceId
+
+    // Fetch workspace ID client-side if not provided by parent
+    useEffect(() => {
+        if (propWorkspaceId) return // Already have it from props
+        const fetchWorkspace = async () => {
+            const supabase = createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) return
+            const { data } = await supabase
+                .from('workspace_members')
+                .select('workspace_id')
+                .eq('user_id', user.id)
+                .limit(1)
+                .single()
+            if (data) setInternalWorkspaceId(data.workspace_id)
+        }
+        fetchWorkspace()
+    }, [propWorkspaceId])
 
     // Scroll to bottom when messages change
     useEffect(() => {

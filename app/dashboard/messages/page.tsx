@@ -12,7 +12,9 @@ import {
     Loader2,
     RefreshCw,
     Inbox,
-    AlertCircle
+    AlertCircle,
+    Lock,
+    ArrowLeft,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -68,9 +70,20 @@ const fetcher = async (url: string) => {
     return data
 }
 
+// Check if error is a Meta permission error
+function isPermissionError(error: Error | null): boolean {
+    if (!error) return false
+    const msg = error.message?.toLowerCase() || ''
+    return msg.includes('requires permission') ||
+        msg.includes('pages_messaging') ||
+        msg.includes('#200') ||
+        msg.includes('appropriate role')
+}
+
 export default function MessagesPage() {
     const [activePlatform, setActivePlatform] = useState<'instagram' | 'facebook'>('instagram')
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
+    const [showThread, setShowThread] = useState(false) // mobile: toggle list vs thread
     const { toast } = useToast()
 
     // Fetch conversations live from Meta API
@@ -101,12 +114,13 @@ export default function MessagesPage() {
         fetcher,
         {
             revalidateOnFocus: false,
-            refreshInterval: 10000, // Poll every 10s for new messages
+            refreshInterval: 10000,
         }
     )
 
     const conversations = conversationsData?.conversations || []
     const noAccount = conversationsData?.error && !conversations.length
+    const permissionDenied = isPermissionError(conversationsError)
 
     const handleSendMessage = async (message: string) => {
         if (!selectedConversation) return
@@ -132,7 +146,6 @@ export default function MessagesPage() {
                 description: "Your message has been sent.",
             })
 
-            // Refresh messages
             mutateMessages()
             mutateConversations()
         } catch (error: any) {
@@ -148,12 +161,18 @@ export default function MessagesPage() {
 
     const handleSelectConversation = (conversation: Conversation) => {
         setSelectedConversation(conversation)
+        setShowThread(true) // On mobile, switch to thread view
+    }
+
+    const handleBackToList = () => {
+        setShowThread(false)
     }
 
     // Reset selection when switching platforms
     const handlePlatformSwitch = (platform: 'instagram' | 'facebook') => {
         setActivePlatform(platform)
         setSelectedConversation(null)
+        setShowThread(false)
     }
 
     const tabs = [
@@ -241,8 +260,28 @@ export default function MessagesPage() {
                 </div>
             )}
 
-            {/* Error */}
-            {conversationsError && !conversationsLoading && (
+            {/* Permission Error - Coming Soon */}
+            {permissionDenied && !conversationsLoading && (
+                <div className="flex-1 flex items-center justify-center">
+                    <div className="rounded-2xl border border-border/50 bg-muted/10 p-10 text-center max-w-md mx-auto">
+                        <div className="mx-auto w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-5">
+                            <Lock className="h-8 w-8 text-blue-500" />
+                        </div>
+                        <h3 className="text-lg font-semibold mb-2">Facebook Messages</h3>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                            Facebook messaging requires the <span className="font-medium text-foreground">pages_messaging</span> permission,
+                            which is pending Meta app review approval.
+                        </p>
+                        <div className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-medium">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            Coming Soon
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Generic Error (non-permission) */}
+            {conversationsError && !permissionDenied && !conversationsLoading && (
                 <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center">
                     <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-3" />
                     <p className="text-sm font-medium text-destructive">Failed to load conversations</p>
@@ -263,11 +302,15 @@ export default function MessagesPage() {
                 </div>
             )}
 
-            {/* Main content - Split pane layout */}
+            {/* Main content - Split pane layout (responsive) */}
             {!conversationsLoading && !conversationsError && conversations.length > 0 && (
                 <div className="flex flex-1 min-h-0 border rounded-lg overflow-hidden bg-background">
                     {/* Conversation list - Left pane */}
-                    <div className="w-80 border-r flex flex-col shrink-0 h-full">
+                    {/* On mobile: hidden when thread is open */}
+                    <div className={cn(
+                        "w-full md:w-80 border-r flex flex-col shrink-0 h-full",
+                        showThread ? "hidden md:flex" : "flex"
+                    )}>
                         <ConversationList
                             conversations={conversations}
                             selectedId={selectedConversation?.id}
@@ -276,7 +319,25 @@ export default function MessagesPage() {
                     </div>
 
                     {/* Message thread - Right pane */}
-                    <div className="flex-1 flex flex-col min-w-0 min-h-0 h-full">
+                    {/* On mobile: hidden when list is showing; full width when thread is open */}
+                    <div className={cn(
+                        "flex-1 flex flex-col min-w-0 min-h-0 h-full",
+                        showThread ? "flex" : "hidden md:flex"
+                    )}>
+                        {/* Mobile back button */}
+                        {showThread && (
+                            <div className="md:hidden shrink-0 px-3 pt-3">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={handleBackToList}
+                                    className="gap-1.5 text-muted-foreground hover:text-foreground -ml-2"
+                                >
+                                    <ArrowLeft className="h-4 w-4" />
+                                    Back
+                                </Button>
+                            </div>
+                        )}
                         <MessageThread
                             conversation={selectedConversation}
                             messages={messagesData?.messages || []}

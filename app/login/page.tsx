@@ -131,6 +131,7 @@ export default function LoginPage() {
                                         id="signin-email"
                                         type="email"
                                         placeholder="you@company.com"
+                                        autoComplete="email"
                                         required
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
@@ -142,6 +143,7 @@ export default function LoginPage() {
                                     <Input
                                         id="signin-password"
                                         type="password"
+                                        autoComplete="current-password"
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
@@ -178,6 +180,7 @@ export default function LoginPage() {
                                         id="signup-email"
                                         type="email"
                                         placeholder="you@company.com"
+                                        autoComplete="email"
                                         required
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
@@ -190,6 +193,7 @@ export default function LoginPage() {
                                         id="signup-password"
                                         type="password"
                                         placeholder="Min. 6 characters"
+                                        autoComplete="new-password"
                                         required
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
@@ -202,6 +206,7 @@ export default function LoginPage() {
                                         id="confirm-password"
                                         type="password"
                                         placeholder="Confirm your password"
+                                        autoComplete="new-password"
                                         required
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}

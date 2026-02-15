@@ -37,7 +37,7 @@ const sidebarItems = [
     { icon: CalendarDays, label: "Scheduled", href: "/dashboard/scheduled" },
     { icon: Bot, label: "AI Assistant", href: "/dashboard/assistant" },
     { icon: BarChart3, label: "Analytics", href: "/dashboard/analytics" },
-    { icon: MessageCircle, label: "Comments", href: "/dashboard/comments" },
+    { icon: MessageCircle, label: "Posts", href: "/dashboard/comments" },
     { icon: Inbox, label: "Messages", href: "/dashboard/messages" },
     { icon: Zap, label: "Automation", href: "/dashboard/automation" },
     { icon: Sparkles, label: "Brand Profile", href: "/dashboard/settings/brand" },

@@ -206,7 +206,7 @@ export function PostCommentsDrawer({
                                 href={post.permalink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+                                className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors mr-8"
                             >
                                 View on {platform === 'instagram' ? 'Instagram' : 'Facebook'}
                                 <ExternalLink className="h-3 w-3" />

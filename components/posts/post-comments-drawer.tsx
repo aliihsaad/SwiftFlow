@@ -266,7 +266,7 @@ export function PostCommentsDrawer({
                                             <span className="text-sm font-medium text-foreground">
                                                 @{comment.author_username}
                                             </span>
-                                            <span className="text-xs text-muted-foreground">
+                                            <span className="text-xs text-muted-foreground" suppressHydrationWarning>
                                                 {formatDistanceToNow(new Date(comment.timestamp), { addSuffix: true })}
                                             </span>
                                         </div>
@@ -377,7 +377,7 @@ export function PostCommentsDrawer({
                                                         <span className="text-xs font-medium">
                                                             @{reply.author_username}
                                                         </span>
-                                                        <span className="text-xs text-muted-foreground">
+                                                        <span className="text-xs text-muted-foreground" suppressHydrationWarning>
                                                             {formatDistanceToNow(new Date(reply.timestamp), { addSuffix: true })}
                                                         </span>
                                                     </div>

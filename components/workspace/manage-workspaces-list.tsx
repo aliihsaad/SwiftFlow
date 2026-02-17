@@ -147,7 +147,7 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
                             <TableRow key={ws.id}>
                                 <TableCell className="font-medium">{ws.name}</TableCell>
                                 <TableCell className="capitalize">{ws.role}</TableCell>
-                                <TableCell>{new Date(ws.created_at).toLocaleDateString("en-US")}</TableCell>
+                                <TableCell suppressHydrationWarning>{new Date(ws.created_at).toLocaleDateString("en-US")}</TableCell>
                                 <TableCell>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>

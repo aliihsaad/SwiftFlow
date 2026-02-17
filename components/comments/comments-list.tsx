@@ -202,7 +202,7 @@ export function CommentsList({
                                         </Badge>
                                     )}
 
-                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <span className="text-xs text-muted-foreground flex items-center gap-1" suppressHydrationWarning>
                                         <Clock className="h-3 w-3" />
                                         {formatDistanceToNow(new Date(comment.platform_created_at), { addSuffix: true })}
                                     </span>
@@ -243,7 +243,7 @@ export function CommentsList({
                                                         <span className="font-medium text-xs">
                                                             {reply.author_username || 'Unknown'}
                                                         </span>
-                                                        <span className="text-xs text-muted-foreground">
+                                                        <span className="text-xs text-muted-foreground" suppressHydrationWarning>
                                                             {formatDistanceToNow(new Date(reply.platform_created_at), { addSuffix: true })}
                                                         </span>
                                                     </div>

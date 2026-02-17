@@ -113,6 +113,7 @@ function DraggablePostBadge({ post, index }: { post: CalendarPost, index: number
 // Droppable Calendar Cell Component
 function DroppableCalendarCell({
     day,
+    cellIndex,
     isCurrentMonth,
     isToday,
     isPast,
@@ -123,6 +124,7 @@ function DroppableCalendarCell({
     onAddPost
 }: {
     day: number | null
+    cellIndex: number
     isCurrentMonth: boolean
     isToday: boolean
     isPast: boolean
@@ -134,7 +136,7 @@ function DroppableCalendarCell({
 }) {
     // Only make cell droppable if it's not a past date
     const { setNodeRef } = useDroppable({
-        id: day ? `cell-${currentYear}-${currentMonth}-${day}` : `empty-${Math.random()}`,
+        id: day ? `cell-${currentYear}-${currentMonth}-${day}` : `empty-${cellIndex}`,
         data: { day, month: currentMonth, year: currentYear },
         disabled: isPast
     })
@@ -194,10 +196,11 @@ function DroppableCalendarCell({
 }
 
 export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
-    const [currentDate, setCurrentDate] = useState(new Date())
+    const [currentDate, setCurrentDate] = useState<Date | null>(null)
     const [activeId, setActiveId] = useState<string | null>(null)
     const [overId, setOverId] = useState<string | null>(null)
     const [localPosts, setLocalPosts] = useState<CalendarPost[]>(posts)
+    const [today, setToday] = useState<Date | null>(null)
 
     // Modal State
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -206,14 +209,36 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
     const router = useRouter()
     const { toast } = useToast()
 
+    // Initialize date client-side only to avoid hydration mismatch
+    useEffect(() => {
+        const now = new Date()
+        setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1))
+        setToday(now)
+    }, [])
+
     // Sync local state when props change (e.g., after router.refresh())
     useEffect(() => {
         setLocalPosts(posts)
     }, [posts])
 
+    // Don't render calendar until client-side date is set
+    if (!currentDate || !today) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle className="font-bold text-xl">Content Calendar</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <div className="h-[500px] flex items-center justify-center text-muted-foreground">
+                        Loading calendar...
+                    </div>
+                </CardContent>
+            </Card>
+        )
+    }
+
     const currentYear = currentDate.getFullYear()
     const currentMonth = currentDate.getMonth()
-    const today = new Date()
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -263,7 +288,7 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
         gridCells.push({ day: null, isCurrentMonth: false, isPast: false, posts: [] })
     }
 
-    const monthName = currentDate.toLocaleString('default', { month: 'long', year: 'numeric' })
+    const monthName = currentDate.toLocaleString('en-US', { month: 'long', year: 'numeric' })
     const isToday = (day: number | null) =>
         day === today.getDate() &&
         currentMonth === today.getMonth() &&
@@ -427,6 +452,7 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
                                 <DroppableCalendarCell
                                     key={i}
                                     day={cell.day}
+                                    cellIndex={i}
                                     isCurrentMonth={cell.isCurrentMonth}
                                     isToday={cell.day ? isToday(cell.day) : false}
                                     isPast={cell.isPast || false}

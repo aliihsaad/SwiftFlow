@@ -67,7 +67,7 @@ export function RecentAnalytics({ posts }: RecentAnalyticsProps) {
                                             {post.platform.charAt(0).toUpperCase() + post.platform.slice(1)}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">
+                                    <TableCell className="text-sm text-muted-foreground" suppressHydrationWarning>
                                         {formatDistanceToNow(new Date(post.published_at), { addSuffix: true })}
                                     </TableCell>
                                     <TableCell className="text-right font-medium">

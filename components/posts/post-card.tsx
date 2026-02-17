@@ -82,7 +82,7 @@ export function PostCard({ post, onClick }: PostCardProps) {
                     </p>
                 )}
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>
+                    <span suppressHydrationWarning>
                         {formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })}
                     </span>
                     <div className="flex items-center gap-3">

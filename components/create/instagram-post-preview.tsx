@@ -14,13 +14,14 @@ interface InstagramPostPreviewProps {
     date?: Date
 }
 
-export function InstagramPostPreview({ caption, mediaUrls, username = "you", userImage, location, date = new Date() }: InstagramPostPreviewProps) {
+export function InstagramPostPreview({ caption, mediaUrls, username = "you", userImage, location, date }: InstagramPostPreviewProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
     const hasMultipleImages = mediaUrls.length > 1
 
-    // Format date like "14 January 2026"
-    const formattedDate = date.toLocaleDateString('en-GB', {
+    // Format date like "14 January 2026" — use provided date or current date
+    const displayDate = date || new Date()
+    const formattedDate = displayDate.toLocaleDateString('en-GB', {
         day: 'numeric',
         month: 'long',
         year: 'numeric'
@@ -179,7 +180,7 @@ export function InstagramPostPreview({ caption, mediaUrls, username = "you", use
                         </div>
 
                         {/* Date */}
-                        <div className="text-[10px] text-zinc-500 mt-1">
+                        <div className="text-[10px] text-zinc-500 mt-1" suppressHydrationWarning>
                             {formattedDate}
                         </div>
                     </div>

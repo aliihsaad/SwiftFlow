@@ -76,7 +76,7 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                                 )}>
                                     {conversation.participant_username || 'Unknown User'}
                                 </span>
-                                <span className="text-xs text-muted-foreground shrink-0">
+                                <span className="text-xs text-muted-foreground shrink-0" suppressHydrationWarning>
                                     {formatDistanceToNow(new Date(conversation.last_message_at), { addSuffix: false })}
                                 </span>
                             </div>

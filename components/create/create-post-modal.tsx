@@ -39,11 +39,18 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
     const [activeTab, setActiveTab] = useState<string>('all')
     const [globalMedia, setGlobalMedia] = useState<string[]>([])
     const [globalCaption, setGlobalCaption] = useState('')
-    const [scheduledAt, setScheduledAt] = useState<Date | undefined>(new Date())
+    const [scheduledAt, setScheduledAt] = useState<Date | undefined>(undefined)
     const [isGeneratingAI, setIsGeneratingAI] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [isPosting, setIsPosting] = useState(false)
     const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+
+    // Initialize scheduledAt client-side to avoid hydration mismatch
+    useEffect(() => {
+        if (open && !scheduledAt && !postToEdit && !initialDate) {
+            setScheduledAt(new Date())
+        }
+    }, [open, scheduledAt, postToEdit, initialDate])
 
     // Check for props, draft data, or edit mode when modal opens
     useEffect(() => {

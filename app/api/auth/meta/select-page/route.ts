@@ -6,6 +6,15 @@ const supabaseAdmin = createClient(
     process.env.SUPABASE_SERVICE_KEY!
 );
 
+interface PageData {
+    id: string;
+    name: string;
+    category: string;
+    access_token: string;
+    ig_account_id: string | null;
+    ig_username: string | null;
+}
+
 /**
  * POST /api/auth/meta/select-page
  * 
@@ -51,10 +60,10 @@ export async function POST(request: NextRequest) {
         }
 
         const workspaceId = session.workspace_id;
-        const pagesData = session.pages_data as any[];
+        const pagesData = session.pages_data as PageData[];
 
         // Step 2: Find the selected page
-        const selectedPage = pagesData.find((p: any) => p.id === selectedPageId);
+        const selectedPage = pagesData.find((p) => p.id === selectedPageId);
         if (!selectedPage) {
             return NextResponse.json(
                 { error: 'Selected page not found in session data' },
@@ -65,7 +74,7 @@ export async function POST(request: NextRequest) {
         console.log(`[SELECT_PAGE] User selected page "${selectedPage.name}" (${selectedPage.id}) for workspace ${workspaceId}`);
 
         // Step 3: Check if this page (or its IG account) is already connected in another workspace
-        const { data: existing } = await supabaseAdmin
+        const { data: existingFb } = await supabaseAdmin
             .from('social_accounts')
             .select('id, workspace_id')
             .eq('platform', 'facebook')
@@ -73,12 +82,30 @@ export async function POST(request: NextRequest) {
             .neq('workspace_id', workspaceId)
             .maybeSingle();
 
-        if (existing) {
-            console.error(`[SELECT_PAGE] Page ${selectedPage.id} already connected in workspace ${existing.workspace_id}`);
+        if (existingFb) {
+            console.error(`[SELECT_PAGE] Page ${selectedPage.id} already connected in workspace ${existingFb.workspace_id}`);
             return NextResponse.json(
                 { error: 'This Facebook page is already connected in another workspace. Disconnect it there first.' },
                 { status: 409 }
             );
+        }
+
+        if (selectedPage.ig_account_id) {
+            const { data: existingIg } = await supabaseAdmin
+                .from('social_accounts')
+                .select('id, workspace_id')
+                .eq('platform', 'instagram')
+                .eq('account_id', selectedPage.ig_account_id)
+                .neq('workspace_id', workspaceId)
+                .maybeSingle();
+
+            if (existingIg) {
+                console.error(`[SELECT_PAGE] IG account ${selectedPage.ig_account_id} already connected in workspace ${existingIg.workspace_id}`);
+                return NextResponse.json(
+                    { error: 'This Instagram account is already connected in another workspace. Disconnect it there first.' },
+                    { status: 409 }
+                );
+            }
         }
 
         // Step 4: Delete existing Facebook + Instagram accounts for this workspace
@@ -127,6 +154,7 @@ export async function POST(request: NextRequest) {
         console.log(`[SELECT_PAGE] Saved Facebook page: ${selectedPage.name}`);
 
         // Step 6: If the page has a linked Instagram, insert that too
+        let igInserted = false;
         if (selectedPage.ig_account_id) {
             const igAccountData = {
                 workspace_id: workspaceId,
@@ -149,9 +177,20 @@ export async function POST(request: NextRequest) {
                 .insert(igAccountData);
 
             if (igInsertError) {
+                // Unique constraint violation — IG is already connected elsewhere
+                if (igInsertError.code === '23505') {
+                    // Roll back the FB insert since they're a pair
+                    await supabaseAdmin.from('social_accounts').delete()
+                        .eq('workspace_id', workspaceId).eq('platform', 'facebook');
+                    return NextResponse.json(
+                        { error: 'This Instagram account is already connected in another workspace. Disconnect it there first.' },
+                        { status: 409 }
+                    );
+                }
                 console.error('[SELECT_PAGE] Error inserting Instagram account:', igInsertError);
-                // Don't fail the whole operation, FB page is already saved
+                // Non-conflict error — FB is saved but IG failed
             } else {
+                igInserted = true;
                 console.log(`[SELECT_PAGE] Saved Instagram account: @${selectedPage.ig_username || selectedPage.ig_account_id}`);
             }
         }
@@ -162,7 +201,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             success: true,
             facebook: { name: selectedPage.name, id: selectedPage.id },
-            instagram: selectedPage.ig_account_id
+            instagram: igInserted && selectedPage.ig_account_id
                 ? { id: selectedPage.ig_account_id, username: selectedPage.ig_username }
                 : null,
         });

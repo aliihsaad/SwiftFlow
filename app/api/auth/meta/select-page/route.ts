@@ -64,7 +64,24 @@ export async function POST(request: NextRequest) {
 
         console.log(`[SELECT_PAGE] User selected page "${selectedPage.name}" (${selectedPage.id}) for workspace ${workspaceId}`);
 
-        // Step 3: Delete existing Facebook + Instagram accounts for this workspace
+        // Step 3: Check if this page (or its IG account) is already connected in another workspace
+        const { data: existing } = await supabaseAdmin
+            .from('social_accounts')
+            .select('id, workspace_id')
+            .eq('platform', 'facebook')
+            .eq('account_id', selectedPage.id)
+            .neq('workspace_id', workspaceId)
+            .maybeSingle();
+
+        if (existing) {
+            console.error(`[SELECT_PAGE] Page ${selectedPage.id} already connected in workspace ${existing.workspace_id}`);
+            return NextResponse.json(
+                { error: 'This Facebook page is already connected in another workspace. Disconnect it there first.' },
+                { status: 409 }
+            );
+        }
+
+        // Step 4: Delete existing Facebook + Instagram accounts for this workspace
         // This enforces the 1 FB page + 1 IG per workspace rule
         const { error: deleteError } = await supabaseAdmin
             .from('social_accounts')
@@ -80,7 +97,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Step 4: Insert the selected Facebook page
+        // Step 5: Insert the selected Facebook page
         const fbAccountData = {
             workspace_id: workspaceId,
             platform: 'facebook',
@@ -109,7 +126,7 @@ export async function POST(request: NextRequest) {
 
         console.log(`[SELECT_PAGE] Saved Facebook page: ${selectedPage.name}`);
 
-        // Step 5: If the page has a linked Instagram, insert that too
+        // Step 6: If the page has a linked Instagram, insert that too
         if (selectedPage.ig_account_id) {
             const igAccountData = {
                 workspace_id: workspaceId,
@@ -136,44 +153,6 @@ export async function POST(request: NextRequest) {
                 // Don't fail the whole operation, FB page is already saved
             } else {
                 console.log(`[SELECT_PAGE] Saved Instagram account: @${selectedPage.ig_username || selectedPage.ig_account_id}`);
-            }
-        }
-
-        // Step 6: Update tokens for the same page in other workspaces (token freshness)
-        // When the same page is connected to multiple workspaces via the same Meta app,
-        // the latest token should be used everywhere
-        const { data: otherAccounts } = await supabaseAdmin
-            .from('social_accounts')
-            .select('id, workspace_id')
-            .eq('account_id', selectedPage.id)
-            .eq('platform', 'facebook')
-            .neq('workspace_id', workspaceId);
-
-        if (otherAccounts && otherAccounts.length > 0) {
-            console.log(`[SELECT_PAGE] Updating token for ${otherAccounts.length} other workspace(s) with same page`);
-            for (const other of otherAccounts) {
-                await supabaseAdmin
-                    .from('social_accounts')
-                    .update({
-                        access_token: selectedPage.access_token,
-                        token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-                        updated_at: new Date().toISOString(),
-                    })
-                    .eq('id', other.id);
-
-                // Also update linked IG in that workspace if it exists
-                if (selectedPage.ig_account_id) {
-                    await supabaseAdmin
-                        .from('social_accounts')
-                        .update({
-                            access_token: selectedPage.access_token,
-                            token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq('workspace_id', other.workspace_id)
-                        .eq('platform', 'instagram')
-                        .eq('account_id', selectedPage.ig_account_id);
-                }
             }
         }
 

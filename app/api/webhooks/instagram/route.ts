@@ -49,9 +49,8 @@ export async function GET(request: NextRequest) {
  * Flow:
  * 1. Verify X-Hub-Signature-256 (HMAC SHA256)
  * 2. Parse event payload
- * 3. Resolve workspace/account from event IDs
- * 4. Route to comment or message handler
- * 5. Return 200 immediately
+ * 3. Await processing (resolve account → route to handler)
+ * 4. Return 200 on success, 500 on failure (Meta retries non-2xx)
  */
 export async function POST(request: NextRequest) {
     // Use Instagram-specific app secret for webhook verification (separate from OAuth app secret)
@@ -119,7 +118,7 @@ export async function POST(request: NextRequest) {
 }
 
 // ============================================
-// Event Processing (runs after 200 response)
+// Event Processing (runs synchronously before response)
 // ============================================
 
 async function processWebhookEvents(body: Record<string, unknown>) {

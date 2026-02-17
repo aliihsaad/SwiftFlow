@@ -124,19 +124,50 @@ async function replyToComment(
 }
 
 /**
- * Send a DM to a user via the Instagram Messaging API
- * Uses the page ID (connected_page_id) for sending
+ * Error codes/subcodes that indicate the user can't receive normal DMs
+ * (no prior conversation or messaging window closed).
+ * On these, we fall back to private reply via recipient: { comment_id }.
+ */
+const DM_FALLBACK_CODES = new Set([
+    '551',           // User not available
+    '551:1545041',   // Messaging not possible
+    '200:1545041',   // Permission/window issue
+    '10:2018108',    // Outside messaging window
+    '10:2534022',    // Outside window variant
+    '10:2018278',    // Outside window variant
+]);
+
+function isDmFallbackError(error: { code?: number; error_subcode?: number }): boolean {
+    const key1 = String(error.code);
+    const key2 = `${error.code}:${error.error_subcode}`;
+    return DM_FALLBACK_CODES.has(key1) || DM_FALLBACK_CODES.has(key2);
+}
+
+interface DmResult {
+    success: boolean;
+    messageId?: string;
+    channel?: 'dm' | 'private_reply';
+    error?: string;
+}
+
+/**
+ * Send a DM to a user via the Instagram Messaging API.
+ * Strategy: try normal DM first, fall back to private reply on window errors.
+ *
+ * Normal DM:      recipient: { id: recipientId }
+ * Private reply:  recipient: { comment_id: commentId }
  */
 async function sendDM(
     pageId: string,
     recipientId: string,
+    commentId: string,
     dmConfig: AutomationRow['dm_config'],
     accessToken: string
-): Promise<{ success: boolean; messageId?: string; error?: string }> {
-    try {
-        const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
+): Promise<DmResult> {
+    const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
 
-        // Send opening message
+    // ── Attempt 1: Normal DM with recipient.id ──────────────────────
+    try {
         const openingResponse = await fetch(sendUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -150,76 +181,129 @@ async function sendDM(
         const openingResult = await openingResponse.json();
 
         if (!openingResponse.ok || openingResult.error) {
-            return {
-                success: false,
-                error: openingResult.error?.message || 'Failed to send opening DM'
-            };
-        }
+            const err = openingResult.error || {};
+            console.warn(`[DM] Normal DM failed (code ${err.code}/${err.error_subcode}):`, err.message);
 
-        // Send the link message with button (as a generic template)
-        const linkMessage = dmConfig.link_message
-            ? `${dmConfig.link_message}\n\n${dmConfig.link_url}`
-            : dmConfig.link_url;
-
-        const linkResponse = await fetch(sendUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                recipient: { id: recipientId },
-                message: {
-                    attachment: {
-                        type: "template",
-                        payload: {
-                            template_type: "button",
-                            text: dmConfig.link_message || "Here's your link!",
-                            buttons: [
-                                {
-                                    type: "web_url",
-                                    url: dmConfig.link_url,
-                                    title: dmConfig.button_text
-                                }
-                            ]
-                        }
-                    }
-                },
-                access_token: accessToken,
-            }),
-        });
-
-        const linkResult = await linkResponse.json();
-
-        if (!linkResponse.ok || linkResult.error) {
-            // If button template fails, fall back to plain text with link
-            console.warn('Button template failed, falling back to plain text:', linkResult.error);
-
-            const fallbackResponse = await fetch(sendUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    recipient: { id: recipientId },
-                    message: { text: linkMessage },
-                    access_token: accessToken,
-                }),
-            });
-
-            const fallbackResult = await fallbackResponse.json();
-
-            if (!fallbackResponse.ok || fallbackResult.error) {
-                return {
-                    success: false,
-                    error: fallbackResult.error?.message || 'Failed to send link DM'
-                };
+            // Only fall back on window/recipient errors
+            if (isDmFallbackError(err)) {
+                console.log(`[DM] Falling back to private reply for comment ${commentId}`);
+                return await sendPrivateReply(sendUrl, commentId, dmConfig, accessToken);
             }
+
+            // Token/permission errors — don't retry
+            return { success: false, error: err.message || 'DM failed (non-retryable)' };
         }
 
-        return { success: true, messageId: openingResult.message_id };
+        // Normal DM succeeded — now send the link/button follow-up
+        await sendLinkFollowUp(sendUrl, recipientId, dmConfig, accessToken);
+
+        return { success: true, messageId: openingResult.message_id, channel: 'dm' };
     } catch (error) {
         return { success: false, error: error.message };
     }
 }
 
 /**
- * Process a single automation: fetch comments, match triggers, send DMs
+ * Private reply fallback: send via recipient: { comment_id }.
+ * Only plain text — templates aren't supported in private replies.
+ */
+async function sendPrivateReply(
+    sendUrl: string,
+    commentId: string,
+    dmConfig: AutomationRow['dm_config'],
+    accessToken: string
+): Promise<DmResult> {
+    try {
+        // Combine opening message + link into one plain text message
+        const text = dmConfig.link_url
+            ? `${dmConfig.opening_message}\n\n${dmConfig.link_url}`
+            : dmConfig.opening_message;
+
+        const response = await fetch(sendUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                recipient: { comment_id: commentId },
+                message: { text },
+                access_token: accessToken,
+            }),
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || result.error) {
+            return {
+                success: false,
+                error: result.error?.message || 'Private reply failed',
+            };
+        }
+
+        return { success: true, messageId: result.message_id, channel: 'private_reply' };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Send the link/button follow-up after a successful normal DM.
+ * Tries button template first, falls back to plain text.
+ */
+async function sendLinkFollowUp(
+    sendUrl: string,
+    recipientId: string,
+    dmConfig: AutomationRow['dm_config'],
+    accessToken: string
+): Promise<void> {
+    if (!dmConfig.link_url) return;
+
+    const linkMessage = dmConfig.link_message
+        ? `${dmConfig.link_message}\n\n${dmConfig.link_url}`
+        : dmConfig.link_url;
+
+    // Try button template
+    const linkResponse = await fetch(sendUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            recipient: { id: recipientId },
+            message: {
+                attachment: {
+                    type: 'template',
+                    payload: {
+                        template_type: 'button',
+                        text: dmConfig.link_message || "Here's your link!",
+                        buttons: [{
+                            type: 'web_url',
+                            url: dmConfig.link_url,
+                            title: dmConfig.button_text,
+                        }],
+                    },
+                },
+            },
+            access_token: accessToken,
+        }),
+    });
+
+    const linkResult = await linkResponse.json();
+
+    if (!linkResponse.ok || linkResult.error) {
+        // Fall back to plain text with link
+        console.warn('[DM] Button template failed, sending plain text:', linkResult.error?.message);
+        await fetch(sendUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                recipient: { id: recipientId },
+                message: { text: linkMessage },
+                access_token: accessToken,
+            }),
+        });
+    }
+}
+
+/**
+ * Process a single automation via polling: fetch comments, match triggers, send DMs.
+ * Used as fallback when no webhook_context is available (cron invocations).
  */
 async function processAutomation(
     supabase: any,
@@ -260,115 +344,23 @@ async function processAutomation(
         return stats;
     }
 
-    console.log(`Automation ${automation.id}: Processing ${newComments.length} new comments`);
+    console.log(`Automation ${automation.id}: Processing ${newComments.length} new comments (polling)`);
 
     // 4. Determine the page ID for DM sending
-    // Use connected_page_id from metadata (the Facebook Page linked to the Instagram account)
     const pageId = account.metadata?.connected_page_id || account.account_id;
 
     // 5. Process each new comment
     for (const comment of newComments) {
-        // Check if comment matches trigger
-        if (!doesCommentMatch(comment.text, automation.trigger_config)) {
-            // Mark as handled even though it didn't match (so we don't check it again)
-            await supabase.from('processed_comments').upsert({
-                workspace_id: automation.workspace_id,
-                automation_id: automation.id,
-                comment_id: comment.id
-            }, { onConflict: 'automation_id,comment_id' });
-            continue;
-        }
-
-        stats.processed++;
-
-        // Create a log entry
-        const { data: logEntry, error: logError } = await supabase
-            .from('automation_logs')
-            .insert({
-                automation_id: automation.id,
-                trigger_comment_id: comment.id,
-                commenter_id: comment.from.id,
-                commenter_username: comment.from.username || null,
-                status: 'processing'
-            })
-            .select()
-            .single();
-
-        if (logError) {
-            console.error(`Automation ${automation.id}: Failed to create log:`, logError);
-            stats.errors++;
-            continue;
-        }
-
-        let commentReplySent = false;
-        let dmSent = false;
-        let errorMessage: string | null = null;
-
-        try {
-            // 5a. Reply to comment (if enabled)
-            if (automation.comment_reply_config.enabled && automation.comment_reply_config.messages.length > 0) {
-                // Pick a random reply message
-                const replyMessage = automation.comment_reply_config.messages[
-                    Math.floor(Math.random() * automation.comment_reply_config.messages.length)
-                ];
-
-                const replyResult = await replyToComment(
-                    comment.id,
-                    replyMessage,
-                    account.access_token
-                );
-
-                commentReplySent = replyResult.success;
-                if (!replyResult.success) {
-                    console.warn(`Automation ${automation.id}: Comment reply failed:`, replyResult.error);
-                }
-            }
-
-            // 5b. Send DM
-            const dmResult = await sendDM(
-                pageId,
-                comment.from.id,
-                automation.dm_config,
-                account.access_token
-            );
-
-            dmSent = dmResult.success;
-            if (!dmResult.success) {
-                errorMessage = dmResult.error || 'DM sending failed';
-                console.warn(`Automation ${automation.id}: DM failed for ${comment.from.id}:`, dmResult.error);
-            }
-
-            if (dmSent) {
-                stats.dmsSent++;
-            }
-        } catch (error) {
-            errorMessage = error.message;
-            stats.errors++;
-            console.error(`Automation ${automation.id}: Error processing comment ${comment.id}:`, error);
-        }
-
-        // Update the log entry
-        await supabase
-            .from('automation_logs')
-            .update({
-                comment_reply_sent: commentReplySent,
-                dm_sent: dmSent,
-                status: dmSent ? 'completed' : (errorMessage ? 'failed' : 'completed'),
-                error_message: errorMessage
-            })
-            .eq('id', logEntry.id);
-
-        // Mark comment as handled
-        await supabase.from('processed_comments').upsert({
-            workspace_id: automation.workspace_id,
-            automation_id: automation.id,
-            comment_id: comment.id
-        }, { onConflict: 'automation_id,comment_id' });
+        const result = await processSingleComment(
+            supabase, automation, comment, pageId, account.access_token
+        );
+        stats.processed += result.processed;
+        stats.dmsSent += result.dmsSent;
+        stats.errors += result.errors;
     }
 
     // 6. Update automation stats
     if (stats.processed > 0 || stats.dmsSent > 0) {
-        // Fetch current stats and increment
         const { data: currentAutomation } = await supabase
             .from('automations')
             .select('total_triggered, total_dms_sent')
@@ -390,6 +382,219 @@ async function processAutomation(
     return stats;
 }
 
+/**
+ * Process a single comment against an automation: match trigger, reply, DM.
+ * Shared by both the webhook fast path and the polling path.
+ */
+async function processSingleComment(
+    supabase: any,
+    automation: AutomationRow,
+    comment: CommentData,
+    pageId: string,
+    accessToken: string
+): Promise<{ processed: number; dmsSent: number; errors: number }> {
+    const stats = { processed: 0, dmsSent: 0, errors: 0 };
+
+    // Check if comment matches trigger
+    if (!doesCommentMatch(comment.text, automation.trigger_config)) {
+        // Mark as handled so we don't check again
+        await supabase.from('processed_comments').upsert({
+            workspace_id: automation.workspace_id,
+            automation_id: automation.id,
+            comment_id: comment.id
+        }, { onConflict: 'automation_id,comment_id' });
+        return stats;
+    }
+
+    stats.processed++;
+
+    // Create a log entry
+    const { data: logEntry, error: logError } = await supabase
+        .from('automation_logs')
+        .insert({
+            automation_id: automation.id,
+            trigger_comment_id: comment.id,
+            commenter_id: comment.from.id,
+            commenter_username: comment.from.username || null,
+            status: 'processing'
+        })
+        .select()
+        .single();
+
+    if (logError) {
+        console.error(`Automation ${automation.id}: Failed to create log:`, logError);
+        stats.errors++;
+        return stats;
+    }
+
+    let commentReplySent = false;
+    let dmSent = false;
+    let dmChannel: string | null = null;
+    let errorMessage: string | null = null;
+
+    try {
+        // Reply to comment (if enabled)
+        if (automation.comment_reply_config.enabled && automation.comment_reply_config.messages.length > 0) {
+            const replyMessage = automation.comment_reply_config.messages[
+                Math.floor(Math.random() * automation.comment_reply_config.messages.length)
+            ];
+
+            const replyResult = await replyToComment(comment.id, replyMessage, accessToken);
+            commentReplySent = replyResult.success;
+            if (!replyResult.success) {
+                console.warn(`Automation ${automation.id}: Comment reply failed:`, replyResult.error);
+            }
+        }
+
+        // Send DM (with private reply fallback)
+        const dmResult = await sendDM(
+            pageId,
+            comment.from.id,
+            comment.id,
+            automation.dm_config,
+            accessToken
+        );
+
+        dmSent = dmResult.success;
+        dmChannel = dmResult.channel || null;
+        if (!dmResult.success) {
+            errorMessage = dmResult.error || 'DM sending failed';
+            console.warn(`Automation ${automation.id}: DM failed for ${comment.from.id}:`, dmResult.error);
+        }
+
+        if (dmSent) stats.dmsSent++;
+    } catch (error) {
+        errorMessage = error.message;
+        stats.errors++;
+        console.error(`Automation ${automation.id}: Error processing comment ${comment.id}:`, error);
+    }
+
+    // Update the log entry
+    await supabase
+        .from('automation_logs')
+        .update({
+            comment_reply_sent: commentReplySent,
+            dm_sent: dmSent,
+            dm_channel: dmChannel,
+            status: dmSent ? 'completed' : (errorMessage ? 'failed' : 'completed'),
+            error_message: errorMessage
+        })
+        .eq('id', logEntry.id);
+
+    // Mark comment as handled
+    await supabase.from('processed_comments').upsert({
+        workspace_id: automation.workspace_id,
+        automation_id: automation.id,
+        comment_id: comment.id
+    }, { onConflict: 'automation_id,comment_id' });
+
+    return stats;
+}
+
+// ============================================
+// Webhook fast path
+// ============================================
+
+interface WebhookContext {
+    comment_id: string;
+    post_id: string;
+    commenter_id: string;
+    commenter_username?: string;
+    comment_text: string;
+    timestamp?: string;
+}
+
+/**
+ * Process a single comment received directly from the webhook,
+ * skipping the Graph API poll entirely.
+ */
+async function processWebhookComment(
+    supabase: any,
+    webhookCtx: WebhookContext,
+    workspaceId: string
+): Promise<{ processed: number; dmsSent: number; errors: number }> {
+    const totalStats = { processed: 0, dmsSent: 0, errors: 0 };
+
+    // Find active automations for this specific post + workspace
+    const { data: automations, error } = await supabase
+        .from('automations')
+        .select(`
+            *,
+            social_accounts (
+                id, account_id, access_token, platform, metadata
+            )
+        `)
+        .eq('is_active', true)
+        .eq('workspace_id', workspaceId)
+        .eq('platform_post_id', webhookCtx.post_id);
+
+    if (error) {
+        console.error('[WEBHOOK_FAST] Failed to fetch automations:', error);
+        return totalStats;
+    }
+
+    if (!automations || automations.length === 0) {
+        console.log(`[WEBHOOK_FAST] No active automations for post ${webhookCtx.post_id}`);
+        return totalStats;
+    }
+
+    console.log(`[WEBHOOK_FAST] Found ${automations.length} automation(s) for post ${webhookCtx.post_id}`);
+
+    // Build a CommentData object from the webhook context
+    const comment: CommentData = {
+        id: webhookCtx.comment_id,
+        text: webhookCtx.comment_text,
+        from: {
+            id: webhookCtx.commenter_id,
+            username: webhookCtx.commenter_username,
+        },
+        timestamp: webhookCtx.timestamp || new Date().toISOString(),
+    };
+
+    for (const automation of automations) {
+        const auto = automation as AutomationRow;
+        const account = auto.social_accounts;
+
+        if (!account?.access_token) {
+            console.error(`[WEBHOOK_FAST] Automation ${auto.id}: No access token`);
+            totalStats.errors++;
+            continue;
+        }
+
+        const pageId = account.metadata?.connected_page_id || account.account_id;
+
+        const result = await processSingleComment(
+            supabase, auto, comment, pageId, account.access_token
+        );
+
+        totalStats.processed += result.processed;
+        totalStats.dmsSent += result.dmsSent;
+        totalStats.errors += result.errors;
+
+        // Update automation stats
+        if (result.processed > 0 || result.dmsSent > 0) {
+            const { data: current } = await supabase
+                .from('automations')
+                .select('total_triggered, total_dms_sent')
+                .eq('id', auto.id)
+                .single();
+
+            if (current) {
+                await supabase
+                    .from('automations')
+                    .update({
+                        total_triggered: (current.total_triggered || 0) + result.processed,
+                        total_dms_sent: (current.total_dms_sent || 0) + result.dmsSent,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', auto.id);
+            }
+        }
+    }
+
+    return totalStats;
+}
+
 serve(async (req) => {
     // Handle CORS
     if (req.method === 'OPTIONS') {
@@ -408,19 +613,48 @@ serve(async (req) => {
             },
         });
 
-        // Parse optional body for workspace filtering
+        // Parse optional body for workspace filtering and webhook context
         let targetWorkspaceId: string | null = null;
         let targetAutomationId: string | null = null;
+        let webhookContext: WebhookContext | null = null;
 
         if (req.method === 'POST') {
             try {
                 const body = await req.json();
                 targetWorkspaceId = body.workspace_id || null;
                 targetAutomationId = body.automation_id || null;
+
+                // Check for webhook context (comment data from the webhook handler)
+                if (body.webhook_context?.comment_id && body.webhook_context?.post_id) {
+                    webhookContext = body.webhook_context as WebhookContext;
+                }
             } catch {
                 // No body or invalid JSON, process all
             }
         }
+
+        // ── Webhook fast path ─────────────────────────────────────────
+        // When invoked from the webhook handler with comment data,
+        // skip polling and process the single comment directly.
+        if (webhookContext && targetWorkspaceId) {
+            console.log(`[WEBHOOK_FAST] Processing comment ${webhookContext.comment_id} for workspace ${targetWorkspaceId}`);
+            const stats = await processWebhookComment(supabase, webhookContext, targetWorkspaceId);
+
+            return new Response(
+                JSON.stringify({
+                    success: true,
+                    message: `Webhook fast path: processed comment ${webhookContext.comment_id}`,
+                    path: 'webhook',
+                    stats: { total: 1, ...stats }
+                }),
+                {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                    status: 200
+                }
+            );
+        }
+
+        // ── Polling path (cron / manual invocation) ──────────────────
 
         // Fetch active automations with their social account details
         let query = supabase

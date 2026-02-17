@@ -221,6 +221,20 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
         setLocalPosts(posts)
     }, [posts])
 
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8,
+            },
+        }),
+        useSensor(TouchSensor, {
+            activationConstraint: {
+                delay: 250,
+                tolerance: 5,
+            },
+        })
+    )
+
     // Don't render calendar until client-side date is set
     if (!currentDate || !today) {
         return (
@@ -239,20 +253,6 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
 
     const currentYear = currentDate.getFullYear()
     const currentMonth = currentDate.getMonth()
-
-    const sensors = useSensors(
-        useSensor(PointerSensor, {
-            activationConstraint: {
-                distance: 8,
-            },
-        }),
-        useSensor(TouchSensor, {
-            activationConstraint: {
-                delay: 250,
-                tolerance: 5,
-            },
-        })
-    )
 
     // Get first day of month (0-6, Sun-Sat)
     const firstDay = new Date(currentYear, currentMonth, 1).getDay()

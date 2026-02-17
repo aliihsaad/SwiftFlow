@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
+/** Build a deterministic key from a payload object, falling back to a hash when no stable ID exists */
+function stableEventKey(prefix: string, value: Record<string, unknown> | undefined): string {
+    const id = value?.id as string | undefined;
+    if (id) return `${prefix}:${id}`;
+    // Hash the full payload so retries with the same body produce the same key
+    const hash = crypto.createHash('sha256').update(JSON.stringify(value ?? {})).digest('hex').slice(0, 16);
+    return `${prefix}:hash_${hash}`;
+}
+
 // Initialize Supabase Admin Client
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -84,7 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 2: Parse the event payload
-    let body: any;
+    let body: Record<string, unknown>;
     try {
         body = JSON.parse(rawBody);
     } catch {
@@ -94,14 +103,16 @@ export async function POST(request: NextRequest) {
 
     console.log('[WEBHOOK] Event received:', JSON.stringify(body).substring(0, 1000));
     console.log('[WEBHOOK] Object type:', body.object);
-    console.log('[WEBHOOK] Entries:', body.entry?.length || 0);
+    console.log('[WEBHOOK] Entries:', (body.entry as unknown[])?.length || 0);
 
     // Process events synchronously — Vercel serverless terminates after response,
     // so we MUST await processing before returning.
+    // Return non-2xx on failure so Meta retries the webhook delivery.
     try {
         await processWebhookEvents(body);
     } catch (err) {
         console.error('[WEBHOOK] Error processing events:', err);
+        return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
     }
 
     return NextResponse.json({ received: true }, { status: 200 });
@@ -131,7 +142,7 @@ async function processWebhookEvents(body: any) {
 
         // Process changes within this entry
         for (const change of entry.changes || []) {
-            const eventKey = `${entryId}:${change.field}:${change.value?.id || Date.now()}`;
+            const eventKey = stableEventKey(`${entryId}:${change.field}`, change.value as Record<string, unknown>);
 
             // Idempotency check
             const isDuplicate = await checkIdempotency(eventKey, account.workspace_id, change.field);
@@ -157,7 +168,7 @@ async function processWebhookEvents(body: any) {
 
         // Also handle direct messaging entries (messaging array, not changes)
         for (const messaging of entry.messaging || []) {
-            const eventKey = `${entryId}:messaging:${messaging.message?.mid || Date.now()}`;
+            const eventKey = stableEventKey(`${entryId}:messaging`, { id: messaging.message?.mid, ...messaging } as Record<string, unknown>);
 
             const isDuplicate = await checkIdempotency(eventKey, account.workspace_id, 'messaging');
             if (isDuplicate) {

@@ -115,55 +115,40 @@ export default function MessagesPage() {
         fetcher,
         {
             revalidateOnFocus: false,
-            refreshInterval: 10000,
+            refreshInterval: 30000, // 30s fallback — webhooks handle real-time
         }
     )
 
     // Subscribe to Supabase Realtime for webhook-triggered message updates
-    const channelRef = useRef<any>(null)
+    // Uses the workspace ID from the conversations API response (active workspace)
+    const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
     const mutateConversationsRef = useRef(mutateConversations)
     const mutateMessagesRef = useRef(mutateMessages)
     mutateConversationsRef.current = mutateConversations
     mutateMessagesRef.current = mutateMessages
 
+    const workspaceId = conversationsData?.workspaceId
+
     useEffect(() => {
-        let cancelled = false
+        if (!workspaceId) return
 
-        const setupRealtime = async () => {
-            const supabase = createClient()
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user || cancelled) return
+        const supabase = createClient()
 
-            const { data } = await supabase
-                .from('workspace_members')
-                .select('workspace_id')
-                .eq('user_id', user.id)
-                .limit(1)
-                .single()
+        // Subscribe to webhook broadcast channel for the active workspace
+        const channel = supabase.channel(`messages:${workspaceId}`)
+        channel.on('broadcast', { event: 'new_message' }, () => {
+            console.log('[REALTIME] New message event — refreshing...')
+            mutateConversationsRef.current()
+            mutateMessagesRef.current()
+        }).subscribe()
 
-            if (!data?.workspace_id || cancelled) return
-
-            // Subscribe to webhook broadcast channel
-            const channel = supabase.channel(`messages:${data.workspace_id}`)
-            channel.on('broadcast', { event: 'new_message' }, () => {
-                console.log('[REALTIME] New message event — refreshing...')
-                mutateConversationsRef.current()
-                mutateMessagesRef.current()
-            }).subscribe()
-
-            channelRef.current = channel
-        }
-
-        setupRealtime()
+        channelRef.current = channel
 
         return () => {
-            cancelled = true
-            if (channelRef.current) {
-                const supabase = createClient()
-                supabase.removeChannel(channelRef.current)
-            }
+            supabase.removeChannel(channel)
+            channelRef.current = null
         }
-    }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [workspaceId])
 
     const conversations = conversationsData?.conversations || []
     const noAccount = conversationsData?.error && !conversations.length

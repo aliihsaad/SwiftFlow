@@ -122,14 +122,15 @@ export async function POST(request: NextRequest) {
 // Event Processing (runs after 200 response)
 // ============================================
 
-async function processWebhookEvents(body: any) {
+async function processWebhookEvents(body: Record<string, unknown>) {
     if (body.object !== 'instagram' && body.object !== 'page') {
         console.log(`[WEBHOOK] Ignoring object type: ${body.object}`);
         return;
     }
 
-    for (const entry of body.entry || []) {
-        const entryId = entry.id; // Page ID or IG Business Account ID
+    const entries = (body.entry || []) as Record<string, unknown>[];
+    for (const entry of entries) {
+        const entryId = entry.id as string; // Page ID or IG Business Account ID
 
         // Resolve which workspace/account this event belongs to
         const account = await resolveAccount(entryId);
@@ -141,22 +142,23 @@ async function processWebhookEvents(body: any) {
         console.log(`[WEBHOOK] Resolved account: workspace=${account.workspace_id}, platform=${account.platform}`);
 
         // Process changes within this entry
-        for (const change of entry.changes || []) {
-            const eventKey = stableEventKey(`${entryId}:${change.field}`, change.value as Record<string, unknown>);
+        const changes = (entry.changes || []) as Record<string, unknown>[];
+        for (const change of changes) {
+            const eventKey = stableEventKey(`${entryId}:${change.field as string}`, change.value as Record<string, unknown>);
 
             // Idempotency check
-            const isDuplicate = await checkIdempotency(eventKey, account.workspace_id, change.field);
+            const isDuplicate = await checkIdempotency(eventKey, account.workspace_id, change.field as string);
             if (isDuplicate) {
                 console.log(`[WEBHOOK] Duplicate event skipped: ${eventKey}`);
                 continue;
             }
 
-            switch (change.field) {
+            switch (change.field as string) {
                 case 'comments':
-                    await handleCommentEvent(change.value, account);
+                    await handleCommentEvent(change.value as Record<string, unknown>, account);
                     break;
                 case 'messages':
-                    await handleMessageEvent(change.value, account);
+                    await handleMessageEvent(change.value as Record<string, unknown>, account);
                     break;
                 case 'mentions':
                     console.log(`[WEBHOOK] Mention event (not processed):`, change.value);
@@ -167,8 +169,10 @@ async function processWebhookEvents(body: any) {
         }
 
         // Also handle direct messaging entries (messaging array, not changes)
-        for (const messaging of entry.messaging || []) {
-            const eventKey = stableEventKey(`${entryId}:messaging`, { id: messaging.message?.mid, ...messaging } as Record<string, unknown>);
+        const messagingEntries = (entry.messaging || []) as Record<string, unknown>[];
+        for (const messaging of messagingEntries) {
+            const messagePayload = messaging.message as Record<string, unknown> | undefined;
+            const eventKey = stableEventKey(`${entryId}:messaging`, { id: messagePayload?.mid, ...messaging });
 
             const isDuplicate = await checkIdempotency(eventKey, account.workspace_id, 'messaging');
             if (isDuplicate) {
@@ -191,7 +195,7 @@ interface ResolvedAccount {
     account_id: string;
     platform: string;
     access_token: string;
-    metadata: Record<string, any> | null;
+    metadata: Record<string, unknown> | null;
 }
 
 async function resolveAccount(entryId: string): Promise<ResolvedAccount | null> {
@@ -267,67 +271,67 @@ async function checkIdempotency(eventKey: string, workspaceId: string, eventType
 // Comment Handler
 // ============================================
 
-async function handleCommentEvent(value: any, account: ResolvedAccount) {
+async function handleCommentEvent(value: Record<string, unknown>, account: ResolvedAccount) {
+    const media = value?.media as Record<string, unknown> | undefined;
+    const from = value?.from as Record<string, unknown> | undefined;
     console.log('[WEBHOOK] Comment event:', {
         commentId: value?.id,
-        postId: value?.media?.id,
-        from: value?.from?.username,
-        text: value?.text?.substring(0, 50),
+        postId: media?.id,
+        from: from?.username,
+        text: typeof value?.text === 'string' ? value.text.substring(0, 50) : undefined,
     });
 
-    try {
-        // Trigger the automation engine for this specific workspace + post
-        const { data, error } = await supabaseAdmin.functions.invoke('process-automations', {
-            body: {
-                workspace_id: account.workspace_id,
-                // Pass webhook context so the Edge Function can target the specific post
-                webhook_context: {
-                    comment_id: value?.id,
-                    post_id: value?.media?.id,
-                    commenter_id: value?.from?.id,
-                    commenter_username: value?.from?.username,
-                    comment_text: value?.text,
-                    timestamp: value?.created_time,
-                },
+    // Trigger the automation engine for this specific workspace + post
+    const { data, error } = await supabaseAdmin.functions.invoke('process-automations', {
+        body: {
+            workspace_id: account.workspace_id,
+            // Pass webhook context so the Edge Function can target the specific post
+            webhook_context: {
+                comment_id: value?.id,
+                post_id: media?.id,
+                commenter_id: from?.id,
+                commenter_username: from?.username,
+                comment_text: value?.text,
+                timestamp: value?.created_time,
             },
-        });
+        },
+    });
 
-        if (error) {
-            console.error('[WEBHOOK] Automation trigger error:', error);
-        } else {
-            console.log('[WEBHOOK] Automation triggered:', data);
-        }
-    } catch (err) {
-        console.error('[WEBHOOK] Failed to trigger automation:', err);
+    if (error) {
+        console.error('[WEBHOOK] Automation trigger error:', error);
+        throw new Error(`Automation trigger failed: ${error.message || error}`);
     }
+
+    console.log('[WEBHOOK] Automation triggered:', data);
 }
 
 // ============================================
 // Message Handler
 // ============================================
 
-async function handleMessageEvent(value: any, account: ResolvedAccount) {
+async function handleMessageEvent(value: Record<string, unknown>, account: ResolvedAccount) {
+    const sender = value?.sender as Record<string, unknown> | undefined;
+    const from = value?.from as Record<string, unknown> | undefined;
+    const message = value?.message as Record<string, unknown> | undefined;
     console.log('[WEBHOOK] Message event:', {
-        senderId: value?.sender?.id || value?.from?.id,
-        text: value?.message?.text?.substring(0, 50) || value?.text?.substring(0, 50),
+        senderId: sender?.id || from?.id,
+        text: typeof message?.text === 'string'
+            ? message.text.substring(0, 50)
+            : typeof value?.text === 'string' ? value.text.substring(0, 50) : undefined,
     });
 
-    try {
-        // Broadcast via Supabase Realtime to refresh the client's message list
-        const channel = supabaseAdmin.channel(`messages:${account.workspace_id}`);
-        await channel.send({
-            type: 'broadcast',
-            event: 'new_message',
-            payload: {
-                workspace_id: account.workspace_id,
-                platform: account.platform,
-                sender_id: value?.sender?.id || value?.from?.id,
-                timestamp: new Date().toISOString(),
-            },
-        });
+    // Broadcast via Supabase Realtime to refresh the client's message list
+    const channel = supabaseAdmin.channel(`messages:${account.workspace_id}`);
+    await channel.send({
+        type: 'broadcast',
+        event: 'new_message',
+        payload: {
+            workspace_id: account.workspace_id,
+            platform: account.platform,
+            sender_id: (sender?.id || from?.id) as string | undefined,
+            timestamp: new Date().toISOString(),
+        },
+    });
 
-        console.log('[WEBHOOK] Message broadcast sent to channel:', `messages:${account.workspace_id}`);
-    } catch (err) {
-        console.error('[WEBHOOK] Failed to broadcast message event:', err);
-    }
+    console.log('[WEBHOOK] Message broadcast sent to channel:', `messages:${account.workspace_id}`);
 }

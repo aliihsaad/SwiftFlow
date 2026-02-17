@@ -105,7 +105,6 @@ export default function MessagesPage() {
     // Fetch messages for selected conversation
     const {
         data: messagesData,
-        error: messagesError,
         isLoading: messagesLoading,
         mutate: mutateMessages
     } = useSWR<MessagesResponse>(
@@ -180,11 +179,12 @@ export default function MessagesPage() {
 
             mutateMessages()
             mutateConversations()
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Failed to send message.'
             console.error('Send message error:', error)
             toast({
                 title: "Send failed",
-                description: error.message || "Failed to send message.",
+                description: message,
                 variant: "destructive",
             })
             throw error

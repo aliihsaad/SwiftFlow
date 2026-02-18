@@ -319,17 +319,28 @@ async function handleMessageEvent(value: Record<string, unknown>, account: Resol
             : typeof value?.text === 'string' ? value.text.substring(0, 50) : undefined,
     });
 
-    // Broadcast via Supabase Realtime to refresh the client's message list
-    const channel = supabaseAdmin.channel(`messages:${account.workspace_id}`);
-    await channel.send({
-        type: 'broadcast',
-        event: 'new_message',
-        payload: {
-            workspace_id: account.workspace_id,
-            platform: account.platform,
-            sender_id: (sender?.id || from?.id) as string | undefined,
-            timestamp: new Date().toISOString(),
+    // Broadcast via Supabase Realtime (HTTP endpoint) to refresh the client's message list
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+    const supabaseKey = process.env.SUPABASE_SERVICE_KEY!;
+    await fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
         },
+        body: JSON.stringify({
+            messages: [{
+                topic: `realtime:messages:${account.workspace_id}`,
+                event: 'new_message',
+                payload: {
+                    workspace_id: account.workspace_id,
+                    platform: account.platform,
+                    sender_id: (sender?.id || from?.id) as string | undefined,
+                    timestamp: new Date().toISOString(),
+                },
+            }],
+        }),
     });
 
     console.log('[WEBHOOK] Message broadcast sent to channel:', `messages:${account.workspace_id}`);

@@ -349,8 +349,11 @@ async function processAutomation(
     // 4. Determine the page ID for DM sending
     const pageId = account.metadata?.connected_page_id || account.account_id;
 
-    // 5. Process each new comment
+    // 5. Process each new comment (skip self-comments from the page/bot)
     for (const comment of newComments) {
+        if (comment.from.id === account.account_id || comment.from.id === pageId) {
+            continue;
+        }
         const result = await processSingleComment(
             supabase, automation, comment, pageId, account.access_token
         );
@@ -394,6 +397,19 @@ async function processSingleComment(
     accessToken: string
 ): Promise<{ processed: number; dmsSent: number; errors: number }> {
     const stats = { processed: 0, dmsSent: 0, errors: 0 };
+
+    // Dedup: skip if this comment was already processed for this automation
+    const { data: existing } = await supabase
+        .from('processed_comments')
+        .select('comment_id')
+        .eq('automation_id', automation.id)
+        .eq('comment_id', comment.id)
+        .maybeSingle();
+
+    if (existing) {
+        console.log(`Automation ${automation.id}: Comment ${comment.id} already processed, skipping`);
+        return stats;
+    }
 
     // Check if comment matches trigger
     if (!doesCommentMatch(comment.text, automation.trigger_config)) {
@@ -561,7 +577,12 @@ async function processWebhookComment(
             continue;
         }
 
+        // Skip comments from the page/account itself (bot's own replies)
         const pageId = account.metadata?.connected_page_id || account.account_id;
+        if (webhookCtx.commenter_id === account.account_id || webhookCtx.commenter_id === pageId) {
+            console.log(`[WEBHOOK_FAST] Skipping self-comment from account ${webhookCtx.commenter_id}`);
+            continue;
+        }
 
         const result = await processSingleComment(
             supabase, auto, comment, pageId, account.access_token

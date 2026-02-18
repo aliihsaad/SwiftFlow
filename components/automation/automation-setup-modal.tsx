@@ -122,8 +122,9 @@ export function AutomationSetupModal({
                 }
                 return true
             case 'configure-dm':
-                return dmConfig.opening_message.trim() !== '' &&
-                    dmConfig.button_text.trim() !== '' &&
+                // DM is optional — if user fills opening_message, require the rest too
+                if (dmConfig.opening_message.trim() === '') return true
+                return dmConfig.button_text.trim() !== '' &&
                     dmConfig.link_url.trim() !== ''
             case 'review':
                 return name.trim() !== ''
@@ -151,6 +152,7 @@ export function AutomationSetupModal({
 
         setIsSaving(true)
         try {
+            const dmEnabled = dmConfig.opening_message.trim() !== ''
             const payload: CreateAutomationPayload = {
                 social_account_id: selectedAccountId,
                 name: name.trim(),
@@ -159,7 +161,12 @@ export function AutomationSetupModal({
                 post_caption: selectedPost.caption,
                 trigger_config: triggerConfig,
                 comment_reply_config: commentReplyConfig,
-                dm_config: dmConfig
+                dm_config: dmEnabled ? dmConfig : {
+                    opening_message: '',
+                    button_text: '',
+                    link_url: '',
+                    link_message: ''
+                }
             }
 
             const url = automation
@@ -338,15 +345,15 @@ export function AutomationSetupModal({
                                     </div>
 
                                     <div className="flex flex-col sm:flex-row sm:justify-between py-2 border-b gap-1">
-                                        <span className="text-muted-foreground">DM Link</span>
+                                        <span className="text-muted-foreground">DM</span>
                                         <span className="font-medium truncate sm:max-w-xs sm:text-right">
-                                            {dmConfig.link_url}
+                                            {dmConfig.opening_message.trim() ? dmConfig.link_url : 'Disabled'}
                                         </span>
                                     </div>
                                 </div>
                             </div>
 
-                            <DMPreview config={dmConfig} />
+                            {dmConfig.opening_message.trim() && <DMPreview config={dmConfig} />}
                         </div>
                     )}
                 </div>

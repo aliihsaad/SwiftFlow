@@ -22,6 +22,7 @@ export function DMConfigPanel({ config, onChange }: DMConfigPanelProps) {
                 <h3 className="text-lg font-medium mb-2">DM Message</h3>
                 <p className="text-sm text-muted-foreground">
                     Configure the direct message that will be sent to users.
+                    Leave the opening message empty to skip DMs and only reply to comments.
                 </p>
             </div>
 
@@ -96,9 +97,14 @@ export function DMConfigPanel({ config, onChange }: DMConfigPanelProps) {
             </div>
 
             {/* Validation */}
-            {(!config.opening_message.trim() || !config.button_text.trim() || !config.link_url.trim()) && (
+            {config.opening_message.trim() && (!config.button_text.trim() || !config.link_url.trim()) && (
                 <div className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3">
-                    Please fill in the opening message, button text, and link URL to continue.
+                    Please fill in the button text and link URL, or clear the opening message to skip DMs.
+                </div>
+            )}
+            {!config.opening_message.trim() && (
+                <div className="text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3">
+                    DM is disabled. This automation will only reply to comments.
                 </div>
             )}
         </div>

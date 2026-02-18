@@ -462,20 +462,22 @@ async function processSingleComment(
             }
         }
 
-        // Send DM (with private reply fallback)
-        const dmResult = await sendDM(
-            pageId,
-            comment.from.id,
-            comment.id,
-            automation.dm_config,
-            accessToken
-        );
+        // Send DM (only if dm_config has content)
+        if (automation.dm_config?.opening_message) {
+            const dmResult = await sendDM(
+                pageId,
+                comment.from.id,
+                comment.id,
+                automation.dm_config,
+                accessToken
+            );
 
-        dmSent = dmResult.success;
-        dmChannel = dmResult.channel || null;
-        if (!dmResult.success) {
-            errorMessage = dmResult.error || 'DM sending failed';
-            console.warn(`Automation ${automation.id}: DM failed for ${comment.from.id}:`, dmResult.error);
+            dmSent = dmResult.success;
+            dmChannel = dmResult.channel || null;
+            if (!dmResult.success) {
+                errorMessage = dmResult.error || 'DM sending failed';
+                console.warn(`Automation ${automation.id}: DM failed for ${comment.from.id}:`, dmResult.error);
+            }
         }
 
         if (dmSent) stats.dmsSent++;

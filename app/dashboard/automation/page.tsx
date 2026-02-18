@@ -126,8 +126,8 @@ export default function AutomationPage() {
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <AutomationCard
                         icon={MessageCircle}
-                        title="Auto-DM Links from Comments"
-                        description="Automatically send a DM with a link to users who comment on your posts. Great for lead magnets, special offers, or exclusive content."
+                        title="Comment Automation"
+                        description="Automatically reply to comments and optionally send a DM with a link. Great for engagement, lead magnets, and exclusive content."
                         onClick={handleCreateNew}
                         badge="Popular"
                     />

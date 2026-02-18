@@ -208,10 +208,10 @@ export function AutomationSetupModal({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-w-4xl w-full p-0 gap-0 overflow-hidden bg-white dark:bg-zinc-900 max-h-dvh sm:max-h-[90vh] h-full sm:h-auto flex flex-col">
                 <DialogTitle className="sr-only">
-                    {automation ? 'Edit Automation' : 'Create Auto-DM Automation'}
+                    {automation ? 'Edit Automation' : 'Create Automation'}
                 </DialogTitle>
                 <DialogDescription className="sr-only">
-                    Set up an automation to automatically send DMs to users who comment on your posts.
+                    Set up an automation to automatically reply to comments or send DMs to users who comment on your posts.
                 </DialogDescription>
 
                 {/* Header with Steps */}
@@ -219,7 +219,7 @@ export function AutomationSetupModal({
                     <div className="flex items-center gap-2 mb-3 sm:mb-4">
                         <Zap className="h-5 w-5 text-yellow-500" />
                         <h2 className="font-semibold text-sm sm:text-base">
-                            {automation ? 'Edit Automation' : 'Create Auto-DM Automation'}
+                            {automation ? 'Edit Automation' : 'Create Automation'}
                         </h2>
                     </div>
 

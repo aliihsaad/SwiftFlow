@@ -90,8 +90,13 @@ export async function PUT(
             trigger_config,
             comment_reply_config,
             dm_config,
-            is_active
+            is_active,
+            workflow_graph,
+            editor_version,
         } = body;
+        const graphTriggerNode = workflow_graph?.nodes?.find((n: any) => n?.data?.type?.startsWith?.('trigger_'));
+        const graphTriggerType = graphTriggerNode?.data?.type as string | undefined;
+        const graphTriggerConfig = (graphTriggerNode?.data?.config || {}) as Record<string, any>;
 
         // Build update object
         const updateData: Record<string, any> = {
@@ -103,6 +108,57 @@ export async function PUT(
         if (comment_reply_config !== undefined) updateData.comment_reply_config = comment_reply_config;
         if (dm_config !== undefined) updateData.dm_config = dm_config;
         if (is_active !== undefined) updateData.is_active = is_active;
+        if (workflow_graph !== undefined) updateData.workflow_graph = workflow_graph;
+        if (editor_version !== undefined) updateData.editor_version = editor_version;
+
+        // Keep legacy account/post columns in sync for canvas automations.
+        if (workflow_graph !== undefined) {
+            if (!graphTriggerNode) {
+                return NextResponse.json(
+                    { error: 'Canvas workflow must include a trigger node' },
+                    { status: 400 }
+                );
+            }
+
+            const resolvedAccountId = graphTriggerConfig.social_account_id as string | undefined;
+            if (!resolvedAccountId) {
+                return NextResponse.json(
+                    { error: 'Canvas trigger must include social_account_id' },
+                    { status: 400 }
+                );
+            }
+
+            const { data: account, error: accountError } = await supabase
+                .from('social_accounts')
+                .select('id')
+                .eq('id', resolvedAccountId)
+                .eq('workspace_id', activeWorkspace.id)
+                .single();
+
+            if (accountError || !account) {
+                return NextResponse.json(
+                    { error: 'Invalid social account for this workspace' },
+                    { status: 400 }
+                );
+            }
+
+            updateData.social_account_id = resolvedAccountId;
+
+            if (graphTriggerType === 'trigger_new_comment') {
+                if (!graphTriggerConfig.post_id) {
+                    return NextResponse.json(
+                        { error: 'Comment trigger requires post_id' },
+                        { status: 400 }
+                    );
+                }
+
+                updateData.platform_post_id = graphTriggerConfig.post_id;
+                updateData.post_thumbnail_url = graphTriggerConfig.post_thumbnail_url || null;
+                updateData.post_caption = graphTriggerConfig.post_caption || null;
+            } else {
+                updateData.platform_post_id = '__canvas__';
+            }
+        }
 
         const { data: automation, error: updateError } = await supabase
             .from('automations')

@@ -30,7 +30,8 @@ import {
     Edit2,
     Trash2,
     Hash,
-    Zap
+    Zap,
+    Workflow,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -95,20 +96,27 @@ export function ActiveAutomationsList({
                                         </div>
 
                                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                                            {/* Trigger type */}
-                                            <span className="flex items-center gap-1">
-                                                {automation.trigger_config.trigger_type === 'keywords' ? (
-                                                    <>
-                                                        <Hash className="h-3.5 w-3.5" />
-                                                        {automation.trigger_config.keywords.length} keywords
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <MessageCircle className="h-3.5 w-3.5" />
-                                                        Any comment
-                                                    </>
-                                                )}
-                                            </span>
+                                            {/* Editor type badge */}
+                                            {automation.editor_version === 'canvas' ? (
+                                                <span className="flex items-center gap-1">
+                                                    <Workflow className="h-3.5 w-3.5" />
+                                                    {automation.workflow_graph?.nodes?.length || 0} nodes
+                                                </span>
+                                            ) : (
+                                                <span className="flex items-center gap-1">
+                                                    {automation.trigger_config?.trigger_type === 'keywords' ? (
+                                                        <>
+                                                            <Hash className="h-3.5 w-3.5" />
+                                                            {automation.trigger_config.keywords?.length || 0} keywords
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <MessageCircle className="h-3.5 w-3.5" />
+                                                            Any comment
+                                                        </>
+                                                    )}
+                                                </span>
+                                            )}
 
                                             {/* Stats */}
                                             <span className="flex items-center gap-1">

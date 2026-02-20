@@ -1,13 +1,15 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import useSWR from "swr"
-import { Zap, MessageCircle, Plus } from "lucide-react"
+import { Zap, MessageCircle, Plus, Workflow, ListChecks } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AutomationCard } from "@/components/automation/automation-card"
 import { AutomationSetupModal } from "@/components/automation/automation-setup-modal"
 import { ActiveAutomationsList } from "@/components/automation/active-automations-list"
+import { WorkflowCanvas } from "@/components/automation/canvas/workflow-canvas"
 import { Automation } from "@/types/automation"
+import { WorkflowGraph } from "@/types/automation-graph"
 import { useToast } from "@/components/ui/use-toast"
 
 interface AutomationsResponse {
@@ -21,9 +23,12 @@ const fetcher = async (url: string) => {
     return data
 }
 
+type EditorView = 'list' | 'canvas' | 'wizard'
+
 export default function AutomationPage() {
-    const [isSetupModalOpen, setIsSetupModalOpen] = useState(false)
+    const [editorView, setEditorView] = useState<EditorView>('list')
     const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null)
+    const [isSetupModalOpen, setIsSetupModalOpen] = useState(false)
     const { toast } = useToast()
 
     const { data, error, isLoading, mutate } = useSWR<AutomationsResponse>(
@@ -35,14 +40,25 @@ export default function AutomationPage() {
         }
     )
 
-    const handleCreateNew = () => {
+    // ─── Handlers ──────────────────────────────────────────────
+
+    const handleCreateCanvas = () => {
+        setEditingAutomation(null)
+        setEditorView('canvas')
+    }
+
+    const handleCreateWizard = () => {
         setEditingAutomation(null)
         setIsSetupModalOpen(true)
     }
 
     const handleEdit = (automation: Automation) => {
         setEditingAutomation(automation)
-        setIsSetupModalOpen(true)
+        if (automation.editor_version === 'canvas' && automation.workflow_graph) {
+            setEditorView('canvas')
+        } else {
+            setIsSetupModalOpen(true)
+        }
     }
 
     const handleToggle = async (automationId: string, isActive: boolean) => {
@@ -53,19 +69,17 @@ export default function AutomationPage() {
                 body: JSON.stringify({ is_active: isActive })
             })
 
-            if (!response.ok) {
-                throw new Error('Failed to toggle automation')
-            }
+            if (!response.ok) throw new Error('Failed to toggle automation')
 
             toast({
                 title: isActive ? "Automation enabled" : "Automation paused",
                 description: isActive
-                    ? "Your automation is now active and will process new comments."
+                    ? "Your automation is now active and will process new events."
                     : "Your automation has been paused.",
             })
 
             mutate()
-        } catch (error) {
+        } catch {
             toast({
                 title: "Error",
                 description: "Failed to update automation status.",
@@ -80,9 +94,7 @@ export default function AutomationPage() {
                 method: 'DELETE'
             })
 
-            if (!response.ok) {
-                throw new Error('Failed to delete automation')
-            }
+            if (!response.ok) throw new Error('Failed to delete automation')
 
             toast({
                 title: "Automation deleted",
@@ -90,7 +102,7 @@ export default function AutomationPage() {
             })
 
             mutate()
-        } catch (error) {
+        } catch {
             toast({
                 title: "Error",
                 description: "Failed to delete automation.",
@@ -99,11 +111,71 @@ export default function AutomationPage() {
         }
     }
 
-    const handleSave = () => {
+    const handleWizardSave = () => {
         setIsSetupModalOpen(false)
         setEditingAutomation(null)
         mutate()
     }
+
+    const handleCanvasSave = useCallback(async (graph: WorkflowGraph, name: string, isActive: boolean) => {
+        const isEditing = !!editingAutomation?.id
+
+        const body: Record<string, unknown> = {
+            workflow_graph: graph,
+            editor_version: 'canvas',
+            name,
+            is_active: isActive,
+        }
+
+        // Extract social_account_id from trigger node
+        const triggerNode = graph.nodes.find(n => n.data?.type?.startsWith('trigger_'))
+        const config = triggerNode?.data?.config as Record<string, unknown> | undefined
+        if (config?.social_account_id) {
+            body.social_account_id = config.social_account_id
+        }
+
+        const url = isEditing
+            ? `/api/automations/${editingAutomation.id}`
+            : '/api/automations'
+        const method = isEditing ? 'PUT' : 'POST'
+
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        })
+
+        if (!response.ok) {
+            const data = await response.json()
+            throw new Error(data.error || 'Failed to save')
+        }
+
+        mutate()
+    }, [editingAutomation, mutate])
+
+    const handleCanvasBack = () => {
+        setEditorView('list')
+        setEditingAutomation(null)
+    }
+
+    // ─── Canvas Editor (Full-Screen) ───────────────────────────
+
+    if (editorView === 'canvas') {
+        return (
+            <div className="h-[calc(100vh-4rem)] -m-6">
+                <WorkflowCanvas
+                    automationId={editingAutomation?.id}
+                    automationName={editingAutomation?.name || 'New Automation'}
+                    isActive={editingAutomation?.is_active ?? true}
+                    initialGraph={editingAutomation?.workflow_graph}
+                    onSave={handleCanvasSave}
+                    onBack={handleCanvasBack}
+                />
+            </div>
+        )
+    }
+
+    // ─── List View ─────────────────────────────────────────────
 
     return (
         <div className="space-y-8">
@@ -120,18 +192,24 @@ export default function AutomationPage() {
                 </div>
             </div>
 
-            {/* Automation Types */}
+            {/* Create New Automation */}
             <div>
                 <h2 className="text-lg font-medium mb-4">Create New Automation</h2>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <AutomationCard
+                        icon={Workflow}
+                        title="Visual Workflow Builder"
+                        description="Build complex automations with a drag-and-drop canvas. Chain triggers, conditions, delays, and actions for powerful multi-step flows."
+                        onClick={handleCreateCanvas}
+                        badge="New"
+                    />
+                    <AutomationCard
                         icon={MessageCircle}
                         title="Comment Automation"
-                        description="Automatically reply to comments and optionally send a DM with a link. Great for engagement, lead magnets, and exclusive content."
-                        onClick={handleCreateNew}
-                        badge="Popular"
+                        description="Quick setup: automatically reply to comments and optionally send a DM with a link. Great for lead magnets."
+                        onClick={handleCreateWizard}
+                        badge="Simple"
                     />
-                    {/* Future automation types can be added here */}
                 </div>
             </div>
 
@@ -140,10 +218,16 @@ export default function AutomationPage() {
                 <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-medium">Active Automations</h2>
                     {data?.automations && data.automations.length > 0 && (
-                        <Button variant="outline" size="sm" onClick={handleCreateNew}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            New Automation
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={handleCreateCanvas}>
+                                <Workflow className="h-4 w-4 mr-2" />
+                                Canvas
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={handleCreateWizard}>
+                                <Plus className="h-4 w-4 mr-2" />
+                                Simple
+                            </Button>
+                        </div>
                     )}
                 </div>
 
@@ -170,10 +254,16 @@ export default function AutomationPage() {
                         <p className="text-sm text-muted-foreground mt-2 mb-4">
                             Create your first automation to start engaging with your audience automatically.
                         </p>
-                        <Button onClick={handleCreateNew}>
-                            <Plus className="h-4 w-4 mr-2" />
-                            Create Automation
-                        </Button>
+                        <div className="flex gap-3 justify-center">
+                            <Button onClick={handleCreateCanvas}>
+                                <Workflow className="h-4 w-4 mr-2" />
+                                Visual Builder
+                            </Button>
+                            <Button variant="outline" onClick={handleCreateWizard}>
+                                <ListChecks className="h-4 w-4 mr-2" />
+                                Simple Setup
+                            </Button>
+                        </div>
                     </div>
                 )}
 
@@ -187,12 +277,12 @@ export default function AutomationPage() {
                 )}
             </div>
 
-            {/* Setup Modal */}
+            {/* Wizard Setup Modal (Simple Mode) */}
             <AutomationSetupModal
                 open={isSetupModalOpen}
                 onOpenChange={setIsSetupModalOpen}
                 automation={editingAutomation}
-                onSave={handleSave}
+                onSave={handleWizardSave}
             />
         </div>
     )

@@ -158,9 +158,15 @@ async function processWebhookEvents(body: Record<string, unknown>) {
                     break;
                 case 'messages':
                     await handleMessageEvent(change.value as Record<string, unknown>, account);
+                    // Also trigger message-based automations
+                    await handleMessageAutomationTrigger(change.value as Record<string, unknown>, account);
                     break;
                 case 'mentions':
-                    console.log(`[WEBHOOK] Mention event (not processed):`, change.value);
+                    await handleStoryMentionEvent(change.value as Record<string, unknown>, account);
+                    break;
+                case 'story_insights':
+                    // Story replies come through story_insights
+                    await handleStoryReplyEvent(change.value as Record<string, unknown>, account);
                     break;
                 default:
                     console.log(`[WEBHOOK] Unknown field: ${change.field}`);
@@ -180,6 +186,7 @@ async function processWebhookEvents(body: Record<string, unknown>) {
             }
 
             await handleMessageEvent(messaging, account);
+            await handleMessageAutomationTrigger(messaging, account);
         }
     }
 }
@@ -266,6 +273,18 @@ async function checkIdempotency(eventKey: string, workspaceId: string, eventType
     return false; // Not a duplicate, inserted successfully
 }
 
+async function invokeAutomationOrchestrator(payload: Record<string, unknown>) {
+    const { data, error } = await supabaseAdmin.functions.invoke('automation-orchestrator', {
+        body: payload,
+    });
+
+    if (error) {
+        throw new Error(`Automation orchestrator failed: ${error.message || error}`);
+    }
+
+    return data;
+}
+
 // ============================================
 // Comment Handler
 // ============================================
@@ -280,33 +299,150 @@ async function handleCommentEvent(value: Record<string, unknown>, account: Resol
         text: typeof value?.text === 'string' ? value.text.substring(0, 50) : undefined,
     });
 
-    // Trigger the automation engine for this specific workspace + post
-    const { data, error } = await supabaseAdmin.functions.invoke('process-automations', {
+    const webhookContext = {
+        comment_id: value?.id,
+        post_id: media?.id,
+        commenter_id: from?.id,
+        commenter_username: from?.username,
+        comment_text: value?.text,
+        timestamp: value?.created_time,
+    };
+
+    // Canvas automations now flow through the orchestrator.
+    const orchestratorResult = await invokeAutomationOrchestrator({
+        workspace_id: account.workspace_id,
+        social_account_id: account.social_account_id,
+        trigger_type: 'trigger_new_comment',
+        event_type: 'comment',
+        source: 'webhook',
+        webhook_context: webhookContext,
+    });
+
+    // Keep wizard flow unchanged by delegating comment processing to legacy function only.
+    const { data: wizardData, error: wizardError } = await supabaseAdmin.functions.invoke('process-automations', {
         body: {
             workspace_id: account.workspace_id,
-            // Pass webhook context so the Edge Function can target the specific post
-            webhook_context: {
-                comment_id: value?.id,
-                post_id: media?.id,
-                commenter_id: from?.id,
-                commenter_username: from?.username,
-                comment_text: value?.text,
-                timestamp: value?.created_time,
-            },
+            target_editor_version: 'wizard',
+            webhook_context: webhookContext,
         },
     });
 
-    if (error) {
-        console.error('[WEBHOOK] Automation trigger error:', error);
-        throw new Error(`Automation trigger failed: ${error.message || error}`);
+    if (wizardError) {
+        console.error('[WEBHOOK] Wizard automation trigger error:', wizardError);
+        throw new Error(`Wizard automation trigger failed: ${wizardError.message || wizardError}`);
     }
 
-    console.log('[WEBHOOK] Automation triggered:', data);
+    console.log('[WEBHOOK] Comment automation triggered:', {
+        orchestrator: orchestratorResult,
+        wizard: wizardData,
+    });
 }
 
 // ============================================
 // Message Handler
 // ============================================
+
+// ============================================
+// New Trigger Handlers (for canvas automations)
+// ============================================
+
+async function handleMessageAutomationTrigger(value: Record<string, unknown>, account: ResolvedAccount) {
+    const sender = value?.sender as Record<string, unknown> | undefined;
+    const from = value?.from as Record<string, unknown> | undefined;
+    const message = value?.message as Record<string, unknown> | undefined;
+    const senderId = (sender?.id || from?.id) as string | undefined;
+    const messageText = (message?.text || value?.text) as string | undefined;
+
+    if (!senderId || !messageText) return;
+
+    try {
+        await invokeAutomationOrchestrator({
+            workspace_id: account.workspace_id,
+            social_account_id: account.social_account_id,
+            trigger_type: 'trigger_new_message',
+            event_type: 'message',
+            source: 'webhook',
+            webhook_context: {
+                sender_id: senderId,
+                sender_username: (sender?.username || from?.username) as string,
+                message_text: messageText,
+                message_id: (message?.mid || value?.id) as string,
+                timestamp: new Date().toISOString(),
+            },
+        });
+    } catch (error) {
+        console.error('[WEBHOOK] Message automation trigger error:', error);
+    }
+}
+
+async function handleStoryMentionEvent(value: Record<string, unknown>, account: ResolvedAccount) {
+    console.log('[WEBHOOK] Story mention event:', value);
+
+    try {
+        await invokeAutomationOrchestrator({
+            workspace_id: account.workspace_id,
+            social_account_id: account.social_account_id,
+            trigger_type: 'trigger_story_mention',
+            event_type: 'story_mention',
+            source: 'webhook',
+            webhook_context: {
+                sender_id: (value?.from as Record<string, unknown>)?.id as string,
+                sender_username: (value?.from as Record<string, unknown>)?.username as string,
+                timestamp: new Date().toISOString(),
+            },
+        });
+    } catch (error) {
+        console.error('[WEBHOOK] Story mention automation trigger error:', error);
+    }
+}
+
+async function handleStoryReplyEvent(value: Record<string, unknown>, account: ResolvedAccount) {
+    console.log('[WEBHOOK] Story reply event:', value);
+
+    try {
+        await invokeAutomationOrchestrator({
+            workspace_id: account.workspace_id,
+            social_account_id: account.social_account_id,
+            trigger_type: 'trigger_story_reply',
+            event_type: 'story_reply',
+            source: 'webhook',
+            webhook_context: {
+                sender_id: (value?.from as Record<string, unknown>)?.id as string,
+                message_text: value?.text as string,
+                timestamp: new Date().toISOString(),
+            },
+        });
+    } catch (error) {
+        console.error('[WEBHOOK] Story reply automation trigger error:', error);
+    }
+}
+
+// ============================================
+// Follower Handler (from messaging entries)
+// ============================================
+
+async function handleFollowEvent(value: Record<string, unknown>, account: ResolvedAccount) {
+    const followerId = (value?.from as Record<string, unknown>)?.id as string;
+
+    if (!followerId) return;
+
+    try {
+        await invokeAutomationOrchestrator({
+            workspace_id: account.workspace_id,
+            social_account_id: account.social_account_id,
+            trigger_type: 'trigger_new_follower',
+            event_type: 'follower',
+            source: 'webhook',
+            webhook_context: {
+                follower_id: followerId,
+                follower_username: (value?.from as Record<string, unknown>)?.username as string,
+                timestamp: new Date().toISOString(),
+            },
+        });
+    } catch (error) {
+        console.error('[WEBHOOK] Follower automation trigger error:', error);
+    }
+}
 
 async function handleMessageEvent(value: Record<string, unknown>, account: ResolvedAccount) {
     const sender = value?.sender as Record<string, unknown> | undefined;

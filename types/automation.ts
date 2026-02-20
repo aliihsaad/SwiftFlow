@@ -32,6 +32,8 @@ export interface Automation {
     trigger_config: TriggerConfig
     comment_reply_config: CommentReplyConfig
     dm_config: DMConfig
+    workflow_graph?: import('./automation-graph').WorkflowGraph
+    editor_version?: 'wizard' | 'canvas'
     total_triggered: number
     total_dms_sent: number
     created_at: string

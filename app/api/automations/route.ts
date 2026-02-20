@@ -94,64 +94,145 @@ export async function POST(request: NextRequest) {
             post_caption,
             trigger_config,
             comment_reply_config,
-            dm_config
+            dm_config,
+            workflow_graph,
+            editor_version,
         } = body;
 
-        // Validation
-        if (!social_account_id || !name || !platform_post_id || !dm_config) {
+        // Canvas mode: workflow_graph is the primary payload
+        const isCanvasMode = editor_version === 'canvas' || !!workflow_graph;
+        const graphTriggerNode = workflow_graph?.nodes?.find((n: any) => n?.data?.type?.startsWith?.('trigger_'));
+        const graphTriggerType = graphTriggerNode?.data?.type as string | undefined;
+        const graphTriggerConfig = (graphTriggerNode?.data?.config || {}) as Record<string, any>;
+
+        // Validation: wizard mode requires legacy fields, canvas mode requires graph
+        if (isCanvasMode) {
+            if (!workflow_graph || !name) {
+                return NextResponse.json(
+                    { error: 'Canvas mode requires name and workflow_graph' },
+                    { status: 400 }
+                );
+            }
+            if (!graphTriggerNode) {
+                return NextResponse.json(
+                    { error: 'Canvas workflow must include a trigger node' },
+                    { status: 400 }
+                );
+            }
+        } else if (!social_account_id || !name || !platform_post_id || !dm_config) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
                 { status: 400 }
             );
         }
 
-        // Verify the social account belongs to this workspace
-        const { data: account, error: accountError } = await supabase
-            .from('social_accounts')
-            .select('id, access_token')
-            .eq('id', social_account_id)
-            .eq('workspace_id', activeWorkspace.id)
-            .single();
+        // Resolve social_account_id: from body or from graph trigger node
+        const resolvedAccountId = social_account_id ||
+            workflow_graph?.nodes?.find((n: any) => n.data?.config?.social_account_id)?.data?.config?.social_account_id;
 
-        if (accountError || !account) {
+        if (isCanvasMode && !resolvedAccountId) {
             return NextResponse.json(
-                { error: 'Invalid social account' },
+                { error: 'Canvas trigger must include social_account_id' },
                 { status: 400 }
             );
         }
 
-        // Verify the post is accessible (can fetch comments)
-        const testUrl = `https://graph.facebook.com/v21.0/${platform_post_id}/comments?fields=id&limit=1&access_token=${account.access_token}`;
-        const testResponse = await fetch(testUrl);
-        const testResult = await testResponse.json();
+        // Verify the social account belongs to this workspace
+        let account: { id: string; access_token: string } | null = null;
+        if (resolvedAccountId) {
+            const { data: acc, error: accountError } = await supabase
+                .from('social_accounts')
+                .select('id, access_token')
+                .eq('id', resolvedAccountId)
+                .eq('workspace_id', activeWorkspace.id)
+                .single();
 
-        if (!testResponse.ok || testResult.error) {
-            console.error('Post accessibility check failed:', testResult.error);
+            if (accountError || !acc) {
+                return NextResponse.json(
+                    { error: 'Invalid social account' },
+                    { status: 400 }
+                );
+            }
+            account = acc;
+        } else if (!isCanvasMode) {
             return NextResponse.json(
-                {
-                    error: 'This post is not accessible. It may have been posted before your account was connected, or it has been deleted. Please select a more recent post.',
-                    details: testResult.error?.message
-                },
+                { error: 'Missing social account' },
                 { status: 400 }
             );
+        }
+
+        // For canvas mode, skip post accessibility check (handled at trigger node level)
+        if (!isCanvasMode) {
+            // Verify the post is accessible (can fetch comments)
+            const testUrl = `https://graph.facebook.com/v21.0/${platform_post_id}/comments?fields=id&limit=1&access_token=${account!.access_token}`;
+            const testResponse = await fetch(testUrl);
+            const testResult = await testResponse.json();
+
+            if (!testResponse.ok || testResult.error) {
+                console.error('Post accessibility check failed:', testResult.error);
+                return NextResponse.json(
+                    {
+                        error: 'This post is not accessible. It may have been posted before your account was connected, or it has been deleted. Please select a more recent post.',
+                        details: testResult.error?.message
+                    },
+                    { status: 400 }
+                );
+            }
         }
 
         // Create the automation
+        const insertData: Record<string, any> = {
+            workspace_id: activeWorkspace.id,
+            social_account_id: resolvedAccountId,
+            type: 'comment_to_dm',
+            name,
+            is_active: true,
+            editor_version: isCanvasMode ? 'canvas' : 'wizard',
+        };
+
+        if (isCanvasMode) {
+            insertData.workflow_graph = workflow_graph;
+            // Keep legacy required columns populated for schema compatibility.
+            insertData.dm_config = {
+                opening_message: '',
+                button_text: '',
+                link_url: '',
+                link_message: ''
+            };
+            insertData.comment_reply_config = { enabled: false, messages: [] };
+
+            if (graphTriggerType === 'trigger_new_comment') {
+                if (!graphTriggerConfig.post_id) {
+                    return NextResponse.json(
+                        { error: 'Comment trigger requires post_id' },
+                        { status: 400 }
+                    );
+                }
+
+                insertData.platform_post_id = graphTriggerConfig.post_id;
+                insertData.post_thumbnail_url = graphTriggerConfig.post_thumbnail_url || null;
+                insertData.post_caption = graphTriggerConfig.post_caption || null;
+                insertData.trigger_config = {
+                    trigger_type: graphTriggerConfig.trigger_type === 'keywords' ? 'keywords' : 'any_comment',
+                    keywords: Array.isArray(graphTriggerConfig.keywords) ? graphTriggerConfig.keywords : []
+                };
+            } else {
+                // Non-comment triggers don't have a post id; store a sentinel to satisfy legacy NOT NULL.
+                insertData.platform_post_id = '__canvas__';
+                insertData.trigger_config = { trigger_type: 'any_comment', keywords: [] };
+            }
+        } else {
+            insertData.platform_post_id = platform_post_id;
+            insertData.post_thumbnail_url = post_thumbnail_url;
+            insertData.post_caption = post_caption;
+            insertData.trigger_config = trigger_config || { trigger_type: 'any_comment', keywords: [] };
+            insertData.comment_reply_config = comment_reply_config || { enabled: false, messages: [] };
+            insertData.dm_config = dm_config;
+        }
+
         const { data: automation, error: createError } = await supabase
             .from('automations')
-            .insert({
-                workspace_id: activeWorkspace.id,
-                social_account_id,
-                type: 'comment_to_dm',
-                name,
-                platform_post_id,
-                post_thumbnail_url,
-                post_caption,
-                trigger_config: trigger_config || { trigger_type: 'any_comment', keywords: [] },
-                comment_reply_config: comment_reply_config || { enabled: false, messages: [] },
-                dm_config,
-                is_active: true
-            })
+            .insert(insertData)
             .select()
             .single();
 
@@ -159,18 +240,20 @@ export async function POST(request: NextRequest) {
             throw createError;
         }
 
-        // Insert placeholder row in handled_comments to prevent n8n automation failures
-        const { error: placeholderError } = await supabase
-            .from('handled_comments')
-            .insert({
-                workspace_id: activeWorkspace.id,
-                automation_id: automation.id,
-                comment_id: '00000000000'
-            });
+        // Legacy wizard mode only: pre-seed dedupe table.
+        if (!isCanvasMode) {
+            const { error: placeholderError } = await supabase
+                .from('processed_comments')
+                .insert({
+                    workspace_id: activeWorkspace.id,
+                    automation_id: automation.id,
+                    comment_id: '00000000000'
+                });
 
-        if (placeholderError) {
-            console.error('Failed to create placeholder handled_comment:', placeholderError);
-            // Non-critical error, don't fail the automation creation
+            if (placeholderError) {
+                console.error('Failed to create placeholder processed_comment:', placeholderError);
+                // Non-critical error, don't fail the automation creation
+            }
         }
 
         return NextResponse.json({

@@ -1,6 +1,7 @@
 // @ts-nocheck - Deno runtime, not Node.js
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { executeWorkflowGraph } from "./graph-executor.ts"
 
 const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
 
@@ -529,12 +530,13 @@ interface WebhookContext {
 async function processWebhookComment(
     supabase: any,
     webhookCtx: WebhookContext,
-    workspaceId: string
+    workspaceId: string,
+    targetEditorVersion: 'wizard' | 'canvas' | null = null,
 ): Promise<{ processed: number; dmsSent: number; errors: number }> {
     const totalStats = { processed: 0, dmsSent: 0, errors: 0 };
 
     // Find active automations for this specific post + workspace
-    const { data: automations, error } = await supabase
+    let query = supabase
         .from('automations')
         .select(`
             *,
@@ -545,6 +547,12 @@ async function processWebhookComment(
         .eq('is_active', true)
         .eq('workspace_id', workspaceId)
         .eq('platform_post_id', webhookCtx.post_id);
+
+    if (targetEditorVersion) {
+        query = query.eq('editor_version', targetEditorVersion);
+    }
+
+    const { data: automations, error } = await query;
 
     if (error) {
         console.error('[WEBHOOK_FAST] Failed to fetch automations:', error);
@@ -586,6 +594,51 @@ async function processWebhookComment(
             continue;
         }
 
+        // Route based on editor_version: canvas mode uses graph executor
+        if (auto.editor_version === 'canvas' && auto.workflow_graph) {
+            console.log(`[WEBHOOK_FAST] Using graph executor for automation ${auto.id}`);
+            const graphResult = await executeWorkflowGraph(
+                supabase,
+                auto,
+                {
+                    comment_id: webhookCtx.comment_id,
+                    post_id: webhookCtx.post_id,
+                    commenter_id: webhookCtx.commenter_id,
+                    commenter_username: webhookCtx.commenter_username,
+                    comment_text: webhookCtx.comment_text,
+                    timestamp: webhookCtx.timestamp,
+                },
+                account,
+            );
+
+            totalStats.processed += graphResult.processed;
+            totalStats.dmsSent += graphResult.dmsSent;
+            totalStats.errors += graphResult.errors;
+
+            // Update automation stats
+            if (graphResult.processed > 0 || graphResult.dmsSent > 0) {
+                const { data: current } = await supabase
+                    .from('automations')
+                    .select('total_triggered, total_dms_sent')
+                    .eq('id', auto.id)
+                    .single();
+
+                if (current) {
+                    await supabase
+                        .from('automations')
+                        .update({
+                            total_triggered: (current.total_triggered || 0) + graphResult.processed,
+                            total_dms_sent: (current.total_dms_sent || 0) + graphResult.dmsSent,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', auto.id);
+                }
+            }
+
+            continue;
+        }
+
+        // Legacy wizard mode: use existing linear processing
         const result = await processSingleComment(
             supabase, auto, comment, pageId, account.access_token
         );
@@ -639,6 +692,7 @@ serve(async (req) => {
         // Parse optional body for workspace filtering and webhook context
         let targetWorkspaceId: string | null = null;
         let targetAutomationId: string | null = null;
+        let targetEditorVersion: 'wizard' | 'canvas' | null = null;
         let webhookContext: WebhookContext | null = null;
 
         if (req.method === 'POST') {
@@ -646,6 +700,9 @@ serve(async (req) => {
                 const body = await req.json();
                 targetWorkspaceId = body.workspace_id || null;
                 targetAutomationId = body.automation_id || null;
+                targetEditorVersion = (body.target_editor_version === 'wizard' || body.target_editor_version === 'canvas')
+                    ? body.target_editor_version
+                    : null;
 
                 // Check for webhook context (comment data from the webhook handler)
                 if (body.webhook_context?.comment_id && body.webhook_context?.post_id) {
@@ -661,7 +718,7 @@ serve(async (req) => {
         // skip polling and process the single comment directly.
         if (webhookContext && targetWorkspaceId) {
             console.log(`[WEBHOOK_FAST] Processing comment ${webhookContext.comment_id} for workspace ${targetWorkspaceId}`);
-            const stats = await processWebhookComment(supabase, webhookContext, targetWorkspaceId);
+            const stats = await processWebhookComment(supabase, webhookContext, targetWorkspaceId, targetEditorVersion);
 
             return new Response(
                 JSON.stringify({
@@ -729,6 +786,13 @@ serve(async (req) => {
 
         for (const automation of automations) {
             try {
+                // Canvas-mode automations are only processed via webhook fast path
+                // or scheduled executions — skip them in polling
+                if (automation.editor_version === 'canvas') {
+                    console.log(`Skipping canvas automation ${automation.id} in polling path`);
+                    continue;
+                }
+
                 const stats = await processAutomation(supabase, automation as AutomationRow);
                 totalStats.processed += stats.processed;
                 totalStats.dmsSent += stats.dmsSent;

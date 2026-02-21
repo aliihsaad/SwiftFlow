@@ -1,32 +1,41 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
+function DarkSkeleton({ className }: { className?: string }) {
+    return (
+        <div
+            className={`animate-pulse rounded-md ${className ?? ''}`}
+            style={{ background: 'rgba(255,255,255,0.05)' }}
+        />
+    )
+}
 
 export function CommentsLoadingSkeleton() {
     return (
         <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
-                <Card key={i}>
-                    <CardContent className="p-4">
-                        <div className="flex gap-4">
-                            <Skeleton className="h-10 w-10 rounded-full shrink-0" />
-                            <div className="flex-1 space-y-2">
-                                <div className="flex items-center gap-2">
-                                    <Skeleton className="h-4 w-24" />
-                                    <Skeleton className="h-5 w-20 rounded-full" />
-                                    <Skeleton className="h-3 w-16" />
-                                </div>
-                                <Skeleton className="h-4 w-full" />
-                                <Skeleton className="h-4 w-3/4" />
-                                <div className="flex items-center gap-2 pt-2">
-                                    <Skeleton className="h-8 w-16" />
-                                    <Skeleton className="h-8 w-16" />
-                                </div>
+                <div
+                    key={i}
+                    className="rounded-xl p-4"
+                    style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                    <div className="flex gap-4">
+                        <DarkSkeleton className="h-10 w-10 rounded-full shrink-0" />
+                        <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-2">
+                                <DarkSkeleton className="h-3.5 w-24" />
+                                <DarkSkeleton className="h-4 w-20 rounded-full" />
+                                <DarkSkeleton className="h-3 w-16" />
+                            </div>
+                            <DarkSkeleton className="h-3.5 w-full" />
+                            <DarkSkeleton className="h-3.5 w-3/4" />
+                            <div className="flex items-center gap-2 pt-1">
+                                <DarkSkeleton className="h-6 w-14 rounded-md" />
+                                <DarkSkeleton className="h-6 w-16 rounded-md" />
+                                <DarkSkeleton className="h-6 w-12 rounded-md" />
                             </div>
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             ))}
         </div>
     )

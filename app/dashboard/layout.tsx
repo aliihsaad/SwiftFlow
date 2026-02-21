@@ -8,17 +8,13 @@ export default async function DashboardLayout({
 }: {
     children: React.ReactNode
 }) {
-    // 1. Get Auth + Active Workspace
-    // The middleware ensures we have a session usually, but good to be safe
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    // If middleware didn't catch it for some reason (e.g. static gen), return null or shell
     if (!user) return null
 
     const activeWorkspace = await getActiveWorkspace()
 
-    // 2. Get All Workspaces for Switcher
     const { data: members } = await supabase
         .from('workspace_members')
         .select(`
@@ -29,40 +25,91 @@ export default async function DashboardLayout({
         `)
         .eq('user_id', user.id)
 
-    // Transform joined data to Workspace[]
-    // Supabase join returns an array or single object depending on relationship.
-    // workspace_id is FK to workspaces (many-to-one), so it should be a single object.
-    // But sometimes type generation or runtime behavior implies array.
     const workspaceList = (members?.map(m => {
         const ws = m.workspaces
         return Array.isArray(ws) ? ws[0] : ws
     }).filter(Boolean) || []) as Workspace[]
 
+    const userInitial = user.email?.charAt(0).toUpperCase() || 'U'
+
     return (
-        <div className="flex h-screen overflow-hidden bg-background">
+        <div className="flex h-screen overflow-hidden" style={{ background: '#070710' }}>
             <Sidebar
                 workspaces={workspaceList}
                 activeWorkspace={activeWorkspace}
             />
-            <div className="flex flex-1 flex-col overflow-hidden">
-                <header className="flex h-16 items-center gap-4 border-b bg-background/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                    <h1 className="text-lg font-semibold">
-                        {activeWorkspace?.name || 'Dashboard'}
-                    </h1>
-                    <div className="ml-auto flex items-center gap-4">
-                        {/* User Menu / Notifications could go here */}
+
+            <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+                {/* Header */}
+                <header
+                    className="flex h-14 shrink-0 items-center gap-4 px-6"
+                    style={{
+                        background: 'rgba(7,7,16,0.9)',
+                        backdropFilter: 'blur(20px)',
+                        WebkitBackdropFilter: 'blur(20px)',
+                        borderBottom: '1px solid rgba(255,255,255,0.055)',
+                    }}
+                >
+                    {/* Workspace indicator */}
+                    <div className="flex items-center gap-2.5">
+                        <div
+                            className="h-2 w-2 rounded-full shrink-0"
+                            style={{ background: 'linear-gradient(135deg, #8b5cf6, #6366f1)' }}
+                        />
+                        <span className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                            {activeWorkspace?.name || 'Dashboard'}
+                        </span>
+                    </div>
+
+                    {/* Right: user avatar */}
+                    <div className="ml-auto flex items-center gap-3">
+                        <div
+                            className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 select-none cursor-default"
+                            title={user?.email || ''}
+                            style={{
+                                background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                                boxShadow: '0 0 0 2px rgba(139,92,246,0.2), 0 2px 8px rgba(0,0,0,0.4)',
+                            }}
+                        >
+                            {userInitial}
+                        </div>
                     </div>
                 </header>
-                <main className="flex-1 overflow-y-auto bg-muted/10 p-6">
+
+                {/* Main content */}
+                <main
+                    className="flex-1 overflow-y-auto p-6"
+                    style={{ background: '#080813' }}
+                >
                     {children}
                 </main>
-                <footer className="flex h-12 items-center justify-between border-t bg-background/95 px-6 text-xs text-muted-foreground">
-                    <span>© 2026 Social Media Manager AI Tool</span>
+
+                {/* Footer */}
+                <footer
+                    className="flex h-10 shrink-0 items-center justify-between px-6"
+                    style={{
+                        borderTop: '1px solid rgba(255,255,255,0.045)',
+                        background: 'rgba(7,7,16,0.8)',
+                        color: 'rgba(255,255,255,0.2)',
+                        fontSize: '11px',
+                    }}
+                >
+                    <span>© 2026 SocialAI</span>
                     <nav className="flex items-center gap-4">
-                        <a href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</a>
-                        <a href="/terms" className="hover:text-foreground transition-colors">Terms of Service</a>
-                        <a href="/data-deletion" className="hover:text-foreground transition-colors">Data Deletion</a>
-                        <a href="mailto:info@swiftdigital-s.com" className="hover:text-foreground transition-colors">Contact Support</a>
+                        {[
+                            { href: '/privacy', label: 'Privacy' },
+                            { href: '/terms', label: 'Terms' },
+                            { href: '/data-deletion', label: 'Data Deletion' },
+                            { href: 'mailto:info@swiftdigital-s.com', label: 'Support' },
+                        ].map(({ href, label }) => (
+                            <a
+                                key={href}
+                                href={href}
+                                className="text-white/20 hover:text-white/50 transition-colors duration-150"
+                            >
+                                {label}
+                            </a>
+                        ))}
                     </nav>
                 </footer>
             </div>

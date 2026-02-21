@@ -155,13 +155,15 @@ export default async function DashboardPage() {
     }
 
     return (
-        <div className="space-y-4 animate-in fade-in duration-500">
+        <div className="space-y-5 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight bg-linear-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent dark:from-white dark:to-gray-400">
+                    <h2 className="text-2xl font-bold tracking-tight" style={{ color: 'rgba(255,255,255,0.9)' }}>
                         Overview
                     </h2>
-                    <p className="text-muted-foreground mt-1">Welcome back to your social media command center.</p>
+                    <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        Welcome back to your social media command center.
+                    </p>
                 </div>
                 <RecentActivityDropdown activities={recentActivities} />
             </div>

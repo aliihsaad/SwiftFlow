@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { createClient } from "@/utils/supabase/client"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Sparkles, MessageCircle, Calendar } from "lucide-react"
@@ -21,10 +20,7 @@ export function ContentCard({ id, title, body, workspaceId, onGenerateImage, onR
     // Local state for in-card image generation
     const [generatedImage, setGeneratedImage] = useState<string | null>(null)
     const [isGenerating, setIsGenerating] = useState(false)
-    const [promptId, setPromptId] = useState<string | null>(null) // To track which prompt generated this
 
-    // We need supabase client here if we are calling function directly
-    const supabase = createClient()
     const { toast } = useToast()
 
     const handleGenerateInternal = async () => {
@@ -32,16 +28,28 @@ export function ContentCard({ id, title, body, workspaceId, onGenerateImage, onR
         setIsGenerating(true)
 
         try {
-            // Call generate-image directly
-            const { data, error } = await supabase.functions.invoke('generate-image', {
-                body: {
-                    prompt: `Create an image for this social media post: "${body}"`,
-                    // Pass workspaceId if available
-                    workspaceId: workspaceId
-                }
+            const response = await fetch('/api/assistant/invoke', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    functionName: 'generate-image',
+                    body: {
+                        prompt: `Create an image for this social media post: "${body}"`,
+                        workspaceId
+                    }
+                })
             })
 
-            if (error) throw new Error(error.message)
+            const payload = await response.json().catch(() => ({}))
+
+            if (response.status === 401) {
+                throw new Error("Session expired. Please log in again.")
+            }
+            if (!response.ok) {
+                throw new Error(payload?.error || "Failed to generate image")
+            }
+
+            const data = payload?.data
             if (data?.error) throw new Error(data.error)
 
             if (data?.result?.imageUrl) {

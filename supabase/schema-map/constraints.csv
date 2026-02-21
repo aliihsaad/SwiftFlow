@@ -1,0 +1,90 @@
+schema_name,table_name,constraint_name,constraint_type,definition
+public,account_analytics,account_analytics_pkey,p,PRIMARY KEY (id)
+public,account_analytics,account_analytics_social_account_date_unique,u,"UNIQUE (social_account_id, date)"
+public,account_analytics,account_analytics_social_account_id_date_key,u,"UNIQUE (social_account_id, date)"
+public,analytics_snapshots,analytics_snapshots_pkey,p,PRIMARY KEY (id)
+public,analytics_snapshots,analytics_snapshots_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,analytics_snapshots,analytics_snapshots_workspace_id_platform_date_key,u,"UNIQUE (workspace_id, platform, date)"
+public,automation_events,automation_events_pkey,p,PRIMARY KEY (id)
+public,automation_events,automation_events_status_check,c,"CHECK ((status = ANY (ARRAY['received'::text, 'queued'::text, 'processed'::text, 'ignored'::text, 'failed'::text])))"
+public,automation_events,automation_events_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,automation_logs,automation_logs_automation_id_fkey,f,FOREIGN KEY (automation_id) REFERENCES automations(id) ON DELETE CASCADE
+public,automation_logs,automation_logs_automation_id_trigger_comment_id_key,u,"UNIQUE (automation_id, trigger_comment_id)"
+public,automation_logs,automation_logs_pkey,p,PRIMARY KEY (id)
+public,automation_node_runs,automation_node_runs_automation_id_fkey,f,FOREIGN KEY (automation_id) REFERENCES automations(id) ON DELETE CASCADE
+public,automation_node_runs,automation_node_runs_pkey,p,PRIMARY KEY (id)
+public,automation_node_runs,automation_node_runs_run_id_fkey,f,FOREIGN KEY (run_id) REFERENCES automation_runs(id) ON DELETE CASCADE
+public,automation_node_runs,automation_node_runs_run_id_node_id_key,u,"UNIQUE (run_id, node_id)"
+public,automation_node_runs,automation_node_runs_status_check,c,"CHECK ((status = ANY (ARRAY['queued'::text, 'running'::text, 'completed'::text, 'failed'::text, 'skipped'::text])))"
+public,automation_node_runs,automation_node_runs_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,automation_runs,automation_runs_automation_id_fkey,f,FOREIGN KEY (automation_id) REFERENCES automations(id) ON DELETE CASCADE
+public,automation_runs,automation_runs_event_id_fkey,f,FOREIGN KEY (event_id) REFERENCES automation_events(id) ON DELETE SET NULL
+public,automation_runs,automation_runs_pkey,p,PRIMARY KEY (id)
+public,automation_runs,automation_runs_status_check,c,"CHECK ((status = ANY (ARRAY['queued'::text, 'running'::text, 'completed'::text, 'failed'::text, 'skipped'::text])))"
+public,automation_runs,automation_runs_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,automation_scheduled_executions,automation_scheduled_executions_automation_id_fkey,f,FOREIGN KEY (automation_id) REFERENCES automations(id) ON DELETE CASCADE
+public,automation_scheduled_executions,automation_scheduled_executions_pkey,p,PRIMARY KEY (id)
+public,automation_scheduled_executions,automation_scheduled_executions_status_check,c,"CHECK ((status = ANY (ARRAY['pending'::text, 'executing'::text, 'completed'::text, 'failed'::text])))"
+public,automations,automations_pkey,p,PRIMARY KEY (id)
+public,automations,automations_social_account_id_fkey,f,FOREIGN KEY (social_account_id) REFERENCES social_accounts(id) ON DELETE CASCADE
+public,automations,automations_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,chat_sessions,chat_sessions_pkey,p,PRIMARY KEY (id)
+public,chat_sessions,chat_sessions_user_id_fkey,f,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+public,chat_sessions,chat_sessions_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,comments,comments_parent_comment_id_fkey,f,FOREIGN KEY (parent_comment_id) REFERENCES comments(id)
+public,comments,comments_pkey,p,PRIMARY KEY (id)
+public,comments,comments_published_post_id_fkey,f,FOREIGN KEY (published_post_id) REFERENCES published_posts(id) ON DELETE CASCADE
+public,comments,comments_social_account_id_fkey,f,FOREIGN KEY (social_account_id) REFERENCES social_accounts(id) ON DELETE CASCADE
+public,comments,comments_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,comments,comments_workspace_id_platform_comment_id_key,u,"UNIQUE (workspace_id, platform_comment_id)"
+public,conversations,conversations_pkey,p,PRIMARY KEY (id)
+public,conversations,conversations_social_account_id_fkey,f,FOREIGN KEY (social_account_id) REFERENCES social_accounts(id) ON DELETE CASCADE
+public,conversations,conversations_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,conversations,conversations_workspace_id_platform_conversation_id_key,u,"UNIQUE (workspace_id, platform_conversation_id)"
+public,external_services,external_services_pkey,p,PRIMARY KEY (id)
+public,external_services,external_services_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,generated_assets,generated_assets_asset_type_check,c,"CHECK ((asset_type = ANY (ARRAY['content_idea'::text, 'carousel'::text, 'image'::text, 'text'::text])))"
+public,generated_assets,generated_assets_pkey,p,PRIMARY KEY (id)
+public,generated_assets,generated_assets_used_in_post_id_fkey,f,FOREIGN KEY (used_in_post_id) REFERENCES posts(id) ON DELETE SET NULL
+public,generated_assets,generated_assets_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,messages,messages_conversation_id_fkey,f,FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+public,messages,messages_pkey,p,PRIMARY KEY (id)
+public,messages,messages_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,messages,messages_workspace_id_platform_message_id_key,u,"UNIQUE (workspace_id, platform_message_id)"
+public,oauth_page_sessions,oauth_page_sessions_pkey,p,PRIMARY KEY (id)
+public,oauth_page_sessions,oauth_page_sessions_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,post_analytics,post_analytics_pkey,p,PRIMARY KEY (id)
+public,post_analytics,post_analytics_published_post_id_fkey,f,FOREIGN KEY (published_post_id) REFERENCES published_posts(id) ON DELETE CASCADE
+public,post_analytics,post_analytics_published_post_id_key,u,UNIQUE (published_post_id)
+public,posts,posts_pkey,p,PRIMARY KEY (id)
+public,posts,posts_status_check,c,"CHECK ((status = ANY (ARRAY['draft'::text, 'scheduled'::text, 'publishing'::text, 'published'::text, 'failed'::text])))"
+public,posts,posts_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,processed_comments,processed_comments_automation_id_comment_id_key,u,"UNIQUE (automation_id, comment_id)"
+public,processed_comments,processed_comments_automation_id_fkey,f,FOREIGN KEY (automation_id) REFERENCES automations(id) ON DELETE CASCADE
+public,processed_comments,processed_comments_pkey,p,PRIMARY KEY (id)
+public,processed_comments,processed_comments_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,published_posts,published_posts_pkey,p,PRIMARY KEY (id)
+public,published_posts,published_posts_platform_platform_post_id_key,u,"UNIQUE (platform, platform_post_id)"
+public,published_posts,published_posts_post_id_fkey,f,FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
+public,social_accounts,social_accounts_pkey,p,PRIMARY KEY (id)
+public,social_accounts,social_accounts_platform_account_id_unique,u,"UNIQUE (platform, account_id)"
+public,social_accounts,social_accounts_platform_check,c,"CHECK ((platform = ANY (ARRAY['facebook'::text, 'instagram'::text, 'linkedin'::text, 'twitter'::text])))"
+public,social_accounts,social_accounts_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,social_accounts,social_accounts_workspace_platform_unique,u,"UNIQUE (workspace_id, platform)"
+public,webhook_events,webhook_events_event_key_key,u,UNIQUE (event_key)
+public,webhook_events,webhook_events_pkey,p,PRIMARY KEY (id)
+public,webhook_events,webhook_events_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,workspace_brand_profiles,workspace_brand_profiles_pkey,p,PRIMARY KEY (id)
+public,workspace_brand_profiles,workspace_brand_profiles_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,workspace_brand_profiles,workspace_brand_profiles_workspace_id_key,u,UNIQUE (workspace_id)
+public,workspace_members,workspace_members_pkey,p,PRIMARY KEY (id)
+public,workspace_members,workspace_members_role_check,c,"CHECK ((role = ANY (ARRAY['owner'::text, 'admin'::text, 'editor'::text, 'viewer'::text])))"
+public,workspace_members,workspace_members_user_id_fkey,f,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+public,workspace_members,workspace_members_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,workspace_members,workspace_members_workspace_id_user_id_key,u,"UNIQUE (workspace_id, user_id)"
+public,workspace_settings,workspace_settings_pkey,p,PRIMARY KEY (id)
+public,workspace_settings,workspace_settings_workspace_id_fkey,f,FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+public,workspace_settings,workspace_settings_workspace_id_key,u,UNIQUE (workspace_id)
+public,workspaces,workspaces_owner_id_fkey,f,FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE
+public,workspaces,workspaces_pkey,p,PRIMARY KEY (id)
+public,workspaces,workspaces_slug_key,u,UNIQUE (slug)

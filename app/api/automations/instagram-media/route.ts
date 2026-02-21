@@ -3,6 +3,8 @@ import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 
 const META_GRAPH_URL = 'https://graph.facebook.com/v21.0';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // GET - Fetch Instagram media for post selection
 export async function GET(request: NextRequest) {
@@ -58,7 +60,7 @@ export async function GET(request: NextRequest) {
         // Fetch media from Instagram Graph API
         const mediaUrl = `${META_GRAPH_URL}/${account.account_id}/media?fields=id,media_type,media_url,thumbnail_url,caption,timestamp,permalink&limit=${limit}&access_token=${account.access_token}`;
 
-        const response = await fetch(mediaUrl);
+        const response = await fetch(mediaUrl, { cache: 'no-store' });
         const result = await response.json();
 
         if (!response.ok) {

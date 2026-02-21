@@ -1,8 +1,6 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PostData } from "@/types/analytics"
-import { Badge } from "@/components/ui/badge"
 import { Heart, MessageCircle, Share2, Eye } from "lucide-react"
 
 interface LatestPostCardProps {
@@ -12,63 +10,82 @@ interface LatestPostCardProps {
 export function LatestPostCard({ post }: LatestPostCardProps) {
     if (!post) {
         return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Latest Post</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-sm text-muted-foreground">No posts available</p>
-                </CardContent>
-            </Card>
+            <div
+                className="rounded-xl p-5"
+                style={{
+                    background: '#0e0d1c',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                }}
+            >
+                <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>Latest Post</h3>
+                <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>No posts available</p>
+            </div>
         )
     }
 
+    const isInstagram = post.platform === 'instagram'
+
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Latest Post</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                {/* Post meta */}
-                <div className="flex items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">{post.timeAgo}</span>
-                    <Badge
-                        variant="outline"
-                        className={
-                            post.platform === 'instagram'
-                                ? 'border-pink-500 text-pink-600 dark:text-pink-400'
-                                : 'border-blue-500 text-blue-600 dark:text-blue-400'
+        <div
+            className="rounded-xl overflow-hidden"
+            style={{
+                background: '#0e0d1c',
+                border: '1px solid rgba(255,255,255,0.06)',
+            }}
+        >
+            {/* Header */}
+            <div
+                className="px-5 py-4"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+            >
+                <h3 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.8)' }}>Latest Post</h3>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+                {/* Meta */}
+                <div className="flex items-center gap-2">
+                    <span className="text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>{post.timeAgo}</span>
+                    <span
+                        className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                        style={
+                            isInstagram
+                                ? { background: 'rgba(236,72,153,0.12)', color: '#f472b6', border: '1px solid rgba(236,72,153,0.25)' }
+                                : { background: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.25)' }
                         }
                     >
                         {post.platform.charAt(0).toUpperCase() + post.platform.slice(1)}
-                    </Badge>
+                    </span>
                 </div>
 
                 {/* Caption */}
-                <p className="text-sm leading-relaxed text-foreground/90">
+                <p className="text-sm leading-relaxed line-clamp-4" style={{ color: 'rgba(255,255,255,0.6)' }}>
                     {post.caption}
                 </p>
 
                 {/* Metrics */}
-                <div className="flex items-center gap-4 pt-4 border-t">
+                <div
+                    className="flex items-center gap-4 pt-4"
+                    style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+                >
                     <div className="flex items-center gap-1.5">
-                        <Heart className="h-4 w-4 text-pink-500" />
-                        <span className="text-sm font-medium">{post.likes.toLocaleString()}</span>
+                        <Heart className="h-3.5 w-3.5 text-pink-400" />
+                        <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>{post.likes.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <MessageCircle className="h-4 w-4 text-blue-500" />
-                        <span className="text-sm font-medium">{post.comments.toLocaleString()}</span>
+                        <MessageCircle className="h-3.5 w-3.5 text-blue-400" />
+                        <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>{post.comments.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <Share2 className="h-4 w-4 text-green-500" />
-                        <span className="text-sm font-medium">{post.shares.toLocaleString()}</span>
+                        <Share2 className="h-3.5 w-3.5 text-emerald-400" />
+                        <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>{post.shares.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-1.5 ml-auto">
-                        <Eye className="h-4 w-4 text-purple-500" />
-                        <span className="text-sm font-medium">{post.views.toLocaleString()}</span>
+                        <Eye className="h-3.5 w-3.5" style={{ color: '#a78bfa' }} />
+                        <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>{post.views.toLocaleString()}</span>
                     </div>
                 </div>
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     )
 }

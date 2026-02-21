@@ -3,6 +3,14 @@
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
 import { UpdateSettingsInput, WorkspaceSettings } from "@/types/settings"
+import { getActiveWorkspace } from "@/lib/workspace-utils"
+import { getDefaultModelForProvider } from "@/lib/ai-models"
+
+function normalizeSecret(value: string | undefined): string | null {
+    if (typeof value !== 'string') return null
+    const trimmed = value.trim().replace(/^['"]|['"]$/g, '')
+    return trimmed.length > 0 ? trimmed : null
+}
 
 export async function togglePageSelection(platform: string, pageId: string, selected: boolean) {
     const supabase = await createClient()
@@ -16,7 +24,7 @@ export async function togglePageSelection(platform: string, pageId: string, sele
 
     if (!account || !account.metadata || !account.metadata.pages) return
 
-    const updatedPages = account.metadata.pages.map((p: any) => {
+    const updatedPages = account.metadata.pages.map((p: { id?: string; [key: string]: unknown }) => {
         if (p.id === pageId) {
             return { ...p, selected }
         }
@@ -61,7 +69,7 @@ export async function getWorkspaceSettings(workspaceId: string): Promise<Workspa
             id: 'temp-id',
             workspace_id: workspaceId,
             ai_provider: 'gemini',
-            ai_model_name: 'gemini-1.5-flash',
+            ai_model_name: getDefaultModelForProvider('gemini'),
             ai_temperature: 0.7,
             ai_max_tokens: 2048,
             timezone: 'UTC',
@@ -78,16 +86,12 @@ export async function getWorkspaceSettings(workspaceId: string): Promise<Workspa
  * Get current workspace settings
  */
 export async function getCurrentWorkspaceSettings(): Promise<WorkspaceSettings | null> {
-    // Get active workspace from cookie
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const activeWorkspaceId = cookieStore.get('active_workspace_id')?.value
-
-    if (!activeWorkspaceId) {
+    const activeWorkspace = await getActiveWorkspace()
+    if (!activeWorkspace) {
         return null
     }
 
-    return getWorkspaceSettings(activeWorkspaceId)
+    return getWorkspaceSettings(activeWorkspace.id)
 }
 
 /**
@@ -98,14 +102,41 @@ export async function updateWorkspaceSettings(
     settings: UpdateSettingsInput
 ): Promise<void> {
     const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        throw new Error("Unauthorized")
+    }
+
+    // Validate membership first to avoid opaque RLS errors on upsert.
+    const { data: membership, error: membershipError } = await supabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('workspace_id', workspaceId)
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+    if (membershipError) {
+        console.error('Error checking workspace membership:', membershipError)
+        throw new Error("Failed to validate workspace access")
+    }
+
+    if (!membership) {
+        throw new Error("No access to the selected workspace")
+    }
+
+    const updatePayload = {
+        workspace_id: workspaceId,
+        ...settings,
+        gemini_api_key: normalizeSecret(settings.gemini_api_key),
+        openai_api_key: normalizeSecret(settings.openai_api_key),
+        ai_model_name: settings.ai_model_name?.trim(),
+    }
 
     // Use UPSERT to create or update
     const { error } = await supabase
         .from('workspace_settings')
-        .upsert({
-            workspace_id: workspaceId,
-            ...settings
-        }, {
+        .upsert(updatePayload, {
             onConflict: 'workspace_id'
         })
 
@@ -123,14 +154,13 @@ export async function updateWorkspaceSettings(
 export async function updateCurrentWorkspaceSettings(
     settings: UpdateSettingsInput
 ): Promise<void> {
-    // Get active workspace from cookie
-    const { cookies } = await import('next/headers')
-    const cookieStore = await cookies()
-    const activeWorkspaceId = cookieStore.get('active_workspace_id')?.value
-
-    if (!activeWorkspaceId) {
-        throw new Error("No active workspace")
+    const activeWorkspace = await getActiveWorkspace()
+    if (!activeWorkspace) {
+        const { cookies } = await import('next/headers')
+        const cookieStore = await cookies()
+        cookieStore.delete('active_workspace_id')
+        throw new Error("No active workspace. Create or switch to a workspace first.")
     }
 
-    await updateWorkspaceSettings(activeWorkspaceId, settings)
+    await updateWorkspaceSettings(activeWorkspace.id, settings)
 }

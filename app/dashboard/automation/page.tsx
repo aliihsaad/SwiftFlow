@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react"
 import useSWR from "swr"
 import { Zap, MessageCircle, Plus, Workflow, ListChecks } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { AutomationCard } from "@/components/automation/automation-card"
 import { AutomationSetupModal } from "@/components/automation/automation-setup-modal"
 import { ActiveAutomationsList } from "@/components/automation/active-automations-list"
@@ -34,23 +33,11 @@ export default function AutomationPage() {
     const { data, error, isLoading, mutate } = useSWR<AutomationsResponse>(
         '/api/automations',
         fetcher,
-        {
-            revalidateOnFocus: false,
-            dedupingInterval: 30000,
-        }
+        { revalidateOnFocus: false, dedupingInterval: 30000 }
     )
 
-    // ─── Handlers ──────────────────────────────────────────────
-
-    const handleCreateCanvas = () => {
-        setEditingAutomation(null)
-        setEditorView('canvas')
-    }
-
-    const handleCreateWizard = () => {
-        setEditingAutomation(null)
-        setIsSetupModalOpen(true)
-    }
+    const handleCreateCanvas = () => { setEditingAutomation(null); setEditorView('canvas') }
+    const handleCreateWizard = () => { setEditingAutomation(null); setIsSetupModalOpen(true) }
 
     const handleEdit = (automation: Automation) => {
         setEditingAutomation(automation)
@@ -68,75 +55,45 @@ export default function AutomationPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ is_active: isActive })
             })
-
             if (!response.ok) throw new Error('Failed to toggle automation')
-
             toast({
                 title: isActive ? "Automation enabled" : "Automation paused",
                 description: isActive
                     ? "Your automation is now active and will process new events."
                     : "Your automation has been paused.",
             })
-
             mutate()
         } catch {
-            toast({
-                title: "Error",
-                description: "Failed to update automation status.",
-                variant: "destructive",
-            })
+            toast({ title: "Error", description: "Failed to update automation status.", variant: "destructive" })
         }
     }
 
     const handleDelete = async (automationId: string) => {
         try {
-            const response = await fetch(`/api/automations/${automationId}`, {
-                method: 'DELETE'
-            })
-
+            const response = await fetch(`/api/automations/${automationId}`, { method: 'DELETE' })
             if (!response.ok) throw new Error('Failed to delete automation')
-
-            toast({
-                title: "Automation deleted",
-                description: "Your automation has been removed.",
-            })
-
+            toast({ title: "Automation deleted", description: "Your automation has been removed." })
             mutate()
         } catch {
-            toast({
-                title: "Error",
-                description: "Failed to delete automation.",
-                variant: "destructive",
-            })
+            toast({ title: "Error", description: "Failed to delete automation.", variant: "destructive" })
         }
     }
 
-    const handleWizardSave = () => {
-        setIsSetupModalOpen(false)
-        setEditingAutomation(null)
-        mutate()
-    }
+    const handleWizardSave = () => { setIsSetupModalOpen(false); setEditingAutomation(null); mutate() }
 
     const handleCanvasSave = useCallback(async (graph: WorkflowGraph, name: string, isActive: boolean) => {
         const isEditing = !!editingAutomation?.id
-
         const body: Record<string, unknown> = {
             workflow_graph: graph,
             editor_version: 'canvas',
             name,
             is_active: isActive,
         }
-
-        // Extract social_account_id from trigger node
         const triggerNode = graph.nodes.find(n => n.data?.type?.startsWith('trigger_'))
         const config = triggerNode?.data?.config as Record<string, unknown> | undefined
-        if (config?.social_account_id) {
-            body.social_account_id = config.social_account_id
-        }
+        if (config?.social_account_id) body.social_account_id = config.social_account_id
 
-        const url = isEditing
-            ? `/api/automations/${editingAutomation.id}`
-            : '/api/automations'
+        const url = isEditing ? `/api/automations/${editingAutomation.id}` : '/api/automations'
         const method = isEditing ? 'PUT' : 'POST'
 
         const response = await fetch(url, {
@@ -144,22 +101,14 @@ export default function AutomationPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         })
-
         if (!response.ok) {
             const data = await response.json()
             throw new Error(data.error || 'Failed to save')
         }
-
         mutate()
     }, [editingAutomation, mutate])
 
-    const handleCanvasBack = () => {
-        setEditorView('list')
-        setEditingAutomation(null)
-    }
-
-    // ─── Canvas Editor (Full-Screen) ───────────────────────────
-
+    // Canvas editor (full-screen)
     if (editorView === 'canvas') {
         return (
             <div className="h-[calc(100vh-4rem)] -m-6">
@@ -169,32 +118,41 @@ export default function AutomationPage() {
                     isActive={editingAutomation?.is_active ?? true}
                     initialGraph={editingAutomation?.workflow_graph}
                     onSave={handleCanvasSave}
-                    onBack={handleCanvasBack}
+                    onBack={() => { setEditorView('list'); setEditingAutomation(null) }}
                 />
             </div>
         )
     }
 
-    // ─── List View ─────────────────────────────────────────────
-
+    // List view
     return (
         <div className="space-y-8">
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-xl sm:text-2xl font-semibold tracking-tight flex items-center gap-2">
-                        <Zap className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-500" />
+                    <h1
+                        className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2.5"
+                        style={{ color: 'rgba(255,255,255,0.9)' }}
+                    >
+                        <div
+                            className="flex h-8 w-8 items-center justify-center rounded-lg"
+                            style={{ background: 'rgba(251,191,36,0.12)' }}
+                        >
+                            <Zap className="h-4 w-4" style={{ color: '#fbbf24' }} />
+                        </div>
                         Automation
                     </h1>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
                         Automate your Instagram engagement with smart triggers and actions.
                     </p>
                 </div>
             </div>
 
-            {/* Create New Automation */}
+            {/* Create New */}
             <div>
-                <h2 className="text-lg font-medium mb-4">Create New Automation</h2>
+                <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                    Create New Automation
+                </h2>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <AutomationCard
                         icon={Workflow}
@@ -216,57 +174,103 @@ export default function AutomationPage() {
             {/* Active Automations */}
             <div>
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-medium">Active Automations</h2>
+                    <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        Active Automations
+                    </h2>
                     {data?.automations && data.automations.length > 0 && (
                         <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={handleCreateCanvas}>
-                                <Workflow className="h-4 w-4 mr-2" />
+                            <button
+                                onClick={handleCreateCanvas}
+                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
+                                style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
+                            >
+                                <Workflow className="h-3.5 w-3.5" />
                                 Canvas
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={handleCreateWizard}>
-                                <Plus className="h-4 w-4 mr-2" />
+                            </button>
+                            <button
+                                onClick={handleCreateWizard}
+                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
+                                style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
+                            >
+                                <Plus className="h-3.5 w-3.5" />
                                 Simple
-                            </Button>
+                            </button>
                         </div>
                     )}
                 </div>
 
+                {/* Loading */}
                 {isLoading && (
-                    <div className="rounded-lg border border-border/50 bg-muted/20 p-8 text-center">
-                        <div className="animate-pulse flex flex-col items-center gap-2">
-                            <div className="h-8 w-8 bg-muted rounded-full" />
-                            <div className="h-4 w-32 bg-muted rounded" />
+                    <div
+                        className="rounded-xl p-8 text-center"
+                        style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)' }}
+                    >
+                        <div className="flex flex-col items-center gap-3">
+                            <div
+                                className="h-9 w-9 rounded-full animate-pulse"
+                                style={{ background: 'rgba(255,255,255,0.06)' }}
+                            />
+                            <div
+                                className="h-3 w-28 rounded animate-pulse"
+                                style={{ background: 'rgba(255,255,255,0.05)' }}
+                            />
                         </div>
                     </div>
                 )}
 
+                {/* Error */}
                 {error && (
-                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center">
-                        <p className="text-destructive font-medium">Failed to load automations</p>
-                        <p className="text-sm text-muted-foreground mt-2">Please try again later</p>
+                    <div
+                        className="rounded-xl p-6 text-center"
+                        style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)' }}
+                    >
+                        <p className="font-medium" style={{ color: '#f87171' }}>Failed to load automations</p>
+                        <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.35)' }}>Please try again later</p>
                     </div>
                 )}
 
+                {/* Empty state */}
                 {data?.automations && data.automations.length === 0 && !isLoading && (
-                    <div className="rounded-lg border border-border/50 bg-muted/20 p-8 sm:p-12 text-center">
-                        <Zap className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
-                        <p className="text-muted-foreground font-medium">No automations yet</p>
-                        <p className="text-sm text-muted-foreground mt-2 mb-4">
+                    <div
+                        className="rounded-xl p-8 sm:p-12 text-center"
+                        style={{ background: '#0e0d1c', border: '1px dashed rgba(139,92,246,0.2)' }}
+                    >
+                        <div
+                            className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl"
+                            style={{ background: 'rgba(251,191,36,0.08)', boxShadow: '0 0 32px rgba(251,191,36,0.08)' }}
+                        >
+                            <Zap className="h-8 w-8" style={{ color: '#fbbf24' }} />
+                        </div>
+                        <p className="font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>No automations yet</p>
+                        <p className="text-sm mt-2 mb-6" style={{ color: 'rgba(255,255,255,0.3)' }}>
                             Create your first automation to start engaging with your audience automatically.
                         </p>
                         <div className="flex gap-3 justify-center">
-                            <Button onClick={handleCreateCanvas}>
-                                <Workflow className="h-4 w-4 mr-2" />
+                            <button
+                                onClick={handleCreateCanvas}
+                                className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
+                                style={{
+                                    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                                    color: '#fff',
+                                    boxShadow: '0 2px 16px rgba(139,92,246,0.3)',
+                                }}
+                            >
+                                <Workflow className="h-4 w-4" />
                                 Visual Builder
-                            </Button>
-                            <Button variant="outline" onClick={handleCreateWizard}>
-                                <ListChecks className="h-4 w-4 mr-2" />
+                            </button>
+                            <button
+                                onClick={handleCreateWizard}
+                                className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
+                                style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.65)' }}
+                            >
+                                <ListChecks className="h-4 w-4" />
                                 Simple Setup
-                            </Button>
+                            </button>
                         </div>
                     </div>
                 )}
 
+                {/* List */}
                 {data?.automations && data.automations.length > 0 && (
                     <ActiveAutomationsList
                         automations={data.automations}
@@ -277,7 +281,7 @@ export default function AutomationPage() {
                 )}
             </div>
 
-            {/* Wizard Setup Modal (Simple Mode) */}
+            {/* Wizard modal */}
             <AutomationSetupModal
                 open={isSetupModalOpen}
                 onOpenChange={setIsSetupModalOpen}

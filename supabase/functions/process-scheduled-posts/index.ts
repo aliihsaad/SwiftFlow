@@ -490,11 +490,27 @@ serve(async (req) => {
 
                 // Store in published_posts if successful
                 if (result.success && result.platformPostId) {
-                    await supabase.from('published_posts').insert({
+                    const insertPayload = {
                         post_id: post.id,
                         platform,
-                        platform_post_id: result.platformPostId
-                    });
+                        platform_post_id: result.platformPostId,
+                        social_account_id: account.id,
+                        platform_caption: content || null
+                    };
+
+                    const { error: publishedInsertError } = await supabase.from('published_posts').insert(insertPayload);
+                    if (publishedInsertError) {
+                        // Backward compatibility if new columns are not present yet.
+                        if (/social_account_id|platform_caption/i.test(String(publishedInsertError.message || ''))) {
+                            await supabase.from('published_posts').insert({
+                                post_id: post.id,
+                                platform,
+                                platform_post_id: result.platformPostId
+                            });
+                        } else {
+                            console.error('Failed to insert published_posts:', publishedInsertError);
+                        }
+                    }
                 }
             }
 

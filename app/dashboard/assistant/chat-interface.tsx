@@ -1,7 +1,5 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,7 +40,6 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { createClient } from "@/utils/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
 import { ContentCard } from "./components/content-card"
 import { CarouselPreview } from "./components/carousel-preview"
@@ -101,8 +98,32 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
     const [loadingSessions, setLoadingSessions] = useState(false)
 
     const { toast } = useToast()
-    const supabase = createClient()
     const scrollRef = useRef<HTMLDivElement>(null)
+
+    const invokeEdge = async (functionName: string, body: Record<string, unknown>) => {
+        const response = await fetch('/api/assistant/invoke', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ functionName, body })
+        })
+
+        let payload: any = null
+        try {
+            payload = await response.json()
+        } catch {
+            payload = null
+        }
+
+        if (response.status === 401) {
+            throw new Error("Session expired or invalid. Please log in again.")
+        }
+
+        if (!response.ok) {
+            throw new Error(payload?.error || `Failed to invoke ${functionName}`)
+        }
+
+        return payload?.data
+    }
 
     // Load Sessions
     useEffect(() => {
@@ -255,11 +276,11 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         const targetFunction = overrideFunction || activeFunction || "chat-assistant"
 
         try {
-            const { data, error } = await supabase.functions.invoke(targetFunction, {
-                body: { messages: newMessages, workspaceId, prompt: messageText }
-            })
-
-            if (error) throw new Error(error.message)
+            const data = await invokeEdge(targetFunction, {
+                messages: newMessages,
+                workspaceId,
+                prompt: messageText
+            }) as any
             if (data?.error) throw new Error(data.error)
 
             // Handle Structured Response
@@ -323,6 +344,8 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                     title: currentMessages[0]?.content?.slice(0, 40)
                 })
             })
+
+            if (res.status === 401) return currentId
 
             if (res.ok) {
                 const newSession = await res.json()
@@ -396,12 +419,10 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             try {
                 // Call generate-ideas just to rewrite the prompt
                 // INSTRUCTION: strictly format output
-                const { data } = await supabase.functions.invoke('chat-assistant', {
-                    body: {
-                        messages: [{ role: 'user', content: `Rewrite this image description to be highly detailed and optimized for AI image generation. Keep it under 2 sentences. Enclose the final prompt in <prompt> tags. Provide ONLY the tagged prompt. Description: "${tempImagePrompt}"` }],
-                        workspaceId
-                    }
-                })
+                const data = await invokeEdge('chat-assistant', {
+                    messages: [{ role: 'user', content: `Rewrite this image description to be highly detailed and optimized for AI image generation. Keep it under 2 sentences. Enclose the final prompt in <prompt> tags. Provide ONLY the tagged prompt. Description: "${tempImagePrompt}"` }],
+                    workspaceId
+                }) as any
 
                 if (data?.response) {
                     const match = data.response.match(/<prompt>([\s\S]*?)<\/prompt>/)
@@ -482,17 +503,14 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             }
 
             // Call generate-image edge function directly
-            const { data, error } = await supabase.functions.invoke('generate-image', {
-                body: {
-                    messages: [{ role: 'user', content: prompt }],
-                    workspaceId,
-                    prompt,
-                    style: carouselStyle
-                }
-            })
+            const data = await invokeEdge('generate-image', {
+                messages: [{ role: 'user', content: prompt }],
+                workspaceId,
+                prompt,
+                style: carouselStyle
+            }) as any
 
             if (data?.error) throw new Error(data.error)
-            if (error) throw new Error(error.message)
 
             const imageUrl = data?.result?.imageUrl
             if (imageUrl) {
@@ -554,8 +572,6 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         toast({ title: "Opening Scheduler...", description: "Draft created from idea." })
         setIsCreatePostModalOpen(true)
     }
-
-    const router = useRouter()
 
     const handleDeleteSession = async (id: string) => {
         try {
@@ -627,11 +643,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
         setIsLoading(true)
         try {
-            const { data, error } = await supabase.functions.invoke('search-unsplash', {
-                body: { query, count: 4, workspaceId }
-            })
-
-            if (error) throw new Error(error.message)
+            const data = await invokeEdge('search-unsplash', { query, count: 4, workspaceId }) as any
             if (data?.error) throw new Error(data.error)
 
             const results = data?.result?.data || []
@@ -666,16 +678,12 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         setIsLoading(true)
 
         try {
-            const { data, error } = await supabase.functions.invoke('select-unsplash-image', {
-                body: {
-                    unsplashId: photo.id,
-                    downloadLocation: photo.downloadLink,
-                    workspaceId,
-                    photographer: photo.photographer
-                }
-            })
-
-            if (error) throw new Error(error.message)
+            const data = await invokeEdge('select-unsplash-image', {
+                unsplashId: photo.id,
+                downloadLocation: photo.downloadLink,
+                workspaceId,
+                photographer: photo.photographer
+            }) as any
             if (data?.error) throw new Error(data.error)
 
             const imageUrl = data?.result?.imageUrl
@@ -704,299 +712,303 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-8.5rem)] max-w-6xl mx-auto w-full bg-background border rounded-2xl overflow-hidden shadow-sm">
-            {/* TOOLBAR HEADER - Fixed */}
-            <div className="flex-none px-4 py-3 border-b bg-card/50 backdrop-blur-md flex items-center justify-between gap-4 z-10">
-                <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Assistant Active</span>
+        <div
+            className="flex flex-col h-[calc(100vh-8.5rem)] max-w-6xl mx-auto w-full overflow-hidden rounded-2xl"
+            style={{
+                background: '#0e0d1c',
+                border: '1px solid rgba(139,92,246,0.2)',
+                boxShadow: '0 0 60px rgba(139,92,246,0.06)',
+            }}
+        >
+            {/* ── TOOLBAR ── */}
+            <div
+                className="flex-none flex items-center justify-between gap-4 px-5 py-3"
+                style={{
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    background: 'rgba(14,13,28,0.9)',
+                    backdropFilter: 'blur(12px)',
+                }}
+            >
+                <div className="flex items-center gap-2.5">
+                    <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
+                    <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        Assistant Active
+                    </span>
                 </div>
+
                 <div className="flex items-center gap-2">
+                    {/* History dialog */}
                     <Dialog>
                         <DialogTrigger asChild>
-                            <Button variant="outline" size="icon" className="h-8 w-8 bg-background/50 border-muted-foreground/20" title="Chat History">
-                                <History className="h-4 w-4 text-muted-foreground" />
-                            </Button>
+                            <button
+                                className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150"
+                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}
+                                title="Chat History"
+                            >
+                                <History className="h-3.5 w-3.5" />
+                            </button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-[425px]">
+                        <DialogContent className="sm:max-w-[420px]">
                             <DialogHeader>
                                 <DialogTitle>Chat History</DialogTitle>
-                                <DialogDescription>
-                                    Select a previous conversation to resume or start a new chat.
-                                </DialogDescription>
+                                <DialogDescription>Select a previous conversation to resume or start a new chat.</DialogDescription>
                             </DialogHeader>
                             <div className="flex flex-col gap-4 mt-2">
                                 <div className="flex justify-end">
-                                    <Button
-                                        size="icon"
-                                        variant="outline"
-                                        onClick={() => {
-                                            loadSession('new')
-                                            setActiveFunction("chat-assistant")
-                                            toast({ title: "New Chat Started", duration: 1000 })
-                                        }}
-                                        title="New Chat"
-                                    >
+                                    <Button size="icon" variant="outline" onClick={() => { loadSession('new'); setActiveFunction("chat-assistant"); toast({ title: "New Chat Started", duration: 1000 }) }} title="New Chat">
                                         <RefreshCw className="h-4 w-4" />
                                     </Button>
                                 </div>
-
                                 <ScrollArea className="h-[300px] pr-4">
-                                    <div className="space-y-2">
+                                    <div className="space-y-1.5">
                                         {sessions.map(s => (
                                             <div
                                                 key={s.id}
-                                                className={`flex items-center justify-between p-2 rounded-lg border transition-colors ${s.id === sessionId ? 'bg-accent border-accent-foreground/20' : 'hover:bg-accent/50 border-transparent'
-                                                    }`}
+                                                className="flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors"
+                                                style={{
+                                                    background: s.id === sessionId ? 'rgba(139,92,246,0.12)' : 'transparent',
+                                                    border: s.id === sessionId ? '1px solid rgba(139,92,246,0.2)' : '1px solid transparent',
+                                                }}
                                             >
-                                                <button
-                                                    onClick={() => loadSession(s.id)}
-                                                    className="flex-1 text-left text-sm truncate px-2"
-                                                >
+                                                <button onClick={() => loadSession(s.id)} className="flex-1 text-left text-sm truncate px-2" style={{ color: 'rgba(255,255,255,0.7)' }}>
                                                     {s.title || "Untitled Chat"}
                                                 </button>
-
                                                 <AlertDialog>
                                                     <AlertDialogTrigger asChild>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-8 w-8 text-muted-foreground hover:text-red-500 hover:bg-red-50"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-red-400 hover:bg-red-500/10">
+                                                            <Trash2 className="h-3.5 w-3.5" />
                                                         </Button>
                                                     </AlertDialogTrigger>
                                                     <AlertDialogContent>
                                                         <AlertDialogHeader>
                                                             <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
-                                                            <AlertDialogDescription>
-                                                                This action cannot be undone. This will permanently delete the chat history.
-                                                            </AlertDialogDescription>
+                                                            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
                                                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation()
-                                                                    handleDeleteSession(s.id)
-                                                                }}
-                                                                className="bg-red-500 hover:bg-red-600 focus:ring-red-500"
-                                                            >
-                                                                Delete
-                                                            </AlertDialogAction>
+                                                            <AlertDialogAction onClick={(e) => { e.stopPropagation(); handleDeleteSession(s.id) }} className="bg-destructive text-white hover:bg-destructive/90">Delete</AlertDialogAction>
                                                         </AlertDialogFooter>
                                                     </AlertDialogContent>
                                                 </AlertDialog>
                                             </div>
                                         ))}
                                         {sessions.length === 0 && (
-                                            <div className="text-center py-8 text-muted-foreground text-sm">
-                                                No chat history yet.
-                                            </div>
+                                            <div className="py-10 text-center text-sm" style={{ color: 'rgba(255,255,255,0.25)' }}>No chat history yet.</div>
                                         )}
                                     </div>
                                 </ScrollArea>
                             </div>
                         </DialogContent>
                     </Dialog>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
-                        onClick={() => {
-                            loadSession('new')
-                            setActiveFunction("chat-assistant")
-                            toast({ title: "New Chat Started", duration: 1000 })
-                        }}
+
+                    {/* New chat */}
+                    <button
+                        className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150"
+                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}
+                        onClick={() => { loadSession('new'); setActiveFunction("chat-assistant"); toast({ title: "New Chat Started", duration: 1000 }) }}
                         title="New Chat"
                     >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                    </Button>
+                        <RefreshCw className="h-3.5 w-3.5" />
+                    </button>
                 </div>
             </div>
 
-            {/* MESSAGES AREA - Flexible & Scrollable */}
+            {/* ── MESSAGES ── */}
             <div className="flex-1 min-h-0 relative">
                 <ScrollArea className="h-full w-full" ref={scrollRef}>
-                    <div className="p-4 max-w-4xl mx-auto">
-                        {/* EMPTY STATE */}
+                    <div className="p-5 max-w-4xl mx-auto">
+
+                        {/* Empty state */}
                         {messages.length === 0 && (
-                            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 animate-in fade-in zoom-in duration-500">
-                                <div className="text-center space-y-2">
-                                    <h1 className="text-4xl font-bold tracking-tight bg-linear-to-r from-blue-600 to-violet-600 bg-clip-text text-transparent">
+                            <div className="flex flex-col items-center justify-center min-h-[58vh] gap-10 animate-in fade-in zoom-in duration-500">
+                                <div className="text-center space-y-3">
+                                    <div
+                                        className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl"
+                                        style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', boxShadow: '0 0 40px rgba(124,58,237,0.35)' }}
+                                    >
+                                        <Bot className="h-7 w-7 text-white" />
+                                    </div>
+                                    <h1
+                                        className="text-3xl font-bold tracking-tight"
+                                        style={{ background: 'linear-gradient(135deg, #a78bfa, #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+                                    >
                                         AI Assistant
                                     </h1>
-                                    <p className="text-muted-foreground text-lg">Your social media copilot. Ask me anything!</p>
+                                    <p className="text-base" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                                        Your social media copilot. Ask me anything!
+                                    </p>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-4xl px-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full max-w-3xl">
                                     {ACTION_CARDS.map((card, i) => (
                                         <button
                                             key={i}
                                             onClick={() => handleCardClick(card)}
-                                            className="flex flex-col items-start p-6 rounded-xl border bg-card hover:bg-accent/50 hover:scale-[1.02] transition-all duration-200 text-left group shadow-sm hover:shadow-md"
+                                            className="group flex flex-col items-start p-5 rounded-xl text-left transition-all duration-200 hover:-translate-y-1"
+                                            style={{
+                                                background: '#12111e',
+                                                border: '1px solid rgba(139,92,246,0.15)',
+                                                boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)'
+                                                e.currentTarget.style.boxShadow = '0 8px 24px rgba(139,92,246,0.15)'
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.borderColor = 'rgba(139,92,246,0.15)'
+                                                e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.3)'
+                                            }}
                                         >
-                                            <div className="p-3 rounded-lg bg-primary/10 text-primary mb-4 group-hover:bg-primary/20 transition-colors">
-                                                <card.icon className="w-6 h-6" />
+                                            <div
+                                                className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 group-hover:scale-110"
+                                                style={{ background: 'rgba(139,92,246,0.15)' }}
+                                            >
+                                                <card.icon className="h-5 w-5" style={{ color: '#a78bfa' }} />
                                             </div>
-                                            <h3 className="font-semibold mb-1">{card.title}</h3>
-                                            <p className="text-sm text-muted-foreground">{card.description}</p>
+                                            <h3 className="font-semibold text-sm mb-1" style={{ color: 'rgba(255,255,255,0.85)' }}>{card.title}</h3>
+                                            <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.35)' }}>{card.description}</p>
                                         </button>
                                     ))}
                                 </div>
                             </div>
                         )}
 
-                        {/* MESSAGES */}
-                        <div className="space-y-6 pb-4 max-w-3xl mx-auto">
+                        {/* Messages */}
+                        <div className="space-y-5 pb-4 max-w-3xl mx-auto">
                             {messages.map((msg, i) => (
-                                <div key={i} className={`flex gap-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+
+                                    {/* Bot avatar */}
                                     {msg.role === 'assistant' && (
-                                        <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-violet-500 flex items-center justify-center shrink-0 shadow-lg ring-2 ring-background">
-                                            <Bot className="w-4 h-4 text-white" />
+                                        <div
+                                            className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                                            style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', boxShadow: '0 0 16px rgba(124,58,237,0.35)' }}
+                                        >
+                                            <Bot className="h-4 w-4 text-white" />
                                         </div>
                                     )}
 
                                     <div className={`flex flex-col gap-2 max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
 
-                                        {/* Text Bubble */}
+                                        {/* Text bubble */}
                                         {msg.content && (
-                                            <div className={`p-4 rounded-2xl shadow-sm relative group text-sm leading-relaxed
-                                        ${msg.role === 'user'
-                                                    ? 'bg-primary text-primary-foreground rounded-br-sm'
-                                                    : 'bg-muted/50 border border-border rounded-bl-sm'
-                                                }`}>
+                                            <div
+                                                className="relative group px-4 py-3 rounded-2xl text-sm leading-relaxed"
+                                                style={msg.role === 'user' ? {
+                                                    background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                                                    color: 'white',
+                                                    borderBottomRightRadius: '4px',
+                                                    boxShadow: '0 4px 16px rgba(124,58,237,0.25)',
+                                                } : {
+                                                    background: '#12111e',
+                                                    border: '1px solid rgba(255,255,255,0.08)',
+                                                    color: 'rgba(255,255,255,0.8)',
+                                                    borderBottomLeftRadius: '4px',
+                                                }}
+                                            >
                                                 {msg.content}
                                                 {msg.role === 'assistant' && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="absolute -right-10 top-2 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6"
+                                                    <button
+                                                        className="absolute -right-8 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex h-6 w-6 items-center justify-center rounded-md"
+                                                        style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}
                                                         onClick={() => handleCopy(msg.content)}
                                                     >
-                                                        <Copy className="w-3 h-3 text-muted-foreground" />
-                                                    </Button>
+                                                        <Copy className="h-3 w-3" />
+                                                    </button>
                                                 )}
                                             </div>
                                         )}
 
-                                        {/* RENDER CONTENT CARDS */}
+                                        {/* Content cards */}
                                         {msg.type === 'content_cards' && msg.data?.data && (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
                                                 {msg.data.data.map((card: any, idx: number) => (
-                                                    <ContentCard
-                                                        key={idx}
-                                                        id={card.id || idx.toString()}
-                                                        title={card.title}
-                                                        body={card.body}
-                                                        workspaceId={workspaceId}
-                                                        onGenerateImage={handleGenerateImage}
-                                                        onRefine={handleRefine}
-                                                        onSchedule={handleSchedule}
-                                                    />
+                                                    <ContentCard key={idx} id={card.id || idx.toString()} title={card.title} body={card.body} workspaceId={workspaceId} onGenerateImage={handleGenerateImage} onRefine={handleRefine} onSchedule={handleSchedule} />
                                                 ))}
                                             </div>
                                         )}
 
-                                        {/* RENDER CAROUSEL PREVIEW */}
+                                        {/* Carousel preview */}
                                         {msg.type === 'carousel_slides' && msg.data?.data && (
-                                            <div className="w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
-                                                <CarouselPreview
-                                                    slots={msg.data.data}
-                                                    caption={msg.data.caption}
-                                                    onGenerateImage={handleGenerateSlideImage}
-                                                    onSchedule={handleSchedule}
-                                                    generatingSlide={generatingSlide}
-                                                />
+                                            <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                                <CarouselPreview slots={msg.data.data} caption={msg.data.caption} onGenerateImage={handleGenerateSlideImage} onSchedule={handleSchedule} generatingSlide={generatingSlide} />
                                             </div>
                                         )}
 
-                                        {/* RENDER IMAGE PREVIEW */}
+                                        {/* Image preview */}
                                         {msg.type === 'image' && msg.data && (
-                                            <div className="w-full max-w-sm mt-2 animate-in fade-in zoom-in-50">
-                                                <ImagePreview
-                                                    id={msg.data.id}
-                                                    imageUrl={msg.data.imageUrl}
-                                                    promptUsed={msg.data.prompt_used}
-                                                    onDownload={handleDownloadImage}
-                                                    onUseInPost={handleUseImage}
-                                                    onRegenerate={(prompt) => handleSend(`Regenerate: ${prompt}`, "generate-image")}
-                                                />
+                                            <div className="w-full max-w-sm mt-1 animate-in fade-in zoom-in-50">
+                                                <ImagePreview id={msg.data.id} imageUrl={msg.data.imageUrl} promptUsed={msg.data.prompt_used} onDownload={handleDownloadImage} onUseInPost={handleUseImage} onRegenerate={(prompt) => handleSend(`Regenerate: ${prompt}`, "generate-image")} />
                                             </div>
                                         )}
 
-                                        {/* RENDER STYLE SELECTOR */}
+                                        {/* Style selector */}
                                         {msg.type === 'style_selector' && (
-                                            <div className="w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
-                                                <StyleSelector
-                                                    onSelect={handleStyleSelect}
-                                                    isGenerating={isLoading && flowState === 'idle'}
-                                                />
+                                            <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                                <StyleSelector onSelect={handleStyleSelect} isGenerating={isLoading && flowState === 'idle'} />
                                             </div>
                                         )}
 
-                                        {/* RENDER CAROUSEL STYLE SELECTOR */}
+                                        {/* Carousel style selector */}
                                         {msg.type === 'carousel_style_selector' && msg.data && (
-                                            <div className="w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
-                                                <CarouselStyleSelector
-                                                    topic={msg.data.topic}
-                                                    onGenerate={handleCarouselGenerate}
-                                                    isGenerating={isLoading}
-                                                />
+                                            <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                                <CarouselStyleSelector topic={msg.data.topic} onGenerate={handleCarouselGenerate} isGenerating={isLoading} />
                                             </div>
                                         )}
 
-                                        {/* RENDER IDEA OPTIONS SELECTOR */}
+                                        {/* Idea options */}
                                         {msg.type === 'idea_options_selector' && (
-                                            <div className="w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
-                                                <IdeaOptionsSelector
-                                                    onGenerate={handleIdeaGenerate}
-                                                    isLoading={isLoading}
-                                                />
+                                            <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                                <IdeaOptionsSelector onGenerate={handleIdeaGenerate} isLoading={isLoading} />
                                             </div>
                                         )}
 
-                                        {/* RENDER IMAGE SOURCE SELECTOR */}
+                                        {/* Image source selector */}
                                         {msg.type === 'image_source_selector' && (
-                                            <div className="w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
-                                                <ImageSourceSelector
-                                                    onSourceSelect={handleImageSourceSelect}
-                                                    selectedSource={selectedImageSource || undefined}
-                                                />
+                                            <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                                <ImageSourceSelector onSourceSelect={handleImageSourceSelect} selectedSource={selectedImageSource || undefined} />
                                             </div>
                                         )}
 
-                                        {/* RENDER UNSPLASH RESULTS */}
+                                        {/* Unsplash results */}
                                         {msg.type === 'unsplash_results' && msg.data?.results && (
-                                            <div className="w-full mt-2 animate-in fade-in slide-in-from-bottom-2">
-                                                <UnsplashResults
-                                                    results={msg.data.results}
-                                                    query={msg.data.query}
-                                                    onSelect={handleUnsplashImageSelect}
-                                                    selectedId={selectedUnsplashId || undefined}
-                                                />
+                                            <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                                <UnsplashResults results={msg.data.results} query={msg.data.query} onSelect={handleUnsplashImageSelect} selectedId={selectedUnsplashId || undefined} />
                                             </div>
                                         )}
-
                                     </div>
 
+                                    {/* User avatar */}
                                     {msg.role === 'user' && (
-                                        <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                                            <User className="w-4 h-4 text-muted-foreground" />
+                                        <div
+                                            className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                                            style={{ background: '#1a1828', border: '1px solid rgba(255,255,255,0.1)' }}
+                                        >
+                                            <User className="h-4 w-4" style={{ color: 'rgba(255,255,255,0.5)' }} />
                                         </div>
                                     )}
                                 </div>
                             ))}
 
+                            {/* Loading dots */}
                             {isLoading && (
-                                <div className="flex gap-4">
-                                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-violet-500 flex items-center justify-center animate-pulse">
-                                        <Bot className="w-4 h-4 text-white" />
+                                <div className="flex gap-3">
+                                    <div
+                                        className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 animate-pulse"
+                                        style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
+                                    >
+                                        <Bot className="h-4 w-4 text-white" />
                                     </div>
-                                    <div className="p-4 rounded-2xl bg-muted/50 border rounded-bl-sm flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                                        <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                                        <div className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" />
+                                    <div
+                                        className="flex items-center gap-1.5 px-4 py-3 rounded-2xl"
+                                        style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.07)', borderBottomLeftRadius: '4px' }}
+                                    >
+                                        <div className="h-1.5 w-1.5 rounded-full animate-bounce [animation-delay:-0.3s]" style={{ background: '#a78bfa' }} />
+                                        <div className="h-1.5 w-1.5 rounded-full animate-bounce [animation-delay:-0.15s]" style={{ background: '#a78bfa' }} />
+                                        <div className="h-1.5 w-1.5 rounded-full animate-bounce" style={{ background: '#a78bfa' }} />
                                     </div>
                                 </div>
                             )}
@@ -1005,31 +1017,39 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                 </ScrollArea>
             </div>
 
-            {/* INPUT AREA - Fixed */}
-            <div className="flex-none p-4 border-t bg-background z-20">
-                <div className="max-w-3xl mx-auto relative">
-                    <div className="flex gap-2">
-                        <div className="relative flex-1">
-                            <Input
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                                placeholder={activeFunction !== 'chat-assistant' ? `Using ${activeFunction}...` : "Ask me anything..."}
-                                className="pr-12 py-6 rounded-xl shadow-sm border-muted-foreground/20 focus-visible:ring-offset-0 focus-visible:ring-1"
-                            />
-                            <Button
-                                size="icon"
-                                className="absolute right-1.5 top-1.5 h-9 w-9 rounded-lg bg-primary hover:bg-primary/90 transition-all shadow-sm"
-                                onClick={() => handleSend()}
-                                disabled={isLoading || !input.trim()}
-                            >
-                                <ArrowUp className="w-4 h-4" />
-                            </Button>
-                        </div>
+            {/* ── INPUT ── */}
+            <div
+                className="flex-none p-4"
+                style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(14,13,28,0.8)' }}
+            >
+                <div className="max-w-3xl mx-auto">
+                    <div className="relative flex items-center">
+                        <input
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                            placeholder={activeFunction !== 'chat-assistant' ? `Using ${activeFunction}…` : "Ask me anything…"}
+                            className="w-full rounded-xl py-3.5 pl-4 pr-14 text-sm outline-none transition-all"
+                            style={{
+                                background: '#12111e',
+                                border: '1px solid rgba(255,255,255,0.09)',
+                                color: 'rgba(255,255,255,0.85)',
+                            }}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)')}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
+                        />
+                        <button
+                            onClick={() => handleSend()}
+                            disabled={isLoading || !input.trim()}
+                            className="absolute right-2 flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-150 disabled:opacity-30 hover:opacity-85 active:scale-95"
+                            style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
+                        >
+                            <ArrowUp className="h-4 w-4 text-white" />
+                        </button>
                     </div>
-                    <div className="max-w-3xl mx-auto mt-2 text-center text-xs text-muted-foreground">
-                        <p>AI can make mistakes. Check important info.</p>
-                    </div>
+                    <p className="mt-2 text-center text-[11px]" style={{ color: 'rgba(255,255,255,0.2)' }}>
+                        AI can make mistakes. Check important info.
+                    </p>
                 </div>
             </div>
 
@@ -1038,11 +1058,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                 open={isCreatePostModalOpen}
                 onOpenChange={(open) => {
                     setIsCreatePostModalOpen(open)
-                    if (!open) {
-                        // Clear draft when modal closes
-                        setDraftCaption("")
-                        setDraftMedia([])
-                    }
+                    if (!open) { setDraftCaption(""); setDraftMedia([]) }
                 }}
                 workspaceId={workspaceId || ""}
                 initialCaption={draftCaption}

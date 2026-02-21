@@ -190,11 +190,18 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
 
         setIsSearching(true)
         try {
-            const { data, error } = await supabase.functions.invoke('search-unsplash', {
-                body: { query: unsplashQuery, count: 4 }
+            const response = await fetch('/api/assistant/invoke', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    functionName: 'search-unsplash',
+                    body: { query: unsplashQuery, count: 4 }
+                })
             })
+            const payload = await response.json().catch(() => ({}))
 
-            if (error) throw new Error(error.message)
+            if (!response.ok) throw new Error(payload?.error || 'Unsplash search failed')
+            const data = payload?.data
             if (data?.error) throw new Error(data.error)
 
             setUnsplashResults(data?.result?.data || [])
@@ -221,13 +228,23 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
 
         for (const photo of selectedPhotos) {
             try {
-                const { data } = await supabase.functions.invoke('select-unsplash-image', {
-                    body: {
-                        unsplashId: photo.id,
-                        downloadLocation: photo.downloadLink,
-                        photographer: photo.photographer
-                    }
+                const response = await fetch('/api/assistant/invoke', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        functionName: 'select-unsplash-image',
+                        body: {
+                            unsplashId: photo.id,
+                            downloadLocation: photo.downloadLink,
+                            photographer: photo.photographer
+                        }
+                    })
                 })
+                const payload = await response.json().catch(() => ({}))
+                if (!response.ok) {
+                    throw new Error(payload?.error || 'Failed to select image')
+                }
+                const data = payload?.data
 
                 if (data?.result?.imageUrl) {
                     newUrls.push(data.result.imageUrl)

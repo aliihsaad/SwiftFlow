@@ -1,7 +1,6 @@
 "use client"
 
 import { DateRange, Granularity } from "@/types/analytics"
-import { Button } from "@/components/ui/button"
 import {
     Select,
     SelectContent,
@@ -39,22 +38,36 @@ export function AnalyticsHeader({
 
     return (
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            {/* Title section */}
+            {/* Title */}
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
-                <p className="text-muted-foreground mt-1">
+                <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                    Analytics
+                </h1>
+                <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
                     Track your social media growth and engagement
                 </p>
             </div>
 
-            {/* Controls section */}
+            {/* Controls */}
             <div className="flex flex-wrap items-center gap-3">
                 {/* Date range selector */}
                 <Select value={dateRange} onValueChange={(value) => onDateRangeChange(value as DateRange)}>
-                    <SelectTrigger className="w-[160px]">
+                    <SelectTrigger
+                        className="w-[160px] border-0 text-sm font-medium"
+                        style={{
+                            background: '#12111e',
+                            border: '1px solid rgba(139,92,246,0.2)',
+                            color: 'rgba(255,255,255,0.7)',
+                        }}
+                    >
                         <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent
+                        style={{
+                            background: '#12111e',
+                            border: '1px solid rgba(139,92,246,0.25)',
+                        }}
+                    >
                         <SelectItem value="last_7_days">Last 7 days</SelectItem>
                         <SelectItem value="last_30_days">Last 30 days</SelectItem>
                         <SelectItem value="last_90_days">Last 90 days</SelectItem>
@@ -62,17 +75,30 @@ export function AnalyticsHeader({
                 </Select>
 
                 {/* Granularity toggle */}
-                <div className="flex items-center rounded-md border border-border bg-background p-1">
+                <div
+                    className="flex items-center rounded-lg p-1"
+                    style={{
+                        background: '#12111e',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                    }}
+                >
                     {granularityOptions.map((option) => (
                         <button
                             key={option.value}
                             onClick={() => onGranularityChange(option.value)}
-                            className={cn(
-                                "px-3 py-1.5 text-sm font-medium rounded transition-colors",
+                            className="px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-150"
+                            style={
                                 granularity === option.value
-                                    ? "bg-primary text-primary-foreground"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
+                                    ? {
+                                          background: 'rgba(139,92,246,0.2)',
+                                          color: '#a78bfa',
+                                          border: '1px solid rgba(139,92,246,0.3)',
+                                      }
+                                    : {
+                                          color: 'rgba(255,255,255,0.35)',
+                                          border: '1px solid transparent',
+                                      }
+                            }
                         >
                             {option.label}
                         </button>
@@ -81,22 +107,34 @@ export function AnalyticsHeader({
 
                 {/* Sync button */}
                 {onSync && (
-                    <Button
+                    <button
                         onClick={onSync}
-                        variant="outline"
-                        size="sm"
                         disabled={isSyncing}
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150 disabled:opacity-50"
+                        style={{
+                            background: '#12111e',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            color: 'rgba(255,255,255,0.5)',
+                        }}
                     >
-                        <RefreshCw className={cn("mr-2 h-4 w-4", isSyncing && "animate-spin")} />
-                        {isSyncing ? 'Syncing...' : 'Sync'}
-                    </Button>
+                        <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
+                        {isSyncing ? 'Syncing…' : 'Sync'}
+                    </button>
                 )}
 
                 {/* Export button */}
-                <Button onClick={onExport} variant="outline" size="sm">
-                    <Download className="mr-2 h-4 w-4" />
+                <button
+                    onClick={onExport}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150"
+                    style={{
+                        background: 'rgba(139,92,246,0.12)',
+                        border: '1px solid rgba(139,92,246,0.25)',
+                        color: '#a78bfa',
+                    }}
+                >
+                    <Download className="h-3.5 w-3.5" />
                     Export
-                </Button>
+                </button>
             </div>
         </div>
     )

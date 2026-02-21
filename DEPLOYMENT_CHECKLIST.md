@@ -29,11 +29,25 @@ Quick reference checklist for deploying to Vercel.
   supabase functions deploy generate-ideas
   supabase functions deploy generate-image
   supabase functions deploy generate-carousel
-  supabase functions deploy refine-post
-  supabase functions deploy repurpose-link
-  supabase functions deploy list-models
-  supabase functions deploy get-schedule
-  supabase functions deploy get-analytics
+  supabase functions deploy generate-reply
+  supabase functions deploy generate-message-reply
+  supabase functions deploy search-unsplash
+  supabase functions deploy select-unsplash-image
+  supabase functions deploy process-scheduled-posts
+  supabase functions deploy sync-analytics
+  supabase functions deploy sync-comments
+  supabase functions deploy sync-messages
+  supabase functions deploy process-automations
+  supabase functions deploy process-scheduled-executions
+  supabase functions deploy automation-orchestrator
+  supabase functions deploy automation-worker-run
+  supabase functions deploy automation-worker-ai-response
+  supabase functions deploy automation-worker-reply-comment
+  supabase functions deploy automation-worker-send-dm
+  supabase functions deploy automation-worker-private-reply
+  supabase functions deploy automation-worker-condition
+  supabase functions deploy automation-worker-http-request
+  supabase functions deploy automation-worker-send-email
   ```
 
 ## Vercel Setup
@@ -115,7 +129,7 @@ npm run build
 
 ### Deploy all Supabase functions:
 ```bash
-for func in chat-assistant generate-caption generate-ideas generate-image generate-carousel refine-post repurpose-link list-models get-schedule get-analytics; do
+for func in chat-assistant generate-caption generate-ideas generate-image generate-carousel generate-reply generate-message-reply search-unsplash select-unsplash-image process-scheduled-posts sync-analytics sync-comments sync-messages process-automations process-scheduled-executions automation-orchestrator automation-worker-run automation-worker-ai-response automation-worker-reply-comment automation-worker-send-dm automation-worker-private-reply automation-worker-condition automation-worker-http-request automation-worker-send-email; do
   supabase functions deploy $func
 done
 ```

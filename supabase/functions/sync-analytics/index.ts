@@ -26,39 +26,45 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
     const { data: allPosts, error: allPostsError } = await supabase
         .from('posts')
         .select('*')
-        .eq('workspace_id', workspaceId)
-        .eq('status', 'published');
+        .eq('workspace_id', workspaceId);
 
-    console.log(`[Sync] All published posts in workspace:`, allPosts?.length || 0);
+    console.log(`[Sync] All posts in workspace:`, allPosts?.length || 0);
     if (allPostsError) {
         console.error(`[Sync] Error fetching posts:`, allPostsError);
         return { synced: 0, error: allPostsError.message };
     }
 
-    if (!allPosts || allPosts.length === 0) {
-        return { synced: 0, message: 'No published posts found in workspace' };
+    const allPostsList = allPosts || [];
+    if (allPostsList.length === 0) {
+        console.log('[Sync] No app-managed posts found in workspace; continuing with direct/native post sync');
     }
 
     // Fetch published_posts for these posts
-    const postIds = allPosts.map(p => p.id);
-    const { data: publishedPostsData, error: pubPostsError } = await supabase
-        .from('published_posts')
-        .select('*')
-        .in('post_id', postIds);
+    const postIds = allPostsList.map(p => p.id);
+    let publishedPostsData: any[] = [];
 
-    if (pubPostsError) {
-        console.error(`[Sync] Error fetching published_posts:`, pubPostsError);
-        return { synced: 0, error: pubPostsError.message };
+    if (postIds.length > 0) {
+        const { data: pubRows, error: pubPostsError } = await supabase
+            .from('published_posts')
+            .select('*')
+            .in('post_id', postIds);
+
+        if (pubPostsError) {
+            console.error(`[Sync] Error fetching published_posts:`, pubPostsError);
+            return { synced: 0, error: pubPostsError.message };
+        }
+
+        publishedPostsData = pubRows || [];
     }
 
     console.log(`[Sync] Published posts records:`, publishedPostsData?.length || 0);
 
     if (!publishedPostsData || publishedPostsData.length === 0) {
-        return { synced: 0, message: 'No platform posts found (posts not published to platforms yet)' };
+        console.log('[Sync] No app-managed published_posts found; continuing with direct/native post sync');
     }
 
     // Manually join the data
-    const posts = allPosts.map(post => ({
+    const posts = allPostsList.map(post => ({
         ...post,
         published_posts: publishedPostsData.filter(pp => pp.post_id === post.id)
     }));
@@ -79,7 +85,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
     console.log(`[Sync] Found ${recentPosts.length} posts with recent published_posts (last 30 days)`);
 
     if (!recentPosts || recentPosts.length === 0) {
-        return { synced: 0, message: 'No published posts found in the last 30 days' };
+        console.log('[Sync] No recent app-managed published posts; continuing with direct/native post sync');
     }
 
     // Use recentPosts for the rest of the function
@@ -103,6 +109,64 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
     });
 
     let syncedCount = 0;
+    let directPublishedCount = 0;
+    let directMetricsCount = 0;
+    let directErrorCount = 0;
+
+    const upsertPublishedPost = async (payload: {
+        platform: string;
+        platform_post_id: string;
+        permalink?: string | null;
+        published_at?: string | null;
+        social_account_id?: string;
+        platform_caption?: string | null;
+    }) => {
+        const basePayload: any = {
+            platform: payload.platform,
+            platform_post_id: payload.platform_post_id,
+            permalink: payload.permalink || null,
+            published_at: payload.published_at || new Date().toISOString(),
+            social_account_id: payload.social_account_id,
+            platform_caption: payload.platform_caption || null
+        };
+
+        let upsertResult = await supabase
+            .from('published_posts')
+            .upsert(basePayload, { onConflict: 'platform,platform_post_id' })
+            .select('id, post_id')
+            .single();
+
+        if (upsertResult.error && /social_account_id|platform_caption/i.test(String(upsertResult.error.message || ''))) {
+            throw new Error('Missing published_posts.social_account_id/platform_caption columns. Run the latest migration first.');
+        }
+
+        if (upsertResult.error) throw upsertResult.error;
+        return upsertResult.data;
+    };
+
+    const upsertPostAnalytics = async (publishedPostId: string, metrics: {
+        views?: number;
+        likes?: number;
+        comments?: number;
+        shares?: number;
+        saves?: number;
+        engagement_rate?: number;
+    }) => {
+        const { error } = await supabase
+            .from('post_analytics')
+            .upsert({
+                published_post_id: publishedPostId,
+                views: metrics.views || 0,
+                likes: metrics.likes || 0,
+                comments: metrics.comments || 0,
+                shares: metrics.shares || 0,
+                saves: metrics.saves || 0,
+                engagement_rate: metrics.engagement_rate || 0,
+                synced_at: new Date().toISOString()
+            }, { onConflict: 'published_post_id' });
+
+        if (error) throw error;
+    };
 
     for (const post of postsToSync) {
         if (!post.published_posts || post.published_posts.length === 0) {
@@ -203,7 +267,180 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
         }
     }
 
-    return { synced: syncedCount };
+    // Also sync direct/native platform posts (not created in app) so analytics stays source-agnostic.
+    for (const account of accounts) {
+        if (!account.access_token) continue;
+
+        try {
+            if (account.platform === 'instagram') {
+                const igUserId = account.account_id || account.metadata?.instagram_business_account_id;
+                if (!igUserId) {
+                    console.log(`[Sync] Instagram account ${account.id} missing account_id, skipping direct sync`);
+                    continue;
+                }
+
+                // Keep list call on safe fields, then fetch optional counts per media.
+                const listUrl = `${META_GRAPH_URL}/${igUserId}/media?fields=id,caption,timestamp,permalink,media_type&limit=50&access_token=${account.access_token}`;
+                const listRes = await fetch(listUrl);
+                const listData = await listRes.json();
+
+                if (!listRes.ok) {
+                    directErrorCount++;
+                    console.error('[Sync] Instagram media list error:', JSON.stringify(listData));
+                    continue;
+                }
+
+                const mediaItems = Array.isArray(listData?.data) ? listData.data : [];
+                console.log(`[Sync] Instagram direct media fetched: ${mediaItems.length} items for account ${account.id}`);
+
+                for (const media of mediaItems) {
+                    try {
+                        let likes = 0;
+                        let comments = 0;
+                        let permalink = media.permalink || null;
+                        let publishedAt = media.timestamp || null;
+                        let caption = media.caption || null;
+
+                        try {
+                            const detailUrl = `${META_GRAPH_URL}/${media.id}?fields=like_count,comments_count,caption,timestamp,permalink,media_type&access_token=${account.access_token}`;
+                            const detailRes = await fetch(detailUrl);
+                            const detailData = await detailRes.json();
+
+                            if (detailRes.ok) {
+                                likes = detailData.like_count || 0;
+                                comments = detailData.comments_count || 0;
+                                permalink = detailData.permalink || permalink;
+                                publishedAt = detailData.timestamp || publishedAt;
+                                caption = detailData.caption || caption;
+                            } else {
+                                console.log(`[Sync] Instagram media details unavailable for ${media.id}: ${JSON.stringify(detailData)}`);
+                            }
+                        } catch (detailError) {
+                            console.log(`[Sync] Instagram media details fetch failed for ${media.id}:`, detailError);
+                        }
+
+                        const published = await upsertPublishedPost({
+                            platform: 'instagram',
+                            platform_post_id: media.id,
+                            permalink,
+                            published_at: publishedAt,
+                            social_account_id: account.id,
+                            platform_caption: caption,
+                        });
+                        directPublishedCount++;
+
+                        try {
+                            await upsertPostAnalytics(published.id, {
+                                likes,
+                                comments,
+                                views: 0,
+                                shares: 0,
+                                saves: 0,
+                                engagement_rate: 0,
+                            });
+                            directMetricsCount++;
+                        } catch (analyticsError) {
+                            directErrorCount++;
+                            console.error(`[Sync] Failed upserting IG analytics for ${media.id}:`, analyticsError);
+                        }
+
+                        syncedCount++;
+                    } catch (itemError) {
+                        directErrorCount++;
+                        console.error('[Sync] Failed syncing Instagram media item:', itemError);
+                    }
+                }
+            } else if (account.platform === 'facebook') {
+                const pageId = account.metadata?.connected_page_id || account.account_id;
+                if (!pageId) {
+                    console.log(`[Sync] Facebook account ${account.id} missing page id, skipping direct sync`);
+                    continue;
+                }
+
+                // Request minimal fields first so posts are still ingested even without insights permissions.
+                const listUrl = `${META_GRAPH_URL}/${pageId}/posts?fields=id,message,created_time,permalink_url&limit=50&access_token=${account.access_token}`;
+                const listRes = await fetch(listUrl);
+                const listData = await listRes.json();
+
+                if (!listRes.ok) {
+                    directErrorCount++;
+                    console.error('[Sync] Facebook posts list error:', JSON.stringify(listData));
+                    continue;
+                }
+
+                const postItems = Array.isArray(listData?.data) ? listData.data : [];
+                console.log(`[Sync] Facebook direct posts fetched: ${postItems.length} items for account ${account.id}`);
+
+                for (const fbPost of postItems) {
+                    try {
+                        let likes = 0;
+                        let comments = 0;
+                        let shares = 0;
+
+                        try {
+                            const metricsUrl = `${META_GRAPH_URL}/${fbPost.id}?fields=shares,likes.summary(true),comments.summary(true)&access_token=${account.access_token}`;
+                            const metricsRes = await fetch(metricsUrl);
+                            const metricsData = await metricsRes.json();
+
+                            if (metricsRes.ok) {
+                                likes = metricsData?.likes?.summary?.total_count || 0;
+                                comments = metricsData?.comments?.summary?.total_count || 0;
+                                shares = metricsData?.shares?.count || 0;
+                            } else {
+                                console.log(`[Sync] Facebook metrics unavailable for ${fbPost.id}: ${JSON.stringify(metricsData)}`);
+                            }
+                        } catch (metricsError) {
+                            console.log(`[Sync] Facebook metrics fetch failed for ${fbPost.id}:`, metricsError);
+                        }
+
+                        const published = await upsertPublishedPost({
+                            platform: 'facebook',
+                            platform_post_id: fbPost.id,
+                            permalink: fbPost.permalink_url || null,
+                            published_at: fbPost.created_time || null,
+                            social_account_id: account.id,
+                            platform_caption: fbPost.message || null,
+                        });
+                        directPublishedCount++;
+
+                        try {
+                            await upsertPostAnalytics(published.id, {
+                                likes,
+                                comments,
+                                shares,
+                                views: 0,
+                                saves: 0,
+                                engagement_rate: 0,
+                            });
+                            directMetricsCount++;
+                        } catch (analyticsError) {
+                            directErrorCount++;
+                            console.error(`[Sync] Failed upserting FB analytics for ${fbPost.id}:`, analyticsError);
+                        }
+
+                        syncedCount++;
+                    } catch (itemError) {
+                        directErrorCount++;
+                        console.error('[Sync] Failed syncing Facebook post item:', itemError);
+                    }
+                }
+            }
+        } catch (accountError) {
+            directErrorCount++;
+            console.error(`[Sync] Direct sync failed for account ${account.id}:`, accountError);
+        }
+    }
+
+    console.log(`[Sync] Direct/native sync summary: posts_upserted=${directPublishedCount}, metrics_upserted=${directMetricsCount}, errors=${directErrorCount}`);
+
+    return {
+        synced: syncedCount,
+        direct: {
+            posts_upserted: directPublishedCount,
+            metrics_upserted: directMetricsCount,
+            errors: directErrorCount
+        }
+    };
 }
 
 /**

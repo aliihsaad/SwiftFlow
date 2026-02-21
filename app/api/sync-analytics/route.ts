@@ -20,28 +20,39 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
 
+        const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!serviceKey) {
+            return NextResponse.json({ error: 'Missing Supabase service key' }, { status: 500 });
+        }
+
         // Call the sync-analytics Edge Function
         const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/sync-analytics`;
         const response = await fetch(functionUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_KEY}`
+                'apikey': serviceKey,
+                'Authorization': `Bearer ${serviceKey}`
             },
             body: JSON.stringify({
                 workspaceId: activeWorkspace.id
             })
         });
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to sync analytics');
+        const raw = await response.text();
+        let result: any = {};
+        try {
+            result = raw ? JSON.parse(raw) : {};
+        } catch {
+            result = { error: raw };
         }
-
-        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result?.error || 'Failed to sync analytics');
+        }
 
         return NextResponse.json({
             success: true,
+            workspaceId: activeWorkspace.id,
             ...result
         });
 

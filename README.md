@@ -196,30 +196,36 @@ The database schema includes:
 - `processed_comments` - Tracks comments already handled by automations
 - `webhook_events` - Idempotency table for deduplicating webhook events
 
-#### Set Permissions
-Run this SQL in your Supabase SQL Editor:
-```sql
--- Grant permissions for chat sessions
-GRANT ALL ON TABLE chat_sessions TO anon, authenticated, service_role;
-ALTER TABLE chat_sessions DISABLE ROW LEVEL SECURITY;
-
--- Grant permissions for brand profiles
-GRANT ALL ON TABLE workspace_brand_profiles TO anon, authenticated, service_role;
-ALTER TABLE workspace_brand_profiles DISABLE ROW LEVEL SECURITY;
-```
+RLS and grants are managed by migrations in `supabase/migrations`. Do not disable RLS manually.
 
 ### 5. Deploy Edge Functions
 
 ```bash
 # Deploy all functions
 supabase functions deploy chat-assistant
-supabase functions deploy generate-ideas --no-verify-jwt
+supabase functions deploy generate-ideas
 supabase functions deploy generate-caption
 supabase functions deploy generate-image
 supabase functions deploy generate-carousel
-supabase functions deploy publish-post
+supabase functions deploy generate-reply
+supabase functions deploy generate-message-reply
+supabase functions deploy search-unsplash
+supabase functions deploy select-unsplash-image
+supabase functions deploy process-scheduled-posts
 supabase functions deploy sync-analytics
+supabase functions deploy sync-comments
+supabase functions deploy sync-messages
 supabase functions deploy process-automations
+supabase functions deploy process-scheduled-executions
+supabase functions deploy automation-orchestrator
+supabase functions deploy automation-worker-run
+supabase functions deploy automation-worker-ai-response
+supabase functions deploy automation-worker-reply-comment
+supabase functions deploy automation-worker-send-dm
+supabase functions deploy automation-worker-private-reply
+supabase functions deploy automation-worker-condition
+supabase functions deploy automation-worker-http-request
+supabase functions deploy automation-worker-send-email
 ```
 
 #### Set Function Secrets
@@ -286,11 +292,19 @@ Social-Media-Manager-AI-Tool/
 │   │   ├── generate-caption/    # Caption generation
 │   │   ├── generate-image/      # Image generation
 │   │   ├── generate-carousel/   # Carousel generation
-│   │   ├── publish-post/        # Post publishing to Meta
+│   │   ├── generate-reply/      # AI comment replies
+│   │   ├── generate-message-reply/ # AI DM replies
+│   │   ├── search-unsplash/     # Unsplash search
+│   │   ├── select-unsplash-image/ # Unsplash selection tracking
+│   │   ├── process-scheduled-posts/ # Scheduled post publisher
 │   │   ├── sync-analytics/      # Follower metrics sync
 │   │   ├── sync-comments/       # Comments sync
 │   │   ├── sync-messages/       # DM sync
-│   │   └── process-automations/ # Automation execution engine
+│   │   ├── process-automations/ # Wizard automation engine + graph executor utilities
+│   │   ├── process-scheduled-executions/ # Delay node scheduler runner
+│   │   ├── automation-orchestrator/ # Canvas automation run orchestrator
+│   │   ├── automation-worker-run/ # Canvas graph runner
+│   │   └── automation-worker-*/ # Per-node workers
 │   ├── migrations/              # Database migrations
 │   └── schema.sql               # Database schema
 ├── lib/                         # Utility functions
@@ -350,17 +364,15 @@ AI-powered image generation using Google's Imagen or similar models.
 #### `generate-carousel`
 Creates multi-slide carousel content with coordinated messaging.
 
+#### `automation-orchestrator` + workers
+Canvas automation execution is split across functions:
+- `automation-orchestrator` receives webhook trigger context and creates runs
+- `automation-worker-run` traverses graph nodes
+- `automation-worker-*` executes node-specific actions (DM, private reply, AI response, etc.)
+- Delay nodes are resumed via `process-scheduled-executions`
+
 #### `process-automations`
-Automation execution engine triggered by Instagram webhooks:
-- **Primary trigger**: Instagram webhooks deliver comment events in real-time
-- **Fallback**: Cron schedule polls for any missed comments
-- Fetches active automations with their linked Instagram accounts
-- Matches comments against trigger config (any comment or keywords)
-- Sends DMs to commenters via `/{connected_page_id}/messages`
-- Optionally replies to comments via `/{comment_id}/replies`
-- Logs all actions in `automation_logs` table
-- Tracks processed comments in `processed_comments` to prevent duplicates
-- Supports workspace-scoped and automation-scoped filtering
+Legacy/simple wizard automation executor is still kept for backward compatibility.
 
 ## 🔧 Configuration
 

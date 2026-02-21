@@ -1,0 +1,174 @@
+schemaname,tablename,policyname,permissive,roles,cmd,qual,with_check
+public,account_analytics,Service role has full access to account_analytics,PERMISSIVE,{public},ALL,((auth.jwt() ->> 'role'::text) = 'service_role'::text),((auth.jwt() ->> 'role'::text) = 'service_role'::text)
+public,account_analytics,Users can view account analytics in their workspaces,PERMISSIVE,{public},SELECT,"(social_account_id IN ( SELECT sa.id
+   FROM social_accounts sa
+  WHERE is_member_of(sa.workspace_id)))",
+public,analytics_snapshots,Member access analytics,PERMISSIVE,{public},ALL,is_member_of(workspace_id),
+public,automation_events,Service role has full access to automation events,PERMISSIVE,{public},ALL,((auth.jwt() ->> 'role'::text) = 'service_role'::text),
+public,automation_events,Users can view automation events in their workspaces,PERMISSIVE,{public},SELECT,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,automation_logs,Service role has full access to automation_logs,PERMISSIVE,{public},ALL,((auth.jwt() ->> 'role'::text) = 'service_role'::text),
+public,automation_logs,Users can create automation logs,PERMISSIVE,{public},INSERT,,"(automation_id IN ( SELECT automations.id
+   FROM automations
+  WHERE (automations.workspace_id IN ( SELECT workspace_members.workspace_id
+           FROM workspace_members
+          WHERE (workspace_members.user_id = auth.uid())))))"
+public,automation_logs,Users can update automation logs,PERMISSIVE,{public},UPDATE,"(automation_id IN ( SELECT automations.id
+   FROM automations
+  WHERE (automations.workspace_id IN ( SELECT workspace_members.workspace_id
+           FROM workspace_members
+          WHERE (workspace_members.user_id = auth.uid())))))",
+public,automation_logs,Users can view automation logs in their workspaces,PERMISSIVE,{public},SELECT,"(automation_id IN ( SELECT automations.id
+   FROM automations
+  WHERE (automations.workspace_id IN ( SELECT workspace_members.workspace_id
+           FROM workspace_members
+          WHERE (workspace_members.user_id = auth.uid())))))",
+public,automation_node_runs,Service role has full access to automation node runs,PERMISSIVE,{public},ALL,((auth.jwt() ->> 'role'::text) = 'service_role'::text),
+public,automation_node_runs,Users can view automation node runs in their workspaces,PERMISSIVE,{public},SELECT,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,automation_runs,Service role has full access to automation runs,PERMISSIVE,{public},ALL,((auth.jwt() ->> 'role'::text) = 'service_role'::text),
+public,automation_runs,Users can view automation runs in their workspaces,PERMISSIVE,{public},SELECT,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,automation_scheduled_executions,Service role full access on scheduled executions,PERMISSIVE,{public},ALL,(auth.role() = 'service_role'::text),(auth.role() = 'service_role'::text)
+public,automation_scheduled_executions,Service role has full access to scheduled executions,PERMISSIVE,{public},ALL,((auth.jwt() ->> 'role'::text) = 'service_role'::text),
+public,automation_scheduled_executions,Users can create scheduled executions in their workspaces,PERMISSIVE,{public},INSERT,,"(automation_id IN ( SELECT automations.id
+   FROM automations
+  WHERE (automations.workspace_id IN ( SELECT workspace_members.workspace_id
+           FROM workspace_members
+          WHERE (workspace_members.user_id = auth.uid())))))"
+public,automation_scheduled_executions,Users can delete scheduled executions in their workspaces,PERMISSIVE,{public},DELETE,"(automation_id IN ( SELECT automations.id
+   FROM automations
+  WHERE (automations.workspace_id IN ( SELECT workspace_members.workspace_id
+           FROM workspace_members
+          WHERE (workspace_members.user_id = auth.uid())))))",
+public,automation_scheduled_executions,Users can update scheduled executions in their workspaces,PERMISSIVE,{public},UPDATE,"(automation_id IN ( SELECT automations.id
+   FROM automations
+  WHERE (automations.workspace_id IN ( SELECT workspace_members.workspace_id
+           FROM workspace_members
+          WHERE (workspace_members.user_id = auth.uid())))))",
+public,automation_scheduled_executions,Users can view scheduled executions in their workspaces,PERMISSIVE,{public},SELECT,"(automation_id IN ( SELECT automations.id
+   FROM automations
+  WHERE (automations.workspace_id IN ( SELECT workspace_members.workspace_id
+           FROM workspace_members
+          WHERE (workspace_members.user_id = auth.uid())))))",
+public,automation_scheduled_executions,Users can view their workspace scheduled executions,PERMISSIVE,{public},SELECT,"(EXISTS ( SELECT 1
+   FROM (automations a
+     JOIN workspace_members wm ON ((wm.workspace_id = a.workspace_id)))
+  WHERE ((a.id = automation_scheduled_executions.automation_id) AND (wm.user_id = auth.uid()))))",
+public,automations,Service role has full access to automations,PERMISSIVE,{public},ALL,((auth.jwt() ->> 'role'::text) = 'service_role'::text),
+public,automations,Users can create automations in their workspaces,PERMISSIVE,{public},INSERT,,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))"
+public,automations,Users can delete automations in their workspaces,PERMISSIVE,{public},DELETE,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,automations,Users can update automations in their workspaces,PERMISSIVE,{public},UPDATE,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,automations,Users can view automations in their workspaces,PERMISSIVE,{public},SELECT,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,automations,workspace_automations_policy,PERMISSIVE,{public},ALL,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))","(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))"
+public,chat_sessions,Users can delete their own chat sessions,PERMISSIVE,{public},DELETE,(auth.uid() = user_id),
+public,chat_sessions,Users can insert their own chat sessions,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,chat_sessions,Users can update their own chat sessions,PERMISSIVE,{public},UPDATE,(auth.uid() = user_id),
+public,chat_sessions,Users can view their own chat sessions,PERMISSIVE,{public},SELECT,(auth.uid() = user_id),
+public,comments,Users can delete comments in their workspace,PERMISSIVE,{public},DELETE,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,comments,Users can insert comments in their workspace,PERMISSIVE,{public},INSERT,,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))"
+public,comments,Users can update comments in their workspace,PERMISSIVE,{public},UPDATE,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,comments,Users can view comments in their workspace,PERMISSIVE,{public},SELECT,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,conversations,Users can delete conversations in their workspace,PERMISSIVE,{public},DELETE,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,conversations,Users can insert conversations in their workspace,PERMISSIVE,{public},INSERT,,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))"
+public,conversations,Users can update conversations in their workspace,PERMISSIVE,{public},UPDATE,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,conversations,Users can view conversations in their workspace,PERMISSIVE,{public},SELECT,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,external_services,Service role has full access to external_services,PERMISSIVE,{public},ALL,((auth.jwt() ->> 'role'::text) = 'service_role'::text),((auth.jwt() ->> 'role'::text) = 'service_role'::text)
+public,external_services,Users can create external services in their workspaces,PERMISSIVE,{public},INSERT,,is_member_of(workspace_id)
+public,external_services,Users can delete external services in their workspaces,PERMISSIVE,{public},DELETE,is_member_of(workspace_id),
+public,external_services,Users can update external services in their workspaces,PERMISSIVE,{public},UPDATE,is_member_of(workspace_id),is_member_of(workspace_id)
+public,external_services,Users can view external services in their workspaces,PERMISSIVE,{public},SELECT,is_member_of(workspace_id),
+public,generated_assets,Users can insert assets in their workspace,PERMISSIVE,{public},INSERT,,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))"
+public,generated_assets,Users can view assets in their workspace,PERMISSIVE,{public},SELECT,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,messages,Users can delete messages in their workspace,PERMISSIVE,{public},DELETE,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,messages,Users can insert messages in their workspace,PERMISSIVE,{public},INSERT,,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))"
+public,messages,Users can update messages in their workspace,PERMISSIVE,{public},UPDATE,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,messages,Users can view messages in their workspace,PERMISSIVE,{public},SELECT,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,oauth_page_sessions,Service role has full access to oauth_page_sessions,PERMISSIVE,{public},ALL,((auth.jwt() ->> 'role'::text) = 'service_role'::text),((auth.jwt() ->> 'role'::text) = 'service_role'::text)
+public,post_analytics,Service role has full access to post_analytics,PERMISSIVE,{public},ALL,((auth.jwt() ->> 'role'::text) = 'service_role'::text),((auth.jwt() ->> 'role'::text) = 'service_role'::text)
+public,post_analytics,Users can view post analytics in their workspaces,PERMISSIVE,{public},SELECT,"(published_post_id IN ( SELECT pp.id
+   FROM (published_posts pp
+     JOIN posts p ON ((p.id = pp.post_id)))
+  WHERE is_member_of(p.workspace_id)))",
+public,posts,Member access posts,PERMISSIVE,{public},ALL,is_member_of(workspace_id),
+public,processed_comments,Service role has full access to processed_comments,PERMISSIVE,{public},ALL,((auth.jwt() ->> 'role'::text) = 'service_role'::text),
+public,processed_comments,Users can create processed comments in their workspaces,PERMISSIVE,{public},INSERT,,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))"
+public,processed_comments,Users can view processed comments in their workspaces,PERMISSIVE,{public},SELECT,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,published_posts,Service role has full access to published_posts,PERMISSIVE,{public},ALL,((auth.jwt() ->> 'role'::text) = 'service_role'::text),((auth.jwt() ->> 'role'::text) = 'service_role'::text)
+public,published_posts,Users can view published posts in their workspaces,PERMISSIVE,{public},SELECT,"(post_id IN ( SELECT p.id
+   FROM posts p
+  WHERE is_member_of(p.workspace_id)))",
+public,social_accounts,Member access social_accounts,PERMISSIVE,{public},ALL,is_member_of(workspace_id),
+public,webhook_events,Service role full access,PERMISSIVE,{service_role},ALL,true,true
+public,workspace_brand_profiles,Users can create brand profiles for their workspaces,PERMISSIVE,{public},INSERT,,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))"
+public,workspace_brand_profiles,Users can update brand profiles of their workspaces,PERMISSIVE,{public},UPDATE,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,workspace_brand_profiles,Users can view brand profiles of their workspaces,PERMISSIVE,{public},SELECT,"(workspace_id IN ( SELECT workspace_members.workspace_id
+   FROM workspace_members
+  WHERE (workspace_members.user_id = auth.uid())))",
+public,workspace_members,Manage members,PERMISSIVE,{public},INSERT,,"(((user_id = auth.uid()) AND (role = 'owner'::text) AND (EXISTS ( SELECT 1
+   FROM workspaces
+  WHERE ((workspaces.id = workspace_members.workspace_id) AND (workspaces.owner_id = auth.uid()))))) OR (EXISTS ( SELECT 1
+   FROM workspaces
+  WHERE ((workspaces.id = workspace_members.workspace_id) AND (workspaces.owner_id = auth.uid())))))"
+public,workspace_members,Owner delete members,PERMISSIVE,{public},DELETE,"((EXISTS ( SELECT 1
+   FROM workspaces
+  WHERE ((workspaces.id = workspace_members.workspace_id) AND (workspaces.owner_id = auth.uid())))) OR (user_id = auth.uid()))",
+public,workspace_members,Owner manage members,PERMISSIVE,{public},UPDATE,"(EXISTS ( SELECT 1
+   FROM workspaces
+  WHERE ((workspaces.id = workspace_members.workspace_id) AND (workspaces.owner_id = auth.uid()))))",
+public,workspace_members,View members,PERMISSIVE,{public},SELECT,((user_id = auth.uid()) OR is_member_of(workspace_id)),
+public,workspace_settings,Member access settings,PERMISSIVE,{public},ALL,is_member_of(workspace_id),
+public,workspaces,Create workspaces,PERMISSIVE,{public},INSERT,,(auth.uid() = owner_id)
+public,workspaces,Manage workspaces,PERMISSIVE,{public},ALL,(auth.uid() = owner_id),
+public,workspaces,View workspaces,PERMISSIVE,{public},SELECT,((auth.uid() = owner_id) OR is_member_of(id)),

@@ -59,8 +59,8 @@ export default async function ScheduledPostsPage({
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="text-2xl font-bold tracking-tight">Posts</h2>
-                <p className="text-muted-foreground">Manage all your posts for {activeWorkspace.name}.</p>
+                <h2 className="text-2xl font-bold tracking-tight" style={{ color: 'rgba(255,255,255,0.9)' }}>Posts</h2>
+                <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Manage all your posts for {activeWorkspace.name}.</p>
             </div>
 
             <PostsTabView

@@ -1,8 +1,6 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { PostData } from "@/types/analytics"
-import { Badge } from "@/components/ui/badge"
 import { Heart, MessageCircle, Share2 } from "lucide-react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
@@ -13,70 +11,92 @@ interface OtherPostsListProps {
 export function OtherPostsList({ posts }: OtherPostsListProps) {
     if (posts.length === 0) {
         return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Other Posts</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-sm text-muted-foreground">No other posts available</p>
-                </CardContent>
-            </Card>
+            <div
+                className="rounded-xl p-5"
+                style={{
+                    background: '#0e0d1c',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                }}
+            >
+                <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>Other Posts</h3>
+                <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>No other posts available</p>
+            </div>
         )
     }
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Other Posts</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <ScrollArea className="h-[600px] pr-4">
-                    <div className="space-y-4">
-                        {posts.map((post) => (
-                            <div
-                                key={post.id}
-                                className="pb-4 border-b last:border-0 last:pb-0 space-y-3"
-                            >
-                                {/* Time ago + platform */}
-                                <div className="flex items-center gap-2">
-                                    <p className="text-xs text-muted-foreground">{post.timeAgo}</p>
-                                    <Badge
-                                        variant="outline"
-                                        className={
-                                            post.platform === 'instagram'
-                                                ? 'border-pink-500 text-pink-600 dark:text-pink-400 text-[10px] px-1.5 py-0'
-                                                : 'border-blue-500 text-blue-600 dark:text-blue-400 text-[10px] px-1.5 py-0'
-                                        }
-                                    >
-                                        {post.platform === 'instagram' ? 'IG' : 'FB'}
-                                    </Badge>
-                                </div>
+        <div
+            className="rounded-xl overflow-hidden"
+            style={{
+                background: '#0e0d1c',
+                border: '1px solid rgba(255,255,255,0.06)',
+            }}
+        >
+            {/* Header */}
+            <div
+                className="px-5 py-4"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+            >
+                <h3 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.8)' }}>Other Posts</h3>
+            </div>
 
-                                {/* Caption */}
-                                <p className="text-sm leading-relaxed line-clamp-3">
-                                    {post.caption}
-                                </p>
+            {/* List */}
+            <div className="p-5">
+                <ScrollArea className="h-[520px] pr-2">
+                    <div className="space-y-0">
+                        {posts.map((post, index) => {
+                            const isInstagram = post.platform === 'instagram'
+                            return (
+                                <div
+                                    key={post.id}
+                                    className="py-4 space-y-2.5"
+                                    style={
+                                        index < posts.length - 1
+                                            ? { borderBottom: '1px solid rgba(255,255,255,0.05)' }
+                                            : undefined
+                                    }
+                                >
+                                    {/* Time + platform */}
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.3)' }}>{post.timeAgo}</span>
+                                        <span
+                                            className="rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide"
+                                            style={
+                                                isInstagram
+                                                    ? { background: 'rgba(236,72,153,0.1)', color: '#f472b6', border: '1px solid rgba(236,72,153,0.2)' }
+                                                    : { background: 'rgba(59,130,246,0.1)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.2)' }
+                                            }
+                                        >
+                                            {isInstagram ? 'IG' : 'FB'}
+                                        </span>
+                                    </div>
 
-                                {/* Metrics */}
-                                <div className="flex items-center gap-4">
-                                    <div className="flex items-center gap-1.5">
-                                        <Heart className="h-3.5 w-3.5 text-pink-500" />
-                                        <span className="text-xs font-medium">{post.likes.toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <MessageCircle className="h-3.5 w-3.5 text-blue-500" />
-                                        <span className="text-xs font-medium">{post.comments.toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <Share2 className="h-3.5 w-3.5 text-green-500" />
-                                        <span className="text-xs font-medium">{post.shares.toLocaleString()}</span>
+                                    {/* Caption */}
+                                    <p className="text-xs leading-relaxed line-clamp-3" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                                        {post.caption}
+                                    </p>
+
+                                    {/* Metrics */}
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-1.5">
+                                            <Heart className="h-3 w-3 text-pink-400" />
+                                            <span className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.55)' }}>{post.likes.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <MessageCircle className="h-3 w-3 text-blue-400" />
+                                            <span className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.55)' }}>{post.comments.toLocaleString()}</span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                            <Share2 className="h-3 w-3 text-emerald-400" />
+                                            <span className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.55)' }}>{post.shares.toLocaleString()}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            )
+                        })}
                     </div>
                 </ScrollArea>
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     )
 }

@@ -12,17 +12,25 @@ import { OtherPostsList } from "@/components/analytics/other-posts-list"
 import { AnalyticsLoadingSkeleton } from "@/components/analytics/analytics-loading"
 import { useToast } from "@/components/ui/use-toast"
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const fetcher = async (url: string) => {
+    const res = await fetch(url, { cache: "no-store" })
+    const payload = await res.json().catch(() => ({}))
+    if (!res.ok) {
+        throw new Error(payload?.error || "Failed to fetch analytics")
+    }
+    return payload
+}
 
 export default function AnalyticsPage() {
     const [dateRange, setDateRange] = useState<DateRange>('last_7_days')
     const [granularity, setGranularity] = useState<Granularity>('daily')
     const [isSyncing, setIsSyncing] = useState(false)
+    const [initialSyncDone, setInitialSyncDone] = useState(false)
     const { toast } = useToast()
 
     // Fetch analytics data
     const { data, error, isLoading, mutate } = useSWR<AnalyticsResponse>(
-        `/api/analytics?range=${dateRange}&granularity=${granularity}`,
+        initialSyncDone ? `/api/analytics?range=${dateRange}&granularity=${granularity}` : null,
         fetcher,
         {
             revalidateOnFocus: false,
@@ -41,16 +49,17 @@ export default function AnalyticsPage() {
             try {
                 const response = await fetch('/api/sync-analytics', { method: 'POST' })
                 if (response.ok) {
-                    mutate() // Refresh data after sync
+                    // Data fetch will start once initial sync attempt completes.
                 }
             } catch (e) {
                 console.error('Auto-sync failed:', e)
             } finally {
+                setInitialSyncDone(true)
                 setIsSyncing(false)
             }
         }
         autoSync()
-    }, [mutate])
+    }, [])
 
     const handleSync = async () => {
         setIsSyncing(true)
@@ -104,18 +113,24 @@ export default function AnalyticsPage() {
             />
 
             {/* Loading state */}
-            {isLoading && <AnalyticsLoadingSkeleton />}
+            {(!initialSyncDone || isLoading) && <AnalyticsLoadingSkeleton />}
 
             {/* Error state */}
             {error && (
-                <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center">
-                    <p className="text-destructive font-medium">Failed to load analytics data</p>
-                    <p className="text-sm text-muted-foreground mt-2">Please try again later</p>
+                <div
+                    className="rounded-xl p-6 text-center"
+                    style={{
+                        background: 'rgba(248,113,113,0.06)',
+                        border: '1px solid rgba(248,113,113,0.2)',
+                    }}
+                >
+                    <p className="font-medium" style={{ color: '#f87171' }}>Failed to load analytics data</p>
+                    <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.35)' }}>Please try again later</p>
                 </div>
             )}
 
             {/* Data loaded */}
-            {data && !isLoading && (
+            {data && initialSyncDone && !isLoading && (
                 <>
                     {/* KPI Cards */}
                     <KPICards

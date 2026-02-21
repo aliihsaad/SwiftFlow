@@ -2,13 +2,9 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Send, Image, Loader2, MessageSquare, Sparkles } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import { createClient } from "@/utils/supabase/client"
 
@@ -46,12 +42,10 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
     const scrollAreaRef = useRef<HTMLDivElement>(null)
     const [internalWorkspaceId, setInternalWorkspaceId] = useState<string | null>(null)
 
-    // Resolve workspaceId: prefer prop, fall back to client-side fetch
     const workspaceId = propWorkspaceId || internalWorkspaceId
 
-    // Fetch workspace ID client-side if not provided by parent
     useEffect(() => {
-        if (propWorkspaceId) return // Already have it from props
+        if (propWorkspaceId) return
         const fetchWorkspace = async () => {
             const supabase = createClient()
             const { data: { user } } = await supabase.auth.getUser()
@@ -67,19 +61,15 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
         fetchWorkspace()
     }, [propWorkspaceId])
 
-    // Scroll to bottom when messages change
     useEffect(() => {
         if (scrollAreaRef.current) {
             const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]')
-            if (scrollContainer) {
-                scrollContainer.scrollTop = scrollContainer.scrollHeight
-            }
+            if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight
         }
     }, [messages])
 
     const handleSend = async () => {
         if (!inputValue.trim() || isSending) return
-
         setIsSending(true)
         try {
             await onSendMessage(inputValue.trim())
@@ -100,16 +90,12 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
 
     const handleAIReply = async () => {
         if (!conversation || !workspaceId || messages.length === 0) return
-
-        // Find the last message from the customer to reply to
         const lastCustomerMessage = [...messages].reverse().find(m => !m.is_from_page && m.message)
         if (!lastCustomerMessage?.message) return
 
         setIsGeneratingAI(true)
         try {
             const supabase = createClient()
-
-            // Get recent conversation history (last 10 messages for context)
             const recentMessages = messages.slice(-10).map(m => ({
                 message: m.message,
                 is_from_page: m.is_from_page
@@ -126,9 +112,7 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
             })
 
             if (error) throw error
-            if (data?.reply) {
-                setInputValue(data.reply)
-            }
+            if (data?.reply) setInputValue(data.reply)
         } catch (error) {
             console.error('AI message reply generation failed:', error)
         } finally {
@@ -136,64 +120,69 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
         }
     }
 
-    // Empty state - no conversation selected
+    const parseAttachments = (attachmentsStr: string) => {
+        try { return JSON.parse(attachmentsStr) } catch { return [] }
+    }
+
+    const hasCustomerMessage = messages.some(m => !m.is_from_page && m.message)
+
+    // Empty state
     if (!conversation) {
         return (
-            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-muted/20">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
-                    <MessageSquare className="h-8 w-8 text-muted-foreground" />
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center" style={{ background: 'rgba(255,255,255,0.01)' }}>
+                <div
+                    className="flex h-16 w-16 items-center justify-center rounded-2xl mb-4"
+                    style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.15)' }}
+                >
+                    <MessageSquare className="h-8 w-8" style={{ color: '#8b5cf6' }} />
                 </div>
-                <h3 className="font-medium text-foreground">Select a conversation</h3>
-                <p className="text-sm text-muted-foreground mt-1">
+                <h3 className="font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>Select a conversation</h3>
+                <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>
                     Choose a conversation from the list to view messages
                 </p>
             </div>
         )
     }
 
-    // Parse attachments
-    const parseAttachments = (attachmentsStr: string) => {
-        try {
-            return JSON.parse(attachmentsStr)
-        } catch {
-            return []
-        }
-    }
-
-    // Check if there's a customer message to generate AI reply for
-    const hasCustomerMessage = messages.some(m => !m.is_from_page && m.message)
-
     return (
         <div className="flex flex-col h-full min-h-0">
-            {/* Header */}
-            <div className="shrink-0 flex items-center gap-3 p-4 border-b">
+            {/* Thread header */}
+            <div
+                className="shrink-0 flex items-center gap-3 px-4 py-3"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+            >
                 <Avatar className="h-9 w-9">
                     <AvatarImage src={conversation.participant_profile_picture || undefined} />
-                    <AvatarFallback className="bg-linear-to-br from-pink-500 to-purple-500 text-white text-sm">
+                    <AvatarFallback style={{ background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', color: '#fff', fontSize: '12px' }}>
                         {(conversation.participant_username || 'U')[0].toUpperCase()}
                     </AvatarFallback>
                 </Avatar>
                 <div>
-                    <h3 className="font-medium text-sm">
+                    <h3 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }}>
                         {conversation.participant_username || 'Unknown User'}
                     </h3>
-                    <p className="text-xs text-muted-foreground">{platform === 'instagram' ? 'Instagram' : 'Facebook'} DM</p>
+                    <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                        {platform === 'instagram' ? 'Instagram' : 'Facebook'} DM
+                    </p>
                 </div>
             </div>
 
             {/* Messages */}
-            <ScrollArea className="flex-1 min-h-0 p-4" ref={scrollAreaRef}>
+            <ScrollArea className="flex-1 min-h-0 px-4 py-4" ref={scrollAreaRef}>
                 {isLoading ? (
                     <div className="space-y-4">
                         {[...Array(5)].map((_, i) => (
-                            <div key={i} className={cn("flex gap-2", i % 2 === 0 ? "justify-start" : "justify-end")}>
-                                <Skeleton className={cn("h-10 rounded-2xl", i % 2 === 0 ? "w-48" : "w-36")} />
+                            <div key={i} className={`flex gap-2 ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
+                                <div
+                                    className={`h-10 rounded-2xl animate-pulse ${i % 2 === 0 ? 'w-48' : 'w-36'}`}
+                                    style={{ background: 'rgba(255,255,255,0.05)' }}
+                                />
                             </div>
                         ))}
                     </div>
                 ) : messages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-center">
-                        <p className="text-sm text-muted-foreground">No messages yet</p>
+                    <div className="flex flex-col items-center justify-center h-full text-center py-10">
+                        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>No messages yet</p>
                     </div>
                 ) : (
                     <div className="space-y-3">
@@ -205,55 +194,63 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
 
                             return (
                                 <div key={message.id}>
-                                    {/* Date separator */}
                                     {showDate && (
                                         <div className="flex items-center justify-center py-2">
-                                            <span className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                                            <span
+                                                className="text-[10px] font-medium px-3 py-1 rounded-full"
+                                                style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' }}
+                                            >
                                                 {format(new Date(message.platform_created_at), 'MMM d, yyyy')}
                                             </span>
                                         </div>
                                     )}
 
-                                    {/* Message bubble */}
-                                    <div className={cn(
-                                        "flex gap-2 group",
-                                        message.is_from_page ? "justify-end" : "justify-start"
-                                    )}>
+                                    <div className={`flex gap-2 group ${message.is_from_page ? 'justify-end' : 'justify-start'}`}>
                                         {!message.is_from_page && (
                                             <Avatar className="h-7 w-7 shrink-0">
                                                 <AvatarImage src={conversation.participant_profile_picture || undefined} />
-                                                <AvatarFallback className="text-xs bg-muted">
+                                                <AvatarFallback style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', fontSize: '10px' }}>
                                                     {(conversation.participant_username || 'U')[0].toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
                                         )}
 
-                                        <div className={cn(
-                                            "max-w-[70%] space-y-1",
-                                            message.is_from_page && "items-end"
-                                        )}>
-                                            {/* Text message */}
+                                        <div className={`max-w-[70%] space-y-1 ${message.is_from_page ? 'items-end' : ''}`}>
                                             {message.message && (
-                                                <div className={cn(
-                                                    "px-3 py-2 rounded-2xl text-sm",
-                                                    message.is_from_page
-                                                        ? "bg-pink-500 text-white rounded-br-sm"
-                                                        : "bg-muted rounded-bl-sm"
-                                                )}>
-                                                    <p className="whitespace-pre-wrap wrap-break-word">
-                                                        {message.message}
-                                                    </p>
+                                                <div
+                                                    className="px-3.5 py-2.5 rounded-2xl text-sm"
+                                                    style={
+                                                        message.is_from_page
+                                                            ? {
+                                                                  background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                                                                  color: '#fff',
+                                                                  borderBottomRightRadius: '4px',
+                                                                  boxShadow: '0 2px 12px rgba(139,92,246,0.25)',
+                                                              }
+                                                            : {
+                                                                  background: '#1a1830',
+                                                                  color: 'rgba(255,255,255,0.75)',
+                                                                  border: '1px solid rgba(255,255,255,0.07)',
+                                                                  borderBottomLeftRadius: '4px',
+                                                              }
+                                                    }
+                                                >
+                                                    <p className="whitespace-pre-wrap break-words">{message.message}</p>
                                                 </div>
                                             )}
 
-                                            {/* Attachments */}
                                             {attachments.length > 0 && (
                                                 <div className="space-y-1">
                                                     {attachments.map((att: any, i: number) => (
-                                                        <div key={i} className={cn(
-                                                            "flex items-center gap-2 px-3 py-2 rounded-xl text-sm",
-                                                            message.is_from_page ? "bg-pink-500/80 text-white" : "bg-muted"
-                                                        )}>
+                                                        <div
+                                                            key={i}
+                                                            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
+                                                            style={
+                                                                message.is_from_page
+                                                                    ? { background: 'rgba(139,92,246,0.25)', color: '#c4b5fd' }
+                                                                    : { background: '#1a1830', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.07)' }
+                                                            }
+                                                        >
                                                             <Image className="h-4 w-4" />
                                                             <span className="text-xs">[Attachment]</span>
                                                         </div>
@@ -261,11 +258,10 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
                                                 </div>
                                             )}
 
-                                            {/* Timestamp */}
-                                            <p className={cn(
-                                                "text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity",
-                                                message.is_from_page && "text-right"
-                                            )}>
+                                            <p
+                                                className={`text-[10px] opacity-0 group-hover:opacity-100 transition-opacity ${message.is_from_page ? 'text-right' : ''}`}
+                                                style={{ color: 'rgba(255,255,255,0.25)' }}
+                                            >
                                                 {format(new Date(message.platform_created_at), 'h:mm a')}
                                             </p>
                                         </div>
@@ -278,50 +274,59 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
             </ScrollArea>
 
             {/* Input */}
-            <div className="shrink-0 p-4 border-t bg-background">
+            <div
+                className="shrink-0 p-3"
+                style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+            >
                 <div className="flex gap-2">
-                    <Textarea
-                        placeholder="Type a message..."
+                    <textarea
+                        placeholder="Type a message…"
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        className="min-h-[44px] max-h-32 resize-none"
                         rows={1}
+                        className="flex-1 min-h-[44px] max-h-32 resize-none rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all duration-150"
+                        style={{
+                            background: '#12111e',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            color: 'rgba(255,255,255,0.8)',
+                        }}
+                        onFocus={(e) => { e.target.style.border = '1px solid rgba(139,92,246,0.4)' }}
+                        onBlur={(e) => { e.target.style.border = '1px solid rgba(255,255,255,0.08)' }}
                     />
+
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
-                                <Button
-                                    size="icon"
-                                    variant="outline"
+                                <button
                                     onClick={handleAIReply}
                                     disabled={isGeneratingAI || !hasCustomerMessage || !workspaceId}
-                                    className="h-11 w-11 shrink-0 text-purple-600 border-purple-200 hover:bg-purple-50 hover:text-purple-700"
+                                    className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 disabled:opacity-40"
+                                    style={{
+                                        background: 'rgba(139,92,246,0.12)',
+                                        border: '1px solid rgba(139,92,246,0.25)',
+                                        color: '#a78bfa',
+                                    }}
                                 >
-                                    {isGeneratingAI ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Sparkles className="h-4 w-4" />
-                                    )}
-                                </Button>
+                                    {isGeneratingAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                </button>
                             </TooltipTrigger>
-                            <TooltipContent>
-                                <p>AI Reply</p>
-                            </TooltipContent>
+                            <TooltipContent><p>AI Reply</p></TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
-                    <Button
-                        size="icon"
+
+                    <button
                         onClick={handleSend}
                         disabled={!inputValue.trim() || isSending}
-                        className="h-11 w-11 shrink-0 bg-pink-500 hover:bg-pink-600"
+                        className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 disabled:opacity-40"
+                        style={{
+                            background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                            color: '#fff',
+                            boxShadow: '0 2px 12px rgba(139,92,246,0.3)',
+                        }}
                     >
-                        {isSending ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <Send className="h-4 w-4" />
-                        )}
-                    </Button>
+                        {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </button>
                 </div>
             </div>
         </div>

@@ -126,6 +126,67 @@ export function WorkflowCanvas({
     [setEdges, pushHistory],
   )
 
+  const getCanvasCenterPosition = useCallback(() => {
+    if (reactFlowWrapper.current && reactFlowInstance) {
+      const bounds = reactFlowWrapper.current.getBoundingClientRect()
+      return reactFlowInstance.screenToFlowPosition({
+        x: bounds.left + bounds.width / 2,
+        y: bounds.top + bounds.height / 2,
+      })
+    }
+    return { x: 250, y: 250 }
+  }, [reactFlowInstance])
+
+  const addNodeToCanvas = useCallback((type: WorkflowNodeType, label: string, position?: { x: number; y: number }) => {
+    // Enforce single trigger
+    if (isTriggerNode(type)) {
+      const existingTrigger = nodes.find(n => {
+        const d = n.data as unknown as WorkflowNodeData
+        return isTriggerNode(d.type)
+      })
+      if (existingTrigger) {
+        toast({
+          title: 'Only one trigger allowed',
+          description: 'Remove the existing trigger before adding a new one.',
+          variant: 'destructive',
+        })
+        return
+      }
+    }
+
+    // Max 25 nodes
+    if (nodes.length >= 25) {
+      toast({
+        title: 'Node limit reached',
+        description: 'Maximum 25 nodes per workflow.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const basePosition = position || getCanvasCenterPosition()
+    const spread = Math.min(nodes.length, 10) * 18
+    const finalPosition = {
+      x: basePosition.x + spread,
+      y: basePosition.y + spread * 0.35,
+    }
+
+    pushHistory()
+
+    const newNode: WorkflowNode = {
+      id: getNextNodeId(),
+      type: isTriggerNode(type) ? 'trigger' : 'action',
+      position: finalPosition,
+      data: {
+        type,
+        label,
+        config: getDefaultConfig(type),
+      } as WorkflowNodeData,
+    }
+
+    setNodes((nds) => nds.concat(newNode))
+  }, [nodes, toast, pushHistory, getCanvasCenterPosition, setNodes])
+
   // Drag & drop handler
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault()
@@ -140,53 +201,14 @@ export function WorkflowCanvas({
       const label = event.dataTransfer.getData('application/reactflow-label')
       if (!type) return
 
-      // Enforce single trigger
-      if (isTriggerNode(type)) {
-        const existingTrigger = nodes.find(n => {
-          const d = n.data as unknown as WorkflowNodeData
-          return isTriggerNode(d.type)
-        })
-        if (existingTrigger) {
-          toast({
-            title: 'Only one trigger allowed',
-            description: 'Remove the existing trigger before adding a new one.',
-            variant: 'destructive',
-          })
-          return
-        }
-      }
-
-      // Max 25 nodes
-      if (nodes.length >= 25) {
-        toast({
-          title: 'Node limit reached',
-          description: 'Maximum 25 nodes per workflow.',
-          variant: 'destructive',
-        })
-        return
-      }
-
       const position = reactFlowInstance?.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
       }) || { x: 250, y: 250 }
 
-      pushHistory()
-
-      const newNode: WorkflowNode = {
-        id: getNextNodeId(),
-        type: isTriggerNode(type) ? 'trigger' : 'action',
-        position,
-        data: {
-          type,
-          label,
-          config: getDefaultConfig(type),
-        } as WorkflowNodeData,
-      }
-
-      setNodes((nds) => nds.concat(newNode))
+      addNodeToCanvas(type, label, position)
     },
-    [reactFlowInstance, nodes, setNodes, pushHistory, toast],
+    [reactFlowInstance, addNodeToCanvas],
   )
 
   // Node selection
@@ -372,7 +394,7 @@ export function WorkflowCanvas({
       />
 
       <div className="flex flex-1 overflow-hidden">
-        <WorkflowSidebar />
+        <WorkflowSidebar onAddNode={addNodeToCanvas} />
 
         <div className="flex-1 relative" ref={reactFlowWrapper}>
           <ReactFlow

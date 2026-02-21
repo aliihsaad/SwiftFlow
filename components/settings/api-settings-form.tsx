@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import useSWR from "swr"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -10,6 +11,12 @@ import { Loader2, Eye, EyeOff, Save } from "lucide-react"
 import { WorkspaceSettings } from "@/types/settings"
 import { updateCurrentWorkspaceSettings } from "@/app/actions/settings"
 import { toast } from "sonner"
+import {
+    getDefaultModelForProvider,
+    getFallbackModelsForProvider,
+    isAIProvider,
+    type AIProvider,
+} from "@/lib/ai-models"
 
 interface ApiSettingsFormProps {
     settings: WorkspaceSettings | null
@@ -20,14 +27,60 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
     const [showGeminiKey, setShowGeminiKey] = useState(false)
     const [showOpenAIKey, setShowOpenAIKey] = useState(false)
 
+    const initialProvider: AIProvider = isAIProvider(settings?.ai_provider || '')
+        ? (settings!.ai_provider as AIProvider)
+        : 'gemini'
+
     const [formData, setFormData] = useState({
-        ai_provider: settings?.ai_provider || 'gemini',
+        ai_provider: initialProvider,
         gemini_api_key: settings?.gemini_api_key || '',
         openai_api_key: settings?.openai_api_key || '',
-        ai_model_name: settings?.ai_model_name || 'gemini-1.5-flash',
+        ai_model_name: settings?.ai_model_name || getDefaultModelForProvider(initialProvider),
         ai_temperature: settings?.ai_temperature || 0.7,
         ai_max_tokens: settings?.ai_max_tokens || 2048,
     })
+
+    const fetcher = async (url: string) => {
+        const res = await fetch(url, { cache: 'no-store' })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error || 'Failed to fetch models')
+        return data as { models?: string[]; source?: 'live' | 'fallback'; reason?: string }
+    }
+
+    const { data: modelsData, isLoading: isModelsLoading } = useSWR(
+        `/api/ai/models?provider=${formData.ai_provider}`,
+        fetcher,
+        {
+            revalidateOnFocus: false,
+            dedupingInterval: 30000,
+        }
+    )
+
+    const modelOptions =
+        Array.isArray(modelsData?.models) && modelsData.models.length > 0
+            ? modelsData.models
+            : getFallbackModelsForProvider(formData.ai_provider)
+
+    useEffect(() => {
+        const options =
+            Array.isArray(modelsData?.models) && modelsData.models.length > 0
+                ? modelsData.models
+                : getFallbackModelsForProvider(formData.ai_provider)
+        if (!options.length) return
+        setFormData((prev) => {
+            if (options.includes(prev.ai_model_name)) return prev
+            return { ...prev, ai_model_name: options[0] }
+        })
+    }, [formData.ai_provider, modelsData?.models])
+
+    const handleProviderChange = (value: string) => {
+        const provider: AIProvider = value === 'openai' ? 'openai' : 'gemini'
+        setFormData((prev) => ({
+            ...prev,
+            ai_provider: provider,
+            ai_model_name: getDefaultModelForProvider(provider),
+        }))
+    }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -35,7 +88,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
 
         try {
             await updateCurrentWorkspaceSettings({
-                ai_provider: formData.ai_provider as 'gemini' | 'openai',
+                ai_provider: formData.ai_provider,
                 gemini_api_key: formData.gemini_api_key || undefined,
                 openai_api_key: formData.openai_api_key || undefined,
                 ai_model_name: formData.ai_model_name,
@@ -43,8 +96,9 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                 ai_max_tokens: formData.ai_max_tokens,
             })
             toast.success("Settings updated successfully!")
-        } catch (error: any) {
-            toast.error(error.message || "Failed to update settings")
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Failed to update settings"
+            toast.error(message)
             console.error(error)
         } finally {
             setIsLoading(false)
@@ -64,10 +118,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                     {/* AI Provider Selection */}
                     <div className="space-y-2">
                         <Label htmlFor="ai_provider">AI Provider</Label>
-                        <Select
-                            value={formData.ai_provider}
-                            onValueChange={(value) => setFormData({ ...formData, ai_provider: value })}
-                        >
+                        <Select value={formData.ai_provider} onValueChange={handleProviderChange}>
                             <SelectTrigger id="ai_provider">
                                 <SelectValue />
                             </SelectTrigger>
@@ -166,16 +217,26 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                     {/* Model Name */}
                     <div className="space-y-2">
                         <Label htmlFor="ai_model_name">Model Name</Label>
-                        <Input
-                            id="ai_model_name"
+                        <Select
                             value={formData.ai_model_name}
-                            onChange={(e) => setFormData({ ...formData, ai_model_name: e.target.value })}
-                            placeholder={formData.ai_provider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4'}
-                        />
+                            onValueChange={(value) => setFormData({ ...formData, ai_model_name: value })}
+                            disabled={isModelsLoading || modelOptions.length === 0}
+                        >
+                            <SelectTrigger id="ai_model_name">
+                                <SelectValue placeholder="Select model" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {modelOptions.map((model) => (
+                                    <SelectItem key={model} value={model}>
+                                        {model}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <p className="text-xs text-muted-foreground">
-                            {formData.ai_provider === 'gemini'
-                                ? 'e.g., gemini-1.5-flash, gemini-1.5-pro'
-                                : 'e.g., gpt-4, gpt-3.5-turbo'}
+                            {modelsData?.source === 'live'
+                                ? 'Loaded from provider API using exact model IDs.'
+                                : 'Using fallback model list. Save API key first to load account-specific models.'}
                         </p>
                     </div>
 

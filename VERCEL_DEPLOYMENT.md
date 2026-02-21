@@ -41,11 +41,25 @@ supabase functions deploy generate-caption
 supabase functions deploy generate-ideas
 supabase functions deploy generate-image
 supabase functions deploy generate-carousel
-supabase functions deploy refine-post
-supabase functions deploy repurpose-link
-supabase functions deploy list-models
-supabase functions deploy get-schedule
-supabase functions deploy get-analytics
+supabase functions deploy generate-reply
+supabase functions deploy generate-message-reply
+supabase functions deploy search-unsplash
+supabase functions deploy select-unsplash-image
+supabase functions deploy process-scheduled-posts
+supabase functions deploy sync-analytics
+supabase functions deploy sync-comments
+supabase functions deploy sync-messages
+supabase functions deploy process-automations
+supabase functions deploy process-scheduled-executions
+supabase functions deploy automation-orchestrator
+supabase functions deploy automation-worker-run
+supabase functions deploy automation-worker-ai-response
+supabase functions deploy automation-worker-reply-comment
+supabase functions deploy automation-worker-send-dm
+supabase functions deploy automation-worker-private-reply
+supabase functions deploy automation-worker-condition
+supabase functions deploy automation-worker-http-request
+supabase functions deploy automation-worker-send-email
 ```
 
 Verify deployment in Supabase Dashboard → Edge Functions.

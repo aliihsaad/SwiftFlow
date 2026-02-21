@@ -1,6 +1,5 @@
 "use client"
 
-import { cn } from "@/lib/utils"
 import { Heart, MessageCircle, Play, Image as ImageIcon, LayoutGrid } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 
@@ -23,9 +22,9 @@ export function PostCard({ post, onClick }: PostCardProps) {
     const mediaTypeIcon = () => {
         switch (post.media_type) {
             case 'VIDEO':
-                return <Play className="h-4 w-4" />
+                return <Play className="h-3.5 w-3.5" />
             case 'CAROUSEL_ALBUM':
-                return <LayoutGrid className="h-4 w-4" />
+                return <LayoutGrid className="h-3.5 w-3.5" />
             default:
                 return null
         }
@@ -34,14 +33,23 @@ export function PostCard({ post, onClick }: PostCardProps) {
     return (
         <button
             onClick={onClick}
-            className={cn(
-                "group relative overflow-hidden rounded-xl border border-border/50",
-                "bg-card transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5",
-                "text-left w-full focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-offset-2 focus:ring-offset-background"
-            )}
+            className="group relative overflow-hidden rounded-xl text-left w-full focus:outline-none transition-all duration-200 hover:-translate-y-0.5"
+            style={{
+                background: '#0e0d1c',
+                border: '1px solid rgba(255,255,255,0.07)',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+            }}
+            onMouseEnter={(e) => {
+                e.currentTarget.style.border = '1px solid rgba(139,92,246,0.3)'
+                e.currentTarget.style.boxShadow = '0 4px 20px rgba(139,92,246,0.12)'
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.border = '1px solid rgba(255,255,255,0.07)'
+                e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.3)'
+            }}
         >
             {/* Image */}
-            <div className="relative aspect-square overflow-hidden bg-muted">
+            <div className="relative aspect-square overflow-hidden" style={{ background: '#12111e' }}>
                 {post.media_url ? (
                     <img
                         src={post.thumbnail_url || post.media_url}
@@ -50,47 +58,47 @@ export function PostCard({ post, onClick }: PostCardProps) {
                     />
                 ) : (
                     <div className="flex h-full w-full items-center justify-center">
-                        <ImageIcon className="h-12 w-12 text-muted-foreground/30" />
+                        <ImageIcon className="h-10 w-10" style={{ color: 'rgba(255,255,255,0.1)' }} />
                     </div>
                 )}
 
                 {/* Media type badge */}
                 {post.media_type !== 'IMAGE' && (
-                    <div className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white backdrop-blur-sm">
+                    <div className="absolute top-2 right-2 rounded-full p-1.5 text-white" style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(8px)' }}>
                         {mediaTypeIcon()}
                     </div>
                 )}
 
-                {/* Hover overlay with stats */}
-                <div className="absolute inset-0 flex items-center justify-center gap-6 bg-black/50 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-                    <div className="flex items-center gap-1.5 text-white font-semibold">
-                        <Heart className="h-5 w-5 fill-white" />
+                {/* Hover overlay */}
+                <div className="absolute inset-0 flex items-center justify-center gap-5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: 'rgba(0,0,0,0.6)' }}>
+                    <div className="flex items-center gap-1.5 text-white font-semibold text-sm">
+                        <Heart className="h-4 w-4 fill-white" />
                         <span>{formatCount(post.like_count)}</span>
                     </div>
-                    <div className="flex items-center gap-1.5 text-white font-semibold">
-                        <MessageCircle className="h-5 w-5 fill-white" />
+                    <div className="flex items-center gap-1.5 text-white font-semibold text-sm">
+                        <MessageCircle className="h-4 w-4 fill-white" />
                         <span>{formatCount(post.comments_count)}</span>
                     </div>
                 </div>
             </div>
 
             {/* Caption + meta */}
-            <div className="p-3 space-y-2">
+            <div className="p-3 space-y-1.5">
                 {post.caption && (
-                    <p className="text-sm text-foreground line-clamp-2 leading-snug">
+                    <p className="text-xs leading-snug line-clamp-2" style={{ color: 'rgba(255,255,255,0.6)' }}>
                         {post.caption}
                     </p>
                 )}
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span suppressHydrationWarning>
+                <div className="flex items-center justify-between">
+                    <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }} suppressHydrationWarning>
                         {formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })}
                     </span>
-                    <div className="flex items-center gap-3">
-                        <span className="flex items-center gap-1">
-                            <Heart className="h-3 w-3" /> {formatCount(post.like_count)}
+                    <div className="flex items-center gap-2.5">
+                        <span className="flex items-center gap-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                            <Heart className="h-2.5 w-2.5" /> {formatCount(post.like_count)}
                         </span>
-                        <span className="flex items-center gap-1">
-                            <MessageCircle className="h-3 w-3" /> {formatCount(post.comments_count)}
+                        <span className="flex items-center gap-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                            <MessageCircle className="h-2.5 w-2.5" /> {formatCount(post.comments_count)}
                         </span>
                     </div>
                 </div>

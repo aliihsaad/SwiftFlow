@@ -1,9 +1,7 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { KPIData, FollowersKPIData } from "@/types/analytics"
 import { TrendingUp, TrendingDown, Eye, Users, Activity, Percent } from "lucide-react"
-import { cn } from "@/lib/utils"
 
 interface KPICardsProps {
     engagement: KPIData
@@ -19,27 +17,23 @@ export function KPICards({ engagement, views, followers, growthRate }: KPICardsP
             value: engagement.value.toLocaleString(),
             change: engagement.changePct,
             icon: Activity,
-            gradient: "from-purple-500/20 to-pink-500/20",
-            iconColor: "text-purple-500",
-            borderColor: "border-purple-500/20",
+            accent: { border: 'rgba(167,139,250,0.2)', glow: '0 4px 24px rgba(139,92,246,0.08)', icon: '#a78bfa', number: '#c4b5fd' },
+            breakdown: null,
         },
         {
             title: "Total Views",
             value: views.display || views.value.toLocaleString(),
             change: views.changePct,
             icon: Eye,
-            gradient: "from-blue-500/20 to-cyan-500/20",
-            iconColor: "text-blue-500",
-            borderColor: "border-blue-500/20",
+            accent: { border: 'rgba(96,165,250,0.2)', glow: '0 4px 24px rgba(59,130,246,0.08)', icon: '#60a5fa', number: '#93c5fd' },
+            breakdown: null,
         },
         {
             title: "Total Followers",
             value: followers.value.toLocaleString(),
             change: followers.changePct,
             icon: Users,
-            gradient: "from-green-500/20 to-emerald-500/20",
-            iconColor: "text-green-500",
-            borderColor: "border-green-500/20",
+            accent: { border: 'rgba(52,211,153,0.2)', glow: '0 4px 24px rgba(16,185,129,0.08)', icon: '#34d399', number: '#6ee7b7' },
             breakdown: { facebook: followers.facebook || 0, instagram: followers.instagram || 0 },
         },
         {
@@ -47,9 +41,8 @@ export function KPICards({ engagement, views, followers, growthRate }: KPICardsP
             value: `${growthRate.value}%`,
             change: growthRate.changePct,
             icon: Percent,
-            gradient: "from-orange-500/20 to-amber-500/20",
-            iconColor: "text-orange-500",
-            borderColor: "border-orange-500/20",
+            accent: { border: 'rgba(251,146,60,0.2)', glow: '0 4px 24px rgba(245,158,11,0.08)', icon: '#fb923c', number: '#fdba74' },
+            breakdown: null,
         },
     ]
 
@@ -61,53 +54,62 @@ export function KPICards({ engagement, views, followers, growthRate }: KPICardsP
                 const ChangeIcon = isPositive ? TrendingUp : TrendingDown
 
                 return (
-                    <Card
+                    <div
                         key={kpi.title}
-                        className={cn(
-                            "bg-gradient-to-br border",
-                            kpi.gradient,
-                            kpi.borderColor
-                        )}
+                        className="relative overflow-hidden rounded-xl p-5"
+                        style={{
+                            background: '#0e0d1c',
+                            border: `1px solid ${kpi.accent.border}`,
+                            boxShadow: `${kpi.accent.glow}, 0 1px 0 rgba(255,255,255,0.04) inset`,
+                        }}
                     >
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium text-muted-foreground">
+                        {/* Ambient glow */}
+                        <div
+                            className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full blur-2xl opacity-20"
+                            style={{ background: kpi.accent.icon }}
+                        />
+
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-4">
+                            <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.4)' }}>
                                 {kpi.title}
-                            </CardTitle>
-                            <Icon className={cn("h-4 w-4", kpi.iconColor)} />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{kpi.value}</div>
-                            {kpi.breakdown && (
-                                <div className="flex items-center gap-3 mt-1">
-                                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                        <span className="h-2 w-2 rounded-full bg-blue-500 inline-block" />
-                                        FB: {kpi.breakdown.facebook.toLocaleString()}
-                                    </span>
-                                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                        <span className="h-2 w-2 rounded-full bg-pink-500 inline-block" />
-                                        IG: {kpi.breakdown.instagram.toLocaleString()}
-                                    </span>
-                                </div>
-                            )}
-                            <div className="flex items-center gap-1 mt-1">
-                                <ChangeIcon
-                                    className={cn(
-                                        "h-3 w-3",
-                                        isPositive ? "text-green-500" : "text-red-500"
-                                    )}
-                                />
-                                <span
-                                    className={cn(
-                                        "text-xs font-medium",
-                                        isPositive ? "text-green-500" : "text-red-500"
-                                    )}
-                                >
-                                    {Math.abs(kpi.change)}%
-                                </span>
-                                <span className="text-xs text-muted-foreground">from last month</span>
+                            </span>
+                            <div
+                                className="flex h-8 w-8 items-center justify-center rounded-lg"
+                                style={{ background: `${kpi.accent.icon}18` }}
+                            >
+                                <Icon className="h-4 w-4" style={{ color: kpi.accent.icon }} />
                             </div>
-                        </CardContent>
-                    </Card>
+                        </div>
+
+                        {/* Value */}
+                        <div className="text-3xl font-bold tracking-tight tabular-nums" style={{ color: kpi.accent.number }}>
+                            {kpi.value}
+                        </div>
+
+                        {/* Breakdown (followers only) */}
+                        {kpi.breakdown && (
+                            <div className="flex items-center gap-3 mt-1.5">
+                                <span className="flex items-center gap-1 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                                    <span className="h-1.5 w-1.5 rounded-full bg-blue-400 inline-block" />
+                                    FB: {kpi.breakdown.facebook.toLocaleString()}
+                                </span>
+                                <span className="flex items-center gap-1 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                                    <span className="h-1.5 w-1.5 rounded-full bg-pink-400 inline-block" />
+                                    IG: {kpi.breakdown.instagram.toLocaleString()}
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Trend */}
+                        <div className="flex items-center gap-1 mt-2">
+                            <ChangeIcon className="h-3 w-3" style={{ color: isPositive ? '#34d399' : '#f87171' }} />
+                            <span className="text-xs font-semibold" style={{ color: isPositive ? '#34d399' : '#f87171' }}>
+                                {Math.abs(kpi.change)}%
+                            </span>
+                            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>vs last month</span>
+                        </div>
+                    </div>
                 )
             })}
         </div>

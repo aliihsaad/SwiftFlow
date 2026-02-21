@@ -1,14 +1,21 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getWorkspaceSettings } from "@/app/actions/settings";
 
+function normalizeApiKey(value: string | null | undefined): string {
+    return String(value || '').trim().replace(/^['"]|['"]$/g, '');
+}
+
 async function getGeminiModel(workspaceId: string) {
     // Fetch settings from database
     const settings = await getWorkspaceSettings(workspaceId);
 
     // Get API key from settings (fallback to env if not set in DB)
-    const apiKey = settings?.gemini_api_key || process.env.GEMINI_API_KEY;
+    const apiKey = normalizeApiKey(settings?.gemini_api_key || process.env.GEMINI_API_KEY);
     if (!apiKey) {
         throw new Error('Gemini API key not configured. Please add it in Settings > AI Provider');
+    }
+    if (!apiKey.startsWith('AIza')) {
+        throw new Error('Gemini API key format looks invalid. Please paste a valid Google AI Studio key.');
     }
 
     const modelName = settings?.ai_model_name || 'gemini-1.5-flash';

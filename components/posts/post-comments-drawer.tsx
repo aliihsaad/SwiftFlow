@@ -2,8 +2,6 @@
 
 import { useState } from "react"
 import useSWR from "swr"
-import { Button } from "@/components/ui/button"
-import { Textarea } from "@/components/ui/textarea"
 import {
     Sheet,
     SheetContent,
@@ -21,7 +19,6 @@ import {
     CornerDownRight,
     User
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
 import { createClient } from "@/utils/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
@@ -76,7 +73,6 @@ export function PostCommentsDrawer({
     const [hidingComment, setHidingComment] = useState<string | null>(null)
     const { toast } = useToast()
 
-    // Fetch comments live from Meta API
     const { data, error, isLoading, mutate } = useSWR(
         open && post ? `/api/posts-media/comments?postId=${post.id}&platform=${platform}` : null,
         fetcher,
@@ -85,7 +81,6 @@ export function PostCommentsDrawer({
 
     const comments: CommentData[] = data?.comments || []
 
-    // AI Reply
     const handleAIReply = async (comment: CommentData) => {
         setGeneratingAI(comment.id)
         setReplyingTo(comment.id)
@@ -116,7 +111,6 @@ export function PostCommentsDrawer({
         }
     }
 
-    // Send Reply
     const handleSendReply = async (commentId: string) => {
         if (!replyText.trim()) return
         setSendingReply(true)
@@ -137,14 +131,10 @@ export function PostCommentsDrawer({
                 throw new Error(err.error || 'Failed to send reply')
             }
 
-            toast({
-                title: "Reply sent",
-                description: "Your reply has been posted successfully.",
-            })
-
+            toast({ title: "Reply sent", description: "Your reply has been posted successfully." })
             setReplyingTo(null)
             setReplyText("")
-            mutate() // Refresh comments
+            mutate()
         } catch (err: any) {
             console.error('Reply error:', err)
             toast({
@@ -157,7 +147,6 @@ export function PostCommentsDrawer({
         }
     }
 
-    // Hide Comment
     const handleHide = async (commentId: string) => {
         setHidingComment(commentId)
         try {
@@ -171,12 +160,8 @@ export function PostCommentsDrawer({
                 throw new Error(err.error || 'Failed to hide comment')
             }
 
-            toast({
-                title: "Comment hidden",
-                description: "The comment has been hidden.",
-            })
-
-            mutate() // Refresh
+            toast({ title: "Comment hidden", description: "The comment has been hidden." })
+            mutate()
         } catch (err: any) {
             console.error('Hide error:', err)
             toast({
@@ -193,12 +178,19 @@ export function PostCommentsDrawer({
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent
                 side="right"
-                className="w-full sm:max-w-lg p-0 flex flex-col"
+                className="w-full sm:max-w-lg p-0 flex flex-col border-0"
+                style={{
+                    background: '#0a0917',
+                    borderLeft: '1px solid rgba(139,92,246,0.15)',
+                }}
             >
-                {/* Header with post preview */}
-                <SheetHeader className="px-5 py-4 border-b border-border/40 space-y-3 flex-none">
+                {/* Header */}
+                <SheetHeader
+                    className="px-5 py-4 flex-none space-y-3"
+                    style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                >
                     <div className="flex items-center justify-between">
-                        <SheetTitle className="text-base font-semibold">
+                        <SheetTitle className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }}>
                             Comments
                         </SheetTitle>
                         {post?.permalink && (
@@ -206,7 +198,8 @@ export function PostCommentsDrawer({
                                 href={post.permalink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors mr-8"
+                                className="flex items-center gap-1 text-xs transition-colors mr-8"
+                                style={{ color: 'rgba(255,255,255,0.3)' }}
                             >
                                 View on {platform === 'instagram' ? 'Instagram' : 'Facebook'}
                                 <ExternalLink className="h-3 w-3" />
@@ -221,10 +214,11 @@ export function PostCommentsDrawer({
                                 <img
                                     src={post.thumbnail_url || post.media_url}
                                     alt=""
-                                    className="h-14 w-14 rounded-lg object-cover flex-none border border-border/50"
+                                    className="h-14 w-14 rounded-lg object-cover flex-none"
+                                    style={{ border: '1px solid rgba(255,255,255,0.08)' }}
                                 />
                             )}
-                            <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+                            <p className="text-xs leading-relaxed line-clamp-3" style={{ color: 'rgba(255,255,255,0.35)' }}>
                                 {post.caption || 'No caption'}
                             </p>
                         </div>
@@ -232,129 +226,142 @@ export function PostCommentsDrawer({
                 </SheetHeader>
 
                 {/* Comments list */}
-                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
                     {isLoading && (
                         <div className="flex items-center justify-center py-12">
-                            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                            <Loader2 className="h-6 w-6 animate-spin" style={{ color: '#8b5cf6' }} />
                         </div>
                     )}
 
                     {error && (
-                        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-center">
-                            <p className="text-sm text-destructive">Failed to load comments</p>
-                            <p className="text-xs text-muted-foreground mt-1">{error.message}</p>
+                        <div
+                            className="rounded-xl p-4 text-center"
+                            style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)' }}
+                        >
+                            <p className="text-sm" style={{ color: '#f87171' }}>Failed to load comments</p>
+                            <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>{error.message}</p>
                         </div>
                     )}
 
                     {!isLoading && !error && comments.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-12 text-center">
-                            <MessageCircle className="h-10 w-10 text-muted-foreground/30 mb-3" />
-                            <p className="text-sm text-muted-foreground">No comments yet</p>
+                            <MessageCircle className="h-9 w-9 mb-3" style={{ color: 'rgba(255,255,255,0.1)' }} />
+                            <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>No comments yet</p>
                         </div>
                     )}
 
                     {comments.map((comment) => (
                         <div key={comment.id} className="space-y-2">
                             {/* Main comment */}
-                            <div className="group rounded-lg border border-border/30 bg-muted/20 p-3 transition-colors hover:border-border/60">
+                            <div
+                                className="rounded-xl p-3 transition-all duration-150"
+                                style={{
+                                    background: '#12111e',
+                                    border: '1px solid rgba(255,255,255,0.06)',
+                                }}
+                            >
                                 <div className="flex items-start gap-2.5">
-                                    <div className="flex-none w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
-                                        <User className="h-3.5 w-3.5 text-primary" />
+                                    <div
+                                        className="flex-none w-7 h-7 rounded-full flex items-center justify-center"
+                                        style={{ background: 'rgba(139,92,246,0.15)' }}
+                                    >
+                                        <User className="h-3.5 w-3.5" style={{ color: '#a78bfa' }} />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
-                                            <span className="text-sm font-medium text-foreground">
+                                            <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.8)' }}>
                                                 @{comment.author_username}
                                             </span>
-                                            <span className="text-xs text-muted-foreground" suppressHydrationWarning>
+                                            <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }} suppressHydrationWarning>
                                                 {formatDistanceToNow(new Date(comment.timestamp), { addSuffix: true })}
                                             </span>
                                         </div>
-                                        <p className="text-sm text-foreground/90 leading-relaxed">
+                                        <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.65)' }}>
                                             {comment.message}
                                         </p>
                                     </div>
                                 </div>
 
                                 {/* Action buttons */}
-                                <div className="flex items-center gap-1 mt-2 ml-9">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 px-2 text-xs text-muted-foreground hover:text-primary"
+                                <div className="flex items-center gap-1 mt-2.5 ml-9">
+                                    <button
+                                        className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all duration-150"
+                                        style={{ color: 'rgba(255,255,255,0.35)' }}
                                         onClick={() => {
                                             setReplyingTo(replyingTo === comment.id ? null : comment.id)
                                             setReplyText("")
                                         }}
                                     >
-                                        <CornerDownRight className="h-3 w-3 mr-1" />
+                                        <CornerDownRight className="h-3 w-3" />
                                         Reply
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 px-2 text-xs text-muted-foreground hover:text-purple-500"
+                                    </button>
+                                    <button
+                                        className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all duration-150"
+                                        style={{ color: 'rgba(167,139,250,0.7)' }}
                                         onClick={() => handleAIReply(comment)}
                                         disabled={generatingAI === comment.id}
                                     >
                                         {generatingAI === comment.id ? (
-                                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                            <Loader2 className="h-3 w-3 animate-spin" />
                                         ) : (
-                                            <Sparkles className="h-3 w-3 mr-1" />
+                                            <Sparkles className="h-3 w-3" />
                                         )}
                                         AI Reply
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                                    </button>
+                                    <button
+                                        className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all duration-150"
+                                        style={{ color: 'rgba(248,113,113,0.6)' }}
                                         onClick={() => handleHide(comment.platform_comment_id)}
                                         disabled={hidingComment === comment.platform_comment_id}
                                     >
                                         {hidingComment === comment.platform_comment_id ? (
-                                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                            <Loader2 className="h-3 w-3 animate-spin" />
                                         ) : (
-                                            <EyeOff className="h-3 w-3 mr-1" />
+                                            <EyeOff className="h-3 w-3" />
                                         )}
                                         Hide
-                                    </Button>
+                                    </button>
                                 </div>
 
                                 {/* Reply box */}
                                 {replyingTo === comment.id && (
                                     <div className="mt-3 ml-9 space-y-2">
-                                        <Textarea
+                                        <textarea
                                             value={replyText}
                                             onChange={(e) => setReplyText(e.target.value)}
-                                            placeholder="Write a reply..."
-                                            className="min-h-[60px] text-sm resize-none bg-background"
+                                            placeholder="Write a reply…"
+                                            rows={3}
                                             autoFocus
+                                            className="w-full rounded-lg px-3 py-2 text-sm resize-none outline-none transition-all duration-150"
+                                            style={{
+                                                background: '#0e0d1c',
+                                                border: '1px solid rgba(139,92,246,0.25)',
+                                                color: 'rgba(255,255,255,0.8)',
+                                            }}
+                                            onFocus={(e) => { e.target.style.border = '1px solid rgba(139,92,246,0.5)' }}
+                                            onBlur={(e) => { e.target.style.border = '1px solid rgba(139,92,246,0.25)' }}
                                         />
                                         <div className="flex items-center gap-2">
-                                            <Button
-                                                size="sm"
-                                                className="h-7 px-3 text-xs"
+                                            <button
+                                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 disabled:opacity-50"
+                                                style={{
+                                                    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                                                    color: '#fff',
+                                                    boxShadow: '0 2px 12px rgba(139,92,246,0.3)',
+                                                }}
                                                 onClick={() => handleSendReply(comment.platform_comment_id)}
                                                 disabled={sendingReply || !replyText.trim()}
                                             >
-                                                {sendingReply ? (
-                                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                                ) : (
-                                                    <Send className="h-3 w-3 mr-1" />
-                                                )}
+                                                {sendingReply ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
                                                 Send
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 px-2 text-xs"
-                                                onClick={() => {
-                                                    setReplyingTo(null)
-                                                    setReplyText("")
-                                                }}
+                                            </button>
+                                            <button
+                                                className="rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-150"
+                                                style={{ color: 'rgba(255,255,255,0.35)' }}
+                                                onClick={() => { setReplyingTo(null); setReplyText("") }}
                                             >
                                                 Cancel
-                                            </Button>
+                                            </button>
                                         </div>
                                     </div>
                                 )}
@@ -362,26 +369,33 @@ export function PostCommentsDrawer({
 
                             {/* Nested replies */}
                             {comment.replies && comment.replies.length > 0 && (
-                                <div className="ml-6 space-y-2 border-l-2 border-border/30 pl-3">
+                                <div
+                                    className="ml-6 space-y-2 pl-3"
+                                    style={{ borderLeft: '2px solid rgba(139,92,246,0.15)' }}
+                                >
                                     {comment.replies.map((reply) => (
                                         <div
                                             key={reply.id}
-                                            className="rounded-lg bg-muted/10 p-2.5"
+                                            className="rounded-lg p-2.5"
+                                            style={{ background: 'rgba(255,255,255,0.02)' }}
                                         >
                                             <div className="flex items-start gap-2">
-                                                <div className="flex-none w-5 h-5 rounded-full bg-muted flex items-center justify-center">
-                                                    <User className="h-2.5 w-2.5 text-muted-foreground" />
+                                                <div
+                                                    className="flex-none w-5 h-5 rounded-full flex items-center justify-center"
+                                                    style={{ background: 'rgba(255,255,255,0.06)' }}
+                                                >
+                                                    <User className="h-2.5 w-2.5" style={{ color: 'rgba(255,255,255,0.35)' }} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 mb-0.5">
-                                                        <span className="text-xs font-medium">
+                                                        <span className="text-[11px] font-semibold" style={{ color: 'rgba(255,255,255,0.65)' }}>
                                                             @{reply.author_username}
                                                         </span>
-                                                        <span className="text-xs text-muted-foreground" suppressHydrationWarning>
+                                                        <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.22)' }} suppressHydrationWarning>
                                                             {formatDistanceToNow(new Date(reply.timestamp), { addSuffix: true })}
                                                         </span>
                                                     </div>
-                                                    <p className="text-xs text-foreground/80">
+                                                    <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
                                                         {reply.message}
                                                     </p>
                                                 </div>

@@ -3,6 +3,8 @@ import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 
 const META_GRAPH_URL = 'https://graph.facebook.com/v21.0';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // GET - Fetch media posts from Instagram or Facebook using account_id + token
 export async function GET(request: NextRequest) {
@@ -59,7 +61,7 @@ export async function GET(request: NextRequest) {
             }
 
             console.log(`[PostsMedia] Fetching Instagram media for account ${account.account_id}`);
-            const response = await fetch(mediaUrl);
+            const response = await fetch(mediaUrl, { cache: 'no-store' });
             const result = await response.json();
 
             if (!response.ok) {
@@ -89,7 +91,7 @@ export async function GET(request: NextRequest) {
             }
 
             console.log(`[PostsMedia] Fetching Facebook posts for page ${account.account_id}`);
-            const response = await fetch(postsUrl);
+            const response = await fetch(postsUrl, { cache: 'no-store' });
             const result = await response.json();
 
             if (!response.ok) {

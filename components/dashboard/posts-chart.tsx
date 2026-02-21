@@ -1,10 +1,7 @@
 "use client"
 
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid, Legend } from "recharts"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts"
 
-// Define props for the chart
 interface PostsChartProps {
     data: {
         day: string
@@ -13,110 +10,140 @@ interface PostsChartProps {
     }[]
 }
 
+function CustomTooltip({ active, payload, label }: any) {
+    if (!active || !payload?.length) return null
+    return (
+        <div
+            className="rounded-xl px-4 py-3 text-sm"
+            style={{
+                background: 'rgba(15,14,28,0.95)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
+            }}
+        >
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                {label}
+            </p>
+            {payload.map((entry: any) => (
+                <div key={entry.name} className="flex items-center gap-2 text-xs">
+                    <span className="h-2 w-2 rounded-full" style={{ background: entry.color }} />
+                    <span style={{ color: 'rgba(255,255,255,0.6)' }}>{entry.name}</span>
+                    <span className="ml-auto font-semibold tabular-nums" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                        {entry.value}
+                    </span>
+                </div>
+            ))}
+        </div>
+    )
+}
 
 export function PostsChart({ data }: PostsChartProps) {
     return (
-        <Card
-            className="overflow-hidden shadow-lg border border-gray-200 dark:border-gray-700"
+        <div
+            className="overflow-hidden rounded-xl"
             style={{
-                background: 'linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)',
+                background: '#0e0d1c',
+                border: '1px solid rgba(139,92,246,0.15)',
             }}
         >
-            <CardHeader className="pb-4 border-b border-gray-100 dark:border-gray-800">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <CardTitle className="text-xl font-bold bg-linear-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-                            Post Activity
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1.5">Track your posting performance over time</p>
-                    </div>
-                    <Tabs defaultValue="posts" className="w-[300px]">
-                        <TabsList className="grid w-full grid-cols-3">
-                            <TabsTrigger value="posts" className="text-xs font-medium">Posts</TabsTrigger>
-                            <TabsTrigger value="engagement" className="text-xs font-medium">Engagement</TabsTrigger>
-                            <TabsTrigger value="reach" className="text-xs font-medium">Reach</TabsTrigger>
-                        </TabsList>
-                    </Tabs>
+            {/* Header */}
+            <div
+                className="flex items-center justify-between px-6 py-4"
+                style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+            >
+                <div>
+                    <h3 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                        Post Activity
+                    </h3>
+                    <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                        Last 7 days · Next 7 days
+                    </p>
                 </div>
-            </CardHeader>
-            <CardContent className="pl-2 pr-4 pt-6">
-                <ResponsiveContainer width="100%" height={200} minWidth={0}>
-                    <AreaChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+
+                <div className="flex items-center gap-4 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    <div className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full" style={{ background: '#34d399' }} />
+                        Posted
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full" style={{ background: '#818cf8' }} />
+                        Scheduled
+                    </div>
+                </div>
+            </div>
+
+            {/* Chart */}
+            <div className="px-4 pb-4 pt-5">
+                <ResponsiveContainer width="100%" height={180} minWidth={0}>
+                    <AreaChart data={data} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
                         <defs>
-                            <linearGradient id="colorPosted" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
-                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                            <linearGradient id="gradPosted" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#34d399" stopOpacity={0.18} />
+                                <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
                             </linearGradient>
-                            <linearGradient id="colorScheduled" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
-                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                            <linearGradient id="gradScheduled" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#818cf8" stopOpacity={0.18} />
+                                <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
                             </linearGradient>
                         </defs>
+
                         <CartesianGrid
                             strokeDasharray="3 3"
                             vertical={false}
-                            stroke="#e5e7eb"
-                            opacity={0.6}
+                            stroke="rgba(255,255,255,0.05)"
                         />
+
                         <XAxis
                             dataKey="day"
-                            stroke="#6b7280"
-                            fontSize={11}
+                            stroke="rgba(255,255,255,0.2)"
+                            fontSize={10}
                             tickLine={false}
                             axisLine={false}
                             dy={8}
-                        />
-                        <YAxis
-                            stroke="#6b7280"
-                            fontSize={11}
-                            tickLine={false}
-                            axisLine={false}
-                            tickFormatter={(value) => `${value}`}
-                            width={35}
-                            allowDecimals={false}
-                        />
-                        <Tooltip
-                            contentStyle={{
-                                borderRadius: '12px',
-                                border: '1px solid #e5e7eb',
-                                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-                                backgroundColor: '#ffffff',
-                                padding: '12px'
-                            }}
-                            cursor={{ stroke: '#9ca3af', strokeWidth: 1, strokeDasharray: '5 5' }}
-                        />
-                        <Legend
-                            iconType="circle"
-                            wrapperStyle={{ paddingTop: '12px', fontSize: '13px' }}
-                            iconSize={10}
+                            tick={{ fill: 'rgba(255,255,255,0.35)' }}
                         />
 
-                        {/* Current Period - Posted */}
+                        <YAxis
+                            stroke="rgba(255,255,255,0.2)"
+                            fontSize={10}
+                            tickLine={false}
+                            axisLine={false}
+                            allowDecimals={false}
+                            width={30}
+                            tick={{ fill: 'rgba(255,255,255,0.35)' }}
+                        />
+
+                        <Tooltip
+                            content={<CustomTooltip />}
+                            cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
+                        />
+
                         <Area
                             type="monotone"
                             dataKey="posted"
                             name="Posted"
-                            stroke="#10b981"
+                            stroke="#34d399"
+                            strokeWidth={1.5}
                             fillOpacity={1}
-                            fill="url(#colorPosted)"
-                            strokeWidth={2}
+                            fill="url(#gradPosted)"
+                            dot={false}
+                            activeDot={{ r: 3, fill: '#34d399', strokeWidth: 0 }}
                         />
 
-                        {/* Current Period - Scheduled */}
                         <Area
                             type="monotone"
                             dataKey="scheduled"
                             name="Scheduled"
-                            stroke="#3b82f6"
+                            stroke="#818cf8"
+                            strokeWidth={1.5}
                             fillOpacity={1}
-                            fill="url(#colorScheduled)"
-                            strokeWidth={2}
+                            fill="url(#gradScheduled)"
+                            dot={false}
+                            activeDot={{ r: 3, fill: '#818cf8', strokeWidth: 0 }}
                         />
-
-
                     </AreaChart>
                 </ResponsiveContainer>
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     )
 }

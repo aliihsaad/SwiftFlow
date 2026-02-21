@@ -1,0 +1,168 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/utils/supabase/server'
+import { getActiveWorkspace } from '@/lib/workspace-utils'
+import {
+  getFallbackModelsForProvider,
+  isAIProvider,
+  type AIProvider,
+} from '@/lib/ai-models'
+
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
+function sortModelIds(ids: string[]): string[] {
+  return [...new Set(ids)]
+    .map((id) => id.trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b))
+}
+
+function normalizeApiKey(value: unknown): string {
+  return String(value || '').trim().replace(/^['"]|['"]$/g, '')
+}
+
+function normalizeGeminiModelName(name: string): string {
+  return name.replace(/^models\//, '').trim()
+}
+
+function isLikelyTextOpenAIModel(id: string): boolean {
+  const isBaseTextModel = /^(gpt-|chatgpt-|o\d)/i.test(id)
+  const isFineTunedTextModel = /^ft:/i.test(id) && /(gpt-|chatgpt-|o\d)/i.test(id)
+  if (!isBaseTextModel && !isFineTunedTextModel) return false
+  const excluded = /(audio|transcribe|realtime|search|image|moderation|embedding|whisper|tts|instruct|codex)/i
+  return !excluded.test(id)
+}
+
+async function fetchGeminiModels(apiKey: string): Promise<string[]> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
+  const response = await fetch(url, { cache: 'no-store' })
+  const result = await response.json()
+
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'Gemini models fetch failed')
+  }
+
+  const models = (Array.isArray(result?.models) ? result.models : [])
+    .filter((m: { supportedGenerationMethods?: string[] }) =>
+      Array.isArray(m?.supportedGenerationMethods) &&
+      m.supportedGenerationMethods.includes('generateContent')
+    )
+    .map((m: { name?: string }) => normalizeGeminiModelName(String(m?.name || '')))
+    .filter((id: string) => id.startsWith('gemini'))
+
+  return sortModelIds(models)
+}
+
+async function fetchOpenAIModels(apiKey: string): Promise<string[]> {
+  const response = await fetch('https://api.openai.com/v1/models', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    cache: 'no-store',
+  })
+
+  const result = await response.json()
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'OpenAI models fetch failed')
+  }
+
+  const models = (Array.isArray(result?.data) ? result.data : [])
+    .map((m: { id?: string }) => String(m?.id || '').trim())
+    .filter(Boolean)
+    .filter(isLikelyTextOpenAIModel)
+
+  return sortModelIds(models)
+}
+
+async function fetchProviderModels(provider: AIProvider, apiKey: string): Promise<string[]> {
+  if (provider === 'gemini') return fetchGeminiModels(apiKey)
+  return fetchOpenAIModels(apiKey)
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const providerParam = request.nextUrl.searchParams.get('provider') || 'gemini'
+    if (!isAIProvider(providerParam)) {
+      return NextResponse.json({ error: 'Invalid provider' }, { status: 400 })
+    }
+
+    const activeWorkspace = await getActiveWorkspace()
+    if (!activeWorkspace) {
+      return NextResponse.json(
+        {
+          models: getFallbackModelsForProvider(providerParam),
+          provider: providerParam,
+          source: 'fallback',
+          reason: 'no_active_workspace',
+        },
+        { status: 200 }
+      )
+    }
+
+    const { data: settings } = await supabase
+      .from('workspace_settings')
+      .select('gemini_api_key, openai_api_key')
+      .eq('workspace_id', activeWorkspace.id)
+      .maybeSingle()
+
+    const apiKey =
+      providerParam === 'gemini'
+        ? normalizeApiKey(settings?.gemini_api_key)
+        : normalizeApiKey(settings?.openai_api_key)
+
+    if (!apiKey) {
+      return NextResponse.json(
+        {
+          models: getFallbackModelsForProvider(providerParam),
+          provider: providerParam,
+          source: 'fallback',
+          reason: 'missing_api_key',
+        },
+        { status: 200 }
+      )
+    }
+
+    try {
+      const models = await fetchProviderModels(providerParam, apiKey)
+      if (!models.length) {
+        return NextResponse.json(
+          {
+            models: getFallbackModelsForProvider(providerParam),
+            provider: providerParam,
+            source: 'fallback',
+            reason: 'empty_provider_list',
+          },
+          { status: 200 }
+        )
+      }
+
+      return NextResponse.json({
+        models,
+        provider: providerParam,
+        source: 'live',
+      })
+    } catch (providerError) {
+      console.error('[AI_MODELS] Provider fetch failed:', providerError)
+      return NextResponse.json(
+        {
+          models: getFallbackModelsForProvider(providerParam),
+          provider: providerParam,
+          source: 'fallback',
+          reason: 'provider_fetch_failed',
+        },
+        { status: 200 }
+      )
+    }
+  } catch (error) {
+    console.error('[AI_MODELS] Unexpected error:', error)
+    return NextResponse.json({ error: 'Failed to load models' }, { status: 500 })
+  }
+}

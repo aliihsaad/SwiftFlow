@@ -17,7 +17,6 @@ import {
     Lock,
     ArrowLeft,
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
 
 interface Message {
     id: string
@@ -71,7 +70,6 @@ const fetcher = async (url: string) => {
     return data
 }
 
-// Check if error is a Meta permission error
 function isPermissionError(error: Error | null): boolean {
     if (!error) return false
     const msg = error.message?.toLowerCase() || ''
@@ -84,10 +82,9 @@ function isPermissionError(error: Error | null): boolean {
 export default function MessagesPage() {
     const [activePlatform, setActivePlatform] = useState<'instagram' | 'facebook'>('instagram')
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
-    const [showThread, setShowThread] = useState(false) // mobile: toggle list vs thread
+    const [showThread, setShowThread] = useState(false)
     const { toast } = useToast()
 
-    // Fetch conversations live from Meta API
     const {
         data: conversationsData,
         error: conversationsError,
@@ -96,13 +93,9 @@ export default function MessagesPage() {
     } = useSWR<ConversationsResponse>(
         `/api/live-messages?platform=${activePlatform}`,
         fetcher,
-        {
-            revalidateOnFocus: false,
-            dedupingInterval: 30000,
-        }
+        { revalidateOnFocus: false, dedupingInterval: 30000 }
     )
 
-    // Fetch messages for selected conversation
     const {
         data: messagesData,
         isLoading: messagesLoading,
@@ -112,14 +105,9 @@ export default function MessagesPage() {
             ? `/api/live-messages?conversationId=${selectedConversation.platform_conversation_id}&platform=${activePlatform}`
             : null,
         fetcher,
-        {
-            revalidateOnFocus: false,
-            refreshInterval: 30000, // 30s fallback — webhooks handle real-time
-        }
+        { revalidateOnFocus: false, refreshInterval: 30000 }
     )
 
-    // Subscribe to Supabase Realtime for webhook-triggered message updates
-    // Uses the workspace ID from the conversations API response (active workspace)
     const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
     const mutateConversationsRef = useRef(mutateConversations)
     const mutateMessagesRef = useRef(mutateMessages)
@@ -130,19 +118,13 @@ export default function MessagesPage() {
 
     useEffect(() => {
         if (!workspaceId) return
-
         const supabase = createClient()
-
-        // Subscribe to webhook broadcast channel for the active workspace
         const channel = supabase.channel(`messages:${workspaceId}`)
         channel.on('broadcast', { event: 'new_message' }, () => {
-            console.log('[REALTIME] New message event — refreshing...')
             mutateConversationsRef.current()
             mutateMessagesRef.current()
         }).subscribe()
-
         channelRef.current = channel
-
         return () => {
             supabase.removeChannel(channel)
             channelRef.current = null
@@ -155,7 +137,6 @@ export default function MessagesPage() {
 
     const handleSendMessage = async (message: string) => {
         if (!selectedConversation) return
-
         try {
             const response = await fetch('/api/live-messages/send', {
                 method: 'POST',
@@ -166,41 +147,26 @@ export default function MessagesPage() {
                     platform: activePlatform,
                 }),
             })
-
             if (!response.ok) {
                 const err = await response.json()
                 throw new Error(err.error || 'Failed to send message')
             }
-
-            toast({
-                title: "Message sent",
-                description: "Your message has been sent.",
-            })
-
+            toast({ title: "Message sent", description: "Your message has been sent." })
             mutateMessages()
             mutateConversations()
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : 'Failed to send message.'
+            const msg = error instanceof Error ? error.message : 'Failed to send message.'
             console.error('Send message error:', error)
-            toast({
-                title: "Send failed",
-                description: message,
-                variant: "destructive",
-            })
+            toast({ title: "Send failed", description: msg, variant: "destructive" })
             throw error
         }
     }
 
     const handleSelectConversation = (conversation: Conversation) => {
         setSelectedConversation(conversation)
-        setShowThread(true) // On mobile, switch to thread view
+        setShowThread(true)
     }
 
-    const handleBackToList = () => {
-        setShowThread(false)
-    }
-
-    // Reset selection when switching platforms
     const handlePlatformSwitch = (platform: 'instagram' | 'facebook') => {
         setActivePlatform(platform)
         setSelectedConversation(null)
@@ -212,13 +178,13 @@ export default function MessagesPage() {
             id: 'instagram' as const,
             label: 'Instagram',
             icon: Instagram,
-            color: 'from-pink-500 to-purple-600',
+            activeStyle: { background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', color: '#fff', boxShadow: '0 4px 16px rgba(236,72,153,0.25)' },
         },
         {
             id: 'facebook' as const,
             label: 'Facebook',
             icon: Facebook,
-            color: 'from-blue-500 to-blue-700',
+            activeStyle: { background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', color: '#fff', boxShadow: '0 4px 16px rgba(59,130,246,0.25)' },
         },
     ]
 
@@ -228,24 +194,22 @@ export default function MessagesPage() {
             <div className="shrink-0 space-y-4 mb-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight">Messages</h1>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                            Messages
+                        </h1>
+                        <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
                             View and reply to your DMs
                         </p>
                     </div>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                            mutateConversations()
-                            if (selectedConversation) mutateMessages()
-                        }}
+                    <button
+                        onClick={() => { mutateConversations(); if (selectedConversation) mutateMessages() }}
                         disabled={conversationsLoading}
-                        className="gap-2 self-start"
+                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold self-start transition-all duration-150 disabled:opacity-50"
+                        style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
                     >
-                        <RefreshCw className={cn("h-4 w-4", conversationsLoading && "animate-spin")} />
+                        <RefreshCw className={cn("h-3.5 w-3.5", conversationsLoading && "animate-spin")} />
                         Refresh
-                    </Button>
+                    </button>
                 </div>
 
                 {/* Platform Tabs */}
@@ -256,12 +220,12 @@ export default function MessagesPage() {
                             <button
                                 key={tab.id}
                                 onClick={() => handlePlatformSwitch(tab.id)}
-                                className={cn(
-                                    "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
-                                    isActive
-                                        ? `bg-linear-to-r ${tab.color} text-white shadow-lg`
-                                        : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-border/50"
-                                )}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                                style={isActive ? tab.activeStyle : {
+                                    background: '#12111e',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    color: 'rgba(255,255,255,0.4)',
+                                }}
                             >
                                 <tab.icon className="h-4 w-4" />
                                 {tab.label}
@@ -272,12 +236,12 @@ export default function MessagesPage() {
 
                 {/* Account info */}
                 {conversationsData?.account && (
-                    <div className="text-xs text-muted-foreground flex items-center gap-2">
-                        <div className={cn(
-                            "w-2 h-2 rounded-full",
-                            activePlatform === 'instagram' ? "bg-pink-500" : "bg-blue-500"
-                        )} />
-                        Connected as <span className="font-medium text-foreground">{conversationsData.account.account_name}</span>
+                    <div className="flex items-center gap-2 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ background: activePlatform === 'instagram' ? '#ec4899' : '#3b82f6' }} />
+                        Connected as{' '}
+                        <span className="font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                            {conversationsData.account.account_name}
+                        </span>
                     </div>
                 )}
             </div>
@@ -286,25 +250,37 @@ export default function MessagesPage() {
             {conversationsLoading && (
                 <div className="flex items-center justify-center py-20">
                     <div className="text-center space-y-3">
-                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto" />
-                        <p className="text-sm text-muted-foreground">Loading conversations...</p>
+                        <Loader2 className="h-7 w-7 animate-spin mx-auto" style={{ color: '#8b5cf6' }} />
+                        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>Loading conversations…</p>
                     </div>
                 </div>
             )}
 
-            {/* Permission Error - Coming Soon */}
+            {/* Permission Error */}
             {permissionDenied && !conversationsLoading && (
                 <div className="flex-1 flex items-center justify-center">
-                    <div className="rounded-2xl border border-border/50 bg-muted/10 p-10 text-center max-w-md mx-auto">
-                        <div className="mx-auto w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-5">
-                            <Lock className="h-8 w-8 text-blue-500" />
+                    <div
+                        className="rounded-2xl p-10 text-center max-w-md mx-auto"
+                        style={{ background: '#0e0d1c', border: '1px solid rgba(59,130,246,0.15)' }}
+                    >
+                        <div
+                            className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
+                            style={{ background: 'rgba(59,130,246,0.1)' }}
+                        >
+                            <Lock className="h-8 w-8" style={{ color: '#60a5fa' }} />
                         </div>
-                        <h3 className="text-lg font-semibold mb-2">Facebook Messages</h3>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                            Facebook messaging requires the <span className="font-medium text-foreground">pages_messaging</span> permission,
-                            which is pending Meta app review approval.
+                        <h3 className="text-base font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                            Facebook Messages
+                        </h3>
+                        <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                            Facebook messaging requires the{' '}
+                            <span className="font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>pages_messaging</span>{' '}
+                            permission, which is pending Meta app review approval.
                         </p>
-                        <div className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-medium">
+                        <div
+                            className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold"
+                            style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.2)' }}
+                        >
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                             Coming Soon
                         </div>
@@ -312,37 +288,45 @@ export default function MessagesPage() {
                 </div>
             )}
 
-            {/* Generic Error (non-permission) */}
+            {/* Generic Error */}
             {conversationsError && !permissionDenied && !conversationsLoading && (
-                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center">
-                    <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-3" />
-                    <p className="text-sm font-medium text-destructive">Failed to load conversations</p>
-                    <p className="text-xs text-muted-foreground mt-1">{conversationsError.message}</p>
+                <div
+                    className="rounded-xl p-8 text-center"
+                    style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)' }}
+                >
+                    <AlertCircle className="h-7 w-7 mx-auto mb-3" style={{ color: '#f87171' }} />
+                    <p className="text-sm font-medium" style={{ color: '#f87171' }}>Failed to load conversations</p>
+                    <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>{conversationsError.message}</p>
                 </div>
             )}
 
-            {/* No account connected */}
+            {/* No account */}
             {noAccount && !conversationsLoading && (
-                <div className="rounded-xl border border-border/50 bg-muted/20 p-12 text-center">
-                    <Inbox className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                    <p className="text-muted-foreground font-medium">
+                <div className="rounded-xl p-12 text-center" style={{ background: '#0e0d1c', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                    <Inbox className="h-10 w-10 mx-auto mb-4" style={{ color: 'rgba(255,255,255,0.12)' }} />
+                    <p className="font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
                         No {activePlatform === 'instagram' ? 'Instagram' : 'Facebook'} account connected
                     </p>
-                    <p className="text-sm text-muted-foreground mt-2">
+                    <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
                         Connect your account in Settings to view messages.
                     </p>
                 </div>
             )}
 
-            {/* Main content - Split pane layout (responsive) */}
+            {/* Main split pane */}
             {!conversationsLoading && !conversationsError && conversations.length > 0 && (
-                <div className="flex flex-1 min-h-0 border rounded-lg overflow-hidden bg-background">
-                    {/* Conversation list - Left pane */}
-                    {/* On mobile: hidden when thread is open */}
-                    <div className={cn(
-                        "w-full md:w-80 border-r flex flex-col shrink-0 h-full",
-                        showThread ? "hidden md:flex" : "flex"
-                    )}>
+                <div
+                    className="flex flex-1 min-h-0 overflow-hidden rounded-xl"
+                    style={{ background: '#0e0d1c', border: '1px solid rgba(139,92,246,0.12)' }}
+                >
+                    {/* Left — conversation list */}
+                    <div
+                        className={cn(
+                            "w-full md:w-80 flex flex-col shrink-0 h-full",
+                            showThread ? "hidden md:flex" : "flex"
+                        )}
+                        style={{ borderRight: '1px solid rgba(255,255,255,0.05)' }}
+                    >
                         <ConversationList
                             conversations={conversations}
                             selectedId={selectedConversation?.id}
@@ -350,24 +334,22 @@ export default function MessagesPage() {
                         />
                     </div>
 
-                    {/* Message thread - Right pane */}
-                    {/* On mobile: hidden when list is showing; full width when thread is open */}
+                    {/* Right — message thread */}
                     <div className={cn(
                         "flex-1 flex flex-col min-w-0 min-h-0 h-full",
                         showThread ? "flex" : "hidden md:flex"
                     )}>
-                        {/* Mobile back button */}
+                        {/* Mobile back */}
                         {showThread && (
                             <div className="md:hidden shrink-0 px-3 pt-3">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handleBackToList}
-                                    className="gap-1.5 text-muted-foreground hover:text-foreground -ml-2"
+                                <button
+                                    onClick={() => setShowThread(false)}
+                                    className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-medium transition-all duration-150"
+                                    style={{ color: 'rgba(255,255,255,0.4)' }}
                                 >
-                                    <ArrowLeft className="h-4 w-4" />
+                                    <ArrowLeft className="h-3.5 w-3.5" />
                                     Back
-                                </Button>
+                                </button>
                             </div>
                         )}
                         <MessageThread
@@ -382,12 +364,12 @@ export default function MessagesPage() {
                 </div>
             )}
 
-            {/* Empty state (account connected but no conversations) */}
+            {/* Empty state */}
             {!conversationsLoading && !conversationsError && !noAccount && conversations.length === 0 && (
-                <div className="rounded-xl border border-border/50 bg-muted/20 p-12 text-center">
-                    <Inbox className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                    <p className="text-muted-foreground font-medium">No conversations yet</p>
-                    <p className="text-sm text-muted-foreground mt-2">
+                <div className="rounded-xl p-12 text-center" style={{ background: '#0e0d1c', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                    <Inbox className="h-10 w-10 mx-auto mb-4" style={{ color: 'rgba(255,255,255,0.12)' }} />
+                    <p className="font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>No conversations yet</p>
+                    <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
                         {activePlatform === 'instagram'
                             ? 'Instagram DMs will appear here once you receive messages.'
                             : 'Facebook messages will appear here once you receive messages.'}

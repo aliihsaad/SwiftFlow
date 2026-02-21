@@ -109,13 +109,28 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
     const handleGenerateImage = async (prompt: string) => {
         setIsGeneratingAI(true)
         try {
-            const supabase = createClient()
-            const { data, error } = await supabase.functions.invoke('generate-image', {
-                body: {
-                    prompt,
-                    workspaceId
-                }
+            const response = await fetch('/api/assistant/invoke', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    functionName: 'generate-image',
+                    body: {
+                        prompt,
+                        workspaceId
+                    }
+                })
             })
+
+            const payload = await response.json().catch(() => ({}))
+            if (!response.ok) {
+                throw new Error(payload?.error || 'Failed to generate image')
+            }
+
+            const data = payload?.data
+            if (data?.error) {
+                throw new Error(data.error)
+            }
+
             if (data?.result?.imageUrl) {
                 setGlobalMedia(prev => [...prev, data.result.imageUrl])
             }
@@ -129,8 +144,6 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
     const handleGenerateCaption = async () => {
         setIsGeneratingAI(true)
         try {
-            const supabase = createClient()
-
             // Build a better description based on available context
             let description = globalCaption
 
@@ -143,17 +156,20 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
             }
 
 
-            const { data, error } = await supabase.functions.invoke('generate-caption', {
-                body: {
+            const response = await fetch('/api/ai/generate-caption', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     description,
                     platforms: [activeTab === 'all' ? 'instagram' : activeTab],
                     tone: 'engaging',
                     language: 'en',
-                    workspaceId: workspaceId
-                }
+                    workspaceId
+                })
             })
+            const data = await response.json().catch(() => ({}))
 
-            console.log('Caption generation response:', { data, error, workspaceId })
+            console.log('Caption generation response:', { data, workspaceId })
 
             if (data?.suggestions && data.suggestions.length > 0) {
                 // Replace with the first suggestion
@@ -172,16 +188,18 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
 
     const handleRefreshHashtags = async () => {
         // Generate relevant hashtags using AI
-        const supabase = createClient()
         try {
-            const { data } = await supabase.functions.invoke('generate-caption', {
-                body: {
+            const response = await fetch('/api/ai/generate-caption', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                     description: "Generate 10 relevant hashtags for: " + globalCaption,
                     platforms: ['instagram'],
                     tone: 'engaging',
-                    workspaceId: workspaceId
-                }
+                    workspaceId
+                })
             })
+            const data = await response.json().catch(() => ({}))
 
             if (data?.suggestions && Array.isArray(data.suggestions)) {
                 // Extract hashtags from the response ideas

@@ -7,6 +7,10 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function normalizeApiKey(value: unknown): string {
+    return String(value || '').trim().replace(/^['"]|['"]$/g, '')
+}
+
 interface Message {
     role: 'user' | 'assistant'
     content: string
@@ -81,7 +85,7 @@ serve(async (req) => {
         // Get API key from settings (fallback to env if not set in DB)
         const dbKey = settings?.gemini_api_key
         const envKey = Deno.env.get('GEMINI_API_KEY')
-        const apiKey = dbKey || envKey
+        const apiKey = normalizeApiKey(dbKey || envKey)
 
         console.log(`API Key Source: ${dbKey ? 'DB' : (envKey ? 'Env' : 'None')}`)
 
@@ -89,12 +93,17 @@ serve(async (req) => {
             console.error('Missing API Key. DB:', !!dbKey, 'Env:', !!envKey)
             throw new Error('Gemini API key not configured. Please add it in Settings > AI Provider or set GEMINI_API_KEY secret.')
         }
+        if (!apiKey.startsWith('AIza')) {
+            throw new Error('Gemini API key format looks invalid. Please paste a valid Google AI Studio key.')
+        }
 
         // Fix for 404: Force gemini-pro if flash is requested or no model set
         // Fix for 404: Force gemini-pro if flash is requested or no model set
         // Debugging: Aggressively force gemini-2.0-flash and log it
-        let modelName = 'gemini-2.0-flash'
-        // settings?.ai_model_name || 'gemini-2.0-flash'
+        let modelName = settings?.ai_model_name || 'gemini-2.0-flash'
+        if (!String(modelName).startsWith('gemini')) {
+            modelName = 'gemini-2.0-flash'
+        }
 
         // if (modelName === 'gemini-pro' || modelName === 'gemini-1.5-flash' || modelName === 'gemini-1.5-flash-latest') {
         //    modelName = 'gemini-2.0-flash'
@@ -146,9 +155,13 @@ Guidelines:
 
     } catch (error: any) {
         console.error('Chat Assistant Error:', error)
-        return new Response(JSON.stringify({ error: error.message || 'Failed to process chat' }), {
+        const message = String(error?.message || 'Failed to process chat')
+        const userMessage = /API_KEY_INVALID|invalid api key|api key not valid/i.test(message)
+            ? 'Gemini API key is invalid. Update it in Settings > AI Provider.'
+            : message
+        return new Response(JSON.stringify({ error: userMessage }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 500,
+            status: 200,
         })
     }
 })

@@ -6,6 +6,17 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function normalizeApiKey(value: unknown): string {
+    return String(value || '').trim().replace(/^['"]|['"]$/g, '')
+}
+
+function getGoogleErrorInfo(payload: any): { reason: string; message: string } {
+    const details = Array.isArray(payload?.error?.details) ? payload.error.details : []
+    const reason = details.find((d: any) => typeof d?.reason === 'string')?.reason || payload?.error?.status || 'UNKNOWN'
+    const message = String(payload?.error?.message || '')
+    return { reason, message }
+}
+
 serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
@@ -13,10 +24,53 @@ serve(async (req) => {
         const { messages, workspaceId, prompt, style } = await req.json()
         const lastMsg = messages ? messages[messages.length - 1] : { content: prompt || "Generate an image" }
 
-        const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-        const { data: settings } = await supabase.from('workspace_settings').select('*').eq('workspace_id', workspaceId).maybeSingle()
+        if (!workspaceId) {
+            throw new Error('workspaceId is required for image generation.')
+        }
 
-        const apiKey = settings?.gemini_api_key || Deno.env.get('GEMINI_API_KEY')!
+        const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+        const { data: settingsRows, error: settingsError } = await supabase
+            .from('workspace_settings')
+            .select('workspace_id, gemini_api_key, updated_at')
+            .eq('workspace_id', workspaceId)
+            .order('updated_at', { ascending: false })
+            .limit(20)
+
+        if (settingsError) {
+            console.error('workspace_settings lookup failed:', settingsError)
+        }
+
+        const rows = (settingsRows || []).map((row: any) => ({
+            ...row,
+            normalizedKey: normalizeApiKey(row?.gemini_api_key),
+        }))
+        const hasWorkspaceSettings = rows.length > 0
+        const latestRow = rows[0] || null
+        const rowWithKey = rows.find((row: any) => !!row.normalizedKey) || null
+        const effectiveSettingsRow = rowWithKey || latestRow
+        const dbKey = normalizeApiKey(effectiveSettingsRow?.normalizedKey)
+        const envKey = normalizeApiKey(Deno.env.get('GEMINI_API_KEY'))
+        let primaryKey = ''
+        let fallbackKey: string | null = null
+        let keySource = ''
+
+        if (dbKey) {
+            primaryKey = dbKey
+            keySource = 'workspace_settings'
+            fallbackKey = envKey && envKey !== dbKey ? envKey : null
+        } else if (!hasWorkspaceSettings && envKey) {
+            primaryKey = envKey
+            keySource = 'edge_secret'
+        } else if (hasWorkspaceSettings) {
+            throw new Error(`Gemini API key is not configured for this workspace (${workspaceId}). Update Settings > AI Provider.`)
+        }
+
+        if (!primaryKey) {
+            throw new Error('Gemini API key is missing. Add a valid key in Settings > AI Provider.')
+        }
+        if (!primaryKey.startsWith('AIza')) {
+            throw new Error('Gemini API key format looks invalid. Please paste a valid Google AI Studio key.')
+        }
 
         // Fetch brand profile for color context
         const { data: brandProfile } = await supabase
@@ -39,36 +93,83 @@ serve(async (req) => {
             }
         }
 
-        // User explicitly requested gemini-3-pro-image-preview for high-fidelity image generation
-        const targetModel = 'gemini-3-pro-image-preview'
-
-        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`
-
         const enhancedPrompt = `${lastMsg.content}. Style: ${style || 'Photorealistic, cinematic lighting'}.${colorContext}`
+        const modelCandidates = [
+            'gemini-2.5-flash-image',
+            'gemini-3-pro-image-preview',
+            'gemini-2.0-flash-preview-image-generation',
+        ]
 
-        const response = await fetch(geminiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: enhancedPrompt }]
-                }],
-                // REST API uses generationConfig, SDK uses config
-                generationConfig: {
-                    imageConfig: {
-                        aspectRatio: "1:1",
-                        imageSize: "1K"
-                    }
+        let data: any = null
+        let usedModel = ''
+        let lastError = ''
+        const tried = new Set<string>()
+
+        const executeWithKey = async (apiKey: string) => {
+            for (const candidate of modelCandidates) {
+                if (tried.has(`${candidate}:${apiKey}`)) continue
+                tried.add(`${candidate}:${apiKey}`)
+
+                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${apiKey}`
+                const response = await fetch(geminiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: enhancedPrompt }]
+                        }],
+                        generationConfig: {
+                            imageConfig: {
+                                aspectRatio: "1:1",
+                                imageSize: "1K"
+                            }
+                        }
+                    })
+                })
+
+                const rawText = await response.text()
+                let parsed: any = null
+                try {
+                    parsed = rawText ? JSON.parse(rawText) : null
+                } catch {
+                    parsed = null
                 }
-            })
-        })
 
-        if (!response.ok) {
-            const errText = await response.text()
-            throw new Error(`Gemini API Error: ${response.status} ${errText}`)
+                if (response.ok) {
+                    data = parsed
+                    usedModel = candidate
+                    return true
+                }
+
+                const info = getGoogleErrorInfo(parsed)
+                lastError = `Gemini API Error (${response.status}) [${info.reason}] ${info.message || rawText}`
+
+                // Try next model on model capability / availability errors.
+                if (/NOT_FOUND|MODEL_NOT_FOUND|FAILED_PRECONDITION|UNIMPLEMENTED|unsupported/i.test(info.reason + ' ' + info.message)) {
+                    continue
+                }
+
+                // If key invalid, caller may retry with fallback key.
+                if (/API_KEY_INVALID|PERMISSION_DENIED|INVALID_ARGUMENT/i.test(info.reason + ' ' + info.message)) {
+                    return false
+                }
+
+                // Unknown non-model error, stop trying this key.
+                return false
+            }
+            return false
         }
 
-        const data = await response.json()
+        let success = await executeWithKey(primaryKey)
+        if (!success && fallbackKey) {
+            success = await executeWithKey(fallbackKey)
+        }
+
+        if (!success || !data) {
+            throw new Error(
+                `${lastError || 'Gemini image generation failed.'} (keySource=${keySource}${fallbackKey ? ', fallback=env' : ''})`
+            )
+        }
 
         // Debug Log
         console.log('Gemini Response:', JSON.stringify(data).substring(0, 500))
@@ -125,7 +226,7 @@ serve(async (req) => {
             workspace_id: workspaceId,
             asset_type: 'image',
             image_url: finalAssetUrl,
-            content: { prompt: promptUsed, model: targetModel, style: style }
+            content: { prompt: promptUsed, model: usedModel, style: style }
         })
 
         if (insertError) {
@@ -138,7 +239,8 @@ serve(async (req) => {
             type: "image",
             prompt_used: promptUsed,
             id: `img_${Date.now()}`,
-            imageUrl: finalAssetUrl
+            imageUrl: finalAssetUrl,
+            model: usedModel,
         }
 
         return new Response(JSON.stringify({ result: parsedResult }), {

@@ -1,7 +1,6 @@
 "use client"
 
 import { Bell } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -17,38 +16,12 @@ export type RecentAction = {
     timestamp: string
 }
 
-const getActionIcon = (type: RecentAction['type']) => {
-    switch (type) {
-        case 'draft':
-            return <FileEdit className="h-4 w-4 text-amber-500" />
-        case 'published':
-            return <Send className="h-4 w-4 text-green-500" />
-        case 'scheduled':
-            return <CalendarClock className="h-4 w-4 text-blue-500" />
-        case 'ai_generated':
-            return <Sparkles className="h-4 w-4 text-purple-500" />
-        case 'failed':
-            return <Ban className="h-4 w-4 text-red-500" />
-        default:
-            return <Sparkles className="h-4 w-4 text-gray-500" />
-    }
-}
-
-const getActionColor = (type: RecentAction['type']) => {
-    switch (type) {
-        case 'draft':
-            return "bg-amber-100 dark:bg-amber-900/20"
-        case 'published':
-            return "bg-green-100 dark:bg-green-900/20"
-        case 'scheduled':
-            return "bg-blue-100 dark:bg-blue-900/20"
-        case 'ai_generated':
-            return "bg-purple-100 dark:bg-purple-900/20"
-        case 'failed':
-            return "bg-red-100 dark:bg-red-900/20"
-        default:
-            return "bg-gray-100 dark:bg-gray-800"
-    }
+const typeConfig: Record<RecentAction['type'], { icon: React.ElementType; color: string; bg: string }> = {
+    draft:        { icon: FileEdit,      color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+    published:    { icon: Send,          color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
+    scheduled:    { icon: CalendarClock, color: '#818cf8', bg: 'rgba(129,140,248,0.1)' },
+    ai_generated: { icon: Sparkles,      color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
+    failed:       { icon: Ban,           color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
 }
 
 interface RecentActivityDropdownProps {
@@ -59,44 +32,96 @@ export function RecentActivityDropdown({ activities }: RecentActivityDropdownPro
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                    <Bell className="h-5 w-5" />
-                </Button>
+                <button
+                    className="relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-150"
+                    style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        color: 'rgba(255,255,255,0.5)',
+                    }}
+                    onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(139,92,246,0.12)'
+                        e.currentTarget.style.borderColor = 'rgba(139,92,246,0.3)'
+                        e.currentTarget.style.color = '#a78bfa'
+                    }}
+                    onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
+                        e.currentTarget.style.color = 'rgba(255,255,255,0.5)'
+                    }}
+                >
+                    <Bell className="h-4 w-4" />
+                    {activities.length > 0 && (
+                        <span
+                            className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full text-[8px] font-bold text-white"
+                            style={{ background: '#7c3aed' }}
+                        >
+                            {Math.min(activities.length, 9)}
+                        </span>
+                    )}
+                </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-[380px] p-0">
-                <div className="flex items-center justify-between p-4 border-b">
-                    <h3 className="font-semibold">Recent Activity</h3>
-                    <span className="text-xs text-muted-foreground">
-                        {activities.length} {activities.length === 1 ? 'item' : 'items'}
+
+            <DropdownMenuContent
+                align="end"
+                className="p-0 w-[360px] rounded-xl overflow-hidden"
+                style={{
+                    background: 'rgba(12,11,22,0.98)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    boxShadow: '0 24px 48px rgba(0,0,0,0.7)',
+                }}
+            >
+                {/* Header */}
+                <div
+                    className="flex items-center justify-between px-4 py-3"
+                    style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+                >
+                    <span className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                        Recent Activity
+                    </span>
+                    <span
+                        className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
+                        style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa' }}
+                    >
+                        {activities.length}
                     </span>
                 </div>
-                <ScrollArea className="h-[400px]">
-                    <div className="p-4 space-y-4">
+
+                <ScrollArea className="h-[340px]">
+                    <div className="p-3 space-y-1">
                         {activities.length === 0 ? (
-                            <div className="text-sm text-muted-foreground text-center py-8">
+                            <div className="py-12 text-center text-sm" style={{ color: 'rgba(255,255,255,0.25)' }}>
                                 No recent activity
                             </div>
                         ) : (
-                            activities.map((activity, index) => (
-                                <div key={activity.id} className="flex gap-3 relative">
-                                    {/* Timeline line */}
-                                    {index !== activities.length - 1 && (
-                                        <div className="absolute left-[19px] top-10 bottom-[-16px] w-[2px] bg-muted" />
-                                    )}
-
-                                    <div className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border ${getActionColor(activity.type)}`}>
-                                        {getActionIcon(activity.type)}
+                            activities.map((activity) => {
+                                const cfg = typeConfig[activity.type] ?? typeConfig.ai_generated
+                                const Icon = cfg.icon
+                                return (
+                                    <div
+                                        key={activity.id}
+                                        className="flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors duration-100"
+                                        style={{ cursor: 'default' }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                    >
+                                        <div
+                                            className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                                            style={{ background: cfg.bg }}
+                                        >
+                                            <Icon className="h-3.5 w-3.5" style={{ color: cfg.color }} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm leading-snug truncate" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                                                {activity.description}
+                                            </p>
+                                            <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                                                {activity.timestamp}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className="flex flex-col gap-1 pb-1 flex-1">
-                                        <p className="text-sm font-medium leading-none">
-                                            {activity.description}
-                                        </p>
-                                        <span className="text-xs text-muted-foreground">
-                                            {activity.timestamp}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))
+                                )
+                            })
                         )}
                     </div>
                 </ScrollArea>

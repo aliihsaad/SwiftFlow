@@ -1,9 +1,6 @@
 "use client"
 
 import { LucideIcon } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
 
 interface AutomationCardProps {
     icon: LucideIcon
@@ -23,36 +20,64 @@ export function AutomationCard({
     disabled = false
 }: AutomationCardProps) {
     return (
-        <Card
-            className={cn(
-                "cursor-pointer transition-all hover:shadow-md hover:border-primary/50 relative overflow-hidden group",
-                disabled && "opacity-50 cursor-not-allowed"
-            )}
+        <button
             onClick={disabled ? undefined : onClick}
+            disabled={disabled}
+            className="group relative overflow-hidden rounded-xl text-left w-full transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+                background: '#0e0d1c',
+                border: '1px solid rgba(139,92,246,0.15)',
+                boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
+            }}
+            onMouseEnter={(e) => {
+                if (!disabled) {
+                    e.currentTarget.style.border = '1px solid rgba(139,92,246,0.4)'
+                    e.currentTarget.style.boxShadow = '0 8px 32px rgba(139,92,246,0.15)'
+                }
+            }}
+            onMouseLeave={(e) => {
+                e.currentTarget.style.border = '1px solid rgba(139,92,246,0.15)'
+                e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.3)'
+            }}
         >
-            <CardContent className="p-4 sm:p-6">
-                <div className="flex items-start gap-3 sm:gap-4">
-                    <div className="p-2 sm:p-3 rounded-lg bg-primary/10 text-primary shrink-0 group-hover:bg-primary/20 transition-colors">
-                        <Icon className="h-5 w-5 sm:h-6 sm:w-6" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2 mb-1.5 sm:mb-2">
-                            <h3 className="font-semibold text-sm sm:text-base">{title}</h3>
-                            {badge && (
-                                <Badge variant="secondary" className="text-xs">
-                                    {badge}
-                                </Badge>
-                            )}
-                        </div>
-                        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                            {description}
-                        </p>
-                    </div>
-                </div>
+            {/* Ambient glow */}
+            <div
+                className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full blur-2xl opacity-0 group-hover:opacity-25 transition-opacity duration-300"
+                style={{ background: '#8b5cf6' }}
+            />
 
-                {/* Hover indicator */}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-linear-to-r from-pink-500 to-purple-500 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
-            </CardContent>
-        </Card>
+            <div className="p-5 sm:p-6 flex items-start gap-4">
+                <div
+                    className="p-3 rounded-xl shrink-0 transition-all duration-200 group-hover:scale-110"
+                    style={{ background: 'rgba(139,92,246,0.12)' }}
+                >
+                    <Icon className="h-5 w-5 sm:h-6 sm:w-6" style={{ color: '#a78bfa' }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <h3 className="font-semibold text-sm sm:text-base" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                            {title}
+                        </h3>
+                        {badge && (
+                            <span
+                                className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                                style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.25)' }}
+                            >
+                                {badge}
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-xs sm:text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                        {description}
+                    </p>
+                </div>
+            </div>
+
+            {/* Bottom hover bar */}
+            <div
+                className="absolute bottom-0 left-0 right-0 h-0.5 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"
+                style={{ background: 'linear-gradient(90deg, #8b5cf6, #6366f1)' }}
+            />
+        </button>
     )
 }

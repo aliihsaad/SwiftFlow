@@ -14,7 +14,6 @@ import {
     Grid3X3,
     AlertCircle
 } from "lucide-react"
-import { Button } from "@/components/ui/button"
 
 interface PostData {
     id: string
@@ -56,7 +55,6 @@ export default function PostsPage() {
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [workspaceId, setWorkspaceId] = useState<string | null>(null)
 
-    // Fetch active workspace ID client-side
     useEffect(() => {
         const fetchWorkspace = async () => {
             const supabase = createClient()
@@ -73,7 +71,6 @@ export default function PostsPage() {
         fetchWorkspace()
     }, [])
 
-    // Fetch media for the active platform
     const { data, error, isLoading, mutate } = useSWR<MediaResponse>(
         `/api/posts-media?platform=${activePlatform}&limit=25`,
         fetcher,
@@ -97,15 +94,15 @@ export default function PostsPage() {
             id: 'instagram' as const,
             label: 'Instagram',
             icon: Instagram,
-            color: 'from-pink-500 to-purple-600',
-            textColor: 'text-pink-500',
+            activeStyle: { background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', color: '#fff', boxShadow: '0 4px 16px rgba(236,72,153,0.25)' },
+            dot: '#ec4899',
         },
         {
             id: 'facebook' as const,
             label: 'Facebook',
             icon: Facebook,
-            color: 'from-blue-500 to-blue-700',
-            textColor: 'text-blue-500',
+            activeStyle: { background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', color: '#fff', boxShadow: '0 4px 16px rgba(59,130,246,0.25)' },
+            dot: '#3b82f6',
         },
     ]
 
@@ -114,21 +111,26 @@ export default function PostsPage() {
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Posts</h1>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                        Posts
+                    </h1>
+                    <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
                         View your posts and manage comments
                     </p>
                 </div>
-                <Button
-                    variant="outline"
-                    size="sm"
+                <button
                     onClick={() => mutate()}
                     disabled={isLoading}
-                    className="gap-2 self-start"
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold self-start transition-all duration-150 disabled:opacity-50"
+                    style={{
+                        background: '#12111e',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        color: 'rgba(255,255,255,0.5)',
+                    }}
                 >
-                    <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+                    <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
                     Refresh
-                </Button>
+                </button>
             </div>
 
             {/* Platform Tabs */}
@@ -139,12 +141,16 @@ export default function PostsPage() {
                         <button
                             key={tab.id}
                             onClick={() => setActivePlatform(tab.id)}
-                            className={cn(
-                                "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200",
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
+                            style={
                                 isActive
-                                    ? `bg-linear-to-r ${tab.color} text-white shadow-lg shadow-${tab.id === 'instagram' ? 'pink' : 'blue'}-500/20`
-                                    : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground border border-border/50"
-                            )}
+                                    ? tab.activeStyle
+                                    : {
+                                          background: '#12111e',
+                                          border: '1px solid rgba(255,255,255,0.08)',
+                                          color: 'rgba(255,255,255,0.4)',
+                                      }
+                            }
                         >
                             <tab.icon className="h-4 w-4" />
                             {tab.label}
@@ -155,12 +161,15 @@ export default function PostsPage() {
 
             {/* Account info */}
             {account && (
-                <div className="text-xs text-muted-foreground flex items-center gap-2">
-                    <div className={cn(
-                        "w-2 h-2 rounded-full",
-                        activePlatform === 'instagram' ? "bg-pink-500" : "bg-blue-500"
-                    )} />
-                    Connected as <span className="font-medium text-foreground">{account.account_name}</span>
+                <div className="flex items-center gap-2 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                    <div
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ background: activePlatform === 'instagram' ? '#ec4899' : '#3b82f6' }}
+                    />
+                    Connected as{' '}
+                    <span className="font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                        {account.account_name}
+                    </span>
                 </div>
             )}
 
@@ -168,29 +177,35 @@ export default function PostsPage() {
             {isLoading && (
                 <div className="flex items-center justify-center py-20">
                     <div className="text-center space-y-3">
-                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto" />
-                        <p className="text-sm text-muted-foreground">Loading posts...</p>
+                        <Loader2 className="h-7 w-7 animate-spin mx-auto" style={{ color: '#8b5cf6' }} />
+                        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>Loading posts…</p>
                     </div>
                 </div>
             )}
 
             {/* Error */}
             {error && !isLoading && (
-                <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center">
-                    <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-3" />
-                    <p className="text-sm font-medium text-destructive">Failed to load posts</p>
-                    <p className="text-xs text-muted-foreground mt-1">{error.message}</p>
+                <div
+                    className="rounded-xl p-8 text-center"
+                    style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)' }}
+                >
+                    <AlertCircle className="h-7 w-7 mx-auto mb-3" style={{ color: '#f87171' }} />
+                    <p className="text-sm font-medium" style={{ color: '#f87171' }}>Failed to load posts</p>
+                    <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>{error.message}</p>
                 </div>
             )}
 
             {/* No account connected */}
             {noAccount && !isLoading && (
-                <div className="rounded-xl border border-border/50 bg-muted/20 p-12 text-center">
-                    <Grid3X3 className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                    <p className="text-muted-foreground font-medium">
+                <div
+                    className="rounded-xl p-12 text-center"
+                    style={{ background: '#0e0d1c', border: '1px dashed rgba(255,255,255,0.08)' }}
+                >
+                    <Grid3X3 className="h-10 w-10 mx-auto mb-4" style={{ color: 'rgba(255,255,255,0.12)' }} />
+                    <p className="font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
                         No {activePlatform === 'instagram' ? 'Instagram' : 'Facebook'} account connected
                     </p>
-                    <p className="text-sm text-muted-foreground mt-2">
+                    <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
                         Connect your account in Settings to view your posts.
                     </p>
                 </div>
@@ -209,12 +224,15 @@ export default function PostsPage() {
                 </div>
             )}
 
-            {/* Empty state (account connected but no posts) */}
+            {/* Empty state */}
             {!isLoading && !error && !noAccount && media.length === 0 && (
-                <div className="rounded-xl border border-border/50 bg-muted/20 p-12 text-center">
-                    <Grid3X3 className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                    <p className="text-muted-foreground font-medium">No posts yet</p>
-                    <p className="text-sm text-muted-foreground mt-2">
+                <div
+                    className="rounded-xl p-12 text-center"
+                    style={{ background: '#0e0d1c', border: '1px dashed rgba(255,255,255,0.08)' }}
+                >
+                    <Grid3X3 className="h-10 w-10 mx-auto mb-4" style={{ color: 'rgba(255,255,255,0.12)' }} />
+                    <p className="font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>No posts yet</p>
+                    <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
                         Posts will appear here once you publish content.
                     </p>
                 </div>

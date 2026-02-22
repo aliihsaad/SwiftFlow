@@ -11,6 +11,63 @@ function stableEventKey(prefix: string, value: Record<string, unknown> | undefin
     return `${prefix}:hash_${hash}`;
 }
 
+function isDevInstagramMessageWebhookDebugEnabled(): boolean {
+    const flag = (process.env.DEBUG_INSTAGRAM_MESSAGE_WEBHOOK_PAYLOAD || '').toLowerCase().trim();
+    return process.env.NODE_ENV !== 'production' && ['1', 'true', 'yes', 'on'].includes(flag);
+}
+
+function summarizeWebhookPayloadShape(raw: unknown, depth = 0): unknown {
+    if (raw == null) return raw;
+    if (depth > 2) {
+        if (Array.isArray(raw)) return `[array:${raw.length}]`;
+        if (typeof raw === 'object') return '[object]';
+        return raw;
+    }
+
+    if (Array.isArray(raw)) {
+        return {
+            _type: 'array',
+            length: raw.length,
+            sample: raw.slice(0, 2).map((item) => summarizeWebhookPayloadShape(item, depth + 1)),
+        };
+    }
+
+    if (typeof raw === 'object') {
+        const obj = raw as Record<string, unknown>;
+        const entries = Object.entries(obj).slice(0, 20).map(([key, value]) => [key, summarizeWebhookPayloadShape(value, depth + 1)]);
+        return Object.fromEntries(entries);
+    }
+
+    if (typeof raw === 'string') {
+        return raw.length > 160 ? `${raw.slice(0, 160)}…` : raw;
+    }
+
+    return raw;
+}
+
+function logInstagramMessageWebhookDebug(value: Record<string, unknown>) {
+    if (!isDevInstagramMessageWebhookDebugEnabled()) return;
+
+    const message = value?.message as Record<string, unknown> | undefined;
+    const summary = {
+        entryKeys: Object.keys(value || {}),
+        valueTimestamp: value?.timestamp,
+        messageKeys: message ? Object.keys(message) : [],
+        messageMid: (message?.mid || value?.id) as string | undefined,
+        messageTextPreview: typeof (message?.text || value?.text) === 'string'
+            ? String(message?.text || value?.text).slice(0, 120)
+            : null,
+        hasAttachmentsField: !!(message && 'attachments' in message) || 'attachments' in value,
+        hasSharesField: !!(message && ('shares' in message || 'share' in message)) || 'shares' in value || 'share' in value,
+        messageAttachmentsShape: summarizeWebhookPayloadShape(message?.attachments),
+        valueAttachmentsShape: summarizeWebhookPayloadShape(value?.attachments),
+        messageSharesShape: summarizeWebhookPayloadShape(message?.shares ?? message?.share),
+        valueSharesShape: summarizeWebhookPayloadShape(value?.shares ?? value?.share),
+    };
+
+    console.log('[WEBHOOK][DEV][IG_MESSAGE_PAYLOAD]', JSON.stringify(summary));
+}
+
 // Initialize Supabase Admin Client
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -446,14 +503,129 @@ async function handleFollowEvent(value: Record<string, unknown>, account: Resolv
 
 async function handleMessageEvent(value: Record<string, unknown>, account: ResolvedAccount) {
     const sender = value?.sender as Record<string, unknown> | undefined;
+    const recipient = value?.recipient as Record<string, unknown> | undefined;
     const from = value?.from as Record<string, unknown> | undefined;
     const message = value?.message as Record<string, unknown> | undefined;
+    const pageId = (account.metadata?.connected_page_id as string | undefined) || account.account_id;
+    const senderId = (sender?.id || from?.id) as string | undefined;
+    const recipientId = recipient?.id as string | undefined;
+    const isFromPage = !!senderId && (senderId === pageId || senderId === account.account_id);
+    const participantId =
+        senderId && senderId !== pageId && senderId !== account.account_id
+            ? senderId
+            : (recipientId && recipientId !== pageId && recipientId !== account.account_id ? recipientId : undefined);
+    const messageId = (message?.mid || value?.id) as string | undefined;
+    const messageText = (message?.text || value?.text) as string | undefined;
+    const timestampMs = Number(value?.timestamp || 0);
+    const platformCreatedAt = Number.isFinite(timestampMs) && timestampMs > 0
+        ? new Date(timestampMs).toISOString()
+        : new Date().toISOString();
+
     console.log('[WEBHOOK] Message event:', {
-        senderId: sender?.id || from?.id,
-        text: typeof message?.text === 'string'
-            ? message.text.substring(0, 50)
-            : typeof value?.text === 'string' ? value.text.substring(0, 50) : undefined,
+        senderId,
+        recipientId,
+        messageId,
+        participantId,
+        text: typeof messageText === 'string' ? messageText.substring(0, 50) : undefined,
     });
+    logInstagramMessageWebhookDebug(value);
+
+    // Best-effort persistence so we can render attachments/shares that Meta may omit in historical fetches.
+    // This is intentionally non-fatal; webhook processing should continue even if local persistence fails.
+    try {
+        const normalizePayloadList = (raw: any): any[] => {
+            if (!raw) return [];
+            if (Array.isArray(raw)) return raw;
+            if (Array.isArray(raw.data)) return raw.data;
+            if (raw.data && typeof raw.data === 'object') return [raw.data];
+            if (typeof raw === 'object') return [raw];
+            return [];
+        };
+
+        const rawAttachments = (message?.attachments || value?.attachments) as any;
+        const rawShares = (message?.shares || message?.share || value?.shares || value?.share) as any;
+        const attachments = normalizePayloadList(rawAttachments);
+        const shares = normalizePayloadList(rawShares).map((share) => ({
+            type: 'share',
+            payload: share,
+        }));
+        const persistedPayload = [...attachments, ...shares];
+
+        if (messageId && participantId) {
+            let conversation: any = null;
+
+            const { data: existingConv } = await supabaseAdmin
+                .from('conversations')
+                .select('id, platform_conversation_id')
+                .eq('workspace_id', account.workspace_id)
+                .eq('social_account_id', account.social_account_id)
+                .eq('participant_id', participantId)
+                .order('updated_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            conversation = existingConv;
+
+            if (!conversation) {
+                const platformConversationId =
+                    ((value?.conversation as Record<string, unknown> | undefined)?.id as string | undefined) ||
+                    ((message?.conversation as Record<string, unknown> | undefined)?.id as string | undefined);
+
+                if (platformConversationId) {
+                    const participantUsername = !isFromPage
+                        ? ((sender?.username || from?.username || from?.name) as string | undefined)
+                        : undefined;
+
+                    const { data: upsertedConv, error: upsertConvError } = await supabaseAdmin
+                        .from('conversations')
+                        .upsert({
+                            workspace_id: account.workspace_id,
+                            social_account_id: account.social_account_id,
+                            platform_conversation_id: platformConversationId,
+                            participant_id: participantId,
+                            participant_username: participantUsername || null,
+                            last_message_at: platformCreatedAt,
+                            unread_count: 0,
+                        }, { onConflict: 'workspace_id,platform_conversation_id' })
+                        .select('id, platform_conversation_id')
+                        .single();
+
+                    if (upsertConvError) {
+                        console.warn('[WEBHOOK] Message conversation upsert skipped:', upsertConvError.message);
+                    } else {
+                        conversation = upsertedConv;
+                    }
+                }
+            }
+
+            if (conversation?.id) {
+                const { error: upsertMsgError } = await supabaseAdmin
+                    .from('messages')
+                    .upsert({
+                        workspace_id: account.workspace_id,
+                        conversation_id: conversation.id,
+                        platform_message_id: messageId,
+                        sender_id: senderId || '',
+                        is_from_page: isFromPage,
+                        message: messageText || null,
+                        attachments: persistedPayload,
+                        is_read: isFromPage,
+                        platform_created_at: platformCreatedAt,
+                    }, { onConflict: 'workspace_id,platform_message_id' });
+
+                if (upsertMsgError) {
+                    console.warn('[WEBHOOK] Message persistence upsert failed:', upsertMsgError.message);
+                } else {
+                    await supabaseAdmin
+                        .from('conversations')
+                        .update({ last_message_at: platformCreatedAt })
+                        .eq('id', conversation.id);
+                }
+            }
+        }
+    } catch (persistError) {
+        console.warn('[WEBHOOK] Message persistence best-effort failed:', persistError);
+    }
 
     // Broadcast via Supabase Realtime (HTTP endpoint) to refresh the client's message list
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;

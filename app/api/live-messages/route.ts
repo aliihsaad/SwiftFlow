@@ -1,8 +1,77 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
 
 const META_GRAPH_URL = 'https://graph.facebook.com/v21.0';
+
+function isAttachmentPlaceholderMessage(value: unknown): boolean {
+    const normalized = String(value || '').trim().toLowerCase();
+    return normalized === '[attachment]' || normalized === 'attachment';
+}
+
+function normalizeMetaAttachments(raw: any): any[] {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (Array.isArray(raw.data)) return raw.data;
+    if (raw.data && typeof raw.data === 'object') return [raw.data];
+    if (typeof raw === 'object') return [raw];
+    return [];
+}
+
+function serializeMetaAttachments(raw: any): string {
+    const normalized = normalizeMetaAttachments(raw);
+    return normalized.length > 0 ? JSON.stringify(normalized) : '[]';
+}
+
+function parseStoredAttachments(attachments: any): any[] {
+    if (!attachments) return [];
+    if (Array.isArray(attachments)) return attachments;
+    if (typeof attachments === 'string') {
+        try {
+            const parsed = JSON.parse(attachments);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    }
+    return [];
+}
+
+function isEmptySerializedAttachments(value: string | null | undefined): boolean {
+    if (!value) return true;
+    try {
+        const parsed = JSON.parse(value);
+        return !Array.isArray(parsed) || parsed.length === 0;
+    } catch {
+        return true;
+    }
+}
+
+function messagingCapabilitiesFromError(errorCode: string | null, missingPermissions: string[] = []) {
+    if (errorCode === 'meta_missing_permission') {
+        return {
+            canReadMessages: false,
+            canSendMessages: false,
+            reason: 'missing_permission',
+            missingPermissions,
+        };
+    }
+    if (errorCode === 'meta_auth_invalid_token') {
+        return {
+            canReadMessages: false,
+            canSendMessages: false,
+            reason: 'token_invalid',
+            missingPermissions,
+        };
+    }
+    return {
+        canReadMessages: true,
+        canSendMessages: true,
+        reason: null,
+        missingPermissions,
+    };
+}
 
 // GET - List conversations or fetch messages for a specific conversation, live from Meta API
 export async function GET(request: NextRequest) {
@@ -37,7 +106,17 @@ export async function GET(request: NextRequest) {
 
         if (accountError || !account) {
             return NextResponse.json(
-                { error: `No ${platform} account connected`, conversations: [] },
+                {
+                    error: `No ${platform} account connected`,
+                    errorCode: 'no_account_connected',
+                    conversations: [],
+                    messagingCapabilities: {
+                        canReadMessages: false,
+                        canSendMessages: false,
+                        reason: 'no_account_connected',
+                        missingPermissions: [],
+                    },
+                },
                 { status: 200 }
             );
         }
@@ -58,7 +137,8 @@ export async function GET(request: NextRequest) {
             // ──────────────────────────────────────────────
             // MODE: Fetch messages for a specific conversation
             // ──────────────────────────────────────────────
-            const messagesUrl = `${META_GRAPH_URL}/${conversationId}/messages?fields=id,message,from,created_time,attachments{mime_type,size,name}&limit=50&access_token=${account.access_token}`;
+            // Request rich attachment fields so the UI can render image/file/post-share attachments.
+            const messagesUrl = `${META_GRAPH_URL}/${conversationId}/messages?fields=id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}&limit=50&access_token=${account.access_token}`;
 
             console.log(`[LiveMessages] Fetching messages for conversation ${conversationId}`);
             const response = await fetch(messagesUrl);
@@ -66,7 +146,24 @@ export async function GET(request: NextRequest) {
 
             if (!response.ok) {
                 console.error('[LiveMessages] Messages API error:', data.error);
-                throw new Error(data.error?.message || 'Failed to fetch messages');
+                const normalized = normalizeMetaGraphError(data?.error, {
+                    feature: 'messages',
+                    platform,
+                    operation: 'read_messages',
+                });
+                return NextResponse.json(
+                    {
+                        error: normalized.message,
+                        errorCode: normalized.code,
+                        missingPermissions: normalized.missingPermissions,
+                        requiresReconnect: normalized.requiresReconnect,
+                        messages: [],
+                        pageId,
+                        messagingCapabilities: messagingCapabilitiesFromError(normalized.code, normalized.missingPermissions),
+                        metaError: normalized.meta,
+                    },
+                    { status: normalized.httpStatus }
+                );
             }
 
             const messages = (data.data || []).map((msg: any) => ({
@@ -76,10 +173,47 @@ export async function GET(request: NextRequest) {
                 sender_name: msg.from?.username || msg.from?.name || msg.from?.id || 'Unknown',
                 is_from_page: msg.from?.id === pageId || msg.from?.id === account.account_id,
                 message: msg.message || null,
-                attachments: msg.attachments?.data ? JSON.stringify(msg.attachments.data) : '[]',
+                attachments: serializeMetaAttachments(msg.attachments),
                 platform_created_at: msg.created_time,
                 is_read: true,
             }));
+
+            // Merge local webhook/sync payloads (if available) to recover attachments Meta omits in historical fetches.
+            const platformMessageIds = messages.map((m: any) => m.platform_message_id).filter(Boolean);
+            if (platformMessageIds.length > 0) {
+                try {
+                    const { data: localMessages, error: localError } = await supabase
+                        .from('messages')
+                        .select('platform_message_id, message, attachments')
+                        .eq('workspace_id', activeWorkspace.id)
+                        .in('platform_message_id', platformMessageIds);
+
+                    if (localError) {
+                        console.warn('[LiveMessages] Local message fallback query failed:', localError.message);
+                    } else if (localMessages?.length) {
+                        const localByPlatformId = new Map<string, any>();
+                        localMessages.forEach((row: any) => localByPlatformId.set(row.platform_message_id, row));
+
+                        messages.forEach((msg: any) => {
+                            const local = localByPlatformId.get(msg.platform_message_id);
+                            if (!local) return;
+
+                            if ((msg.message == null || msg.message === '') && typeof local.message === 'string' && local.message.trim()) {
+                                msg.message = local.message;
+                            }
+
+                            if (isEmptySerializedAttachments(msg.attachments)) {
+                                const localAttachments = parseStoredAttachments(local.attachments);
+                                if (localAttachments.length > 0) {
+                                    msg.attachments = JSON.stringify(localAttachments);
+                                }
+                            }
+                        });
+                    }
+                } catch (fallbackError) {
+                    console.warn('[LiveMessages] Local fallback merge failed:', fallbackError);
+                }
+            }
 
             // Reverse to show oldest first (Meta returns newest first)
             messages.reverse();
@@ -87,13 +221,14 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({
                 messages,
                 pageId,
+                messagingCapabilities: messagingCapabilitiesFromError(null),
             });
 
         } else {
             // ──────────────────────────────────────────────
             // MODE: List all conversations
             // ──────────────────────────────────────────────
-            let conversationsUrl = `${META_GRAPH_URL}/${pageId}/conversations?fields=id,participants,messages.limit(1){id,message,from,created_time},updated_time&limit=25&access_token=${account.access_token}`;
+            let conversationsUrl = `${META_GRAPH_URL}/${pageId}/conversations?fields=id,participants,messages.limit(1){id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}},updated_time&limit=25&access_token=${account.access_token}`;
 
             // For Instagram, add platform filter
             if (platform === 'instagram') {
@@ -106,25 +241,65 @@ export async function GET(request: NextRequest) {
 
             if (!response.ok) {
                 console.error('[LiveMessages] Conversations API error:', data.error);
-                // If messaging not enabled, return empty
-                if (data.error?.code === 10 || data.error?.code === 100) {
+                const normalized = normalizeMetaGraphError(data?.error, {
+                    feature: 'messages',
+                    platform,
+                    operation: 'list_conversations',
+                });
+                // For permission/auth gating, return 200 with structured capabilities so UI can render a targeted state.
+                if (normalized.category === 'permission' || normalized.category === 'auth') {
                     return NextResponse.json({
                         conversations: [],
-                        error: 'Messaging not enabled for this account',
+                        error: normalized.message,
+                        errorCode: normalized.code,
+                        missingPermissions: normalized.missingPermissions,
+                        requiresReconnect: normalized.requiresReconnect,
                         account: { id: account.id, account_name: account.account_name, platform },
                         workspaceId: activeWorkspace.id,
+                        pageId,
+                        messagingCapabilities: messagingCapabilitiesFromError(normalized.code, normalized.missingPermissions),
+                        metaError: normalized.meta,
                     });
                 }
-                throw new Error(data.error?.message || 'Failed to fetch conversations');
+                return NextResponse.json(
+                    {
+                        error: normalized.message,
+                        errorCode: normalized.code,
+                        conversations: [],
+                        account: { id: account.id, account_name: account.account_name, platform },
+                        workspaceId: activeWorkspace.id,
+                        pageId,
+                        messagingCapabilities: messagingCapabilitiesFromError(null),
+                        metaError: normalized.meta,
+                    },
+                    { status: normalized.httpStatus }
+                );
             }
 
-            const conversations = (data.data || []).map((conv: any) => {
+            const conversations = await Promise.all((data.data || []).map(async (conv: any) => {
                 // Find the other participant (not the page)
                 const participant = conv.participants?.data?.find(
                     (p: any) => p.id !== pageId && p.id !== account.account_id
                 );
 
-                const lastMsg = conv.messages?.data?.[0];
+                let lastMsg = conv.messages?.data?.[0];
+                let lastMsgAttachments = normalizeMetaAttachments(lastMsg?.attachments);
+
+                // Meta sometimes returns "[Attachment]" in nested conversation previews without usable attachment details.
+                // Hydrate the latest message directly so the UI can render a better preview label.
+                if (lastMsg?.id && isAttachmentPlaceholderMessage(lastMsg?.message) && lastMsgAttachments.length === 0) {
+                    try {
+                        const previewMessageUrl = `${META_GRAPH_URL}/${conv.id}/messages?fields=id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}&limit=1&access_token=${account.access_token}`;
+                        const previewRes = await fetch(previewMessageUrl);
+                        const previewData = await previewRes.json();
+                        if (previewRes.ok && Array.isArray(previewData?.data) && previewData.data.length > 0) {
+                            lastMsg = previewData.data[0];
+                            lastMsgAttachments = normalizeMetaAttachments(lastMsg?.attachments);
+                        }
+                    } catch (previewErr) {
+                        console.log(`[LiveMessages] Failed to hydrate attachment preview for conversation ${conv.id}:`, previewErr);
+                    }
+                }
 
                 return {
                     id: conv.id,
@@ -144,12 +319,91 @@ export async function GET(request: NextRequest) {
                         sender_id: lastMsg.from?.id || '',
                         is_from_page: lastMsg.from?.id === pageId || lastMsg.from?.id === account.account_id,
                         message: lastMsg.message || null,
-                        attachments: '[]',
+                        attachments: serializeMetaAttachments(lastMsgAttachments),
                         is_read: true,
                         platform_created_at: lastMsg.created_time,
                     } : undefined,
                 };
-            });
+            }));
+
+            // Merge local webhook/sync payloads (if available) for conversation preview rows.
+            try {
+                const platformConversationIds = conversations
+                    .map((c: any) => c.platform_conversation_id)
+                    .filter(Boolean);
+
+                if (platformConversationIds.length > 0) {
+                    const { data: localConversations, error: localConvError } = await supabase
+                        .from('conversations')
+                        .select('id, platform_conversation_id')
+                        .eq('workspace_id', activeWorkspace.id)
+                        .eq('social_account_id', account.id)
+                        .in('platform_conversation_id', platformConversationIds);
+
+                    if (localConvError) {
+                        console.warn('[LiveMessages] Local conversation fallback query failed:', localConvError.message);
+                    } else if (localConversations?.length) {
+                        const localConvIds = localConversations.map((c: any) => c.id);
+                        const localConvByPlatform = new Map<string, any>();
+                        localConversations.forEach((c: any) => localConvByPlatform.set(c.platform_conversation_id, c));
+
+                        const { data: localMessages, error: localMsgError } = await supabase
+                            .from('messages')
+                            .select('conversation_id, platform_message_id, message, attachments, platform_created_at')
+                            .in('conversation_id', localConvIds)
+                            .order('platform_created_at', { ascending: false });
+
+                        if (localMsgError) {
+                            console.warn('[LiveMessages] Local preview message fallback query failed:', localMsgError.message);
+                        } else if (localMessages?.length) {
+                            const latestLocalByConversationId = new Map<string, any>();
+                            localMessages.forEach((msg: any) => {
+                                if (!latestLocalByConversationId.has(msg.conversation_id)) {
+                                    latestLocalByConversationId.set(msg.conversation_id, msg);
+                                }
+                            });
+
+                            conversations.forEach((conv: any) => {
+                                const localConv = localConvByPlatform.get(conv.platform_conversation_id);
+                                if (!localConv) return;
+                                const localMsg = latestLocalByConversationId.get(localConv.id);
+                                if (!localMsg) return;
+
+                                const currentLast = conv.lastMessage;
+                                const currentHasText = !!(currentLast?.message && !isAttachmentPlaceholderMessage(currentLast.message));
+                                const currentHasAttachments = !isEmptySerializedAttachments(currentLast?.attachments);
+
+                                if (!currentHasText && typeof localMsg.message === 'string' && localMsg.message.trim()) {
+                                    conv.lastMessage = {
+                                        ...(currentLast || {}),
+                                        id: currentLast?.id || localMsg.platform_message_id,
+                                        platform_message_id: currentLast?.platform_message_id || localMsg.platform_message_id,
+                                        message: localMsg.message,
+                                        attachments: currentLast?.attachments || '[]',
+                                        platform_created_at: currentLast?.platform_created_at || localMsg.platform_created_at,
+                                    };
+                                }
+
+                                if (!currentHasAttachments) {
+                                    const localAttachments = parseStoredAttachments(localMsg.attachments);
+                                    if (localAttachments.length > 0) {
+                                        conv.lastMessage = {
+                                            ...(conv.lastMessage || {}),
+                                            id: conv.lastMessage?.id || localMsg.platform_message_id,
+                                            platform_message_id: conv.lastMessage?.platform_message_id || localMsg.platform_message_id,
+                                            message: conv.lastMessage?.message ?? localMsg.message ?? null,
+                                            attachments: JSON.stringify(localAttachments),
+                                            platform_created_at: conv.lastMessage?.platform_created_at || localMsg.platform_created_at,
+                                        };
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+            } catch (localPreviewMergeError) {
+                console.warn('[LiveMessages] Local conversation preview fallback merge failed:', localPreviewMergeError);
+            }
 
             return NextResponse.json({
                 conversations,
@@ -161,13 +415,18 @@ export async function GET(request: NextRequest) {
                 },
                 workspaceId: activeWorkspace.id,
                 pageId,
+                messagingCapabilities: messagingCapabilitiesFromError(null),
             });
         }
 
     } catch (error: any) {
         console.error('Live messages API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to fetch messages' },
+            {
+                error: error.message || 'Failed to fetch messages',
+                errorCode: 'internal_error',
+                messagingCapabilities: messagingCapabilitiesFromError(null),
+            },
             { status: 500 }
         );
     }

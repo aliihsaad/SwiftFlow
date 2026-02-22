@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Send, Image, Loader2, MessageSquare, Sparkles } from "lucide-react"
+import { Send, Image, Loader2, MessageSquare, Sparkles, Paperclip, ExternalLink } from "lucide-react"
 import { format } from "date-fns"
 import { createClient } from "@/utils/supabase/client"
 
@@ -21,6 +21,7 @@ interface Message {
 
 interface Conversation {
     id: string
+    platform_conversation_id?: string
     participant_id: string
     participant_username: string | null
     participant_profile_picture: string | null
@@ -33,9 +34,20 @@ interface MessageThreadProps {
     onSendMessage: (message: string) => Promise<void>
     workspaceId: string | null
     platform?: string
+    composerDisabled?: boolean
+    composerDisabledReason?: string | null
 }
 
-export function MessageThread({ conversation, messages, isLoading, onSendMessage, workspaceId: propWorkspaceId, platform = 'instagram' }: MessageThreadProps) {
+export function MessageThread({
+    conversation,
+    messages,
+    isLoading,
+    onSendMessage,
+    workspaceId: propWorkspaceId,
+    platform = 'instagram',
+    composerDisabled = false,
+    composerDisabledReason = null,
+}: MessageThreadProps) {
     const [inputValue, setInputValue] = useState("")
     const [isSending, setIsSending] = useState(false)
     const [isGeneratingAI, setIsGeneratingAI] = useState(false)
@@ -69,7 +81,7 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
     }, [messages])
 
     const handleSend = async () => {
-        if (!inputValue.trim() || isSending) return
+        if (!inputValue.trim() || isSending || composerDisabled) return
         setIsSending(true)
         try {
             await onSendMessage(inputValue.trim())
@@ -122,6 +134,61 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
 
     const parseAttachments = (attachmentsStr: string) => {
         try { return JSON.parse(attachmentsStr) } catch { return [] }
+    }
+
+    const isAttachmentPlaceholderMessage = (value: string | null | undefined) => {
+        const normalized = String(value || '').trim().toLowerCase()
+        return normalized === '[attachment]' || normalized === 'attachment'
+    }
+
+    const getAttachmentUrl = (att: any): string | null => {
+        const candidates = [
+            att?.image_data?.url,
+            att?.file_url,
+            att?.payload?.url,
+            att?.url,
+        ]
+        const found = candidates.find((v) => typeof v === 'string' && v.trim().length > 0)
+        return found || null
+    }
+
+    const isImageAttachment = (att: any): boolean => {
+        const mime = String(att?.mime_type || '').toLowerCase()
+        const url = getAttachmentUrl(att) || ''
+        return mime.startsWith('image/') ||
+            !!att?.image_data?.url ||
+            /\.(png|jpe?g|gif|webp|heic|heif)(\?|$)/i.test(url)
+    }
+
+    const getAttachmentLabel = (att: any): string => {
+        const payload = att?.payload || {}
+        if (typeof payload?.title === 'string' && payload.title.trim()) return payload.title
+        if (typeof payload?.description === 'string' && payload.description.trim()) return payload.description
+        if (typeof payload?.url === 'string' && payload.url.trim()) return 'Shared link/post'
+        if (typeof att?.name === 'string' && att.name.trim()) return att.name
+        const mime = String(att?.mime_type || '').toLowerCase()
+        if (mime.startsWith('image/')) return 'Image attachment'
+        if (mime.startsWith('video/')) return 'Video attachment'
+        if (mime.startsWith('audio/')) return 'Audio attachment'
+        if (mime) return mime
+        if (att?.image_data?.url) return 'Shared media attachment'
+        return 'Attachment'
+    }
+
+    const getInstagramOpenUrl = (conversation: Conversation | null): string | null => {
+        if (!conversation) return null
+
+        const threadId = String(conversation.platform_conversation_id || '').trim()
+        if (threadId) {
+            return `https://www.instagram.com/direct/t/${encodeURIComponent(threadId)}`
+        }
+
+        const username = String(conversation.participant_username || '').trim().replace(/^@+/, '')
+        if (username) {
+            return `https://www.instagram.com/${encodeURIComponent(username)}/`
+        }
+
+        return 'https://www.instagram.com/direct/inbox/'
     }
 
     const hasCustomerMessage = messages.some(m => !m.is_from_page && m.message)
@@ -188,6 +255,12 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
                     <div className="space-y-3">
                         {messages.map((message, index) => {
                             const attachments = parseAttachments(message.attachments)
+                            const hasAttachments = Array.isArray(attachments) && attachments.length > 0
+                            const showMessageText = !!message.message && !(hasAttachments && isAttachmentPlaceholderMessage(message.message))
+                            const showUnsupportedAttachmentPlaceholder = !showMessageText && !hasAttachments
+                            const unsupportedInstagramOpenUrl = platform === 'instagram' && showUnsupportedAttachmentPlaceholder
+                                ? getInstagramOpenUrl(conversation)
+                                : null
                             const showDate = index === 0 ||
                                 new Date(message.platform_created_at).toDateString() !==
                                 new Date(messages[index - 1].platform_created_at).toDateString()
@@ -216,43 +289,149 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
                                         )}
 
                                         <div className={`max-w-[70%] space-y-1 ${message.is_from_page ? 'items-end' : ''}`}>
-                                            {message.message && (
+                                            {showMessageText && (
                                                 <div
                                                     className="px-3.5 py-2.5 rounded-2xl text-sm"
                                                     style={
                                                         message.is_from_page
                                                             ? {
-                                                                  background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
-                                                                  color: '#fff',
-                                                                  borderBottomRightRadius: '4px',
-                                                                  boxShadow: '0 2px 12px rgba(139,92,246,0.25)',
-                                                              }
+                                                                background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                                                                color: '#fff',
+                                                                borderBottomRightRadius: '4px',
+                                                                boxShadow: '0 2px 12px rgba(139,92,246,0.25)',
+                                                            }
                                                             : {
-                                                                  background: '#1a1830',
-                                                                  color: 'rgba(255,255,255,0.75)',
-                                                                  border: '1px solid rgba(255,255,255,0.07)',
-                                                                  borderBottomLeftRadius: '4px',
-                                                              }
+                                                                background: '#1a1830',
+                                                                color: 'rgba(255,255,255,0.75)',
+                                                                border: '1px solid rgba(255,255,255,0.07)',
+                                                                borderBottomLeftRadius: '4px',
+                                                            }
                                                     }
                                                 >
-                                                    <p className="whitespace-pre-wrap break-words">{message.message}</p>
+                                                    <p className="whitespace-pre-wrap wrap-break-word">{message.message}</p>
+                                                </div>
+                                            )}
+
+                                            {showUnsupportedAttachmentPlaceholder && (
+                                                <div
+                                                    className="px-3.5 py-2 rounded-2xl text-xs space-y-2"
+                                                    style={
+                                                        message.is_from_page
+                                                            ? {
+                                                                background: 'rgba(139,92,246,0.16)',
+                                                                color: 'rgba(233,213,255,0.95)',
+                                                                borderBottomRightRadius: '4px',
+                                                                border: '1px solid rgba(139,92,246,0.22)',
+                                                            }
+                                                            : {
+                                                                background: '#1a1830',
+                                                                color: 'rgba(255,255,255,0.5)',
+                                                                border: '1px solid rgba(255,255,255,0.07)',
+                                                                borderBottomLeftRadius: '4px',
+                                                            }
+                                                    }
+                                                >
+                                                    <div>[Unsupported IG attachment/share]</div>
+                                                    {unsupportedInstagramOpenUrl && (
+                                                        <a
+                                                            href={unsupportedInstagramOpenUrl}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold"
+                                                            style={{
+                                                                background: message.is_from_page ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
+                                                                color: message.is_from_page ? '#f5e9ff' : 'rgba(255,255,255,0.72)',
+                                                                border: '1px solid rgba(255,255,255,0.08)',
+                                                            }}
+                                                            title="Open this conversation in Instagram (best effort)"
+                                                        >
+                                                            Open in Instagram
+                                                            <ExternalLink className="h-3 w-3" />
+                                                        </a>
+                                                    )}
                                                 </div>
                                             )}
 
                                             {attachments.length > 0 && (
                                                 <div className="space-y-1">
                                                     {attachments.map((att: any, i: number) => (
-                                                        <div
-                                                            key={i}
-                                                            className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
-                                                            style={
-                                                                message.is_from_page
+                                                        <div key={i} className="space-y-1.5">
+                                                            {(() => {
+                                                                const attachmentUrl = getAttachmentUrl(att)
+                                                                const label = getAttachmentLabel(att)
+                                                                const isImage = isImageAttachment(att) && !!attachmentUrl
+                                                                const bubbleStyle = message.is_from_page
                                                                     ? { background: 'rgba(139,92,246,0.25)', color: '#c4b5fd' }
                                                                     : { background: '#1a1830', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.07)' }
-                                                            }
-                                                        >
-                                                            <Image className="h-4 w-4" />
-                                                            <span className="text-xs">[Attachment]</span>
+
+                                                                if (isImage) {
+                                                                    return (
+                                                                        <a
+                                                                            href={attachmentUrl!}
+                                                                            target="_blank"
+                                                                            rel="noreferrer"
+                                                                            className="block rounded-xl overflow-hidden"
+                                                                            style={{
+                                                                                ...(message.is_from_page
+                                                                                    ? { background: 'rgba(139,92,246,0.22)' }
+                                                                                    : { background: '#1a1830', border: '1px solid rgba(255,255,255,0.07)' }),
+                                                                            }}
+                                                                        >
+                                                                            <img
+                                                                                src={attachmentUrl!}
+                                                                                alt={label}
+                                                                                className="block w-full max-w-[260px] max-h-64 object-cover"
+                                                                                loading="lazy"
+                                                                                onError={(e) => {
+                                                                                    e.currentTarget.style.display = 'none'
+                                                                                    const fallback = e.currentTarget.nextElementSibling as HTMLElement | null
+                                                                                    if (fallback) fallback.style.display = 'flex'
+                                                                                }}
+                                                                            />
+                                                                            <div
+                                                                                className="hidden items-center gap-2 px-3 py-2 text-xs"
+                                                                                style={bubbleStyle}
+                                                                            >
+                                                                                <Image className="h-3.5 w-3.5" />
+                                                                                <span className="truncate">{label}</span>
+                                                                                <ExternalLink className="h-3.5 w-3.5 ml-auto shrink-0" />
+                                                                            </div>
+                                                                            <div
+                                                                                className="flex items-center justify-between gap-2 px-3 py-2 text-xs"
+                                                                                style={{
+                                                                                    borderTop: '1px solid rgba(255,255,255,0.06)',
+                                                                                    ...bubbleStyle
+                                                                                }}
+                                                                            >
+                                                                                <span className="truncate">{label}</span>
+                                                                                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                                                                            </div>
+                                                                        </a>
+                                                                    )
+                                                                }
+
+                                                                return (
+                                                                    <div
+                                                                        className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm"
+                                                                        style={bubbleStyle}
+                                                                    >
+                                                                        <Paperclip className="h-4 w-4 shrink-0" />
+                                                                        <span className="text-xs truncate flex-1">{label}</span>
+                                                                        {attachmentUrl && (
+                                                                            <a
+                                                                                href={attachmentUrl}
+                                                                                target="_blank"
+                                                                                rel="noreferrer"
+                                                                                className="inline-flex items-center gap-1 text-[10px] font-semibold shrink-0"
+                                                                                style={{ color: message.is_from_page ? '#e9d5ff' : 'rgba(255,255,255,0.65)' }}
+                                                                            >
+                                                                                Open
+                                                                                <ExternalLink className="h-3 w-3" />
+                                                                            </a>
+                                                                        )}
+                                                                    </div>
+                                                                )
+                                                            })()}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -278,18 +457,31 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
                 className="shrink-0 p-3"
                 style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
             >
+                {composerDisabled && (
+                    <div
+                        className="mb-2.5 rounded-lg px-3 py-2 text-xs"
+                        style={{
+                            background: 'rgba(59,130,246,0.08)',
+                            border: '1px solid rgba(59,130,246,0.18)',
+                            color: 'rgba(191,219,254,0.9)',
+                        }}
+                    >
+                        {composerDisabledReason || 'Messaging is currently unavailable for this account.'}
+                    </div>
+                )}
                 <div className="flex gap-2">
                     <textarea
                         placeholder="Type a message…"
                         value={inputValue}
                         onChange={(e) => setInputValue(e.target.value)}
                         onKeyDown={handleKeyDown}
+                        disabled={composerDisabled}
                         rows={1}
                         className="flex-1 min-h-[44px] max-h-32 resize-none rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all duration-150"
                         style={{
-                            background: '#12111e',
+                            background: composerDisabled ? 'rgba(255,255,255,0.03)' : '#12111e',
                             border: '1px solid rgba(255,255,255,0.08)',
-                            color: 'rgba(255,255,255,0.8)',
+                            color: composerDisabled ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.8)',
                         }}
                         onFocus={(e) => { e.target.style.border = '1px solid rgba(139,92,246,0.4)' }}
                         onBlur={(e) => { e.target.style.border = '1px solid rgba(255,255,255,0.08)' }}
@@ -300,7 +492,7 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
                             <TooltipTrigger asChild>
                                 <button
                                     onClick={handleAIReply}
-                                    disabled={isGeneratingAI || !hasCustomerMessage || !workspaceId}
+                                    disabled={isGeneratingAI || !hasCustomerMessage || !workspaceId || composerDisabled}
                                     className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 disabled:opacity-40"
                                     style={{
                                         background: 'rgba(139,92,246,0.12)',
@@ -317,7 +509,7 @@ export function MessageThread({ conversation, messages, isLoading, onSendMessage
 
                     <button
                         onClick={handleSend}
-                        disabled={!inputValue.trim() || isSending}
+                        disabled={!inputValue.trim() || isSending || composerDisabled}
                         className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 disabled:opacity-40"
                         style={{
                             background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',

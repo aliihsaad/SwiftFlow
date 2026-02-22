@@ -24,10 +24,10 @@ interface ScheduledPostsListProps {
 }
 
 const statusConfig = {
-    scheduled: { label: 'Scheduled', color: '#818cf8', bg: 'rgba(129,140,248,0.15)', border: 'rgba(129,140,248,0.3)',  glow: 'rgba(129,140,248,0.08)' },
-    draft:     { label: 'Draft',     color: '#fbbf24', bg: 'rgba(251,191,36,0.15)',  border: 'rgba(251,191,36,0.25)',  glow: 'rgba(251,191,36,0.06)'  },
-    published: { label: 'Published', color: '#34d399', bg: 'rgba(52,211,153,0.15)',  border: 'rgba(52,211,153,0.25)',  glow: 'rgba(52,211,153,0.07)'  },
-    failed:    { label: 'Failed',    color: '#f87171', bg: 'rgba(248,113,113,0.15)', border: 'rgba(248,113,113,0.3)',  glow: 'rgba(248,113,113,0.08)' },
+    scheduled: { label: 'Scheduled', color: '#818cf8', bg: 'rgba(129,140,248,0.15)', border: 'rgba(129,140,248,0.3)', glow: 'rgba(129,140,248,0.08)' },
+    draft: { label: 'Draft', color: '#fbbf24', bg: 'rgba(251,191,36,0.15)', border: 'rgba(251,191,36,0.25)', glow: 'rgba(251,191,36,0.06)' },
+    published: { label: 'Published', color: '#34d399', bg: 'rgba(52,211,153,0.15)', border: 'rgba(52,211,153,0.25)', glow: 'rgba(52,211,153,0.07)' },
+    failed: { label: 'Failed', color: '#f87171', bg: 'rgba(248,113,113,0.15)', border: 'rgba(248,113,113,0.3)', glow: 'rgba(248,113,113,0.08)' },
 }
 
 export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }: ScheduledPostsListProps) {
@@ -62,10 +62,10 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
     /* ── Empty state ── */
     if (!posts || posts.length === 0) {
         const emptyMap = {
-            draft:     { icon: FileText,     title: "No drafts yet",          description: "Create a new post and save it as a draft to come back to later." },
-            scheduled: { icon: CalendarDays, title: "Nothing scheduled",      description: "Create a new post and pick a date to publish it automatically." },
+            draft: { icon: FileText, title: "No drafts yet", description: "Create a new post and save it as a draft to come back to later." },
+            scheduled: { icon: CalendarDays, title: "Nothing scheduled", description: "Create a new post and pick a date to publish it automatically." },
             published: { icon: CalendarDays, title: "No published posts yet", description: "Once your scheduled posts go live, they'll appear here." },
-            failed:    { icon: XCircle,      title: "No failed posts",        description: "All your publishing attempts have been successful — great work!" },
+            failed: { icon: XCircle, title: "No failed posts", description: "All your publishing attempts have been successful — great work!" },
         }
         const { icon: Icon, title, description } = emptyMap[status]
         const cfg = statusConfig[status] ?? statusConfig.scheduled
@@ -179,7 +179,7 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                                         {platforms.map((p: string) => (
                                             <span
                                                 key={p}
-                                                className="capitalize rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                                className="rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
                                                 style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.2)' }}
                                             >
                                                 {p}
@@ -201,10 +201,10 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                                                     </span>
                                                     <div className="grid grid-cols-2 gap-2">
                                                         {[
-                                                            { icon: Eye,           val: analytics.views,    label: 'Views'    },
-                                                            { icon: Heart,         val: analytics.likes,    label: 'Likes'    },
+                                                            { icon: Eye, val: analytics.views, label: 'Views' },
+                                                            { icon: Heart, val: analytics.likes, label: 'Likes' },
                                                             { icon: MessageCircle, val: analytics.comments, label: 'Comments' },
-                                                            { icon: Share2,        val: analytics.shares,   label: 'Shares'   },
+                                                            { icon: Share2, val: analytics.shares, label: 'Shares' },
                                                         ].filter(m => m.val > 0).map(({ icon: MIcon, val, label }) => (
                                                             <div key={label} className="flex items-center gap-1.5">
                                                                 <MIcon className="h-3.5 w-3.5" style={{ color: '#a78bfa' }} />

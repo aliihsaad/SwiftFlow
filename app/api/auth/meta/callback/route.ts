@@ -91,6 +91,28 @@ export async function GET(request: NextRequest) {
         const debugResponse = await fetch(`${META_GRAPH_URL}/debug_token?input_token=${userAccessToken}&access_token=${appId}|${appSecret}`, { cache: 'no-store' });
         const debugText = await debugResponse.text();
         log(`Step 1b debug_token response (${debugResponse.status}): ${debugText.substring(0, 500)}`);
+        let parsedDebugToken: any = null;
+        let grantedScopes: string[] = [];
+        let grantedGranularScopes: Array<{ scope: string; target_ids?: string[] }> = [];
+        try {
+            parsedDebugToken = JSON.parse(debugText);
+            grantedScopes = Array.isArray(parsedDebugToken?.data?.scopes)
+                ? parsedDebugToken.data.scopes.filter((s: unknown) => typeof s === 'string')
+                : [];
+            grantedGranularScopes = Array.isArray(parsedDebugToken?.data?.granular_scopes)
+                ? parsedDebugToken.data.granular_scopes
+                    .filter((s: any) => typeof s?.scope === 'string')
+                    .map((s: any) => ({
+                        scope: s.scope,
+                        target_ids: Array.isArray(s?.target_ids)
+                            ? s.target_ids.filter((id: unknown) => typeof id === 'string')
+                            : undefined,
+                    }))
+                : [];
+            log(`Step 1b parsed scopes: ${grantedScopes.length} scopes, ${grantedGranularScopes.length} granular scopes`);
+        } catch (debugParseError) {
+            log(`Step 1b debug_token parse skipped: ${debugParseError}`);
+        }
 
         // Step 2: Fetch pages
         log('Step 2: Fetching pages from /me/accounts...');
@@ -125,8 +147,7 @@ export async function GET(request: NextRequest) {
         if (pages.length === 0) {
             log('Step 2b: /me/accounts empty — trying fallback via debug_token target_ids...');
             try {
-                const debugData = JSON.parse(debugText);
-                const granularScopes = debugData?.data?.granular_scopes || [];
+                const granularScopes = parsedDebugToken?.data?.granular_scopes || [];
                 const pagesScope = granularScopes.find((s: any) => s.scope === 'pages_show_list');
                 const targetIds: string[] = pagesScope?.target_ids || [];
                 log(`Step 2b: Found ${targetIds.length} target page IDs: ${targetIds.join(', ')}`);
@@ -199,6 +220,8 @@ export async function GET(request: NextRequest) {
                 access_token: page.access_token,
                 ig_account_id: igAccountId,
                 ig_username: igUsername,
+                granted_scopes: grantedScopes,
+                granted_granular_scopes: grantedGranularScopes,
             });
         }
 

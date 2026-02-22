@@ -37,6 +37,36 @@ interface ConversationListProps {
 }
 
 export function ConversationList({ conversations, selectedId, onSelect }: ConversationListProps) {
+    const isAttachmentPlaceholderMessage = (value: string | null | undefined) => {
+        const normalized = String(value || '').trim().toLowerCase()
+        return normalized === '[attachment]' || normalized === 'attachment'
+    }
+
+    const parseAttachments = (attachmentsStr: string) => {
+        try { return JSON.parse(attachmentsStr || '[]') } catch { return [] }
+    }
+
+    const attachmentPreviewLabel = (attachmentsStr: string) => {
+        const attachments = parseAttachments(attachmentsStr)
+        if (!Array.isArray(attachments) || attachments.length === 0) return '[Unsupported IG attachment/share]'
+
+        const first = attachments[0] || {}
+        const mime = String(first?.mime_type || '').toLowerCase()
+        const payload = first?.payload || {}
+
+        if (typeof payload?.title === 'string' && payload.title.trim()) {
+            return payload.title
+        }
+        if (typeof payload?.url === 'string' && payload.url.trim()) {
+            return '[Shared link/post]'
+        }
+        if (mime.startsWith('image/') || first?.image_data?.url) return '[Photo]'
+        if (mime.startsWith('video/') || first?.video_data?.url) return '[Video]'
+        if (mime.startsWith('audio/') || first?.audio_data?.url) return '[Audio]'
+        if (typeof first?.name === 'string' && first.name.trim()) return `[File] ${first.name}`
+        return '[Unsupported IG attachment/share]'
+    }
+
     if (conversations.length === 0) {
         return (
             <div className="flex items-center justify-center h-full p-6 text-center">
@@ -105,7 +135,9 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                                                 {conversation.lastMessage.is_from_page && (
                                                     <span style={{ color: 'rgba(255,255,255,0.25)' }}>You: </span>
                                                 )}
-                                                {conversation.lastMessage.message || '[Attachment]'}
+                                                {(!isAttachmentPlaceholderMessage(conversation.lastMessage.message) && conversation.lastMessage.message)
+                                                    ? conversation.lastMessage.message
+                                                    : attachmentPreviewLabel(conversation.lastMessage.attachments)}
                                             </>
                                         ) : (
                                             'No messages'

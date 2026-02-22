@@ -11,6 +11,118 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function extractInstagramInsightMetricValue(metric: any): number {
+    const rawValue = metric?.values?.[0]?.value;
+    if (typeof rawValue === 'number' && Number.isFinite(rawValue)) return rawValue;
+    if (typeof rawValue === 'string') {
+        const parsed = Number(rawValue);
+        return Number.isFinite(parsed) ? parsed : 0;
+    }
+    if (rawValue && typeof rawValue === 'object') {
+        const firstNumeric = Object.values(rawValue).find((v) => typeof v === 'number' && Number.isFinite(v));
+        if (typeof firstNumeric === 'number') return firstNumeric;
+    }
+    return 0;
+}
+
+async function fetchInstagramMediaInsightsBestEffort(mediaId: string, accessToken: string, mediaType?: string) {
+    const metrics: Record<string, number> = {
+        reach: 0,
+        saved: 0,
+        shares: 0,
+        impressions: 0,
+        video_views: 0,
+        plays: 0,
+    };
+
+    const tryMetricRequest = async (metricNames: string[]) => {
+        const url = `${META_GRAPH_URL}/${mediaId}/insights?metric=${metricNames.join(',')}&access_token=${accessToken}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!res.ok) {
+            console.log(`[Sync] Instagram insights unavailable for ${mediaId} metrics=[${metricNames.join(',')}]: ${JSON.stringify(data)}`);
+            return false;
+        }
+
+        if (Array.isArray(data?.data)) {
+            for (const metric of data.data) {
+                const name = String(metric?.name || '');
+                if (!name) continue;
+                metrics[name] = extractInstagramInsightMetricValue(metric);
+            }
+        }
+        return true;
+    };
+
+    // Common media metrics (usually available when insights access is granted).
+    await tryMetricRequest(['reach', 'saved', 'shares']);
+
+    // Request impressions separately since it can be unsupported for some media types/API versions.
+    await tryMetricRequest(['impressions']);
+
+    const normalizedMediaType = String(mediaType || '').toUpperCase();
+    if (normalizedMediaType.includes('VIDEO') || normalizedMediaType.includes('REEL')) {
+        const gotVideoViews = await tryMetricRequest(['video_views']);
+        if (!gotVideoViews) {
+            await tryMetricRequest(['plays']);
+        }
+    }
+
+    return {
+        reach: metrics.reach || 0,
+        saved: metrics.saved || 0,
+        shares: metrics.shares || 0,
+        impressions: metrics.impressions || 0,
+        video_views: metrics.video_views || 0,
+        plays: metrics.plays || 0,
+        // Normalize "views" for UI/storage fallback preference
+        views: metrics.impressions || metrics.video_views || metrics.plays || metrics.reach || 0,
+    };
+}
+
+async function fetchFacebookPostInsightsBestEffort(postId: string, accessToken: string) {
+    const metrics: Record<string, number> = {
+        post_impressions: 0,
+        post_impressions_unique: 0,
+        post_engaged_users: 0,
+        post_video_views: 0,
+    };
+
+    const tryMetricRequest = async (metricNames: string[]) => {
+        const url = `${META_GRAPH_URL}/${postId}/insights?metric=${metricNames.join(',')}&access_token=${accessToken}`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!res.ok) {
+            console.log(`[Sync] Facebook insights unavailable for ${postId} metrics=[${metricNames.join(',')}]: ${JSON.stringify(data)}`);
+            return false;
+        }
+
+        if (Array.isArray(data?.data)) {
+            for (const metric of data.data) {
+                const name = String(metric?.name || '');
+                if (!name) continue;
+                metrics[name] = extractInstagramInsightMetricValue(metric);
+            }
+        }
+        return true;
+    };
+
+    // Try commonly supported page post metrics first.
+    await tryMetricRequest(['post_impressions', 'post_impressions_unique', 'post_engaged_users']);
+    // Video posts may expose a dedicated views metric.
+    await tryMetricRequest(['post_video_views']);
+
+    return {
+        impressions: metrics.post_impressions || 0,
+        reach: metrics.post_impressions_unique || 0,
+        engaged_users: metrics.post_engaged_users || 0,
+        video_views: metrics.post_video_views || 0,
+        views: metrics.post_impressions || metrics.post_video_views || metrics.post_impressions_unique || 0,
+    };
+}
+
 /**
  * Sync post insights for published posts
  */
@@ -300,6 +412,10 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                         let permalink = media.permalink || null;
                         let publishedAt = media.timestamp || null;
                         let caption = media.caption || null;
+                        let mediaType = media.media_type || null;
+                        let views = 0;
+                        let saves = 0;
+                        let shares = 0;
 
                         try {
                             const detailUrl = `${META_GRAPH_URL}/${media.id}?fields=like_count,comments_count,caption,timestamp,permalink,media_type&access_token=${account.access_token}`;
@@ -312,11 +428,21 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                                 permalink = detailData.permalink || permalink;
                                 publishedAt = detailData.timestamp || publishedAt;
                                 caption = detailData.caption || caption;
+                                mediaType = detailData.media_type || mediaType;
                             } else {
                                 console.log(`[Sync] Instagram media details unavailable for ${media.id}: ${JSON.stringify(detailData)}`);
                             }
                         } catch (detailError) {
                             console.log(`[Sync] Instagram media details fetch failed for ${media.id}:`, detailError);
+                        }
+
+                        try {
+                            const igInsights = await fetchInstagramMediaInsightsBestEffort(media.id, account.access_token, mediaType || undefined);
+                            views = igInsights.views || 0;
+                            saves = igInsights.saved || 0;
+                            shares = igInsights.shares || 0;
+                        } catch (insightsError) {
+                            console.log(`[Sync] Instagram media insights fetch failed for ${media.id}:`, insightsError);
                         }
 
                         const published = await upsertPublishedPost({
@@ -333,9 +459,9 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                             await upsertPostAnalytics(published.id, {
                                 likes,
                                 comments,
-                                views: 0,
-                                shares: 0,
-                                saves: 0,
+                                views,
+                                shares,
+                                saves,
                                 engagement_rate: 0,
                             });
                             directMetricsCount++;
@@ -376,6 +502,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                         let likes = 0;
                         let comments = 0;
                         let shares = 0;
+                        let views = 0;
 
                         try {
                             const metricsUrl = `${META_GRAPH_URL}/${fbPost.id}?fields=shares,likes.summary(true),comments.summary(true)&access_token=${account.access_token}`;
@@ -393,6 +520,13 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                             console.log(`[Sync] Facebook metrics fetch failed for ${fbPost.id}:`, metricsError);
                         }
 
+                        try {
+                            const fbInsights = await fetchFacebookPostInsightsBestEffort(fbPost.id, account.access_token);
+                            views = fbInsights.views || 0;
+                        } catch (insightsError) {
+                            console.log(`[Sync] Facebook insights fetch failed for ${fbPost.id}:`, insightsError);
+                        }
+
                         const published = await upsertPublishedPost({
                             platform: 'facebook',
                             platform_post_id: fbPost.id,
@@ -408,7 +542,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                                 likes,
                                 comments,
                                 shares,
-                                views: 0,
+                                views,
                                 saves: 0,
                                 engagement_rate: 0,
                             });

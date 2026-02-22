@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
 
 export const runtime = 'edge';
 
@@ -25,6 +26,40 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Missing Supabase service key' }, { status: 500 });
         }
 
+        const { data: socialAccounts } = await supabase
+            .from('social_accounts')
+            .select('id, platform')
+            .eq('workspace_id', activeWorkspace.id);
+        const socialAccountsList = socialAccounts || [];
+        const platforms = Array.from(new Set(socialAccountsList.map((a: any) => a.platform).filter(Boolean)));
+        const platformGrantedScopes = new Map<string, Set<string>>();
+        const platformExactScopesKnown = new Map<string, boolean>();
+        for (const account of socialAccountsList as any[]) {
+            const rawScopes = Array.isArray(account?.metadata?.granted_scopes)
+                ? account.metadata.granted_scopes.filter((s: unknown) => typeof s === 'string')
+                : [];
+            if (account?.platform) {
+                const existing = platformGrantedScopes.get(account.platform) || new Set<string>();
+                rawScopes.forEach((s: string) => existing.add(s));
+                platformGrantedScopes.set(account.platform, existing);
+                if (Array.isArray(account?.metadata?.granted_scopes)) {
+                    platformExactScopesKnown.set(account.platform, true);
+                } else if (!platformExactScopesKnown.has(account.platform)) {
+                    platformExactScopesKnown.set(account.platform, false);
+                }
+            }
+        }
+        const maybeAddPermissionHint = (platform: 'instagram' | 'facebook', scope: string) => {
+            const exactKnown = !!platformExactScopesKnown.get(platform);
+            if (!exactKnown) {
+                suspectedMissingPermissions.add(scope);
+                return;
+            }
+            if (!platformGrantedScopes.get(platform)?.has(scope)) {
+                suspectedMissingPermissions.add(scope);
+            }
+        };
+
         // Call the sync-analytics Edge Function
         const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/sync-analytics`;
         const response = await fetch(functionUrl, {
@@ -47,20 +82,88 @@ export async function POST(request: NextRequest) {
             result = { error: raw };
         }
         if (!response.ok) {
-            throw new Error(result?.error || 'Failed to sync analytics');
+            const normalized = normalizeMetaGraphError(
+                typeof result?.error === 'object' && result?.error ? result.error : { message: result?.error || raw || 'Failed to sync analytics' },
+                { feature: 'analytics' }
+            );
+            return NextResponse.json(
+                {
+                    error: normalized.message,
+                    errorCode: normalized.code,
+                    missingPermissions: normalized.missingPermissions,
+                    requiresReconnect: normalized.requiresReconnect,
+                    meta: normalized.meta,
+                },
+                { status: normalized.httpStatus }
+            );
         }
+
+        const postsSynced = Number(result?.posts?.synced || 0);
+        const accountsSynced = Number(result?.accounts?.synced || 0);
+        const directPostsUpserted = Number(result?.posts?.direct?.posts_upserted || 0);
+        const directMetricsUpserted = Number(result?.posts?.direct?.metrics_upserted || 0);
+        const directErrors = Number(result?.posts?.direct?.errors || 0);
+
+        const warnings: string[] = [];
+        const suspectedMissingPermissions = new Set<string>();
+
+        if (socialAccountsList.length === 0) {
+            warnings.push('No connected social accounts were found for this workspace.');
+        }
+
+        if (platforms.includes('instagram') && accountsSynced === 0) {
+            warnings.push('Instagram/Facebook account-level analytics did not sync. Follower insights may be unavailable.');
+            maybeAddPermissionHint('instagram', 'instagram_manage_insights');
+            if (platforms.includes('facebook')) maybeAddPermissionHint('facebook', 'pages_read_engagement');
+        }
+
+        if (directPostsUpserted > 0 && directMetricsUpserted === 0) {
+            warnings.push('Posts were ingested, but post metrics were not synced. Analytics may be limited to post discovery only.');
+            if (platforms.includes('instagram')) maybeAddPermissionHint('instagram', 'instagram_manage_insights');
+            if (platforms.includes('facebook')) maybeAddPermissionHint('facebook', 'pages_read_engagement');
+        }
+
+        if (directErrors > 0) {
+            warnings.push(`Some analytics sync operations failed (${directErrors}). Data may be partially updated.`);
+        }
+
+        const partial = warnings.length > 0;
 
         return NextResponse.json({
             success: true,
             workspaceId: activeWorkspace.id,
-            ...result
+            ...result,
+            _meta: {
+                partial,
+                warnings,
+                suspectedMissingPermissions: Array.from(suspectedMissingPermissions),
+                sync: {
+                    postsSynced,
+                    accountsSynced,
+                    direct: {
+                        postsUpserted: directPostsUpserted,
+                        metricsUpserted: directMetricsUpserted,
+                        errors: directErrors,
+                    }
+                }
+            }
         });
 
     } catch (error: any) {
         console.error('Sync analytics API error:', error);
+        const normalized = normalizeMetaGraphError(
+            { message: error.message || 'Failed to sync analytics' },
+            { feature: 'analytics' }
+        );
         return NextResponse.json(
-            { error: error.message || 'Failed to sync analytics' },
-            { status: 500 }
+            {
+                error: normalized.message,
+                errorCode: normalized.code,
+                missingPermissions: normalized.missingPermissions,
+                requiresReconnect: normalized.requiresReconnect,
+                meta: normalized.meta,
+            },
+            { status: normalized.httpStatus }
         );
     }
 }

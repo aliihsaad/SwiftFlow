@@ -1,11 +1,348 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { DateRange, Granularity, AnalyticsResponse, PostData, Platform } from '@/types/analytics'
+import { DateRange, Granularity, AnalyticsResponse, PostData, Platform, AnalyticsPlatformView } from '@/types/analytics'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { getActiveWorkspace } from '@/lib/workspace-utils'
 import { format, subDays, formatDistanceToNow } from 'date-fns'
 
 export const runtime = 'edge'
+
+type MetricStatus = 'available' | 'partial' | 'unavailable'
+type PlatformKey = 'instagram' | 'facebook'
+
+type PlatformAnalyticsMeta = {
+    platform: PlatformKey
+    connected: boolean
+    status: MetricStatus
+    accountMetricsStatus: MetricStatus
+    postMetricsStatus: MetricStatus
+    exactScopesKnown: boolean
+    missingPermissions: string[]
+    warnings: string[]
+}
+
+type AnalyticsMeta = {
+    hasAnalytics: boolean
+    needsSync: boolean
+    hasPublishedPosts?: boolean
+    reason?: string | null
+    selectedPlatform?: AnalyticsPlatformView
+    isCombinedView?: boolean
+    warnings?: string[]
+    suspectedMissingPermissions?: string[]
+    platformStatuses?: PlatformAnalyticsMeta[]
+    capabilities?: {
+        accountMetrics: {
+            status: MetricStatus
+            availablePlatforms: string[]
+            unavailablePlatforms: string[]
+        }
+        postMetrics: {
+            status: MetricStatus
+            totalPublishedPosts: number
+            postsWithAnalyticsRows: number
+            platformsWithPublishedPosts: string[]
+            platformsWithAnalyticsRows: string[]
+        }
+    }
+}
+
+function buildAnalyticsMeta(params: {
+    socialAccounts: any[]
+    accountAnalytics: any[]
+    publishedPosts: any[]
+    postAnalytics: any[]
+    hasAnalytics: boolean
+    hasPublishedPosts: boolean
+    needsSync: boolean
+    reason?: string | null
+    selectedPlatform?: AnalyticsPlatformView
+}): AnalyticsMeta {
+    const {
+        socialAccounts,
+        accountAnalytics,
+        publishedPosts,
+        postAnalytics,
+        hasAnalytics,
+        hasPublishedPosts,
+        needsSync,
+        reason = null,
+        selectedPlatform = 'all',
+    } = params
+
+    const warnings: string[] = []
+    const suspectedMissingPermissions = new Set<string>()
+    const platformStatuses: PlatformAnalyticsMeta[] = []
+
+    const connectedPlatforms = Array.from(new Set((socialAccounts || []).map((a) => a.platform).filter(Boolean)))
+    const accountIdToPlatform = new Map<string, string>()
+    const accountIdToGrantedScopes = new Map<string, Set<string>>()
+    const platformGrantedScopes = new Map<string, Set<string>>()
+    const platformExactScopesKnown = new Map<string, boolean>()
+    ;(socialAccounts || []).forEach((a) => {
+        if (a?.id) accountIdToPlatform.set(a.id, a.platform)
+        const rawScopes = Array.isArray(a?.metadata?.granted_scopes)
+            ? a.metadata.granted_scopes.filter((s: unknown) => typeof s === 'string')
+            : []
+        const scopeSet = new Set<string>(rawScopes)
+        if (a?.id) accountIdToGrantedScopes.set(a.id, scopeSet)
+        if (a?.platform) {
+            const existing = platformGrantedScopes.get(a.platform) || new Set<string>()
+            rawScopes.forEach((s: string) => existing.add(s))
+            platformGrantedScopes.set(a.platform, existing)
+            if (Array.isArray(a?.metadata?.granted_scopes)) {
+                platformExactScopesKnown.set(a.platform, true)
+            } else if (!platformExactScopesKnown.has(a.platform)) {
+                platformExactScopesKnown.set(a.platform, false)
+            }
+        }
+    })
+
+    const getPlatformScopeState = (platform: PlatformKey, scope: string): 'granted' | 'missing' | 'unknown' => {
+        const exactKnown = platformExactScopesKnown.get(platform)
+        if (!exactKnown) return 'unknown'
+        return (platformGrantedScopes.get(platform)?.has(scope)) ? 'granted' : 'missing'
+    }
+
+    const noteRequiredPermission = (platform: PlatformKey, scope: string) => {
+        const state = getPlatformScopeState(platform, scope)
+        if (state === 'missing' || state === 'unknown') {
+            suspectedMissingPermissions.add(scope)
+        }
+    }
+
+    const accountMetricPlatforms = new Set<string>()
+    ;(accountAnalytics || []).forEach((row) => {
+        const platform = accountIdToPlatform.get(row.social_account_id)
+        if (platform) accountMetricPlatforms.add(platform)
+    })
+
+    const publishedPostIdToPlatform = new Map<string, string>()
+    const platformsWithPublishedPosts = new Set<string>()
+    ;(publishedPosts || []).forEach((pp) => {
+        if (pp?.id && pp?.platform) {
+            publishedPostIdToPlatform.set(pp.id, pp.platform)
+            platformsWithPublishedPosts.add(pp.platform)
+        }
+    })
+
+    const platformsWithAnalyticsRows = new Set<string>()
+    ;(postAnalytics || []).forEach((row) => {
+        const platform = publishedPostIdToPlatform.get(row.published_post_id)
+        if (platform) platformsWithAnalyticsRows.add(platform)
+    })
+
+    const accountUnavailablePlatforms = connectedPlatforms.filter((p) => !accountMetricPlatforms.has(p))
+    const accountStatus: MetricStatus =
+        connectedPlatforms.length === 0
+            ? 'unavailable'
+            : accountMetricPlatforms.size === 0
+                ? 'unavailable'
+                : accountMetricPlatforms.size < connectedPlatforms.length
+                    ? 'partial'
+                    : 'available'
+
+    if (accountStatus !== 'available' && connectedPlatforms.length > 0) {
+        warnings.push('Account-level analytics is partially available. Follower metrics may be missing for some connected platforms.')
+        if (connectedPlatforms.includes('instagram')) noteRequiredPermission('instagram', 'instagram_manage_insights')
+        if (connectedPlatforms.includes('facebook')) noteRequiredPermission('facebook', 'pages_read_engagement')
+    }
+
+    const totalPublishedPosts = (publishedPosts || []).length
+    const postsWithAnalyticsRows = new Set((postAnalytics || []).map((row) => row.published_post_id)).size
+    const rowsWithAnyEngagement = (postAnalytics || []).filter((row) => {
+        const likes = Number(row?.likes || 0)
+        const comments = Number(row?.comments || 0)
+        const shares = Number(row?.shares || 0)
+        const saves = Number(row?.saves || 0)
+        return likes + comments + shares + saves > 0
+    }).length
+    const rowsWithViews = (postAnalytics || []).filter((row) => Number(row?.views || 0) > 0).length
+    const rowsWithSaves = (postAnalytics || []).filter((row) => Number(row?.saves || 0) > 0).length
+    let postStatus: MetricStatus =
+        totalPublishedPosts === 0
+            ? 'unavailable'
+            : postsWithAnalyticsRows === 0
+                ? 'unavailable'
+                : postsWithAnalyticsRows < totalPublishedPosts
+                    ? 'partial'
+                    : 'available'
+
+    if (hasPublishedPosts && postStatus !== 'available') {
+        warnings.push('Post analytics is partial. Some posts were found without synced metrics.')
+        if (platformsWithPublishedPosts.has('instagram')) noteRequiredPermission('instagram', 'instagram_manage_insights')
+        if (platformsWithPublishedPosts.has('facebook')) noteRequiredPermission('facebook', 'pages_read_engagement')
+    }
+
+    // Heuristic: analytics rows exist, but key insights metrics are missing.
+    // This commonly happens when posts are ingested but reach/views/saves insights are unavailable.
+    if (postsWithAnalyticsRows > 0 && rowsWithAnyEngagement > 0 && rowsWithViews === 0) {
+        if (postStatus === 'available') postStatus = 'partial';
+        const igScopeState = getPlatformScopeState('instagram', 'instagram_manage_insights')
+        const fbScopeState = getPlatformScopeState('facebook', 'pages_read_engagement')
+        const hasExactGrantedInsights =
+            (platformsWithPublishedPosts.has('instagram') && igScopeState === 'granted') ||
+            (platformsWithPublishedPosts.has('facebook') && fbScopeState === 'granted')
+
+        warnings.push(
+            hasExactGrantedInsights
+                ? 'Post engagement counts are available, but view/reach metrics are still missing for some posts (API/media-type limitations or unsupported metrics).'
+                : 'Post engagement counts are available, but view/reach metrics are missing or zero. Insights permissions may be unavailable.'
+        )
+        if (platformsWithPublishedPosts.has('instagram')) noteRequiredPermission('instagram', 'instagram_manage_insights')
+        if (platformsWithPublishedPosts.has('facebook')) noteRequiredPermission('facebook', 'pages_read_engagement')
+    }
+
+    if (platformsWithPublishedPosts.has('instagram') && postsWithAnalyticsRows > 0 && rowsWithSaves === 0) {
+        if (postStatus === 'available') postStatus = 'partial';
+        const igScopeState = getPlatformScopeState('instagram', 'instagram_manage_insights')
+        warnings.push(
+            igScopeState === 'granted'
+                ? 'Instagram save/reach-style insights are still unavailable for current synced posts (likely media-type or API limitations).'
+                : 'Instagram save/reach-style insights appear unavailable for current synced posts.'
+        )
+        noteRequiredPermission('instagram', 'instagram_manage_insights')
+    }
+
+    if (reason === 'no_published_posts') {
+        warnings.push('No published posts were found for the selected workspace. Account analytics may still be available.')
+    }
+
+    const analyticsRowsByPlatform = new Map<string, any[]>()
+    ;(postAnalytics || []).forEach((row) => {
+        const platform = publishedPostIdToPlatform.get(row.published_post_id)
+        if (!platform) return
+        const list = analyticsRowsByPlatform.get(platform) || []
+        list.push(row)
+        analyticsRowsByPlatform.set(platform, list)
+    })
+
+    ;(['instagram', 'facebook'] as PlatformKey[]).forEach((platform: PlatformKey) => {
+        const connected = connectedPlatforms.includes(platform)
+        if (!connected) return
+
+        const platformPublishedRows = (publishedPosts || []).filter((pp) => pp?.platform === platform)
+        const platformAnalyticsRows = analyticsRowsByPlatform.get(platform) || []
+        const platformRowsWithAnyEngagement = platformAnalyticsRows.filter((row) => {
+            const likes = Number(row?.likes || 0)
+            const comments = Number(row?.comments || 0)
+            const shares = Number(row?.shares || 0)
+            const saves = Number(row?.saves || 0)
+            return likes + comments + shares + saves > 0
+        }).length
+        const platformRowsWithViews = platformAnalyticsRows.filter((row) => Number(row?.views || 0) > 0).length
+        const platformRowsWithSaves = platformAnalyticsRows.filter((row) => Number(row?.saves || 0) > 0).length
+        const platformAccountMetricsRows = (accountAnalytics || []).filter((row) => accountIdToPlatform.get(row.social_account_id) === platform)
+
+        const accountMetricsStatus: MetricStatus =
+            platformAccountMetricsRows.length === 0 ? 'unavailable' : 'available'
+
+        let postMetricsStatus: MetricStatus =
+            platformPublishedRows.length === 0
+                ? 'unavailable'
+                : platformAnalyticsRows.length === 0
+                    ? 'unavailable'
+                    : platformAnalyticsRows.length < platformPublishedRows.length
+                        ? 'partial'
+                        : 'available'
+
+        const platformWarnings: string[] = []
+        const missingPermissions: string[] = []
+        const exactScopesKnown = !!platformExactScopesKnown.get(platform)
+
+        if (platform === 'instagram') {
+            const scopeState = getPlatformScopeState('instagram', 'instagram_manage_insights')
+            if (scopeState === 'missing') missingPermissions.push('instagram_manage_insights')
+
+            if (platformPublishedRows.length > 0 && platformRowsWithAnyEngagement > 0 && platformRowsWithViews === 0) {
+                if (postMetricsStatus === 'available') postMetricsStatus = 'partial'
+                platformWarnings.push(
+                    scopeState === 'granted'
+                        ? 'Views/reach are missing for some Instagram posts (Meta API/media-type limitation).'
+                        : 'Views/reach may require Instagram insights permission.'
+                )
+            }
+            if (platformPublishedRows.length > 0 && platformAnalyticsRows.length > 0 && platformRowsWithSaves === 0) {
+                if (postMetricsStatus === 'available') postMetricsStatus = 'partial'
+                platformWarnings.push(
+                    scopeState === 'granted'
+                        ? 'Save metrics are unavailable for current Instagram posts.'
+                        : 'Save metrics may require Instagram insights permission.'
+                )
+            }
+            if (accountMetricsStatus === 'unavailable') {
+                platformWarnings.push(
+                    scopeState === 'granted'
+                        ? 'Instagram follower/account metrics are not yet available.'
+                        : 'Instagram follower/account metrics may require Instagram insights permission.'
+                )
+            }
+        } else if (platform === 'facebook') {
+            const scopeState = getPlatformScopeState('facebook', 'pages_read_engagement')
+            if (scopeState === 'missing') missingPermissions.push('pages_read_engagement')
+
+            if (platformPublishedRows.length > 0 && platformRowsWithAnyEngagement > 0 && platformRowsWithViews === 0) {
+                if (postMetricsStatus === 'available') postMetricsStatus = 'partial'
+                platformWarnings.push(
+                    scopeState === 'granted'
+                        ? 'Facebook post view/reach metrics are unavailable for current synced posts.'
+                        : 'Facebook post view/reach metrics may require pages_read_engagement.'
+                )
+            }
+            if (accountMetricsStatus === 'unavailable') {
+                platformWarnings.push(
+                    scopeState === 'granted'
+                        ? 'Facebook follower/page metrics are not yet available.'
+                        : 'Facebook page metrics may require pages_read_engagement.'
+                )
+            }
+        }
+
+        const status: MetricStatus =
+            accountMetricsStatus === 'available' && (postMetricsStatus === 'available' || postMetricsStatus === 'unavailable' && platformPublishedRows.length === 0)
+                ? 'available'
+                : (accountMetricsStatus === 'unavailable' && postMetricsStatus === 'unavailable')
+                    ? 'unavailable'
+                    : 'partial'
+
+        platformStatuses.push({
+            platform,
+            connected,
+            status,
+            accountMetricsStatus,
+            postMetricsStatus,
+            exactScopesKnown,
+            missingPermissions: Array.from(new Set(missingPermissions)),
+            warnings: Array.from(new Set(platformWarnings)),
+        })
+    })
+
+    return {
+        hasAnalytics,
+        needsSync,
+        hasPublishedPosts,
+        reason,
+        selectedPlatform,
+        isCombinedView: selectedPlatform === 'all',
+        warnings: Array.from(new Set(warnings)),
+        suspectedMissingPermissions: Array.from(suspectedMissingPermissions),
+        platformStatuses,
+        capabilities: {
+            accountMetrics: {
+                status: accountStatus,
+                availablePlatforms: Array.from(accountMetricPlatforms),
+                unavailablePlatforms: accountUnavailablePlatforms,
+            },
+            postMetrics: {
+                status: postStatus,
+                totalPublishedPosts,
+                postsWithAnalyticsRows,
+                platformsWithPublishedPosts: Array.from(platformsWithPublishedPosts),
+                platformsWithAnalyticsRows: Array.from(platformsWithAnalyticsRows),
+            }
+        }
+    }
+}
 
 // Transform database data into analytics response format
 function transformRealDataToAnalytics(
@@ -310,10 +647,12 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams
         const range = (searchParams.get('range') as DateRange) || 'last_7_days'
         const granularity = (searchParams.get('granularity') as Granularity) || 'daily'
+        const platformFilter = (searchParams.get('platform') as AnalyticsPlatformView) || 'all'
 
         // Validate parameters
         const validRanges: DateRange[] = ['last_7_days', 'last_30_days', 'last_90_days']
         const validGranularities: Granularity[] = ['daily', 'weekly', 'monthly']
+        const validPlatformFilters: AnalyticsPlatformView[] = ['all', 'instagram', 'facebook']
 
         if (!validRanges.includes(range)) {
             return NextResponse.json(
@@ -329,26 +668,59 @@ export async function GET(request: NextRequest) {
             )
         }
 
+        if (!validPlatformFilters.includes(platformFilter)) {
+            return NextResponse.json(
+                { error: 'Invalid platform parameter' },
+                { status: 400 }
+            )
+        }
+
         // Fetch social accounts for this workspace
         const { data: socialAccounts } = await supabaseAdmin
             .from('social_accounts')
             .select('*')
             .eq('workspace_id', activeWorkspace.id)
         const socialAccountsList = socialAccounts || []
+        const selectedSocialAccounts = platformFilter === 'all'
+            ? socialAccountsList
+            : socialAccountsList.filter((a) => a.platform === platformFilter)
 
         // For read API, we only need connected accounts.
         // Token validity affects sync, not displaying already-synced analytics rows.
-        const hasConnectedAccounts = socialAccountsList.length > 0
+        const hasConnectedAccounts = selectedSocialAccounts.length > 0
 
         if (!hasConnectedAccounts) {
             // No connected accounts: return real empty response (not demo data).
             console.log('[Analytics] No connected accounts found, returning empty analytics')
             return NextResponse.json({
-                ...buildEmptyAnalyticsResponse(range, granularity, socialAccountsList),
+                ...buildEmptyAnalyticsResponse(range, granularity, selectedSocialAccounts),
                 _meta: {
                     hasAnalytics: false,
                     needsSync: false,
-                    reason: 'no_connected_accounts'
+                    reason: platformFilter === 'all' ? 'no_connected_accounts' : 'no_connected_accounts_for_platform',
+                    selectedPlatform: platformFilter,
+                    isCombinedView: platformFilter === 'all',
+                    warnings: [
+                        platformFilter === 'all'
+                            ? 'No connected social accounts found. Connect Facebook/Instagram accounts in Settings to sync analytics.'
+                            : `No connected ${platformFilter === 'instagram' ? 'Instagram' : 'Facebook'} account found for this workspace.`
+                    ],
+                    suspectedMissingPermissions: [],
+                    platformStatuses: [],
+                    capabilities: {
+                        accountMetrics: {
+                            status: 'unavailable',
+                            availablePlatforms: [],
+                            unavailablePlatforms: [],
+                        },
+                        postMetrics: {
+                            status: 'unavailable',
+                            totalPublishedPosts: 0,
+                            postsWithAnalyticsRows: 0,
+                            platformsWithPublishedPosts: [],
+                            platformsWithAnalyticsRows: [],
+                        }
+                    }
                 }
             })
         }
@@ -371,7 +743,7 @@ export async function GET(request: NextRequest) {
 
         console.log('[Analytics] Posts found:', posts?.length || 0)
 
-        const accountIds = socialAccountsList.map(a => a.id)
+        const accountIds = selectedSocialAccounts.map(a => a.id)
 
         // Fetch published_posts linked to app posts
         const postIds = posts?.map(p => p.id) || []
@@ -414,7 +786,10 @@ export async function GET(request: NextRequest) {
         ;[...appLinkedPublishedPosts, ...directPublishedPosts].forEach((pp) => {
             publishedPostsMap.set(pp.id, pp)
         })
-        const publishedPostsData = Array.from(publishedPostsMap.values())
+        let publishedPostsData = Array.from(publishedPostsMap.values())
+        if (platformFilter !== 'all') {
+            publishedPostsData = publishedPostsData.filter((pp) => pp?.platform === platformFilter)
+        }
 
         console.log('[Analytics] Published posts records:', publishedPostsData.length)
 
@@ -495,7 +870,7 @@ export async function GET(request: NextRequest) {
         const analyticsData = transformRealDataToAnalytics(
             publishedPosts,
             accountAnalytics || [],
-            socialAccountsList,
+            selectedSocialAccounts,
             range,
             granularity
         )
@@ -505,14 +880,21 @@ export async function GET(request: NextRequest) {
             p.published_posts?.some((pp: any) => pp.post_analytics?.length > 0)
         )
 
+        const analyticsMeta = buildAnalyticsMeta({
+            socialAccounts: selectedSocialAccounts,
+            accountAnalytics: accountAnalytics || [],
+            publishedPosts: publishedPostsData,
+            postAnalytics: postAnalyticsData,
+            hasAnalytics,
+            hasPublishedPosts,
+            needsSync: !hasAnalytics,
+            reason: hasPublishedPosts ? null : 'no_published_posts',
+            selectedPlatform: platformFilter,
+        })
+
         return NextResponse.json({
             ...analyticsData,
-            _meta: {
-                hasAnalytics,
-                needsSync: !hasAnalytics,
-                hasPublishedPosts,
-                reason: hasPublishedPosts ? null : 'no_published_posts'
-            }
+            _meta: analyticsMeta
         })
 
     } catch (error) {

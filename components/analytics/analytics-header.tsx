@@ -1,6 +1,7 @@
 "use client"
 
-import { DateRange, Granularity } from "@/types/analytics"
+import { CSSProperties } from "react"
+import { AnalyticsPlatformView, DateRange, Granularity } from "@/types/analytics"
 import {
     Select,
     SelectContent,
@@ -8,12 +9,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
-import { Download, RefreshCw } from "lucide-react"
+import { Download, Facebook, Instagram, Layers3, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface AnalyticsHeaderProps {
+    platformView: AnalyticsPlatformView
     dateRange: DateRange
     granularity: Granularity
+    onPlatformViewChange: (platform: AnalyticsPlatformView) => void
     onDateRangeChange: (range: DateRange) => void
     onGranularityChange: (granularity: Granularity) => void
     onExport: () => void
@@ -22,8 +25,10 @@ interface AnalyticsHeaderProps {
 }
 
 export function AnalyticsHeader({
+    platformView,
     dateRange,
     granularity,
+    onPlatformViewChange,
     onDateRangeChange,
     onGranularityChange,
     onExport,
@@ -36,16 +41,76 @@ export function AnalyticsHeader({
         { value: 'monthly', label: 'Monthly' },
     ]
 
+    const platformTabs: Array<{
+        value: AnalyticsPlatformView
+        label: string
+        icon: typeof Layers3
+        activeStyle: CSSProperties
+    }> = [
+        {
+            value: 'all',
+            label: 'All',
+            icon: Layers3,
+            activeStyle: {
+                background: 'rgba(139,92,246,0.16)',
+                border: '1px solid rgba(139,92,246,0.28)',
+                color: '#c4b5fd',
+            },
+        },
+        {
+            value: 'instagram',
+            label: 'Instagram',
+            icon: Instagram,
+            activeStyle: {
+                background: 'linear-gradient(135deg, rgba(236,72,153,0.18), rgba(139,92,246,0.18))',
+                border: '1px solid rgba(236,72,153,0.22)',
+                color: '#f9a8d4',
+            },
+        },
+        {
+            value: 'facebook',
+            label: 'Facebook',
+            icon: Facebook,
+            activeStyle: {
+                background: 'rgba(59,130,246,0.14)',
+                border: '1px solid rgba(59,130,246,0.22)',
+                color: '#93c5fd',
+            },
+        },
+    ]
+
     return (
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             {/* Title */}
-            <div>
+            <div className="space-y-3">
                 <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'rgba(255,255,255,0.9)' }}>
                     Analytics
                 </h1>
                 <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
                     Track your social media growth and engagement
                 </p>
+                <div className="flex flex-wrap items-center gap-2">
+                    {platformTabs.map((tab) => {
+                        const isActive = platformView === tab.value
+                        const Icon = tab.icon
+                        return (
+                            <button
+                                key={tab.value}
+                                type="button"
+                                onClick={() => onPlatformViewChange(tab.value)}
+                                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150"
+                                style={isActive ? tab.activeStyle : {
+                                    background: '#12111e',
+                                    border: '1px solid rgba(255,255,255,0.08)',
+                                    color: 'rgba(255,255,255,0.4)',
+                                }}
+                            >
+                                <Icon className="h-3.5 w-3.5" />
+                                {tab.label}
+                            </button>
+                        )
+                    })}
+                </div>
             </div>
 
             {/* Controls */}

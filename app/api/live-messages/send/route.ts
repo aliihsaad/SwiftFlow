@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
 
 const META_GRAPH_URL = 'https://graph.facebook.com/v21.0';
 
@@ -64,7 +65,21 @@ export async function POST(request: NextRequest) {
         const result = await response.json();
 
         if (!response.ok) {
-            throw new Error(result.error?.message || 'Failed to send message');
+            const normalized = normalizeMetaGraphError(result?.error, {
+                feature: 'messages',
+                platform,
+                operation: 'send_message',
+            });
+            return NextResponse.json(
+                {
+                    error: normalized.message,
+                    errorCode: normalized.code,
+                    missingPermissions: normalized.missingPermissions,
+                    requiresReconnect: normalized.requiresReconnect,
+                    metaError: normalized.meta,
+                },
+                { status: normalized.httpStatus }
+            );
         }
 
         return NextResponse.json({
@@ -75,7 +90,7 @@ export async function POST(request: NextRequest) {
     } catch (error: any) {
         console.error('Send message API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to send message' },
+            { error: error.message || 'Failed to send message', errorCode: 'internal_error' },
             { status: 500 }
         );
     }

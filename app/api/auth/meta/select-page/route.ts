@@ -13,6 +13,8 @@ interface PageData {
     access_token: string;
     ig_account_id: string | null;
     ig_username: string | null;
+    granted_scopes?: string[];
+    granted_granular_scopes?: Array<{ scope: string; target_ids?: string[] }>;
 }
 
 /**
@@ -70,6 +72,18 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
+
+        const grantedScopes = Array.isArray(selectedPage.granted_scopes)
+            ? selectedPage.granted_scopes.filter((s) => typeof s === 'string')
+            : [];
+        const grantedGranularScopes = Array.isArray(selectedPage.granted_granular_scopes)
+            ? selectedPage.granted_granular_scopes
+                .filter((s: any) => typeof s?.scope === 'string')
+                .map((s: any) => ({
+                    scope: s.scope,
+                    target_ids: Array.isArray(s?.target_ids) ? s.target_ids.filter((id: any) => typeof id === 'string') : undefined,
+                }))
+            : [];
 
         console.log(`[SELECT_PAGE] User selected page "${selectedPage.name}" (${selectedPage.id}) for workspace ${workspaceId}`);
 
@@ -136,6 +150,9 @@ export async function POST(request: NextRequest) {
                 category: selectedPage.category,
                 user_access_token: session.user_access_token,
                 instagram_business_account_id: selectedPage.ig_account_id,
+                granted_scopes: grantedScopes,
+                granted_granular_scopes: grantedGranularScopes,
+                scopes_checked_at: new Date().toISOString(),
             },
         };
 
@@ -169,6 +186,9 @@ export async function POST(request: NextRequest) {
                     connected_page_id: selectedPage.id,
                     ig_username: selectedPage.ig_username,
                     user_access_token: session.user_access_token,
+                    granted_scopes: grantedScopes,
+                    granted_granular_scopes: grantedGranularScopes,
+                    scopes_checked_at: new Date().toISOString(),
                 },
             };
 

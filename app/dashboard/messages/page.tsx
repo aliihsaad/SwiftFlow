@@ -56,11 +56,30 @@ interface ConversationsResponse {
     workspaceId: string
     pageId: string
     error?: string
+    errorCode?: string
+    missingPermissions?: string[]
+    requiresReconnect?: boolean
+    messagingCapabilities?: {
+        canReadMessages: boolean
+        canSendMessages: boolean
+        reason: string | null
+        missingPermissions: string[]
+    }
 }
 
 interface MessagesResponse {
     messages: Message[]
     pageId: string
+    error?: string
+    errorCode?: string
+    missingPermissions?: string[]
+    requiresReconnect?: boolean
+    messagingCapabilities?: {
+        canReadMessages: boolean
+        canSendMessages: boolean
+        reason: string | null
+        missingPermissions: string[]
+    }
 }
 
 const fetcher = async (url: string) => {
@@ -132,11 +151,32 @@ export default function MessagesPage() {
     }, [workspaceId])
 
     const conversations = conversationsData?.conversations || []
-    const noAccount = conversationsData?.error && !conversations.length
-    const permissionDenied = isPermissionError(conversationsError)
+    const responsePermissionDenied = conversationsData?.errorCode === 'meta_missing_permission'
+    const responseTokenInvalid = conversationsData?.errorCode === 'meta_auth_invalid_token'
+    const noAccount = conversationsData?.errorCode === 'no_account_connected'
+    const permissionDenied = responsePermissionDenied || isPermissionError(conversationsError)
+    const messagingCapabilities = conversationsData?.messagingCapabilities
+    const sendDisabled = messagingCapabilities?.canSendMessages === false
+    const sendDisabledReason = responseTokenInvalid
+        ? 'Meta token expired or invalid. Reconnect your account in Settings.'
+        : permissionDenied
+            ? (conversationsData?.error || 'Messaging permissions are not enabled for this account.')
+            : null
 
     const handleSendMessage = async (message: string) => {
         if (!selectedConversation) return
+        if (sendDisabled) {
+            const missingPerms = conversationsData?.missingPermissions?.length
+                ? ` Missing permissions: ${conversationsData.missingPermissions.join(', ')}.`
+                : ''
+            const fallback = sendDisabledReason || 'Messaging is not available for this account.'
+            toast({
+                title: "Messaging unavailable",
+                description: `${fallback}${missingPerms}`,
+                variant: "destructive",
+            })
+            throw new Error(fallback)
+        }
         try {
             const response = await fetch('/api/live-messages/send', {
                 method: 'POST',
@@ -149,7 +189,10 @@ export default function MessagesPage() {
             })
             if (!response.ok) {
                 const err = await response.json()
-                throw new Error(err.error || 'Failed to send message')
+                const extra = Array.isArray(err?.missingPermissions) && err.missingPermissions.length
+                    ? ` Missing permissions: ${err.missingPermissions.join(', ')}.`
+                    : ''
+                throw new Error((err.error || 'Failed to send message') + extra)
             }
             toast({ title: "Message sent", description: "Your message has been sent." })
             mutateMessages()
@@ -270,13 +313,19 @@ export default function MessagesPage() {
                             <Lock className="h-8 w-8" style={{ color: '#60a5fa' }} />
                         </div>
                         <h3 className="text-base font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                            Facebook Messages
+                            {activePlatform === 'instagram' ? 'Instagram Messages' : 'Facebook Messages'}
                         </h3>
                         <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                            Facebook messaging requires the{' '}
-                            <span className="font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>pages_messaging</span>{' '}
-                            permission, which is pending Meta app review approval.
+                            {conversationsData?.error || 'Messaging permissions are not enabled for this account.'}
                         </p>
+                        {!!conversationsData?.missingPermissions?.length && (
+                            <div className="mt-4 text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                                Missing permissions:{" "}
+                                <span className="font-semibold" style={{ color: 'rgba(255,255,255,0.72)' }}>
+                                    {conversationsData.missingPermissions.join(', ')}
+                                </span>
+                            </div>
+                        )}
                         <div
                             className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold"
                             style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.2)' }}
@@ -359,6 +408,8 @@ export default function MessagesPage() {
                             onSendMessage={handleSendMessage}
                             workspaceId={conversationsData?.workspaceId || null}
                             platform={activePlatform}
+                            composerDisabled={sendDisabled}
+                            composerDisabledReason={sendDisabledReason}
                         />
                     </div>
                 </div>

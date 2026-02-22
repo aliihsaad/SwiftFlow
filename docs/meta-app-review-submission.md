@@ -40,7 +40,7 @@ The application connects to a user's Facebook Page(s) via Meta OAuth. Once conne
 | `pages_manage_posts` | Required to create posts on the user's Facebook Page (text and photo posts). | `utils/meta-publish.ts:66` — `POST /{page-id}/feed`; `utils/meta-publish.ts:116` — `POST /{page-id}/photos`; `supabase/functions/process-scheduled-posts/index.ts:29-35`. |
 | `instagram_basic` | Required to read the Instagram Business account ID linked to a Facebook Page, and to read basic account information (follower counts, media count). | `app/api/auth/meta/callback/route.ts` — reads `/{page-id}?fields=instagram_business_account`; `supabase/functions/sync-analytics/index.ts` — reads `/{ig-user-id}?fields=followers_count,follows_count,media_count`. |
 | `instagram_content_publish` | Required to publish image posts to the user's Instagram Business account via the two-step container flow. | `utils/meta-publish.ts:168` — `POST /{ig-user-id}/media` (create container); `utils/meta-publish.ts:196` — `POST /{ig-user-id}/media_publish`; `supabase/functions/process-scheduled-posts/index.ts:67-86`. |
-| `instagram_manage_comments` | Required to read, reply to, and hide comments on the user's Instagram posts. | `supabase/functions/sync-comments/index.ts:83-97` — reads `/{media-id}/comments`; `app/api/comments/route.ts:172` — `POST /{comment-id}/replies`; `app/api/comments/route.ts:282` — `POST /{comment-id}?hide=true`. |
+| `instagram_manage_comments` | Required to read, reply to, and hide comments on the user's Instagram posts. | `supabase/functions/sync-comments/index.ts:83-97` — reads `/{media-id}/comments`; `app/api/posts-media/comments/route.ts` — reads comments for a selected post and sends `POST /{comment-id}/replies` + `POST /{comment-id}?hide=true` to Meta. |
 | `instagram_manage_insights` | Required to read post-level and account-level Instagram metrics (likes, reach, saves, impressions) for the analytics dashboard. | `supabase/functions/sync-analytics/index.ts:127` — reads `/{media-id}?fields=like_count,comments_count`; `supabase/functions/sync-analytics/index.ts:147` — reads `/{media-id}/insights?metric=reach,saved,shares`; `lib/meta-api.ts` — `fetchInstagramInsights()`, `fetchInstagramPostInsights()`. |
 | `instagram_manage_messages` | Required to read and reply to Instagram Direct Messages from the user's Instagram Business account. | `supabase/functions/sync-messages/index.ts:85-99` — fetches conversations via `GET /{page-id}/conversations?platform=instagram`; `app/api/messages/route.ts:171` — sends replies via `POST /{page-id}/messages`. |
 
@@ -139,11 +139,11 @@ Schema defined in: `supabase/migrations/20260101000000_initial_schema.sql`
    - When the scheduled time arrives, the server-side edge function (`process-scheduled-posts`) automatically publishes the post. You can verify by checking the post status changes to "Published" after the scheduled time.
 
 6. **Manage Instagram comments**
-   - Navigate to **Comments** in the left sidebar.
-   - Click **"Sync Comments"** to fetch recent comments from your Instagram posts.
-   - Comments appear grouped by post, showing author username, comment text, and timestamp.
-   - **Reply**: Click the reply icon on any comment, type a response, and click Send. The reply is posted via the Graph API.
-   - **Hide**: Click the hide (eye-off) icon on any comment. The comment is hidden on Instagram via `POST /{comment-id}?hide=true`.
+   - Navigate to **Posts** in the left sidebar.
+   - Open any Instagram post that has comments and click the **Comments** action to open the comments drawer.
+   - The app loads comments for that selected post from Meta and displays author username, comment text, replies, and timestamps.
+   - **Reply**: Click **Reply** on a comment, type a response, and click **Send**. The reply is posted via the Graph API (`POST /{comment-id}/replies`).
+   - **Hide**: Click the **Hide** (eye-off) action on a comment. The app hides the comment on Instagram via `POST /{comment-id}?hide=true`.
 
 ---
 
@@ -193,7 +193,7 @@ Schema defined in: `supabase/migrations/20260101000000_initial_schema.sql`
 
 **[02:00 — 02:40] Managing Instagram comments**
 
-"I navigate to the Comments section and click Sync Comments. The app fetches comments from my Instagram posts."
+"I navigate to the Posts section, open a post, and open the comments drawer. The app fetches comments for that selected Instagram post."
 
 "This permission is used here: `instagram_manage_comments` is used to read comments via GET /{media-id}/comments."
 

@@ -1,18 +1,106 @@
 /**
  * Meta/Facebook OAuth Utilities
- * Uses shared Meta app credentials from environment variables
+ * Uses shared Meta app credentials from environment variables.
+ *
+ * This file is the single source of truth for Meta OAuth scopes.
+ * Use scope profiles to keep App Review submissions narrow and deterministic.
  */
 
-const META_OAUTH_URL = 'https://www.facebook.com/v24.0/dialog/oauth';
-const META_TOKEN_URL = 'https://graph.facebook.com/v24.0/oauth/access_token';
+export const META_OAUTH_VERSION = 'v24.0';
+export const META_OAUTH_URL = `https://www.facebook.com/${META_OAUTH_VERSION}/dialog/oauth`;
+const META_TOKEN_URL = `https://graph.facebook.com/${META_OAUTH_VERSION}/oauth/access_token`;
+
+export type MetaOAuthScopeProfile = 'full' | 'review_phase_1';
+export type MetaOAuthPlatform = 'all' | 'facebook' | 'instagram';
+
+const COMMON_SCOPES = ['public_profile'] as const;
+const FACEBOOK_SCOPES = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts'] as const;
+const INSTAGRAM_SCOPES = [
+    'instagram_basic',
+    'instagram_content_publish',
+    'instagram_manage_insights',
+    'instagram_manage_comments',
+    'instagram_manage_messages',
+] as const;
+
+const REVIEW_PHASE_1_SCOPES = [
+    ...COMMON_SCOPES,
+    'pages_show_list',
+    'pages_manage_posts',
+    'instagram_basic',
+    'instagram_content_publish',
+] as const;
+
+const FULL_SCOPES = [
+    ...COMMON_SCOPES,
+    ...FACEBOOK_SCOPES,
+    ...INSTAGRAM_SCOPES,
+] as const;
+
+const PROFILE_SCOPES: Record<MetaOAuthScopeProfile, readonly string[]> = {
+    full: FULL_SCOPES,
+    review_phase_1: REVIEW_PHASE_1_SCOPES,
+};
+
+function parseCsvScopes(value?: string | null): string[] {
+    if (!value) return [];
+    return value
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+}
+
+export function getMetaScopeProfile(): MetaOAuthScopeProfile {
+    const raw = (process.env.META_OAUTH_SCOPE_PROFILE || 'full').trim();
+    if (raw === 'review_phase_1') return raw;
+    return 'full';
+}
+
+function filterScopesByPlatform(scopes: string[], platform: MetaOAuthPlatform): string[] {
+    if (platform === 'all') return scopes;
+    if (platform === 'facebook') {
+        return scopes.filter((scope) => !scope.startsWith('instagram_'));
+    }
+    // Instagram OAuth still needs page scopes for page selection / linked account access.
+    if (platform === 'instagram') {
+        return scopes.filter((scope) => scope === 'public_profile' || scope.startsWith('instagram_') || scope.startsWith('pages_'));
+    }
+    return scopes;
+}
+
+export function getMetaOAuthScopes(options?: {
+    profile?: MetaOAuthScopeProfile;
+    platform?: MetaOAuthPlatform;
+    includePagesMessaging?: boolean;
+}): string[] {
+    const profile = options?.profile || getMetaScopeProfile();
+    const platform = options?.platform || 'all';
+    const includePagesMessaging = options?.includePagesMessaging
+        ?? String(process.env.META_OAUTH_INCLUDE_PAGES_MESSAGING || '').toLowerCase() === 'true';
+
+    const baseScopes = [...(PROFILE_SCOPES[profile] || PROFILE_SCOPES.full)];
+    const extraScopes = parseCsvScopes(process.env.META_OAUTH_EXTRA_SCOPES);
+    if (includePagesMessaging) {
+        extraScopes.push('pages_messaging');
+    }
+
+    const deduped = Array.from(new Set([...baseScopes, ...extraScopes]));
+    return filterScopesByPlatform(deduped, platform);
+}
+
+export function getMetaOAuthScopeString(options?: {
+    profile?: MetaOAuthScopeProfile;
+    platform?: MetaOAuthPlatform;
+    includePagesMessaging?: boolean;
+}): string {
+    return getMetaOAuthScopes(options).join(',');
+}
 
 /**
- * OAuth Scopes required for full functionality
- * - pages_show_list, pages_read_engagement, pages_manage_posts: Facebook page management
- * - instagram_basic, instagram_content_publish: Instagram posting
- * - instagram_manage_insights, instagram_manage_comments, instagram_manage_messages: Instagram engagement
+ * Backward-compatible export for older call sites.
+ * Represents the default profile scope string for the current environment.
  */
-export const META_SCOPE = 'public_profile,pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish,instagram_manage_insights,instagram_manage_comments,instagram_manage_messages';
+export const META_SCOPE = getMetaOAuthScopeString();
 
 /**
  * Get the correct redirect URI based on environment
@@ -22,37 +110,53 @@ export function getMetaRedirectUri(): string {
     return `${baseUrl}/api/auth/meta/callback`;
 }
 
+export function buildMetaOAuthDialogUrl(params: {
+    clientId: string;
+    redirectUri: string;
+    state?: string;
+    scope?: string;
+}): string {
+    const queryParams = new URLSearchParams({
+        client_id: params.clientId,
+        redirect_uri: params.redirectUri,
+        response_type: 'code',
+        scope: params.scope || getMetaOAuthScopeString(),
+        return_scopes: 'true',
+    });
+
+    if (params.state) {
+        queryParams.set('state', params.state);
+    }
+
+    return `${META_OAUTH_URL}?${queryParams.toString()}`;
+}
+
 /**
  * Generate Meta OAuth URL using environment variables
  */
 export function getMetaOAuthUrl(workspaceId?: string): string {
     const appId = process.env.NEXT_PUBLIC_META_APP_ID;
+    const profile = getMetaScopeProfile();
+    const scope = getMetaOAuthScopeString({ profile });
+
     console.log('[META_OAUTH] Generating OAuth URL', {
         appId: appId,
         appIdType: typeof appId,
         hasWorkspaceId: !!workspaceId,
+        profile,
+        scopes: scope.split(','),
     });
 
     if (!appId) {
         console.error('[META_OAUTH] Missing NEXT_PUBLIC_META_APP_ID');
     }
 
-    const redirectUri = getMetaRedirectUri();
-
-    const params: Record<string, string> = {
-        client_id: appId || '',
-        redirect_uri: redirectUri,
-        response_type: 'code',
-        scope: META_SCOPE,
-        return_scopes: 'true',
-    };
-
-    if (workspaceId) {
-        params.state = workspaceId;
-    }
-
-    const queryParams = new URLSearchParams(params);
-    const finalUrl = `${META_OAUTH_URL}?${queryParams.toString()}`;
+    const finalUrl = buildMetaOAuthDialogUrl({
+        clientId: appId || '',
+        redirectUri: getMetaRedirectUri(),
+        state: workspaceId || undefined,
+        scope,
+    });
     console.log('[META_OAUTH] Final URL:', finalUrl);
 
     return finalUrl;

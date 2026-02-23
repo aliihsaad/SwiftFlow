@@ -55,6 +55,7 @@ serve(async (req) => {
     const config = body?.config || {};
     const context = body?.context || {};
     const accessToken = body?.access_token as string | undefined;
+    const platform = String(body?.platform || '').toLowerCase();
 
     if (!accessToken) {
       return new Response(JSON.stringify({ success: false, error: 'Missing access_token' }), {
@@ -95,7 +96,8 @@ serve(async (req) => {
       });
     }
 
-    const url = `${META_GRAPH_URL}/${context.comment_id}/replies`;
+    const replyPath = platform === 'facebook' ? 'comments' : 'replies';
+    const url = `${META_GRAPH_URL}/${context.comment_id}/${replyPath}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -107,6 +109,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({
         success: false,
         error: result?.error?.message || 'Reply failed',
+        output: { platform, replyPath, meta_error: result?.error || null },
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

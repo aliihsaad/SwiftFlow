@@ -428,6 +428,26 @@ async function handlePageFeedEvent(value: Record<string, unknown>, account: Reso
 async function handleCommentEvent(value: Record<string, unknown>, account: ResolvedAccount) {
     const media = value?.media as Record<string, unknown> | undefined;
     const from = value?.from as Record<string, unknown> | undefined;
+    const commenterId = (from?.id as string | undefined) || '';
+    const selfActorIds = new Set(
+        [
+            account.account_id,
+            account.metadata?.connected_page_id as string | undefined,
+            account.metadata?.page_id as string | undefined,
+        ].filter(Boolean) as string[]
+    );
+
+    // Prevent automation loops when our own page/account reply comment is received back as a webhook event.
+    if (commenterId && selfActorIds.has(commenterId)) {
+        console.log('[WEBHOOK] Ignoring self-authored comment event', {
+            commentId: value?.id,
+            postId: media?.id,
+            commenterId,
+            platform: account.platform,
+        });
+        return;
+    }
+
     console.log('[WEBHOOK] Comment event:', {
         commentId: value?.id,
         postId: media?.id,
@@ -438,7 +458,7 @@ async function handleCommentEvent(value: Record<string, unknown>, account: Resol
     const webhookContext = {
         comment_id: value?.id,
         post_id: media?.id,
-        commenter_id: from?.id,
+        commenter_id: commenterId || undefined,
         commenter_username: from?.username,
         comment_text: value?.text,
         timestamp: value?.created_time,

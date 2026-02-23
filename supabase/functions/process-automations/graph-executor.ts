@@ -400,6 +400,7 @@ async function executeNode(
         context: triggerContext,
         access_token: account?.access_token,
         page_id: pageId,
+        platform: account?.platform,
       });
 
       if (workerResult.ok && workerResult.data) {
@@ -412,7 +413,7 @@ async function executeNode(
 
   switch (nodeType) {
     case 'action_reply_comment':
-      return await executeReplyComment(config, triggerContext, account.access_token);
+      return await executeReplyComment(config, triggerContext, account.access_token, account?.platform);
 
     case 'action_send_dm':
       return await executeSendDM(config, triggerContext, account.access_token, pageId);
@@ -448,6 +449,7 @@ async function executeReplyComment(
   config: any,
   ctx: TriggerContext & { ai_response?: string },
   accessToken: string,
+  platform?: string,
 ): Promise<{ success: boolean; output?: any; error?: string }> {
   if (!ctx.comment_id) return { success: false, error: 'No comment_id in trigger context' };
 
@@ -466,7 +468,8 @@ async function executeReplyComment(
 
   message = normalizeCommentReply(message);
 
-  const url = `${META_GRAPH_URL}/${ctx.comment_id}/replies`;
+  const replyPath = String(platform || '').toLowerCase() === 'facebook' ? 'comments' : 'replies';
+  const url = `${META_GRAPH_URL}/${ctx.comment_id}/${replyPath}`;
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -475,7 +478,7 @@ async function executeReplyComment(
 
   const result = await response.json();
   if (!response.ok || result.error) {
-    return { success: false, error: result.error?.message || 'Reply failed' };
+    return { success: false, error: result.error?.message || 'Reply failed', output: { platform, replyPath, meta_error: result.error || null } };
   }
 
   return { success: true, output: { replyId: result.id } };

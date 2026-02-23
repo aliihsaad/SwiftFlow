@@ -14,6 +14,11 @@ interface ValidationWarning {
   nodeId?: string
 }
 
+const TEMP_DISABLED_NODE_TYPES = new Set([
+  'trigger_story_mention',
+  'action_http_request',
+])
+
 function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warnings: ValidationWarning[] } {
   const errors: ValidationError[] = []
   const warnings: ValidationWarning[] = []
@@ -110,6 +115,16 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
   for (const node of graph.nodes) {
     const config = node.data?.config as unknown as Record<string, unknown> | undefined
     if (!config) continue
+
+    if (TEMP_DISABLED_NODE_TYPES.has(String(node.data?.type || ''))) {
+      const label = String(node.data?.label || node.data?.type || 'This node')
+      errors.push({
+        code: 'NODE_TEMPORARILY_DISABLED',
+        message: `${label} is temporarily disabled and cannot be used right now.`,
+        nodeId: node.id,
+      })
+      continue
+    }
 
     switch (node.data?.type) {
       case 'trigger_new_comment':

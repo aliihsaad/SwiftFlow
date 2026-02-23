@@ -50,12 +50,14 @@ export function WorkflowSidebar({ collapsed, onAddNode }: WorkflowSidebarProps) 
   const supportedTriggers = new Set([
     'trigger_new_comment',
     'trigger_new_message',
-    'trigger_story_mention',
   ])
   const triggers = NODE_CATALOG.filter(
     n => n.category === 'trigger' && supportedTriggers.has(n.type),
   )
-  const actions = NODE_CATALOG.filter(n => n.category === 'action')
+  const disabledActions = new Set(['action_http_request'])
+  const actions = NODE_CATALOG.filter(
+    n => n.category === 'action' && !disabledActions.has(n.type),
+  )
 
   if (collapsed) return null
 

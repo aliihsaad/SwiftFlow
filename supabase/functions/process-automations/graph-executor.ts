@@ -20,6 +20,10 @@ const DM_FALLBACK_CODES = new Set([
   '10:2018278',
 ]);
 
+const TEMP_DISABLED_ACTION_TYPES = new Set([
+  'action_http_request',
+]);
+
 function isDmFallbackError(error: { code?: number; error_subcode?: number }) {
   const key1 = String(error.code);
   const key2 = `${error.code}:${error.error_subcode}`;
@@ -387,6 +391,14 @@ async function executeNode(
 ): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
   const config = node.data.config;
   const nodeType = node.data.type;
+
+  if (TEMP_DISABLED_ACTION_TYPES.has(nodeType)) {
+    return {
+      success: false,
+      error: `${node.data.label || 'HTTP Request'} is temporarily disabled`,
+      output: { disabled: true, nodeType },
+    };
+  }
 
   // action_delay is scheduler-controlled and should not be delegated.
   if (nodeType !== 'action_delay') {

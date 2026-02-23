@@ -9,6 +9,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const TEMP_DISABLED_TRIGGER_TYPES = new Set([
+  'trigger_story_mention',
+]);
+
 function deriveEventType(triggerType: string | null, webhookContext: Record<string, any>): string {
   if (triggerType === 'trigger_new_message') return 'message';
   if (triggerType === 'trigger_story_mention') return 'story_mention';
@@ -47,6 +51,10 @@ function matchesAutomationTrigger(
 
   const triggerType = String(triggerNode?.data?.type || '');
   const config = triggerNode?.data?.config || {};
+
+  if (TEMP_DISABLED_TRIGGER_TYPES.has(triggerType)) {
+    return false;
+  }
 
   if (sourceSocialAccountId && config.social_account_id && config.social_account_id !== sourceSocialAccountId) {
     return false;

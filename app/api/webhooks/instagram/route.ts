@@ -539,24 +539,7 @@ async function handleMessageAutomationTrigger(value: Record<string, unknown>, ac
 }
 
 async function handleStoryMentionEvent(value: Record<string, unknown>, account: ResolvedAccount) {
-    console.log('[WEBHOOK] Story mention event:', value);
-
-    try {
-        await invokeAutomationOrchestrator({
-            workspace_id: account.workspace_id,
-            social_account_id: account.social_account_id,
-            trigger_type: 'trigger_story_mention',
-            event_type: 'story_mention',
-            source: 'webhook',
-            webhook_context: {
-                sender_id: (value?.from as Record<string, unknown>)?.id as string,
-                sender_username: (value?.from as Record<string, unknown>)?.username as string,
-                timestamp: new Date().toISOString(),
-            },
-        });
-    } catch (error) {
-        console.error('[WEBHOOK] Story mention automation trigger error:', error);
-    }
+    console.log('[WEBHOOK] Story mention event received but trigger is temporarily disabled:', value);
 }
 
 async function handleStoryReplyEvent(value: Record<string, unknown>, account: ResolvedAccount) {

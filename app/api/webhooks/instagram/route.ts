@@ -224,6 +224,9 @@ async function processWebhookEvents(body: Record<string, unknown>) {
                 case 'comments':
                     await handleCommentEvent(change.value as Record<string, unknown>, account);
                     break;
+                case 'feed':
+                    await handlePageFeedEvent(change.value as Record<string, unknown>, account);
+                    break;
                 case 'messages':
                     await handleMessageEvent(change.value as Record<string, unknown>, account);
                     // Also trigger message-based automations
@@ -356,6 +359,71 @@ async function invokeAutomationOrchestrator(payload: Record<string, unknown>) {
 // ============================================
 // Comment Handler
 // ============================================
+
+function normalizeFacebookFeedCommentValue(value: Record<string, unknown>): Record<string, unknown> | null {
+    const item = String(value?.item || '').toLowerCase();
+    const verb = String(value?.verb || '').toLowerCase();
+
+    // Page feed includes many event types; only route new comments into comment automations.
+    if (item !== 'comment') return null;
+    if (verb && verb !== 'add') return null;
+
+    const from = (value?.from as Record<string, unknown> | undefined) || {};
+    const commentId = (value?.comment_id || value?.id) as string | undefined;
+    const postId =
+        (value?.post_id as string | undefined) ||
+        ((value?.post as Record<string, unknown> | undefined)?.id as string | undefined) ||
+        (value?.parent_id as string | undefined);
+
+    // Meta may use `message` for page feed comments, unlike Instagram `comments` field events (which use `text`)
+    const text =
+        (value?.message as string | undefined) ??
+        (value?.text as string | undefined) ??
+        (value?.comment as string | undefined) ??
+        '';
+
+    if (!commentId || !postId) {
+        console.log('[WEBHOOK] Ignoring page feed comment event with missing IDs', {
+            item,
+            verb,
+            commentId,
+            postId,
+            keys: Object.keys(value || {}),
+        });
+        return null;
+    }
+
+    return {
+        id: commentId,
+        media: { id: postId },
+        from: {
+            id: (from?.id || value?.sender_id || value?.from_id) as string | undefined,
+            username: (from?.username || from?.name || value?.sender_name || value?.from_name) as string | undefined,
+        },
+        text,
+        created_time: (value?.created_time || value?.time || new Date().toISOString()) as string | number,
+    };
+}
+
+async function handlePageFeedEvent(value: Record<string, unknown>, account: ResolvedAccount) {
+    const normalizedComment = normalizeFacebookFeedCommentValue(value);
+    if (!normalizedComment) {
+        console.log('[WEBHOOK] Ignored page feed event (non-comment or unsupported)', {
+            item: value?.item,
+            verb: value?.verb,
+        });
+        return;
+    }
+
+    console.log('[WEBHOOK] Page feed comment event:', {
+        item: value?.item,
+        verb: value?.verb,
+        commentId: normalizedComment?.id,
+        postId: (normalizedComment?.media as Record<string, unknown> | undefined)?.id,
+    });
+
+    await handleCommentEvent(normalizedComment, account);
+}
 
 async function handleCommentEvent(value: Record<string, unknown>, account: ResolvedAccount) {
     const media = value?.media as Record<string, unknown> | undefined;

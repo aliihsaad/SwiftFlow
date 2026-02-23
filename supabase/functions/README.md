@@ -18,6 +18,7 @@ This folder contains all deployed Supabase edge functions used by the app.
 - `sync-analytics`
 - `sync-comments`
 - `sync-messages`
+- `scheduler-tick` (Supabase cron target that runs scheduled posts + delay resumes)
 
 ## Automation (Wizard + Canvas)
 - `process-automations`:
@@ -43,6 +44,7 @@ This folder contains all deployed Supabase edge functions used by the app.
 ## Notes
 - Removed/deprecated functions were deleted from this repo and should not be redeployed.
 - Keep function names stable once referenced by app routes or webhook handlers.
+- Vercel Hobby does not support 1-minute cron. Use a Supabase schedule targeting `scheduler-tick` for minutely jobs.
 
 ## Deployment Requirement (Automation Workers)
 
@@ -79,7 +81,19 @@ supabase functions deploy automation-worker-send-email --no-verify-jwt
 Orchestrator/scheduler functions (normal deploy):
 
 ```bash
+supabase functions deploy scheduler-tick
 supabase functions deploy automation-orchestrator
 supabase functions deploy process-scheduled-executions
 supabase functions deploy process-automations
 ```
+
+## Supabase Cron Setup (Recommended for 1-minute Jobs)
+
+Use a single Supabase schedule to invoke `scheduler-tick` every minute. The function runs both:
+- `process-scheduled-posts`
+- `process-scheduled-executions` (Delay node resumes)
+
+Recommended schedule:
+- `* * * * *`
+
+This avoids running separate minutely schedulers and keeps the cadence at 1440 ticks/day total.

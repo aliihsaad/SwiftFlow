@@ -220,6 +220,7 @@ supabase functions deploy process-scheduled-posts
 supabase functions deploy sync-analytics
 supabase functions deploy sync-comments
 supabase functions deploy sync-messages
+supabase functions deploy scheduler-tick
 supabase functions deploy process-automations
 supabase functions deploy process-scheduled-executions
 supabase functions deploy automation-orchestrator

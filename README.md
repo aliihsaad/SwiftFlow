@@ -200,6 +200,11 @@ RLS and grants are managed by migrations in `supabase/migrations`. Do not disabl
 
 ### 5. Deploy Edge Functions
 
+> [!IMPORTANT]
+> Canvas automation worker functions must be deployed with `--no-verify-jwt`.
+> They are invoked internally by `automation-orchestrator` / `process-scheduled-executions`.
+> If these workers are redeployed without `--no-verify-jwt`, canvas automations can stop dispatching and fail with `401 Invalid JWT`.
+
 ```bash
 # Deploy all functions
 supabase functions deploy chat-assistant
@@ -218,14 +223,14 @@ supabase functions deploy sync-messages
 supabase functions deploy process-automations
 supabase functions deploy process-scheduled-executions
 supabase functions deploy automation-orchestrator
-supabase functions deploy automation-worker-run
-supabase functions deploy automation-worker-ai-response
-supabase functions deploy automation-worker-reply-comment
-supabase functions deploy automation-worker-send-dm
-supabase functions deploy automation-worker-private-reply
-supabase functions deploy automation-worker-condition
-supabase functions deploy automation-worker-http-request
-supabase functions deploy automation-worker-send-email
+supabase functions deploy automation-worker-run --no-verify-jwt
+supabase functions deploy automation-worker-ai-response --no-verify-jwt
+supabase functions deploy automation-worker-reply-comment --no-verify-jwt
+supabase functions deploy automation-worker-send-dm --no-verify-jwt
+supabase functions deploy automation-worker-private-reply --no-verify-jwt
+supabase functions deploy automation-worker-condition --no-verify-jwt
+supabase functions deploy automation-worker-http-request --no-verify-jwt
+supabase functions deploy automation-worker-send-email --no-verify-jwt
 ```
 
 #### Set Function Secrets

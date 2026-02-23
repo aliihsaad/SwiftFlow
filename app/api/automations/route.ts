@@ -29,9 +29,35 @@ export async function GET(request: NextRequest) {
             throw error;
         }
 
-        // Get actual counts from automation_logs for each automation
+        // Get runtime stats per automation.
+        // Wizard automations use legacy automation_logs.
+        // Canvas automations use automation_runs + persisted counters on automations.
         const automationsWithStats = await Promise.all(
             (automations || []).map(async (automation) => {
+                const isCanvas = automation.editor_version === 'canvas' && !!automation.workflow_graph;
+
+                if (isCanvas) {
+                    const { count: totalRuns, error: runsCountError } = await supabase
+                        .from('automation_runs')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('automation_id', automation.id);
+
+                    if (runsCountError) {
+                        console.error('Failed to count automation_runs for canvas automation:', {
+                            automationId: automation.id,
+                            error: runsCountError,
+                        });
+                    }
+
+                    return {
+                        ...automation,
+                        // The UI currently labels this as "runs", so use automation_runs count.
+                        total_triggered: totalRuns ?? 0,
+                        // Canvas workers maintain this counter on the automations table.
+                        total_dms_sent: automation.total_dms_sent || 0,
+                    };
+                }
+
                 const { count: totalTriggered } = await supabase
                     .from('automation_logs')
                     .select('*', { count: 'exact', head: true })

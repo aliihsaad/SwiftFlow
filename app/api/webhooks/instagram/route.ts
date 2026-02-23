@@ -110,10 +110,13 @@ export async function GET(request: NextRequest) {
  * 4. Return 200 on success, 500 on failure (Meta retries non-2xx)
  */
 export async function POST(request: NextRequest) {
-    // Use Instagram-specific app secret for webhook verification (separate from OAuth app secret)
-    const appSecret = process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET;
-    if (!appSecret) {
-        console.error('[WEBHOOK] Missing INSTAGRAM_APP_SECRET or META_APP_SECRET');
+    const candidateSecrets = [
+        process.env.INSTAGRAM_APP_SECRET?.trim(),
+        process.env.META_APP_SECRET?.trim(),
+    ].filter((v, i, arr): v is string => !!v && arr.indexOf(v) === i);
+
+    if (candidateSecrets.length === 0) {
+        console.error('[WEBHOOK] Missing INSTAGRAM_APP_SECRET and META_APP_SECRET');
         return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
     }
 
@@ -127,23 +130,31 @@ export async function POST(request: NextRequest) {
         return new NextResponse('Missing signature', { status: 401 });
     }
 
-    const expectedSignature = 'sha256=' + crypto
-        .createHmac('sha256', appSecret.trim())
-        .update(rawBuffer)
-        .digest('hex');
+    const expectedSignatures = candidateSecrets.map((secret) => ({
+        source:
+            secret === process.env.INSTAGRAM_APP_SECRET?.trim()
+                ? 'INSTAGRAM_APP_SECRET'
+                : 'META_APP_SECRET',
+        value:
+            'sha256=' +
+            crypto.createHmac('sha256', secret).update(rawBuffer).digest('hex'),
+    }));
+
+    const matchedSignature = expectedSignatures.find((sig) => {
+        const sigBuffer = Buffer.from(signature);
+        const expectedBuffer = Buffer.from(sig.value);
+        return sigBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(sigBuffer, expectedBuffer);
+    });
 
     console.log('[WEBHOOK] Signature debug:', {
         receivedPrefix: signature.substring(0, 20),
-        expectedPrefix: expectedSignature.substring(0, 20),
-        match: signature === expectedSignature,
+        expectedPrefixes: expectedSignatures.map((s) => `${s.source}:${s.value.substring(0, 20)}`),
+        match: !!matchedSignature,
+        matchedSource: matchedSignature?.source || null,
         bodyLen: rawBuffer.length,
     });
 
-    // Constant-time comparison to prevent timing attacks
-    const sigBuffer = Buffer.from(signature);
-    const expectedBuffer = Buffer.from(expectedSignature);
-
-    if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+    if (!matchedSignature) {
         console.warn('[WEBHOOK] Signature verification failed');
         return new NextResponse('Invalid signature', { status: 401 });
     }
@@ -409,8 +420,14 @@ async function handleMessageAutomationTrigger(value: Record<string, unknown>, ac
     const message = value?.message as Record<string, unknown> | undefined;
     const senderId = (sender?.id || from?.id) as string | undefined;
     const messageText = (message?.text || value?.text) as string | undefined;
+    const messageId = (message?.mid || value?.id) as string | undefined;
+    const hasAttachmentPayload =
+        !!(message && 'attachments' in message && message.attachments) ||
+        !!(value && 'attachments' in value && value.attachments);
 
-    if (!senderId || !messageText) return;
+    // Allow "any message" triggers for attachment/share messages even when Meta omits text.
+    // Keyword triggers will still fail to match because message_text becomes an empty string.
+    if (!senderId || (!messageText && !messageId && !hasAttachmentPayload)) return;
 
     try {
         await invokeAutomationOrchestrator({
@@ -422,8 +439,9 @@ async function handleMessageAutomationTrigger(value: Record<string, unknown>, ac
             webhook_context: {
                 sender_id: senderId,
                 sender_username: (sender?.username || from?.username) as string,
-                message_text: messageText,
-                message_id: (message?.mid || value?.id) as string,
+                message_text: messageText || '',
+                message_id: messageId,
+                message_has_attachments: hasAttachmentPayload,
                 timestamp: new Date().toISOString(),
             },
         });

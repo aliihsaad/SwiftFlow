@@ -8,9 +8,10 @@ interface KPICardsProps {
     views: KPIData
     followers: FollowersKPIData
     growthRate: KPIData
+    comparisonLabel?: string
 }
 
-export function KPICards({ engagement, views, followers, growthRate }: KPICardsProps) {
+export function KPICards({ engagement, views, followers, growthRate, comparisonLabel = "vs previous period" }: KPICardsProps) {
     const kpis = [
         {
             title: "Total Engagement",
@@ -107,7 +108,7 @@ export function KPICards({ engagement, views, followers, growthRate }: KPICardsP
                             <span className="text-xs font-semibold" style={{ color: isPositive ? '#34d399' : '#f87171' }}>
                                 {Math.abs(kpi.change)}%
                             </span>
-                            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>vs last month</span>
+                            <span className="text-xs" style={{ color: 'rgba(255,255,255,0.25)' }}>{comparisonLabel}</span>
                         </div>
                     </div>
                 )

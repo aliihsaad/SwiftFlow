@@ -344,6 +344,21 @@ function buildAnalyticsMeta(params: {
     }
 }
 
+function roundPct(value: number): number {
+    const rounded = Number((Number.isFinite(value) ? value : 0).toFixed(1))
+    return Object.is(rounded, -0) ? 0 : rounded
+}
+
+function calculatePeriodChangePct(current: number, previous: number): number {
+    const curr = Number.isFinite(current) ? current : 0
+    const prev = Number.isFinite(previous) ? previous : 0
+    if (prev === 0) {
+        // No reliable prior baseline -> avoid fake percentages.
+        return 0
+    }
+    return roundPct(((curr - prev) / Math.abs(prev)) * 100)
+}
+
 // Transform database data into analytics response format
 function transformRealDataToAnalytics(
     publishedPosts: any[],
@@ -387,6 +402,11 @@ function transformRealDataToAnalytics(
 
     // KPIs are range-based
     const postsInRange = allPosts.filter((post) => new Date(post.timestamp).getTime() >= startDate.getTime())
+    const previousPeriodStart = subDays(startDate, daysCount)
+    const postsInPreviousRange = allPosts.filter((post) => {
+        const ts = new Date(post.timestamp).getTime()
+        return ts >= previousPeriodStart.getTime() && ts < startDate.getTime()
+    })
 
     // Cards show latest available posts regardless of selected range
     const latestPost = allPosts.length > 0 ? allPosts[0] : null
@@ -398,6 +418,10 @@ function transformRealDataToAnalytics(
     const totalShares = postsInRange.reduce((sum, post) => sum + post.shares, 0)
     const totalEngagement = totalLikes + totalComments + totalShares
     const totalViews = postsInRange.reduce((sum, post) => sum + post.views, 0)
+    const previousEngagement = postsInPreviousRange.reduce((sum, post) => sum + post.likes + post.comments + post.shares, 0)
+    const previousViews = postsInPreviousRange.reduce((sum, post) => sum + post.views, 0)
+    const engagementChangePct = calculatePeriodChangePct(totalEngagement, previousEngagement)
+    const viewsChangePct = calculatePeriodChangePct(totalViews, previousViews)
 
     // Get follower data from account analytics
     const sortedAccountAnalytics = accountAnalytics
@@ -442,7 +466,6 @@ function transformRealDataToAnalytics(
     })
 
     // Calculate previous period followers — sum the most recent entry per account within previous period
-    const previousPeriodStart = subDays(startDate, daysCount)
     const previousByAccount = new Map<string, number>()
     accountAnalytics
         .filter(a => {
@@ -461,6 +484,29 @@ function transformRealDataToAnalytics(
     const followersChange = previousFollowers > 0
         ? ((currentFollowers - previousFollowers) / previousFollowers) * 100
         : 0
+    const followersChangeRounded = roundPct(followersChange)
+
+    // Compare growth rate (current period growth %) vs previous period growth %
+    const prePreviousPeriodStart = subDays(previousPeriodStart, daysCount)
+    const prePreviousByAccount = new Map<string, number>()
+    accountAnalytics
+        .filter(a => {
+            const date = new Date(a.date)
+            return date >= prePreviousPeriodStart && date < previousPeriodStart
+        })
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .forEach(a => {
+            if (!prePreviousByAccount.has(a.social_account_id)) {
+                prePreviousByAccount.set(a.social_account_id, a.followers || 0)
+            }
+        })
+    const prePreviousFollowers = prePreviousByAccount.size > 0
+        ? Array.from(prePreviousByAccount.values()).reduce((sum, f) => sum + f, 0)
+        : previousFollowers
+    const previousGrowthRate = prePreviousFollowers > 0
+        ? ((previousFollowers - prePreviousFollowers) / prePreviousFollowers) * 100
+        : 0
+    const growthRateChangePct = calculatePeriodChangePct(followersChangeRounded, roundPct(previousGrowthRate))
 
     // Calculate total reach (sum of all post views)
     const totalReach = totalViews
@@ -469,22 +515,22 @@ function transformRealDataToAnalytics(
         kpis: {
             engagement: {
                 value: totalEngagement,
-                changePct: 12.5, // TODO: Calculate actual change from previous period
+                changePct: engagementChangePct,
             },
             views: {
                 value: totalViews,
                 display: totalViews > 1000 ? `${(totalViews / 1000).toFixed(1)}K` : String(totalViews),
-                changePct: 8.3, // TODO: Calculate actual change from previous period
+                changePct: viewsChangePct,
             },
             followers: {
                 value: currentFollowers,
-                changePct: Number(followersChange.toFixed(1)),
+                changePct: followersChangeRounded,
                 facebook: facebookFollowers,
                 instagram: instagramFollowers,
             },
             growthRate: {
-                value: Number(followersChange.toFixed(1)),
-                changePct: 2.1, // TODO: Calculate actual change from previous period
+                value: followersChangeRounded,
+                changePct: growthRateChangePct,
             },
         },
         followerGrowth: followerGrowthData,

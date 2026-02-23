@@ -186,6 +186,12 @@ export default function AnalyticsPage() {
         missingPermissions?: string[]
         requiresReconnect?: boolean
     }) | undefined
+    const kpiComparisonLabel =
+        dateRange === 'last_7_days'
+            ? 'vs previous 7 days'
+            : dateRange === 'last_30_days'
+                ? 'vs previous 30 days'
+                : 'vs previous 90 days'
 
     const getStatusChipStyle = (status: 'available' | 'partial' | 'unavailable') => {
         if (status === 'available') {
@@ -371,6 +377,7 @@ export default function AnalyticsPage() {
                         views={data.kpis.views}
                         followers={data.kpis.followers}
                         growthRate={data.kpis.growthRate}
+                        comparisonLabel={kpiComparisonLabel}
                     />
 
                     {/* Follower Growth Chart */}

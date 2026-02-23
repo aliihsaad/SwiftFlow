@@ -239,6 +239,13 @@ serve(async (req) => {
       });
 
       if (!invokeResult.ok || invokeResult.data?.success === false) {
+        console.error('[ORCHESTRATOR] Run worker invocation failed', {
+          automation_id: automation.id,
+          run_id: runRow.id,
+          status: invokeResult.status,
+          error: invokeResult.error,
+          data: invokeResult.data,
+        });
         failed++;
         await supabase
           .from('automation_runs')

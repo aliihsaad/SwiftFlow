@@ -11,6 +11,7 @@ export type TriggerNodeType =
   | 'trigger_story_reply'
 
 export interface TriggerNewCommentConfig {
+  platform?: 'instagram' | 'facebook'
   trigger_type: 'any' | 'keywords'
   keywords: string[]
   post_id: string
@@ -20,6 +21,7 @@ export interface TriggerNewCommentConfig {
 }
 
 export interface TriggerNewMessageConfig {
+  platform?: 'instagram' | 'facebook'
   trigger_type: 'any' | 'keywords'
   keywords: string[]
   social_account_id: string

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import useSWR from 'swr'
-import { X, Check, Image as ImageIcon, Video, LayoutGrid, Instagram } from 'lucide-react'
+import { X, Check, Image as ImageIcon, Video, LayoutGrid, Instagram, Facebook } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -148,35 +148,76 @@ interface SocialAccount {
   account_id: string
 }
 
+type TriggerPlatform = 'instagram' | 'facebook'
+
+function getTriggerPlatformValue(value: unknown): TriggerPlatform {
+  return value === 'facebook' ? 'facebook' : 'instagram'
+}
+
+function PlatformAccountIcon({ platform }: { platform: TriggerPlatform }) {
+  return platform === 'facebook'
+    ? <Facebook className="h-3.5 w-3.5 text-blue-500" />
+    : <Instagram className="h-3.5 w-3.5 text-pink-500" />
+}
+
 function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+  const [platform, setPlatform] = useState<TriggerPlatform>(getTriggerPlatformValue(config.platform))
   const [accountId, setAccountId] = useState(config.social_account_id || '')
 
-  // Fetch Instagram accounts
+  // Fetch platform accounts
   const { data: accountsData, isLoading: accountsLoading } = useSWR<{ accounts: SocialAccount[] }>(
-    '/api/automations/instagram-accounts',
+    `/api/automations/social-accounts?platform=${platform}`,
     configFetcher,
   )
 
-  // Fetch posts for selected account
+  // Fetch posts/media for selected account (IG media or FB posts)
   const { data: postsData, isLoading: postsLoading } = useSWR<{ media: InstagramMedia[] }>(
-    accountId ? `/api/automations/instagram-media?account_id=${accountId}` : null,
+    accountId ? `/api/automations/media?account_id=${accountId}` : null,
     configFetcher,
   )
 
-  const instagramAccounts = accountsData?.accounts?.filter(a => a.platform === 'instagram') || []
+  const platformAccounts = (accountsData?.accounts || []).filter(
+    (a) => a.platform === platform,
+  )
 
   // Auto-select first account
   useEffect(() => {
-    if (!accountId && instagramAccounts.length > 0) {
-      const first = instagramAccounts[0]
+    if (!accountId && platformAccounts.length > 0) {
+      const first = platformAccounts[0]
       setAccountId(first.id)
-      onUpdate({ social_account_id: first.id })
+      onUpdate({ social_account_id: first.id, platform })
     }
-  }, [instagramAccounts, accountId])
+  }, [platformAccounts, accountId, onUpdate, platform])
+
+  useEffect(() => {
+    const configPlatform = getTriggerPlatformValue(config.platform)
+    if (configPlatform !== platform) {
+      setPlatform(configPlatform)
+    }
+  }, [config.platform, platform])
+
+  const handlePlatformChange = (newPlatformValue: string) => {
+    const nextPlatform = getTriggerPlatformValue(newPlatformValue)
+    setPlatform(nextPlatform)
+    setAccountId('')
+    onUpdate({
+      platform: nextPlatform,
+      social_account_id: '',
+      post_id: '',
+      post_thumbnail_url: undefined,
+      post_caption: undefined,
+    })
+  }
 
   const handleAccountChange = (newId: string) => {
     setAccountId(newId)
-    onUpdate({ social_account_id: newId, post_id: '', post_thumbnail_url: undefined, post_caption: undefined })
+    onUpdate({
+      platform,
+      social_account_id: newId,
+      post_id: '',
+      post_thumbnail_url: undefined,
+      post_caption: undefined,
+    })
   }
 
   const handlePostSelect = (post: InstagramMedia) => {
@@ -197,23 +238,48 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
 
   return (
     <>
+      <div>
+        <Label className="text-xs">Platform</Label>
+        <Select value={platform} onValueChange={handlePlatformChange}>
+          <SelectTrigger className="mt-1 w-full">
+            <SelectValue placeholder="Select platform" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="instagram">
+              <div className="flex items-center gap-2">
+                <Instagram className="h-3.5 w-3.5 text-pink-500" />
+                <span className="text-sm">Instagram</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="facebook">
+              <div className="flex items-center gap-2">
+                <Facebook className="h-3.5 w-3.5 text-blue-500" />
+                <span className="text-sm">Facebook</span>
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* Account selector */}
       <div>
-        <Label className="text-xs">Instagram Account</Label>
+        <Label className="text-xs">{platform === 'instagram' ? 'Instagram Account' : 'Facebook Page'}</Label>
         {accountsLoading ? (
           <Skeleton className="h-9 w-full mt-1" />
-        ) : instagramAccounts.length === 0 ? (
-          <p className="text-xs text-muted-foreground mt-1">No Instagram accounts connected.</p>
+        ) : platformAccounts.length === 0 ? (
+          <p className="text-xs text-muted-foreground mt-1">
+            {platform === 'instagram' ? 'No Instagram accounts connected.' : 'No Facebook pages connected.'}
+          </p>
         ) : (
           <Select value={accountId} onValueChange={handleAccountChange}>
             <SelectTrigger className="mt-1 w-full">
               <SelectValue placeholder="Select account" />
             </SelectTrigger>
             <SelectContent>
-              {instagramAccounts.map((acc) => (
+              {platformAccounts.map((acc) => (
                 <SelectItem key={acc.id} value={acc.id}>
                   <div className="flex items-center gap-2">
-                    <Instagram className="h-3.5 w-3.5 text-pink-500" />
+                    <PlatformAccountIcon platform={platform} />
                     <span className="text-sm">{acc.account_name}</span>
                   </div>
                 </SelectItem>
@@ -225,7 +291,7 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
 
       {/* Post grid */}
       <div>
-        <Label className="text-xs">Select Post</Label>
+        <Label className="text-xs">Select {platform === 'instagram' ? 'Post' : 'Page Post'}</Label>
         {postsLoading ? (
           <div className="grid grid-cols-3 gap-1.5 mt-1">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -234,7 +300,7 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
           </div>
         ) : !postsData?.media || postsData.media.length === 0 ? (
           <p className="text-xs text-muted-foreground mt-1">
-            {accountId ? 'No posts found.' : 'Select an account first.'}
+            {accountId ? `No ${platform === 'instagram' ? 'posts' : 'page posts'} found.` : 'Select an account first.'}
           </p>
         ) : (
           <div className="grid grid-cols-3 gap-1.5 mt-1 max-h-[280px] overflow-y-auto">
@@ -331,36 +397,82 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
 }
 
 function TriggerMessageFields({ config, onUpdate }: { config: TriggerNewMessageConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+  const [platform, setPlatform] = useState<TriggerPlatform>(getTriggerPlatformValue(config.platform))
   const { data: accountsData, isLoading: accountsLoading } = useSWR<{ accounts: SocialAccount[] }>(
-    '/api/automations/instagram-accounts',
+    `/api/automations/social-accounts?platform=${platform}`,
     configFetcher,
   )
 
-  const instagramAccounts = accountsData?.accounts?.filter(a => a.platform === 'instagram') || []
+  const platformAccounts = (accountsData?.accounts || []).filter((a) => a.platform === platform)
+
+  useEffect(() => {
+    const configPlatform = getTriggerPlatformValue(config.platform)
+    if (configPlatform !== platform) {
+      setPlatform(configPlatform)
+    }
+  }, [config.platform, platform])
+
+  useEffect(() => {
+    if (!config.social_account_id && platformAccounts.length > 0) {
+      onUpdate({ social_account_id: platformAccounts[0].id, platform })
+    }
+  }, [config.social_account_id, onUpdate, platform, platformAccounts])
 
   return (
     <>
       <div>
-        <Label className="text-xs">Instagram Account</Label>
+        <Label className="text-xs">Platform</Label>
+        <Select
+          value={platform}
+          onValueChange={(newPlatformValue) => {
+            const nextPlatform = getTriggerPlatformValue(newPlatformValue)
+            setPlatform(nextPlatform)
+            onUpdate({ platform: nextPlatform, social_account_id: '' })
+          }}
+        >
+          <SelectTrigger className="mt-1 w-full">
+            <SelectValue placeholder="Select platform" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="instagram">
+              <div className="flex items-center gap-2">
+                <Instagram className="h-3.5 w-3.5 text-pink-500" />
+                <span className="text-sm">Instagram</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="facebook">
+              <div className="flex items-center gap-2">
+                <Facebook className="h-3.5 w-3.5 text-blue-500" />
+                <span className="text-sm">Facebook</span>
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label className="text-xs">{platform === 'instagram' ? 'Instagram Account' : 'Facebook Page'}</Label>
         {accountsLoading ? (
           <Skeleton className="h-9 w-full mt-1" />
-        ) : instagramAccounts.length === 0 ? (
-          <p className="text-xs text-muted-foreground mt-1">No Instagram accounts connected.</p>
+        ) : platformAccounts.length === 0 ? (
+          <p className="text-xs text-muted-foreground mt-1">
+            {platform === 'instagram' ? 'No Instagram accounts connected.' : 'No Facebook pages connected.'}
+          </p>
         ) : (
           <Select
             value={config.social_account_id || ''}
             onValueChange={(newId) => {
-              onUpdate({ social_account_id: newId })
+              onUpdate({ social_account_id: newId, platform })
             }}
           >
             <SelectTrigger className="mt-1 w-full">
               <SelectValue placeholder="Select account" />
             </SelectTrigger>
             <SelectContent>
-              {instagramAccounts.map((acc) => (
+              {platformAccounts.map((acc) => (
                 <SelectItem key={acc.id} value={acc.id}>
                   <div className="flex items-center gap-2">
-                    <Instagram className="h-3.5 w-3.5 text-pink-500" />
+                    <PlatformAccountIcon platform={platform} />
                     <span className="text-sm">{acc.account_name}</span>
                   </div>
                 </SelectItem>

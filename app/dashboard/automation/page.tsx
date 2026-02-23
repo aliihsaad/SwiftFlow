@@ -143,7 +143,7 @@ export default function AutomationPage() {
                         Automation
                     </h1>
                     <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                        Automate your Instagram engagement with smart triggers and actions.
+                        Automate your Instagram and Facebook engagement with smart triggers and actions.
                     </p>
                 </div>
             </div>

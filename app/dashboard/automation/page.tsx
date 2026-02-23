@@ -2,14 +2,16 @@
 
 import { useState, useCallback } from "react"
 import useSWR from "swr"
-import { Zap, MessageCircle, Plus, Workflow, ListChecks } from "lucide-react"
+import { Zap, MessageCircle, Plus, Workflow, ListChecks, Sparkles } from "lucide-react"
 import { AutomationCard } from "@/components/automation/automation-card"
 import { AutomationSetupModal } from "@/components/automation/automation-setup-modal"
 import { ActiveAutomationsList } from "@/components/automation/active-automations-list"
+import { AutomationTemplatePicker } from "@/components/automation/automation-template-picker"
 import { WorkflowCanvas } from "@/components/automation/canvas/workflow-canvas"
 import { Automation } from "@/types/automation"
 import { WorkflowGraph } from "@/types/automation-graph"
 import { useToast } from "@/components/ui/use-toast"
+import type { AutomationTemplateDefinition } from "@/lib/automation-templates"
 
 interface AutomationsResponse {
     automations: Automation[]
@@ -27,7 +29,10 @@ type EditorView = 'list' | 'canvas' | 'wizard'
 export default function AutomationPage() {
     const [editorView, setEditorView] = useState<EditorView>('list')
     const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null)
+    const [canvasTemplateGraph, setCanvasTemplateGraph] = useState<WorkflowGraph | undefined>(undefined)
+    const [canvasTemplateName, setCanvasTemplateName] = useState<string | null>(null)
     const [isSetupModalOpen, setIsSetupModalOpen] = useState(false)
+    const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false)
     const { toast } = useToast()
 
     const { data, error, isLoading, mutate } = useSWR<AutomationsResponse>(
@@ -36,11 +41,40 @@ export default function AutomationPage() {
         { revalidateOnFocus: false, dedupingInterval: 30000 }
     )
 
-    const handleCreateCanvas = () => { setEditingAutomation(null); setEditorView('canvas') }
-    const handleCreateWizard = () => { setEditingAutomation(null); setIsSetupModalOpen(true) }
+    const resetCanvasDraftSeed = () => {
+        setCanvasTemplateGraph(undefined)
+        setCanvasTemplateName(null)
+    }
+
+    const handleCreateCanvas = () => {
+        setEditingAutomation(null)
+        resetCanvasDraftSeed()
+        setEditorView('canvas')
+    }
+
+    const handleOpenTemplatePicker = () => {
+        setEditingAutomation(null)
+        resetCanvasDraftSeed()
+        setIsTemplatePickerOpen(true)
+    }
+
+    const handleApplyTemplate = (template: AutomationTemplateDefinition) => {
+        setEditingAutomation(null)
+        setCanvasTemplateGraph(template.buildGraph())
+        setCanvasTemplateName(template.name)
+        setIsTemplatePickerOpen(false)
+        setEditorView('canvas')
+    }
+
+    const handleCreateWizard = () => {
+        setEditingAutomation(null)
+        resetCanvasDraftSeed()
+        setIsSetupModalOpen(true)
+    }
 
     const handleEdit = (automation: Automation) => {
         setEditingAutomation(automation)
+        resetCanvasDraftSeed()
         if (automation.editor_version === 'canvas' && automation.workflow_graph) {
             setEditorView('canvas')
         } else {
@@ -105,6 +139,7 @@ export default function AutomationPage() {
             const data = await response.json()
             throw new Error(data.error || 'Failed to save')
         }
+        resetCanvasDraftSeed()
         mutate()
     }, [editingAutomation, mutate])
 
@@ -114,11 +149,15 @@ export default function AutomationPage() {
             <div className="h-[calc(100vh-4rem)] -m-6">
                 <WorkflowCanvas
                     automationId={editingAutomation?.id}
-                    automationName={editingAutomation?.name || 'New Automation'}
+                    automationName={editingAutomation?.name || canvasTemplateName || 'New Automation'}
                     isActive={editingAutomation?.is_active ?? true}
-                    initialGraph={editingAutomation?.workflow_graph}
+                    initialGraph={editingAutomation?.workflow_graph || canvasTemplateGraph}
                     onSave={handleCanvasSave}
-                    onBack={() => { setEditorView('list'); setEditingAutomation(null) }}
+                    onBack={() => {
+                        setEditorView('list')
+                        setEditingAutomation(null)
+                        resetCanvasDraftSeed()
+                    }}
                 />
             </div>
         )
@@ -162,6 +201,13 @@ export default function AutomationPage() {
                         badge="New"
                     />
                     <AutomationCard
+                        icon={Sparkles}
+                        title="Automation Templates"
+                        description="Start from prebuilt canvas workflows for comment and message automations, then customize them for Instagram or Facebook."
+                        onClick={handleOpenTemplatePicker}
+                        badge="Templates"
+                    />
+                    <AutomationCard
                         icon={MessageCircle}
                         title="Comment Automation"
                         description="Quick setup: automatically reply to comments and optionally send a DM with a link. Great for lead magnets."
@@ -179,6 +225,14 @@ export default function AutomationPage() {
                     </h2>
                     {data?.automations && data.automations.length > 0 && (
                         <div className="flex gap-2">
+                            <button
+                                onClick={handleOpenTemplatePicker}
+                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
+                                style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
+                            >
+                                <Sparkles className="h-3.5 w-3.5" />
+                                Template
+                            </button>
                             <button
                                 onClick={handleCreateCanvas}
                                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
@@ -247,6 +301,14 @@ export default function AutomationPage() {
                         </p>
                         <div className="flex gap-3 justify-center">
                             <button
+                                onClick={handleOpenTemplatePicker}
+                                className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
+                                style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.65)' }}
+                            >
+                                <Sparkles className="h-4 w-4" />
+                                Templates
+                            </button>
+                            <button
                                 onClick={handleCreateCanvas}
                                 className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
                                 style={{
@@ -280,6 +342,12 @@ export default function AutomationPage() {
                     />
                 )}
             </div>
+
+            <AutomationTemplatePicker
+                open={isTemplatePickerOpen}
+                onOpenChange={setIsTemplatePickerOpen}
+                onSelectTemplate={handleApplyTemplate}
+            />
 
             {/* Wizard modal */}
             <AutomationSetupModal

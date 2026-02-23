@@ -73,6 +73,12 @@ function inferMissingPermissions(ctx?: MetaErrorContext): string[] {
 function buildPermissionMessage(ctx?: MetaErrorContext, missingPermissions: string[] = []): string {
     const permissionList = missingPermissions.length > 0 ? missingPermissions.join(', ') : 'required messaging permissions';
     if (ctx?.feature === 'messages') {
+        if (ctx.platform === 'facebook') {
+            const base = ctx.operation === 'send_message'
+                ? `Facebook message sending is not enabled for this account. Reconnect with ${permissionList}.`
+                : `Facebook messaging is not enabled for this account. Reconnect with ${permissionList}.`;
+            return `${base} If Access Token Debugger already shows pages_messaging, check App Review/Advanced Access, app mode (Development vs Live), app role/tester access, and Page webhook/subscribed apps setup.`;
+        }
         if (ctx.operation === 'send_message') {
             return `Messaging send is not enabled for this account. Reconnect with ${permissionList}.`;
         }

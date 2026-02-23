@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 recipient: { id: recipientId },
+                ...(platform === 'facebook' ? { messaging_type: 'RESPONSE' } : {}),
                 message: { text: message },
                 access_token: account.access_token,
             }),

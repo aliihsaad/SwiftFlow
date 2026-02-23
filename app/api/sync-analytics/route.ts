@@ -3,7 +3,10 @@ import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
 
-export const runtime = 'edge';
+// This route proxies a long-running Supabase Edge Function call (analytics sync).
+// Using Node runtime + a higher maxDuration avoids Vercel Edge timeouts (504) on larger workspaces.
+export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
     try {

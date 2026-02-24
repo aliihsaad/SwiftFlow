@@ -109,6 +109,7 @@ export default function MessagesPage() {
         data: conversationsData,
         error: conversationsError,
         isLoading: conversationsLoading,
+        isValidating: conversationsValidating,
         mutate: mutateConversations
     } = useSWR<ConversationsResponse>(
         `/api/live-messages?platform=${activePlatform}`,
@@ -119,6 +120,7 @@ export default function MessagesPage() {
     const {
         data: messagesData,
         isLoading: messagesLoading,
+        isValidating: messagesValidating,
         mutate: mutateMessages
     } = useSWR<MessagesResponse>(
         selectedConversation
@@ -152,6 +154,9 @@ export default function MessagesPage() {
     }, [workspaceId])
 
     const conversations = conversationsData?.conversations || []
+    const showInitialConversationsLoading = conversationsLoading && !conversationsData && !conversationsError
+    const showConversationsRefreshingHint = (isRefreshing || conversationsValidating) && !!conversationsData
+    const showThreadRefreshingHint = messagesValidating && !!messagesData?.messages?.length
     const responsePermissionDenied = conversationsData?.errorCode === 'meta_missing_permission'
     const responseTokenInvalid = conversationsData?.errorCode === 'meta_auth_invalid_token'
     const noAccount = conversationsData?.errorCode === 'no_account_connected'
@@ -302,18 +307,67 @@ export default function MessagesPage() {
                 )}
             </div>
 
-            {/* Loading */}
-            {conversationsLoading && (
-                <div className="flex items-center justify-center py-20">
-                    <div className="text-center space-y-3">
-                        <Loader2 className="h-7 w-7 animate-spin mx-auto" style={{ color: '#8b5cf6' }} />
-                        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>Loading conversations…</p>
+            {showConversationsRefreshingHint && (
+                <div
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium w-fit"
+                    style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)' }}
+                >
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Updating conversations…
+                </div>
+            )}
+
+            {/* Initial Loading Skeleton */}
+            {showInitialConversationsLoading && (
+                <div
+                    className="flex flex-1 min-h-0 overflow-hidden rounded-xl"
+                    style={{ background: '#0e0d1c', border: '1px solid rgba(139,92,246,0.12)' }}
+                >
+                    <div
+                        className="w-full md:w-80 shrink-0 p-3 space-y-2"
+                        style={{ borderRight: '1px solid rgba(255,255,255,0.05)' }}
+                    >
+                        {Array.from({ length: 7 }).map((_, index) => (
+                            <div
+                                key={`conversation-skeleton-${index}`}
+                                className="rounded-xl p-3 animate-pulse"
+                                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="h-9 w-9 rounded-full" style={{ background: 'rgba(255,255,255,0.05)' }} />
+                                    <div className="flex-1 space-y-2">
+                                        <div className="h-3 rounded w-2/3" style={{ background: 'rgba(255,255,255,0.05)' }} />
+                                        <div className="h-2.5 rounded w-4/5" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="hidden md:flex flex-1 flex-col p-4">
+                        <div className="rounded-xl p-4 mb-4 animate-pulse" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                            <div className="h-4 w-48 rounded" style={{ background: 'rgba(255,255,255,0.05)' }} />
+                        </div>
+                        <div className="flex-1 space-y-3">
+                            {Array.from({ length: 5 }).map((_, index) => (
+                                <div key={`thread-skeleton-${index}`} className={cn("flex", index % 2 ? "justify-end" : "justify-start")}>
+                                    <div
+                                        className="h-14 rounded-2xl animate-pulse"
+                                        style={{
+                                            width: index % 2 ? '40%' : '52%',
+                                            background: 'rgba(255,255,255,0.04)',
+                                            border: '1px solid rgba(255,255,255,0.05)',
+                                        }}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-4 h-12 rounded-xl animate-pulse" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }} />
                     </div>
                 </div>
             )}
 
             {/* Permission Error */}
-            {permissionDenied && !conversationsLoading && (
+            {permissionDenied && !showInitialConversationsLoading && (
                 <div className="flex-1 flex items-center justify-center">
                     <div
                         className="rounded-2xl p-10 text-center max-w-md mx-auto"
@@ -351,7 +405,7 @@ export default function MessagesPage() {
             )}
 
             {/* Generic Error */}
-            {conversationsError && !permissionDenied && !conversationsLoading && (
+            {conversationsError && !permissionDenied && !showInitialConversationsLoading && (
                 <div
                     className="rounded-xl p-8 text-center"
                     style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)' }}
@@ -363,7 +417,7 @@ export default function MessagesPage() {
             )}
 
             {/* No account */}
-            {noAccount && !conversationsLoading && (
+            {noAccount && !showInitialConversationsLoading && (
                 <div className="rounded-xl p-12 text-center" style={{ background: '#0e0d1c', border: '1px dashed rgba(255,255,255,0.08)' }}>
                     <Inbox className="h-10 w-10 mx-auto mb-4" style={{ color: 'rgba(255,255,255,0.12)' }} />
                     <p className="font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
@@ -376,9 +430,9 @@ export default function MessagesPage() {
             )}
 
             {/* Main split pane */}
-            {!conversationsLoading && !conversationsError && conversations.length > 0 && (
+            {!showInitialConversationsLoading && !conversationsError && conversations.length > 0 && (
                 <div
-                    className="flex flex-1 min-h-0 overflow-hidden rounded-xl"
+                    className={cn("flex flex-1 min-h-0 overflow-hidden rounded-xl transition-opacity", showConversationsRefreshingHint && "opacity-95")}
                     style={{ background: '#0e0d1c', border: '1px solid rgba(139,92,246,0.12)' }}
                 >
                     {/* Left — conversation list */}
@@ -414,6 +468,17 @@ export default function MessagesPage() {
                                 </button>
                             </div>
                         )}
+                        {showThreadRefreshingHint && (
+                            <div className="shrink-0 px-4 pt-2">
+                                <div
+                                    className="inline-flex items-center gap-2 rounded-lg px-2.5 py-1 text-[11px] font-medium"
+                                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.45)' }}
+                                >
+                                    <Loader2 className="h-3 w-3 animate-spin" />
+                                    Updating messages…
+                                </div>
+                            </div>
+                        )}
                         <MessageThread
                             conversation={selectedConversation}
                             messages={messagesData?.messages || []}
@@ -429,7 +494,7 @@ export default function MessagesPage() {
             )}
 
             {/* Empty state */}
-            {!conversationsLoading && !conversationsError && !noAccount && conversations.length === 0 && (
+            {!showInitialConversationsLoading && !conversationsError && !noAccount && conversations.length === 0 && (
                 <div className="rounded-xl p-12 text-center" style={{ background: '#0e0d1c', border: '1px dashed rgba(255,255,255,0.08)' }}>
                     <Inbox className="h-10 w-10 mx-auto mb-4" style={{ color: 'rgba(255,255,255,0.12)' }} />
                     <p className="font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>No conversations yet</p>

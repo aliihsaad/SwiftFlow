@@ -72,18 +72,21 @@ export default function PostsPage() {
         fetchWorkspace()
     }, [])
 
-    const { data, error, isLoading, mutate } = useSWR<MediaResponse>(
+    const { data, error, isLoading, isValidating, mutate } = useSWR<MediaResponse>(
         `/api/posts-media?platform=${activePlatform}&limit=25`,
         fetcher,
         {
             revalidateOnFocus: false,
             dedupingInterval: 30000,
+            keepPreviousData: true,
         }
     )
 
     const media = data?.media || []
     const account = data?.account
     const noAccount = data?.error && !data?.media?.length
+    const showInitialLoading = isLoading && !data && !error
+    const showRefreshingHint = (isRefreshing || isValidating) && !!data
 
     const handlePostClick = (post: PostData) => {
         setSelectedPost(post)
@@ -183,18 +186,37 @@ export default function PostsPage() {
                 </div>
             )}
 
-            {/* Loading */}
-            {isLoading && (
-                <div className="flex items-center justify-center py-20">
-                    <div className="text-center space-y-3">
-                        <Loader2 className="h-7 w-7 animate-spin mx-auto" style={{ color: '#8b5cf6' }} />
-                        <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>Loading posts…</p>
-                    </div>
+            {showRefreshingHint && (
+                <div
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium w-fit"
+                    style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)' }}
+                >
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Updating posts…
+                </div>
+            )}
+
+            {/* Initial Loading Skeleton */}
+            {showInitialLoading && (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {Array.from({ length: 8 }).map((_, index) => (
+                        <div
+                            key={`post-skeleton-${index}`}
+                            className="overflow-hidden rounded-xl animate-pulse"
+                            style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)' }}
+                        >
+                            <div className="aspect-square" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                            <div className="p-3 space-y-2">
+                                <div className="h-3 rounded" style={{ background: 'rgba(255,255,255,0.05)' }} />
+                                <div className="h-3 w-2/3 rounded" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                            </div>
+                        </div>
+                    ))}
                 </div>
             )}
 
             {/* Error */}
-            {error && !isLoading && (
+            {error && !showInitialLoading && (
                 <div
                     className="rounded-xl p-8 text-center"
                     style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)' }}
@@ -206,7 +228,7 @@ export default function PostsPage() {
             )}
 
             {/* No account connected */}
-            {noAccount && !isLoading && (
+            {noAccount && !showInitialLoading && (
                 <div
                     className="rounded-xl p-12 text-center"
                     style={{ background: '#0e0d1c', border: '1px dashed rgba(255,255,255,0.08)' }}
@@ -222,8 +244,8 @@ export default function PostsPage() {
             )}
 
             {/* Posts Grid */}
-            {!isLoading && !error && media.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {!showInitialLoading && !error && media.length > 0 && (
+                <div className={cn("grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-opacity", showRefreshingHint && "opacity-90")}>
                     {media.map((post) => (
                         <PostCard
                             key={post.id}
@@ -235,7 +257,7 @@ export default function PostsPage() {
             )}
 
             {/* Empty state */}
-            {!isLoading && !error && !noAccount && media.length === 0 && (
+            {!showInitialLoading && !error && !noAccount && media.length === 0 && (
                 <div
                     className="rounded-xl p-12 text-center"
                     style={{ background: '#0e0d1c', border: '1px dashed rgba(255,255,255,0.08)' }}

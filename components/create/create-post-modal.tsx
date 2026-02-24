@@ -337,9 +337,26 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
     // --- Render ---
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-5xl p-0 gap-0 overflow-hidden bg-white dark:bg-zinc-900 max-h-[90vh] flex flex-col">
+            <DialogContent className="relative max-w-5xl p-0 gap-0 overflow-hidden bg-white dark:bg-zinc-900 max-h-[90vh] flex flex-col">
                 <DialogTitle className="sr-only">Create Post</DialogTitle>
                 <DialogDescription className="sr-only">Create a new social media post for your platforms.</DialogDescription>
+                {isSubmitting && (
+                    <div className="absolute inset-0 z-50 flex items-center justify-center bg-white/55 dark:bg-zinc-950/60 backdrop-blur-[1px]">
+                        <div className="flex items-center gap-3 rounded-xl border bg-white/90 dark:bg-zinc-900/90 px-4 py-3 shadow-lg">
+                            <Loader2 className="h-4 w-4 animate-spin text-pink-500" />
+                            <div className="text-sm">
+                                <p className="font-medium text-zinc-900 dark:text-zinc-100">
+                                    {submitAction === 'draft'
+                                        ? 'Saving draft…'
+                                        : submitAction === 'scheduled'
+                                            ? (postToEdit && postToEdit.status === 'scheduled' ? 'Saving changes…' : 'Scheduling post…')
+                                            : 'Publishing post…'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">Please wait and do not close this dialog.</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Header */}
                 <div className="flex items-center gap-2 px-5 py-3 border-b">

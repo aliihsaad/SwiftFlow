@@ -37,11 +37,13 @@ export default function AutomationPage() {
     const [deletingAutomationIds, setDeletingAutomationIds] = useState<string[]>([])
     const { toast } = useToast()
 
-    const { data, error, isLoading, mutate } = useSWR<AutomationsResponse>(
+    const { data, error, isLoading, isValidating, mutate } = useSWR<AutomationsResponse>(
         '/api/automations',
         fetcher,
-        { revalidateOnFocus: false, dedupingInterval: 30000 }
+        { revalidateOnFocus: false, dedupingInterval: 30000, keepPreviousData: true }
     )
+    const showInitialLoading = isLoading && !data && !error
+    const showRefreshingHint = isValidating && !!data
 
     const resetCanvasDraftSeed = () => {
         setCanvasTemplateGraph(undefined)
@@ -262,27 +264,48 @@ export default function AutomationPage() {
                     )}
                 </div>
 
-                {/* Loading */}
-                {isLoading && (
+                {showRefreshingHint && (
                     <div
-                        className="rounded-xl p-8 text-center"
-                        style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)' }}
+                        className="mb-3 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium"
+                        style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)' }}
                     >
-                        <div className="flex flex-col items-center gap-3">
+                        <Zap className="h-3.5 w-3.5 animate-pulse" style={{ color: '#fbbf24' }} />
+                        Updating automations…
+                    </div>
+                )}
+
+                {/* Loading */}
+                {showInitialLoading && (
+                    <div className="space-y-3">
+                        {Array.from({ length: 3 }).map((_, index) => (
                             <div
-                                className="h-9 w-9 rounded-full animate-pulse"
-                                style={{ background: 'rgba(255,255,255,0.06)' }}
-                            />
-                            <div
-                                className="h-3 w-28 rounded animate-pulse"
-                                style={{ background: 'rgba(255,255,255,0.05)' }}
-                            />
-                        </div>
+                                key={`automation-skeleton-${index}`}
+                                className="rounded-xl p-4 animate-pulse"
+                                style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)' }}
+                            >
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="min-w-0 flex-1 space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-5 w-36 rounded" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                                            <div className="h-5 w-16 rounded-full" style={{ background: 'rgba(255,255,255,0.05)' }} />
+                                            <div className="h-5 w-14 rounded-full" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                                        </div>
+                                        <div className="h-3 w-3/4 rounded" style={{ background: 'rgba(255,255,255,0.05)' }} />
+                                        <div className="h-3 w-1/2 rounded" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                                        <div className="flex gap-2">
+                                            <div className="h-7 w-24 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }} />
+                                            <div className="h-7 w-20 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }} />
+                                        </div>
+                                    </div>
+                                    <div className="h-8 w-20 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)' }} />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
 
                 {/* Error */}
-                {error && (
+                {error && !showInitialLoading && (
                     <div
                         className="rounded-xl p-6 text-center"
                         style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.2)' }}
@@ -293,7 +316,7 @@ export default function AutomationPage() {
                 )}
 
                 {/* Empty state */}
-                {data?.automations && data.automations.length === 0 && !isLoading && (
+                {data?.automations && data.automations.length === 0 && !showInitialLoading && (
                     <div
                         className="rounded-xl p-8 sm:p-12 text-center"
                         style={{ background: '#0e0d1c', border: '1px dashed rgba(139,92,246,0.2)' }}

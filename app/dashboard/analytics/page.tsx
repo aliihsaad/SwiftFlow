@@ -73,12 +73,13 @@ export default function AnalyticsPage() {
     const { toast } = useToast()
 
     // Fetch analytics data
-    const { data, error, isLoading, mutate } = useSWR<AnalyticsResponse>(
+    const { data, error, isLoading, isValidating, mutate } = useSWR<AnalyticsResponse>(
         initialSyncDone ? `/api/analytics?range=${dateRange}&granularity=${granularity}&platform=${platformView}` : null,
         fetcher,
         {
             revalidateOnFocus: false,
             dedupingInterval: 60000, // 1 minute
+            keepPreviousData: true,
         }
     )
 
@@ -195,6 +196,8 @@ export default function AnalyticsPage() {
             : dateRange === 'last_30_days'
                 ? 'vs previous 30 days'
                 : 'vs previous 90 days'
+    const showInitialAnalyticsLoading = (!initialSyncDone || (isLoading && !data))
+    const showAnalyticsRefreshingHint = initialSyncDone && !!data && (isValidating || isSyncing)
 
     const getStatusChipStyle = (status: 'available' | 'partial' | 'unavailable') => {
         if (status === 'available') {
@@ -239,11 +242,21 @@ export default function AnalyticsPage() {
                 isSyncing={isSyncing}
             />
 
+            {showAnalyticsRefreshingHint && (
+                <div
+                    className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium"
+                    style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)' }}
+                >
+                    <Info className="h-3.5 w-3.5" />
+                    {isSyncing ? 'Syncing analytics and refreshing data…' : 'Refreshing analytics…'}
+                </div>
+            )}
+
             {/* Loading state */}
-            {(!initialSyncDone || isLoading) && <AnalyticsLoadingSkeleton />}
+            {showInitialAnalyticsLoading && <AnalyticsLoadingSkeleton />}
 
             {/* Error state */}
-            {error && (
+            {error && !showInitialAnalyticsLoading && (
                 <div
                     className="rounded-xl p-6 text-center"
                     style={{
@@ -265,7 +278,7 @@ export default function AnalyticsPage() {
             )}
 
             {/* Data loaded */}
-            {data && initialSyncDone && !isLoading && (
+            {data && initialSyncDone && !showInitialAnalyticsLoading && (
                 <>
                     {/* Platform-specific analytics status badges (mixed dashboard clarity) */}
                     {analyticsPlatformStatuses.length > 0 && (

@@ -54,6 +54,7 @@ export default function PostsPage() {
     const [selectedPost, setSelectedPost] = useState<PostData | null>(null)
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [workspaceId, setWorkspaceId] = useState<string | null>(null)
+    const [isRefreshing, setIsRefreshing] = useState(false)
 
     useEffect(() => {
         const fetchWorkspace = async () => {
@@ -89,6 +90,15 @@ export default function PostsPage() {
         setDrawerOpen(true)
     }
 
+    const handleRefresh = async () => {
+        setIsRefreshing(true)
+        try {
+            await mutate()
+        } finally {
+            setIsRefreshing(false)
+        }
+    }
+
     const tabs = [
         {
             id: 'instagram' as const,
@@ -119,8 +129,8 @@ export default function PostsPage() {
                     </p>
                 </div>
                 <button
-                    onClick={() => mutate()}
-                    disabled={isLoading}
+                    onClick={handleRefresh}
+                    disabled={isLoading || isRefreshing}
                     className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold self-start transition-all duration-150 disabled:opacity-50"
                     style={{
                         background: '#12111e',
@@ -128,8 +138,8 @@ export default function PostsPage() {
                         color: 'rgba(255,255,255,0.5)',
                     }}
                 >
-                    <RefreshCw className={cn("h-3.5 w-3.5", isLoading && "animate-spin")} />
-                    Refresh
+                    <RefreshCw className={cn("h-3.5 w-3.5", (isLoading || isRefreshing) && "animate-spin")} />
+                    {isRefreshing ? 'Refreshing…' : 'Refresh'}
                 </button>
             </div>
 

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Facebook, Instagram, AlertCircle, CheckCircle, Info, Settings } from "lucide-react"
+import { Facebook, Instagram, AlertCircle, CheckCircle, Info, Settings, Loader2 } from "lucide-react"
 import { InstagramConnectDialog } from "./instagram-connect-dialog"
 import { redirectToMetaOAuth } from "@/utils/meta-oauth"
 
@@ -20,6 +20,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
         accounts: []
     });
     const [loading, setLoading] = useState(true);
+    const [isConnectingMeta, setIsConnectingMeta] = useState(false);
 
     // URL params for feedback
     const error = searchParams.get('error');
@@ -49,6 +50,8 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     }, [workspaceId]);
 
     const handleConnectPages = () => {
+        if (isConnectingMeta) return;
+        setIsConnectingMeta(true);
         redirectToMetaOAuth(workspaceId);
     };
 
@@ -177,9 +180,17 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                         <Button
                             variant={status.facebook ? "outline" : "default"}
                             onClick={handleConnectPages}
+                            disabled={isConnectingMeta}
                             className={status.facebook ? "text-green-600 border-green-200 bg-green-50 hover:bg-green-100" : ""}
                         >
-                            {status.facebook ? "Reconnect Pages" : "Connect Facebook Pages"}
+                            {isConnectingMeta ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    {status.facebook ? "Reconnecting..." : "Connecting..."}
+                                </>
+                            ) : (
+                                status.facebook ? "Reconnect Pages" : "Connect Facebook Pages"
+                            )}
                         </Button>
                     </div>
 
@@ -198,12 +209,22 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                         </div>
                         <InstagramConnectDialog
                             workspaceId={workspaceId}
+                            isConnecting={isConnectingMeta}
+                            onConnectStart={() => setIsConnectingMeta(true)}
                             trigger={
                                 <Button
                                     variant={status.instagram ? "outline" : "default"}
+                                    disabled={isConnectingMeta}
                                     className={status.instagram ? "text-green-600 border-green-200 bg-green-50 hover:bg-green-100" : "bg-pink-600 hover:bg-pink-700 text-white"}
                                 >
-                                    {status.instagram ? "Reconnect Instagram" : "Connect Instagram"}
+                                    {isConnectingMeta ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            {status.instagram ? "Reconnecting..." : "Connecting..."}
+                                        </>
+                                    ) : (
+                                        status.instagram ? "Reconnect Instagram" : "Connect Instagram"
+                                    )}
                                 </Button>
                             }
                         />

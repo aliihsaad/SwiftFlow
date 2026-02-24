@@ -10,19 +10,23 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog"
-import { CheckCircle2, Facebook, Instagram } from "lucide-react"
+import { CheckCircle2, Facebook, Instagram, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { redirectToMetaOAuth } from "@/utils/meta-oauth"
 
 interface InstagramConnectDialogProps {
     workspaceId: string;
     trigger?: React.ReactNode;
+    isConnecting?: boolean;
+    onConnectStart?: () => void;
 }
 
-export function InstagramConnectDialog({ workspaceId, trigger }: InstagramConnectDialogProps) {
+export function InstagramConnectDialog({ workspaceId, trigger, isConnecting = false, onConnectStart }: InstagramConnectDialogProps) {
     const [isOpen, setIsOpen] = useState(false);
 
     const handleConnect = () => {
+        if (isConnecting) return;
+        onConnectStart?.();
         setIsOpen(false);
         redirectToMetaOAuth(workspaceId);
     };
@@ -91,10 +95,20 @@ export function InstagramConnectDialog({ workspaceId, trigger }: InstagramConnec
                 <DialogFooter className="sm:justify-start">
                     <Button
                         onClick={handleConnect}
+                        disabled={isConnecting}
                         className="w-full bg-[#1877F2] hover:bg-[#166fe5] text-white gap-2"
                     >
-                        <Facebook className="h-4 w-4" />
-                        Connect via Facebook
+                        {isConnecting ? (
+                            <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Connecting…
+                            </>
+                        ) : (
+                            <>
+                                <Facebook className="h-4 w-4" />
+                                Connect via Facebook
+                            </>
+                        )}
                     </Button>
                 </DialogFooter>
             </DialogContent>

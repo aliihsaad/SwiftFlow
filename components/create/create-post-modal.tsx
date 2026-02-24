@@ -11,6 +11,7 @@ import { SchedulingControls } from "./scheduling-controls"
 import { InstagramPostPreview } from "./instagram-post-preview"
 import { X, Info, Plus, Instagram, Facebook, Monitor, Clock, Sparkles, RefreshCw, Smile, Bold, Italic, Link, BarChart2, Wand2, Eye, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 import EmojiPicker, { Theme } from "emoji-picker-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -36,6 +37,7 @@ const SUGGESTED_HASHTAGS = ['#OpenSourceLife', '#CodingCommunity', '#SkilledDeve
 export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, initialCaption, initialMedia, initialDate }: CreatePostModalProps) {
     // --- State ---
     const router = useRouter()
+    const { toast } = useToast()
     const [activeTab, setActiveTab] = useState<string>('all')
     const [globalMedia, setGlobalMedia] = useState<string[]>([])
     const [globalCaption, setGlobalCaption] = useState('')
@@ -300,7 +302,11 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
             router.refresh()
         } catch (e: any) {
             console.error('[CREATE_POST] Error:', e)
-            alert(e.message || 'Failed to create post')
+            toast({
+                title: "Post action failed",
+                description: e.message || 'Failed to create post',
+                variant: "destructive",
+            })
         } finally {
             setIsSubmitting(false)
             setSubmitAction(null)

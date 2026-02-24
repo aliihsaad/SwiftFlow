@@ -160,7 +160,10 @@ export default function AnalyticsPage() {
     const handleExport = () => {
         // TODO: Implement export functionality
         console.log('Exporting analytics data...')
-        alert('Export functionality coming soon!')
+        toast({
+            title: "Export coming soon",
+            description: "Analytics export is not implemented yet.",
+        })
     }
 
     const analyticsWarnings = data?._meta?.warnings || []

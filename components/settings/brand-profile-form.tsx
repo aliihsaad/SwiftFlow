@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/components/ui/use-toast"
 import { X, Plus, Upload, Loader2 } from "lucide-react"
 
 interface BrandProfileFormProps {
@@ -23,6 +24,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
     const [newUSP, setNewUSP] = useState("")
     const [newTheme, setNewTheme] = useState("")
     const supabase = createClient()
+    const { toast } = useToast()
 
     useEffect(() => {
         fetchProfile()
@@ -56,10 +58,17 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
 
             if (!res.ok) throw new Error('Failed to save')
 
-            alert('Brand profile updated successfully!')
+            toast({
+                title: "Brand profile saved",
+                description: "Your brand profile was updated successfully.",
+            })
         } catch (error) {
             console.error('Save error:', error)
-            alert('Failed to save brand profile')
+            toast({
+                title: "Save failed",
+                description: "Failed to save brand profile.",
+                variant: "destructive",
+            })
         } finally {
             setSaving(false)
         }
@@ -129,7 +138,11 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
             updateField('logo_url', data.publicUrl)
         } catch (error) {
             console.error('Upload error:', error)
-            alert('Failed to upload logo')
+            toast({
+                title: "Upload failed",
+                description: "Failed to upload logo.",
+                variant: "destructive",
+            })
         }
     }
 
@@ -160,7 +173,11 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
             updateField('reference_image_urls', [...existing, ...urls])
         } catch (error) {
             console.error('Upload error:', error)
-            alert('Failed to upload images')
+            toast({
+                title: "Upload failed",
+                description: "Failed to upload images.",
+                variant: "destructive",
+            })
         }
     }
 

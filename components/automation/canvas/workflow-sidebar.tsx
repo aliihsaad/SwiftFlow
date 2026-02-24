@@ -66,7 +66,7 @@ export function WorkflowSidebar({ collapsed = false, onToggleCollapse, onAddNode
   return (
     <div
       className={cn(
-        'h-full overflow-y-auto shrink-0 flex flex-col transition-all duration-200',
+        'h-full overflow-y-auto shrink-0 flex flex-col transition-all duration-200 automation-sidebar-scroll',
         collapsed ? 'w-12' : 'w-56',
       )}
       style={{ borderRight: '1px solid rgba(255,255,255,0.08)', background: '#151620' }}
@@ -149,6 +149,7 @@ export function WorkflowSidebar({ collapsed = false, onToggleCollapse, onAddNode
     </div>
   )
 }
+
 
 /* ── Collapsed icon button ── */
 function CollapsedNode({

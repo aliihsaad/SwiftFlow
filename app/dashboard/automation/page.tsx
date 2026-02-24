@@ -167,7 +167,7 @@ export default function AutomationPage() {
     // Canvas editor (full-screen)
     if (editorView === 'canvas') {
         return (
-            <div className="h-[calc(100vh-4rem)] -m-6">
+            <div className="h-full min-h-0 -m-6 overflow-hidden">
                 <WorkflowCanvas
                     automationId={editingAutomation?.id}
                     automationName={editingAutomation?.name || canvasTemplateName || 'New Automation'}

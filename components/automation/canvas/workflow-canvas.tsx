@@ -401,7 +401,7 @@ export function WorkflowCanvas({
           onAddNode={addNodeToCanvas}
         />
 
-        <div className="flex-1 relative" ref={reactFlowWrapper} style={{ background: '#11131c' }}>
+        <div className="flex-1 relative overflow-hidden" ref={reactFlowWrapper} style={{ background: '#11131c' }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -452,6 +452,20 @@ export function WorkflowCanvas({
         )}
       </div>
       <style jsx global>{`
+        .automation-canvas-shell .automation-sidebar-scroll {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+
+        .automation-canvas-shell .automation-sidebar-scroll::-webkit-scrollbar {
+          width: 0;
+          height: 0;
+        }
+
+        .automation-canvas-shell .react-flow {
+          overflow: hidden !important;
+        }
+
         .automation-canvas-shell .react-flow__controls {
           overflow: hidden;
           border-radius: 12px;

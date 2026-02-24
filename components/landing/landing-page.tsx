@@ -203,33 +203,6 @@ const capabilityGroups = [
     },
 ]
 
-const automationExamples = [
-    {
-        title: "Comment -> AI reply -> Send DM",
-        platform: "Instagram / Facebook",
-        detail: "Respond publicly, then send a DM with a follow-up message or link.",
-        badges: ["Canvas", "AI", "DM"],
-    },
-    {
-        title: "New message -> AI auto reply",
-        platform: "Instagram / Facebook",
-        detail: "Handle common inbound DMs automatically and keep the inbox moving.",
-        badges: ["Messages", "AI", "Templates"],
-    },
-    {
-        title: "Comment -> Delay -> next action",
-        platform: "Instagram / Facebook",
-        detail: "Schedule a delayed continuation using the built-in scheduler (no duplicate cron jobs needed).",
-        badges: ["Delay", "Scheduler", "Multi-step"],
-    },
-    {
-        title: "Comment moderation + response",
-        platform: "Instagram / Facebook",
-        detail: "Reply to comments and manage hidden comments with platform-specific handling.",
-        badges: ["Comments", "Moderation", "Cross-platform"],
-    },
-]
-
 const marqueeItems = [
     "AI caption generation",
     "Brand profile voice context",
@@ -1022,6 +995,139 @@ function CapabilityGrid() {
     )
 }
 
+function LandingCanvasSidebarRow({
+    icon: Icon,
+    label,
+    color,
+}: {
+    icon: any
+    label: string
+    color: string
+}) {
+    return (
+        <div
+            className="flex items-center gap-2 p-2 rounded-lg text-sm"
+            style={{ background: "#1b1d28", border: "1px solid rgba(255,255,255,0.08)" }}
+        >
+            <div className="w-7 h-7 rounded-md flex items-center justify-center" style={{ background: `${color}20`, color }}>
+                <Icon className="h-3.5 w-3.5" />
+            </div>
+            <p className="text-xs font-medium truncate" style={{ color: "rgba(255,255,255,0.88)" }}>
+                {label}
+            </p>
+        </div>
+    )
+}
+
+function LandingCanvasNodeCard({
+    x,
+    y,
+    label,
+    description,
+    icon: Icon,
+    headerBg,
+    borderColor,
+    handleColor,
+    selected = false,
+    topHandle = true,
+}: {
+    x: number
+    y: number
+    label: string
+    description: string
+    icon: any
+    headerBg: string
+    borderColor: string
+    handleColor: string
+    selected?: boolean
+    topHandle?: boolean
+}) {
+    return (
+        <div
+            className="absolute rounded-xl border-2 shadow-md min-w-[180px] max-w-[220px]"
+            style={{
+                left: x,
+                top: y,
+                background: "#151620",
+                borderColor,
+                boxShadow: selected ? "0 10px 26px rgba(56,189,248,0.16)" : undefined,
+            }}
+        >
+            {topHandle && (
+                <div
+                    className="absolute left-1/2 -translate-x-1/2 -top-1.5 h-3 w-3 rounded-full border-2"
+                    style={{ background: handleColor, borderColor: "#151620" }}
+                />
+            )}
+            <div className="flex items-center gap-2 px-3 py-2 rounded-t-[10px]" style={{ background: headerBg }}>
+                <Icon className="h-4 w-4 text-white shrink-0" />
+                <span className="text-sm font-medium text-white truncate">{label}</span>
+            </div>
+            <div className="px-3 py-2">
+                <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.55)" }}>
+                    {description}
+                </p>
+            </div>
+            <div
+                className="absolute left-1/2 -translate-x-1/2 -bottom-1.5 h-3 w-3 rounded-full border-2"
+                style={{ background: handleColor, borderColor: "#151620" }}
+            />
+        </div>
+    )
+}
+
+function AutomationCanvasLandingMock() {
+    // Kept for quick future fallback if we switch back from real media to a code mock.
+    void LandingCanvasSidebarRow
+    void LandingCanvasNodeCard
+
+    return (
+        <div
+            className="rounded-2xl p-4 md:p-5"
+            style={{
+                background: "linear-gradient(180deg, rgba(21,22,32,0.98), rgba(12,13,19,0.98))",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow: "0 24px 80px rgba(0,0,0,0.26)",
+            }}
+        >
+            <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <span
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg"
+                        style={{ background: "rgba(34,211,238,0.08)", border: "1px solid rgba(34,211,238,0.18)" }}
+                    >
+                        <Workflow className="h-4 w-4" style={{ color: THEME.cyan }} />
+                    </span>
+                    <div>
+                        <p className="text-sm font-semibold leading-none" style={{ color: THEME.text }}>
+                            Real automation canvas preview
+                        </p>
+                        <p className="mt-1 text-xs" style={{ color: THEME.textMuted }}>
+                            Actual in-app canvas capture (GIF) showing trigger, actions, and config panel
+                        </p>
+                    </div>
+                </div>
+                <div className="hidden sm:flex items-center gap-2 text-xs">
+                    <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold" style={{ background: "rgba(34,211,238,0.08)", border: "1px solid rgba(34,211,238,0.18)", color: "rgba(255,255,255,0.78)" }}>
+                        <Instagram className="h-3.5 w-3.5" />IG
+                    </span>
+                    <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-semibold" style={{ background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.18)", color: "rgba(255,255,255,0.78)" }}>
+                        <Facebook className="h-3.5 w-3.5" />FB
+                    </span>
+                </div>
+            </div>
+
+            <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.06)", background: "#10111a" }}>
+                <img
+                    src="/images/ScreenRecording2026-02-24170317-ezgif.com-video-to-gif-converter.gif"
+                    alt="Automation canvas workflow preview"
+                    className="block w-full h-auto"
+                />
+            </div>
+        </div>
+    )
+}
+
 function AutomationPlaybook() {
     return (
         <section className="relative py-24 overflow-hidden" style={{ background: THEME.bgSoft }}>
@@ -1053,51 +1159,10 @@ function AutomationPlaybook() {
                 </Reveal>
 
                 <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6">
-                    <motion.div
-                        initial="hidden"
-                        whileInView="visible"
-                        viewport={{ once: true, margin: "-80px" }}
-                        variants={stagger}
-                        className="space-y-4"
-                    >
-                        {automationExamples.map((example, i) => (
-                            <motion.div
-                                key={example.title}
-                                variants={fadeUp}
-                                custom={i * 0.05}
-                                className="rounded-2xl p-5"
-                                style={{ background: THEME.panel, border: "1px solid rgba(255,255,255,0.07)" }}
-                            >
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-                                    <h3 className="text-lg font-bold" style={{ color: THEME.text }}>{example.title}</h3>
-                                    <span
-                                        className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold w-fit"
-                                        style={{ background: "rgba(34,211,238,0.08)", border: "1px solid rgba(34,211,238,0.2)", color: "rgba(255,255,255,0.8)" }}
-                                    >
-                                        {example.platform}
-                                    </span>
-                                </div>
-                                <p className="text-sm leading-relaxed mb-4" style={{ color: THEME.textMuted }}>
-                                    {example.detail}
-                                </p>
-                                <div className="flex flex-wrap gap-2">
-                                    {example.badges.map((badge, idx) => (
-                                        <span
-                                            key={badge}
-                                            className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
-                                            style={{
-                                                background: idx % 2 ? "rgba(245,158,11,0.08)" : "rgba(251,113,133,0.08)",
-                                                border: idx % 2 ? "1px solid rgba(245,158,11,0.2)" : "1px solid rgba(251,113,133,0.2)",
-                                                color: "rgba(255,255,255,0.72)",
-                                            }}
-                                        >
-                                            {badge}
-                                        </span>
-                                    ))}
-                                </div>
-                            </motion.div>
-                        ))}
-                    </motion.div>
+                    
+                    <Reveal>
+                        <AutomationCanvasLandingMock />
+                    </Reveal>
 
                     <Reveal>
                         <div
@@ -1710,3 +1775,4 @@ export function LandingPage() {
         </div>
     )
 }
+

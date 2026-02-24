@@ -394,7 +394,7 @@ export function WorkflowCanvas({
         onNameChange={setAutomationName}
       />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden automation-canvas-shell">
         <WorkflowSidebar
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(c => !c)}
@@ -422,7 +422,7 @@ export function WorkflowCanvas({
             style={{ background: '#11131c' }}
           >
             <Controls
-              className="shadow-md!"
+              className="shadow-md! automation-canvas-controls"
               style={{ background: '#151620', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.75)' }}
             />
             <MiniMap
@@ -451,6 +451,41 @@ export function WorkflowCanvas({
           />
         )}
       </div>
+      <style jsx global>{`
+        .automation-canvas-shell .react-flow__controls {
+          overflow: hidden;
+          border-radius: 12px;
+          box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+        }
+
+        .automation-canvas-shell .react-flow__controls-button {
+          background: #1b1d28 !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+          color: rgba(255, 255, 255, 0.8) !important;
+          width: 30px !important;
+          height: 30px !important;
+          transition: background 0.15s ease, color 0.15s ease;
+        }
+
+        .automation-canvas-shell .react-flow__controls-button svg {
+          fill: currentColor !important;
+          color: currentColor !important;
+        }
+
+        .automation-canvas-shell .react-flow__controls-button:hover {
+          background: rgba(34, 211, 238, 0.12) !important;
+          color: #67e8f9 !important;
+        }
+
+        .automation-canvas-shell .react-flow__controls-button:last-child {
+          border-bottom: 0 !important;
+        }
+
+        .automation-canvas-shell .react-flow__controls-button:disabled {
+          background: #1b1d28 !important;
+          color: rgba(255, 255, 255, 0.35) !important;
+        }
+      `}</style>
     </div>
   )
 }

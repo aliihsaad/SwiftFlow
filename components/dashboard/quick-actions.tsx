@@ -15,32 +15,32 @@ const actions = [
         label: "Generate Ideas",
         description: "AI content",
         href: "/dashboard/assistant",
-        accent: '#a78bfa',
-        glow: 'rgba(167,139,250,0.15)',
+        accent: '#22d3ee',
+        glow: 'rgba(34,211,238,0.15)',
     },
     {
         icon: Plus,
         label: "Create Post",
         description: "New post",
         href: null,
-        accent: '#f472b6',
-        glow: 'rgba(244,114,182,0.15)',
+        accent: '#fb7185',
+        glow: 'rgba(251,113,133,0.15)',
     },
     {
         icon: BarChart,
         label: "Analytics",
         description: "View stats",
         href: "/dashboard/analytics",
-        accent: '#60a5fa',
-        glow: 'rgba(96,165,250,0.15)',
+        accent: '#f59e0b',
+        glow: 'rgba(245,158,11,0.15)',
     },
     {
         icon: Bot,
         label: "AI Assistant",
         description: "Chat & ideas",
         href: "/dashboard/assistant",
-        accent: '#34d399',
-        glow: 'rgba(52,211,153,0.15)',
+        accent: '#84cc16',
+        glow: 'rgba(132,204,22,0.15)',
     },
 ]
 
@@ -57,8 +57,9 @@ export function QuickActions({ workspaceId }: QuickActionsProps) {
                             key={action.label}
                             className="group w-full flex flex-col items-center gap-3 rounded-xl p-4 transition-all duration-200 hover:translate-y-[-2px] active:scale-[0.97]"
                             style={{
-                                background: '#0e0d1c',
+                                background: '#151620',
                                 border: `1px solid rgba(255,255,255,0.08)`,
+                                boxShadow: '0 10px 28px rgba(0,0,0,0.18)',
                             }}
                             onMouseEnter={(e) => {
                                 e.currentTarget.style.border = `1px solid ${action.glow.replace('0.15', '0.4')}`

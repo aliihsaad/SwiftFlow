@@ -35,57 +35,57 @@ export function InstagramConnectDialog({ workspaceId, trigger, isConnecting = fa
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
                 {trigger || (
-                    <Button variant="outline" className="gap-2">
+                    <Button variant="outline" className="gap-2 border-white/10 bg-white/5 text-white/75 hover:bg-white/10 hover:text-white">
                         <Instagram className="h-4 w-4" />
                         Connect Instagram
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md border-white/10 bg-[#151620] text-white/85">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-xl">
-                        <div className="p-2 bg-pink-100 dark:bg-pink-900/30 rounded-lg">
-                            <Instagram className="h-6 w-6 text-pink-600" />
+                        <div className="rounded-lg border border-rose-300/15 bg-rose-400/10 p-2">
+                            <Instagram className="h-6 w-6 text-rose-300" />
                         </div>
                         Connect Instagram Business
                     </DialogTitle>
-                    <DialogDescription className="pt-2">
+                    <DialogDescription className="pt-2 text-white/50">
                         To connect Instagram, your account must meet Meta's API requirements.
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="py-6 space-y-6">
                     <div className="flex gap-4">
-                        <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-purple-100 text-purple-600 font-bold text-sm">
+                        <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full border border-rose-300/15 bg-rose-400/10 font-bold text-sm text-rose-300">
                             1
                         </div>
                         <div className="space-y-1">
-                            <h4 className="font-medium text-sm">Switch to Professional Account</h4>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
+                            <h4 className="text-sm font-medium text-white/85">Switch to Professional Account</h4>
+                            <p className="text-xs leading-relaxed text-white/50">
                                 Your Instagram account must be a <strong>Business</strong> or <strong>Creator</strong> account. Public Personal accounts are not supported by Meta's API.
                             </p>
                         </div>
                     </div>
 
                     <div className="flex gap-4">
-                        <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold text-sm">
+                        <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full border border-cyan-300/15 bg-cyan-400/10 font-bold text-sm text-cyan-300">
                             2
                         </div>
                         <div className="space-y-1">
-                            <h4 className="font-medium text-sm">Link to a Facebook Page</h4>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
+                            <h4 className="text-sm font-medium text-white/85">Link to a Facebook Page</h4>
+                            <p className="text-xs leading-relaxed text-white/50">
                                 Go to your Instagram Profile &gt; Edit Profile &gt; Page and ensure a Facebook Page is connected.
                             </p>
                         </div>
                     </div>
 
                     <div className="flex gap-4">
-                        <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 font-bold text-sm">
+                        <div className="shrink-0 flex items-center justify-center w-8 h-8 rounded-full border border-amber-300/15 bg-amber-400/10 font-bold text-sm text-amber-300">
                             3
                         </div>
                         <div className="space-y-1">
-                            <h4 className="font-medium text-sm">Connect via Facebook</h4>
-                            <p className="text-xs text-muted-foreground leading-relaxed">
+                            <h4 className="text-sm font-medium text-white/85">Connect via Facebook</h4>
+                            <p className="text-xs leading-relaxed text-white/50">
                                 Log in with the Facebook account that manages that Page.
                             </p>
                         </div>
@@ -96,7 +96,7 @@ export function InstagramConnectDialog({ workspaceId, trigger, isConnecting = fa
                     <Button
                         onClick={handleConnect}
                         disabled={isConnecting}
-                        className="w-full bg-[#1877F2] hover:bg-[#166fe5] text-white gap-2"
+                        className="w-full gap-2 border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
                     >
                         {isConnecting ? (
                             <>

@@ -17,7 +17,10 @@ import {
   Globe,
   Sparkles,
   Plus,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const iconComponents: Record<string, React.ElementType> = {
   MessageCircle, Mail, UserPlus, Clock, AtSign, Reply,
@@ -26,10 +29,11 @@ const iconComponents: Record<string, React.ElementType> = {
 
 interface WorkflowSidebarProps {
   collapsed?: boolean
+  onToggleCollapse?: () => void
   onAddNode?: (type: NodeCatalogEntry['type'], label: string) => void
 }
 
-export function WorkflowSidebar({ collapsed, onAddNode }: WorkflowSidebarProps) {
+export function WorkflowSidebar({ collapsed = false, onToggleCollapse, onAddNode }: WorkflowSidebarProps) {
   const [isTouchDevice, setIsTouchDevice] = useState(false)
 
   useEffect(() => {
@@ -59,48 +63,128 @@ export function WorkflowSidebar({ collapsed, onAddNode }: WorkflowSidebarProps) 
     n => n.category === 'action' && !disabledActions.has(n.type),
   )
 
-  if (collapsed) return null
-
   return (
-    <div className="w-56 border-r border-border bg-muted/30 h-full overflow-y-auto shrink-0">
-      <div className="p-3">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-          Triggers
-        </h3>
-        {isTouchDevice && (
-          <p className="text-[10px] text-muted-foreground mb-2">
-            Tap a node to add it to canvas center.
-          </p>
-        )}
-        <div className="space-y-1">
-          {triggers.map(entry => (
-            <DraggableNode
-              key={entry.type}
-              entry={entry}
-              onAddNode={onAddNode}
-              touchMode={isTouchDevice}
-            />
-          ))}
-        </div>
+    <div
+      className={cn(
+        'h-full overflow-y-auto shrink-0 flex flex-col transition-all duration-200',
+        collapsed ? 'w-12' : 'w-56',
+      )}
+      style={{ borderRight: '1px solid rgba(255,255,255,0.08)', background: '#151620' }}
+    >
+      {/* Toggle button */}
+      <button
+        onClick={onToggleCollapse}
+        className="flex items-center justify-center h-9 w-full shrink-0 transition-colors hover:bg-white/5"
+        style={{
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          color: 'rgba(255,255,255,0.4)',
+        }}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        {collapsed
+          ? <ChevronRight className="h-4 w-4" />
+          : <ChevronLeft className="h-4 w-4" />
+        }
+      </button>
 
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-5 mb-3">
-          Actions
-        </h3>
-        <div className="space-y-1">
+      {collapsed ? (
+        /* Icon-only strip */
+        <div className="flex flex-col items-center py-2 gap-1 overflow-y-auto">
+          {/* Triggers section dot */}
+          <div
+            className="w-6 h-px my-1"
+            style={{ background: 'rgba(255,255,255,0.08)' }}
+            title="Triggers"
+          />
+          {triggers.map(entry => (
+            <CollapsedNode key={entry.type} entry={entry} onAddNode={onAddNode} />
+          ))}
+          <div
+            className="w-6 h-px my-1"
+            style={{ background: 'rgba(255,255,255,0.08)' }}
+            title="Actions"
+          />
           {actions.map(entry => (
-            <DraggableNode
-              key={entry.type}
-              entry={entry}
-              onAddNode={onAddNode}
-              touchMode={isTouchDevice}
-            />
+            <CollapsedNode key={entry.type} entry={entry} onAddNode={onAddNode} />
           ))}
         </div>
-      </div>
+      ) : (
+        /* Full expanded view */
+        <div className="p-3 flex-1 overflow-y-auto">
+          <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            Triggers
+          </h3>
+          {isTouchDevice && (
+            <p className="text-[10px] mb-2" style={{ color: 'rgba(255,255,255,0.32)' }}>
+              Tap a node to add it to canvas center.
+            </p>
+          )}
+          <div className="space-y-1">
+            {triggers.map(entry => (
+              <DraggableNode
+                key={entry.type}
+                entry={entry}
+                onAddNode={onAddNode}
+                touchMode={isTouchDevice}
+              />
+            ))}
+          </div>
+
+          <h3 className="text-xs font-semibold uppercase tracking-wider mt-5 mb-3" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            Actions
+          </h3>
+          <div className="space-y-1">
+            {actions.map(entry => (
+              <DraggableNode
+                key={entry.type}
+                entry={entry}
+                onAddNode={onAddNode}
+                touchMode={isTouchDevice}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
+/* ── Collapsed icon button ── */
+function CollapsedNode({
+  entry,
+  onAddNode,
+}: {
+  entry: NodeCatalogEntry
+  onAddNode?: (type: NodeCatalogEntry['type'], label: string) => void
+}) {
+  const Icon = iconComponents[entry.icon] || MessageCircle
+
+  const onDragStart = (event: React.DragEvent) => {
+    event.dataTransfer.setData('application/reactflow-type', entry.type)
+    event.dataTransfer.setData('application/reactflow-label', entry.label)
+    event.dataTransfer.effectAllowed = 'move'
+  }
+
+  return (
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onClick={() => onAddNode?.(entry.type, entry.label)}
+      title={entry.label}
+      className="flex items-center justify-center w-8 h-8 rounded-lg cursor-grab active:cursor-grabbing transition-all hover:scale-110"
+      style={{
+        backgroundColor: entry.color + '20',
+        border: '1px solid ' + entry.color + '40',
+        color: entry.color,
+      }}
+    >
+      <Icon className="h-3.5 w-3.5" />
+    </div>
+  )
+}
+
+/* ── Full draggable node row ── */
 function DraggableNode({
   entry,
   onAddNode,
@@ -127,8 +211,12 @@ function DraggableNode({
       draggable={!touchMode}
       onDragStart={onDragStart}
       onClick={touchMode ? handleTapAdd : undefined}
-      className="flex items-center gap-2 p-2 rounded-lg border border-border/50 bg-background cursor-grab
-                 hover:border-border hover:shadow-sm active:cursor-grabbing transition-all text-sm"
+      className="flex items-center gap-2 p-2 rounded-lg cursor-grab
+                 active:cursor-grabbing transition-all text-sm"
+      style={{
+        background: '#1b1d28',
+        border: '1px solid rgba(255,255,255,0.08)',
+      }}
     >
       <div
         className="flex items-center justify-center w-7 h-7 rounded-md shrink-0"
@@ -146,7 +234,12 @@ function DraggableNode({
             e.stopPropagation()
             handleTapAdd()
           }}
-          className="ml-auto h-6 w-6 shrink-0 rounded border border-border/60 bg-background text-muted-foreground hover:text-foreground flex items-center justify-center"
+          className="ml-auto h-6 w-6 shrink-0 rounded flex items-center justify-center"
+          style={{
+            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(255,255,255,0.02)',
+            color: 'rgba(255,255,255,0.55)',
+          }}
           aria-label={`Add ${entry.label}`}
         >
           <Plus className="h-3 w-3" />

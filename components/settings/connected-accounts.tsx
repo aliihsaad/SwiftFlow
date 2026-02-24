@@ -13,9 +13,9 @@ interface ConnectedAccountsProps {
 }
 
 function ConnectedAccountSkeleton({ accent }: { accent: "blue" | "pink" }) {
-    const iconBg = accent === "blue" ? "bg-blue-100 dark:bg-blue-900/30" : "bg-pink-100 dark:bg-pink-900/30"
+    const iconBg = accent === "blue" ? "bg-cyan-400/10 border border-cyan-300/15" : "bg-rose-400/10 border border-rose-300/15"
     return (
-        <div className="flex items-center justify-between p-4 border rounded-lg animate-pulse">
+        <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#1b1d28] p-4 animate-pulse">
             <div className="flex items-center gap-4">
                 <div className={`p-2 rounded-full ${iconBg}`}>
                     <div className="h-6 w-6 rounded bg-white/40 dark:bg-white/10" />
@@ -75,17 +75,17 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
 
     return (
         <>
-            <Card>
+            <Card className="border-white/10 bg-[#151620] text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]">
                 <CardHeader>
-                    <CardTitle>Connected Accounts</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-white/90">Connected Accounts</CardTitle>
+                    <CardDescription className="text-white/50">
                         Connect your social media accounts to this workspace to start posting.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {/* Success: Pages Connected */}
                     {success === 'pages_connected' && (
-                        <div className="p-4 rounded-md bg-green-50 text-green-700 border border-green-200">
+                        <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/8 p-4 text-emerald-100/90">
                             <div className="flex items-center gap-2 font-medium">
                                 <CheckCircle className="h-4 w-4" />
                                 Pages Connected Successfully
@@ -95,7 +95,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                 You can now schedule posts to Facebook and Instagram.
                             </div>
                             {callbackWorkspace && callbackWorkspace !== workspaceId && (
-                                <div className="mt-2 text-xs text-amber-600 font-medium">
+                                <div className="mt-2 text-xs font-medium text-amber-200">
                                     Warning: Pages were connected to a different workspace ({callbackWorkspace.substring(0, 8)}...).
                                     Please switch to that workspace or reconnect.
                                 </div>
@@ -105,7 +105,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
 
                     {/* Success: Login Only */}
                     {success === 'login_success' && (
-                        <div className="p-4 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+                        <div className="rounded-xl border border-cyan-300/20 bg-cyan-400/8 p-4 text-cyan-100/90">
                             <div className="flex items-center gap-2 font-medium">
                                 <Info className="h-4 w-4" />
                                 Logged in with Facebook
@@ -118,7 +118,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
 
                     {/* Error: No Pages Found */}
                     {error === 'no_pages' && (
-                        <div className="p-4 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                        <div className="rounded-xl border border-amber-300/20 bg-amber-400/8 p-4 text-amber-100/90">
                             <div className="flex items-center gap-2 font-medium">
                                 <AlertCircle className="h-4 w-4" />
                                 No Pages Found
@@ -139,7 +139,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
 
                     {/* Error: Pages Fetch Failed */}
                     {error === 'pages_fetch_failed' && (
-                        <div className="p-4 rounded-md bg-destructive/15 text-destructive border border-destructive/20">
+                        <div className="rounded-xl border border-red-400/20 bg-red-500/10 p-4 text-red-200">
                             <div className="flex items-center gap-2 font-medium">
                                 <AlertCircle className="h-4 w-4" />
                                 Failed to Fetch Pages
@@ -148,7 +148,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                 Could not retrieve your Facebook Pages. Please ensure permissions were granted.
                             </div>
                             {errorDetails && (
-                                <div className="mt-2 text-xs font-mono bg-black/10 p-2 rounded overflow-auto max-h-20">
+                                <div className="mt-2 max-h-20 overflow-auto rounded bg-black/20 p-2 text-xs font-mono text-white/70">
                                     {errorDetails}
                                 </div>
                             )}
@@ -157,7 +157,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
 
                     {/* Error: Meta App Not Configured */}
                     {error === 'meta_app_not_configured' && (
-                        <div className="p-4 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                        <div className="rounded-xl border border-amber-300/20 bg-amber-400/8 p-4 text-amber-100/90">
                             <div className="flex items-center gap-2 font-medium">
                                 <Settings className="h-4 w-4" />
                                 Meta App Not Configured
@@ -171,7 +171,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
 
                     {/* Generic Error */}
                     {error && error !== 'no_pages' && error !== 'pages_fetch_failed' && error !== 'meta_app_not_configured' && (
-                        <div className="p-4 rounded-md bg-destructive/15 text-destructive border border-destructive/20">
+                        <div className="rounded-xl border border-red-400/20 bg-red-500/10 p-4 text-red-200">
                             <div className="flex items-center gap-2 font-medium">
                                 <AlertCircle className="h-4 w-4" />
                                 Connection Failed
@@ -188,14 +188,14 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                     ) : (
                         <>
                             {/* Facebook Connection */}
-                            <div className="flex items-center justify-between p-4 border rounded-lg">
+                            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#1b1d28] p-4">
                                 <div className="flex items-center gap-4">
-                                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                                        <Facebook className="h-6 w-6 text-blue-600" />
+                                    <div className="rounded-full border border-cyan-300/15 bg-cyan-400/10 p-2">
+                                        <Facebook className="h-6 w-6 text-cyan-300" />
                                     </div>
                                     <div>
-                                        <h4 className="font-semibold">Facebook Pages</h4>
-                                        <p className="text-sm text-muted-foreground">
+                                        <h4 className="font-semibold text-white/85">Facebook Pages</h4>
+                                        <p className="text-sm text-white/50">
                                             {status.facebook
                                                 ? `${status.accounts.filter(a => a.platform === 'facebook').length} page(s) connected`
                                                 : "Not connected"}
@@ -206,7 +206,9 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                     variant={status.facebook ? "outline" : "default"}
                                     onClick={handleConnectPages}
                                     disabled={isConnectingMeta}
-                                    className={status.facebook ? "text-green-600 border-green-200 bg-green-50 hover:bg-green-100" : ""}
+                                    className={status.facebook
+                                        ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15"
+                                        : "border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"}
                                 >
                                     {isConnectingMeta ? (
                                         <>
@@ -220,14 +222,14 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                             </div>
 
                             {/* Instagram Connection */}
-                            <div className="flex items-center justify-between p-4 border rounded-lg">
+                            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#1b1d28] p-4">
                                 <div className="flex items-center gap-4">
-                                    <div className="p-2 bg-pink-100 dark:bg-pink-900/30 rounded-full">
-                                        <Instagram className="h-6 w-6 text-pink-600" />
+                                    <div className="rounded-full border border-rose-300/15 bg-rose-400/10 p-2">
+                                        <Instagram className="h-6 w-6 text-rose-300" />
                                     </div>
                                     <div>
-                                        <h4 className="font-semibold">Instagram</h4>
-                                        <p className="text-sm text-muted-foreground">
+                                        <h4 className="font-semibold text-white/85">Instagram</h4>
+                                        <p className="text-sm text-white/50">
                                             {status.instagram ? "Connected via Facebook" : "Not connected"}
                                         </p>
                                     </div>
@@ -240,7 +242,9 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                         <Button
                                             variant={status.instagram ? "outline" : "default"}
                                             disabled={isConnectingMeta}
-                                            className={status.instagram ? "text-green-600 border-green-200 bg-green-50 hover:bg-green-100" : "bg-pink-600 hover:bg-pink-700 text-white"}
+                                            className={status.instagram
+                                                ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15"
+                                                : "border-rose-300/20 bg-gradient-to-r from-rose-400/20 via-rose-300/10 to-amber-300/15 text-white hover:from-rose-400/25 hover:to-amber-300/20"}
                                         >
                                             {isConnectingMeta ? (
                                                 <>
@@ -258,9 +262,9 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                     )}
 
                     {/* Info Note */}
-                    <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                    <div className="rounded-xl border border-white/10 bg-[#1b1d28] p-3 text-sm text-white/55">
                         <p className="flex items-start gap-2">
-                            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+                            <Info className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
                             <span>
                                 <strong>Note:</strong> Instagram Business accounts are connected through Facebook Pages.
                                 Connect your Facebook Page first, and any linked Instagram Business accounts will be available automatically.

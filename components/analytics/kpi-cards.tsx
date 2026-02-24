@@ -18,7 +18,7 @@ export function KPICards({ engagement, views, followers, growthRate, comparisonL
             value: engagement.value.toLocaleString(),
             change: engagement.changePct,
             icon: Activity,
-            accent: { border: 'rgba(167,139,250,0.2)', glow: '0 4px 24px rgba(139,92,246,0.08)', icon: '#a78bfa', number: '#c4b5fd' },
+            accent: { border: 'rgba(251,113,133,0.18)', glow: '0 8px 28px rgba(251,113,133,0.08)', icon: '#fb7185', number: '#fda4af' },
             breakdown: null,
         },
         {
@@ -26,7 +26,7 @@ export function KPICards({ engagement, views, followers, growthRate, comparisonL
             value: views.display || views.value.toLocaleString(),
             change: views.changePct,
             icon: Eye,
-            accent: { border: 'rgba(96,165,250,0.2)', glow: '0 4px 24px rgba(59,130,246,0.08)', icon: '#60a5fa', number: '#93c5fd' },
+            accent: { border: 'rgba(34,211,238,0.18)', glow: '0 8px 28px rgba(34,211,238,0.08)', icon: '#22d3ee', number: '#67e8f9' },
             breakdown: null,
         },
         {
@@ -34,7 +34,7 @@ export function KPICards({ engagement, views, followers, growthRate, comparisonL
             value: followers.value.toLocaleString(),
             change: followers.changePct,
             icon: Users,
-            accent: { border: 'rgba(52,211,153,0.2)', glow: '0 4px 24px rgba(16,185,129,0.08)', icon: '#34d399', number: '#6ee7b7' },
+            accent: { border: 'rgba(132,204,22,0.16)', glow: '0 8px 28px rgba(132,204,22,0.08)', icon: '#84cc16', number: '#bef264' },
             breakdown: { facebook: followers.facebook || 0, instagram: followers.instagram || 0 },
         },
         {
@@ -42,7 +42,7 @@ export function KPICards({ engagement, views, followers, growthRate, comparisonL
             value: `${growthRate.value}%`,
             change: growthRate.changePct,
             icon: Percent,
-            accent: { border: 'rgba(251,146,60,0.2)', glow: '0 4px 24px rgba(245,158,11,0.08)', icon: '#fb923c', number: '#fdba74' },
+            accent: { border: 'rgba(245,158,11,0.18)', glow: '0 8px 28px rgba(245,158,11,0.08)', icon: '#f59e0b', number: '#fbbf24' },
             breakdown: null,
         },
     ]
@@ -59,7 +59,7 @@ export function KPICards({ engagement, views, followers, growthRate, comparisonL
                         key={kpi.title}
                         className="relative overflow-hidden rounded-xl p-5"
                         style={{
-                            background: '#0e0d1c',
+                            background: '#151620',
                             border: `1px solid ${kpi.accent.border}`,
                             boxShadow: `${kpi.accent.glow}, 0 1px 0 rgba(255,255,255,0.04) inset`,
                         }}
@@ -92,11 +92,11 @@ export function KPICards({ engagement, views, followers, growthRate, comparisonL
                         {kpi.breakdown && (
                             <div className="flex items-center gap-3 mt-1.5">
                                 <span className="flex items-center gap-1 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                                    <span className="h-1.5 w-1.5 rounded-full bg-blue-400 inline-block" />
+                                    <span className="h-1.5 w-1.5 rounded-full inline-block" style={{ background: '#22d3ee' }} />
                                     FB: {kpi.breakdown.facebook.toLocaleString()}
                                 </span>
                                 <span className="flex items-center gap-1 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                                    <span className="h-1.5 w-1.5 rounded-full bg-pink-400 inline-block" />
+                                    <span className="h-1.5 w-1.5 rounded-full inline-block" style={{ background: '#fb7185' }} />
                                     IG: {kpi.breakdown.instagram.toLocaleString()}
                                 </span>
                             </div>

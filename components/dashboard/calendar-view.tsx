@@ -46,6 +46,17 @@ interface CalendarViewProps {
     workspaceId: string
 }
 
+const CAL_THEME = {
+    panel: "#151620",
+    panelAlt: "#10111a",
+    border: "rgba(255,255,255,0.08)",
+    text: "rgba(255,255,255,0.88)",
+    textMuted: "rgba(255,255,255,0.42)",
+    cyan: "#22d3ee",
+    amber: "#f59e0b",
+    coral: "#fb7185",
+}
+
 // Draggable Post Badge Component
 function DraggablePostBadge({ post, index }: { post: CalendarPost, index: number }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -64,7 +75,7 @@ function DraggablePostBadge({ post, index }: { post: CalendarPost, index: number
                     ref={setNodeRef}
                     {...listeners}
                     {...attributes}
-                    className="h-9 w-9 rounded-md bg-cover bg-center transition-transform hover:scale-110 cursor-grab active:cursor-grabbing shadow-sm border border-border relative group"
+                    className="h-7 w-7 sm:h-9 sm:w-9 rounded-md bg-cover bg-center transition-transform hover:scale-110 cursor-grab active:cursor-grabbing shadow-sm border border-border relative group"
                     style={{
                         backgroundColor: !post.mediaUrl ? (post.platforms.includes('instagram') ? '#E1306C' : post.platforms.includes('facebook') ? '#1877F2' : '#888') : undefined,
                         backgroundImage: post.mediaUrl ? `url(${post.mediaUrl})` : undefined,
@@ -93,7 +104,7 @@ function DraggablePostBadge({ post, index }: { post: CalendarPost, index: number
                         />
                     </div>
                 )}
-                <div className="p-3">
+                <div className="p-3" style={{ background: CAL_THEME.panel }}>
                     <div className="font-semibold mb-1 flex items-center gap-2">
                         {post.date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                         <div className="flex -space-x-1">
@@ -101,7 +112,7 @@ function DraggablePostBadge({ post, index }: { post: CalendarPost, index: number
                             {post.platforms.includes('instagram') && <Instagram className="h-3 w-3 text-pink-600" />}
                         </div>
                     </div>
-                    <p className="text-muted-foreground text-xs line-clamp-3">
+                    <p className="text-xs line-clamp-3" style={{ color: CAL_THEME.textMuted }}>
                         {post.content || "No content"}
                     </p>
                 </div>
@@ -145,26 +156,35 @@ function DroppableCalendarCell({
         <div
             ref={setNodeRef}
             className={cn(
-                "min-h-[100px] bg-background p-2 relative transition-colors flex flex-col gap-1 group",
-                !isCurrentMonth && "bg-muted/30",
-                isToday && "bg-blue-50/50 dark:bg-blue-900/10 ring-1 ring-inset ring-blue-500/50",
-                isPast && "bg-muted/50 opacity-60 cursor-not-allowed",
-                isOver && day && !isPast && "bg-primary/10 ring-2 ring-primary/50"
+                "min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 relative transition-colors flex flex-col gap-1 group"
             )}
+            style={{
+                background: !isCurrentMonth ? "rgba(255,255,255,0.015)" : CAL_THEME.panelAlt,
+                opacity: isPast ? 0.6 : 1,
+                cursor: isPast ? "not-allowed" : undefined,
+                boxShadow: isToday ? "inset 0 0 0 1px rgba(34,211,238,0.35)" : undefined,
+                outline: isOver && day && !isPast ? "2px solid rgba(245,158,11,0.28)" : undefined,
+                outlineOffset: isOver && day && !isPast ? "-2px" : undefined,
+            }}
         >
             {day && (
                 <>
                     <div className="flex justify-between items-start">
-                        <span className={cn(
-                            "text-xs font-medium",
-                            isToday && "text-blue-600 dark:text-blue-400 font-bold",
-                            isPast && "text-muted-foreground"
-                        )}>
+                        <span
+                            className="text-xs font-medium"
+                            style={{
+                                color: isToday ? CAL_THEME.cyan : (isPast ? "rgba(255,255,255,0.32)" : "rgba(255,255,255,0.72)"),
+                                fontWeight: isToday ? 700 : 500,
+                            }}
+                        >
                             {day}
                         </span>
                         <div className="flex items-center gap-1">
                             {posts.length > 0 && (
-                                <span className="text-[10px] bg-primary/10 text-primary px-1 rounded-sm font-medium">
+                                <span
+                                    className="text-[10px] px-1 rounded-sm font-medium"
+                                    style={{ background: "rgba(34,211,238,0.10)", color: CAL_THEME.cyan }}
+                                >
                                     {posts.length}
                                 </span>
                             )}
@@ -175,10 +195,13 @@ function DroppableCalendarCell({
                                         e.stopPropagation()
                                         onAddPost(new Date(currentYear, currentMonth, day))
                                     }}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-primary/10 rounded cursor-pointer"
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded cursor-pointer"
+                                    style={{ background: "transparent" }}
                                     title="Add post"
+                                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(245,158,11,0.08)" }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.background = "transparent" }}
                                 >
-                                    <Plus className="h-3 w-3 text-muted-foreground hover:text-primary" />
+                                    <Plus className="h-3 w-3" style={{ color: "rgba(255,255,255,0.45)" }} />
                                 </button>
                             )}
                         </div>
@@ -238,12 +261,12 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
     // Don't render calendar until client-side date is set
     if (!currentDate || !today) {
         return (
-            <Card>
-                <CardHeader>
-                    <CardTitle className="font-bold text-xl">Content Calendar</CardTitle>
+            <Card style={{ background: CAL_THEME.panel, border: `1px solid ${CAL_THEME.border}` }}>
+                <CardHeader style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                    <CardTitle className="font-bold text-xl" style={{ color: CAL_THEME.text }}>Content Calendar</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="h-[500px] flex items-center justify-center text-muted-foreground">
+                    <div className="h-[500px] flex items-center justify-center" style={{ color: CAL_THEME.textMuted }}>
                         Loading calendar...
                     </div>
                 </CardContent>
@@ -404,16 +427,21 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
                 onDragOver={handleDragOver}
                 onDragEnd={handleDragEnd}
             >
-                <Card>
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <CardTitle className="font-bold text-xl">Content Calendar</CardTitle>
+                <Card style={{ background: CAL_THEME.panel, border: `1px solid ${CAL_THEME.border}`, boxShadow: "0 14px 34px rgba(0,0,0,0.16)" }}>
+                    <CardHeader style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <CardTitle className="font-bold text-lg sm:text-xl" style={{ color: CAL_THEME.text }}>Content Calendar</CardTitle>
                             <div className="flex items-center gap-2">
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={goToToday}
                                     className="text-xs"
+                                    style={{
+                                        background: "rgba(255,255,255,0.03)",
+                                        borderColor: "rgba(255,255,255,0.08)",
+                                        color: "rgba(255,255,255,0.78)",
+                                    }}
                                 >
                                     Today
                                 </Button>
@@ -423,10 +451,11 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
                                         size="icon"
                                         className="h-8 w-8"
                                         onClick={goToPreviousMonth}
+                                        style={{ color: "rgba(255,255,255,0.7)" }}
                                     >
                                         <ChevronLeft className="h-4 w-4" />
                                     </Button>
-                                    <div className="min-w-[140px] text-center text-sm font-medium">
+                                    <div className="min-w-[140px] text-center text-sm font-medium" style={{ color: CAL_THEME.text }}>
                                         {monthName}
                                     </div>
                                     <Button
@@ -434,6 +463,7 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
                                         size="icon"
                                         className="h-8 w-8"
                                         onClick={goToNextMonth}
+                                        style={{ color: "rgba(255,255,255,0.7)" }}
                                     >
                                         <ChevronRight className="h-4 w-4" />
                                     </Button>
@@ -442,10 +472,26 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-7 gap-px bg-muted rounded-lg overflow-hidden border border-border">
-                            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                                <div key={day} className="bg-background p-2 text-center text-xs font-semibold text-muted-foreground">
-                                    {day}
+                        <div
+                            className="grid grid-cols-7 gap-px rounded-lg overflow-hidden"
+                            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}
+                        >
+                            {[
+                                { full: "Sun", short: "S" },
+                                { full: "Mon", short: "M" },
+                                { full: "Tue", short: "T" },
+                                { full: "Wed", short: "W" },
+                                { full: "Thu", short: "T" },
+                                { full: "Fri", short: "F" },
+                                { full: "Sat", short: "S" },
+                            ].map(({ full, short }) => (
+                                <div
+                                    key={full}
+                                    className="p-1 sm:p-2 text-center text-xs font-semibold"
+                                    style={{ background: CAL_THEME.panelAlt, color: "rgba(255,255,255,0.42)" }}
+                                >
+                                    <span className="hidden sm:inline">{full}</span>
+                                    <span className="sm:hidden">{short}</span>
                                 </div>
                             ))}
                             {gridCells.map((cell, i) => (

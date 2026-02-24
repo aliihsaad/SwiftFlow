@@ -13,8 +13,8 @@ export function LatestPostCard({ post }: LatestPostCardProps) {
             <div
                 className="rounded-xl p-5"
                 style={{
-                    background: '#0e0d1c',
-                    border: '1px solid rgba(255,255,255,0.06)',
+                    background: '#151620',
+                    border: '1px solid rgba(255,255,255,0.08)',
                 }}
             >
                 <h3 className="text-sm font-semibold mb-3" style={{ color: 'rgba(255,255,255,0.7)' }}>Latest Post</h3>
@@ -29,8 +29,8 @@ export function LatestPostCard({ post }: LatestPostCardProps) {
         <div
             className="rounded-xl overflow-hidden"
             style={{
-                background: '#0e0d1c',
-                border: '1px solid rgba(255,255,255,0.06)',
+                background: '#151620',
+                border: '1px solid rgba(255,255,255,0.08)',
             }}
         >
             {/* Header */}
@@ -50,8 +50,8 @@ export function LatestPostCard({ post }: LatestPostCardProps) {
                         className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
                         style={
                             isInstagram
-                                ? { background: 'rgba(236,72,153,0.12)', color: '#f472b6', border: '1px solid rgba(236,72,153,0.25)' }
-                                : { background: 'rgba(59,130,246,0.12)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.25)' }
+                                ? { background: 'rgba(251,113,133,0.12)', color: '#fda4af', border: '1px solid rgba(251,113,133,0.22)' }
+                                : { background: 'rgba(34,211,238,0.12)', color: '#67e8f9', border: '1px solid rgba(34,211,238,0.22)' }
                         }
                     >
                         {post.platform.charAt(0).toUpperCase() + post.platform.slice(1)}
@@ -73,15 +73,15 @@ export function LatestPostCard({ post }: LatestPostCardProps) {
                         <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>{post.likes.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <MessageCircle className="h-3.5 w-3.5 text-blue-400" />
+                        <MessageCircle className="h-3.5 w-3.5" style={{ color: '#22d3ee' }} />
                         <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>{post.comments.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <Share2 className="h-3.5 w-3.5 text-emerald-400" />
+                        <Share2 className="h-3.5 w-3.5" style={{ color: '#84cc16' }} />
                         <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>{post.shares.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-1.5 ml-auto">
-                        <Eye className="h-3.5 w-3.5" style={{ color: '#a78bfa' }} />
+                        <Eye className="h-3.5 w-3.5" style={{ color: '#f59e0b' }} />
                         <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>{post.views.toLocaleString()}</span>
                     </div>
                 </div>

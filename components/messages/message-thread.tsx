@@ -8,6 +8,19 @@ import { Send, Image, Loader2, MessageSquare, Sparkles, Paperclip, ExternalLink 
 import { format } from "date-fns"
 import { createClient } from "@/utils/supabase/client"
 
+const THREAD_THEME = {
+    panelAlt: '#1b1d28',
+    border: 'rgba(255,255,255,0.08)',
+    borderSoft: 'rgba(255,255,255,0.05)',
+    inboundBg: '#1b1d28',
+    inboundText: 'rgba(255,255,255,0.78)',
+    inboundMuted: 'rgba(255,255,255,0.56)',
+    muted: 'rgba(255,255,255,0.5)',
+    mutedSoft: 'rgba(255,255,255,0.35)',
+    mutedFaint: 'rgba(255,255,255,0.25)',
+    amber: '#fbbf24',
+}
+
 interface Message {
     id: string
     platform_message_id: string
@@ -55,6 +68,25 @@ export function MessageThread({
     const [internalWorkspaceId, setInternalWorkspaceId] = useState<string | null>(null)
 
     const workspaceId = propWorkspaceId || internalWorkspaceId
+    const accent = platform === 'facebook'
+        ? {
+            primary: '#38bdf8',
+            secondary: '#0ea5e9',
+            tint: 'rgba(56,189,248,0.16)',
+            tintStrong: 'rgba(56,189,248,0.26)',
+            softText: '#dff6ff',
+            focus: 'rgba(56,189,248,0.4)',
+            glow: 'rgba(56,189,248,0.28)',
+        }
+        : {
+            primary: '#fb7185',
+            secondary: '#f59e0b',
+            tint: 'rgba(251,113,133,0.16)',
+            tintStrong: 'rgba(251,113,133,0.26)',
+            softText: '#ffe7ee',
+            focus: 'rgba(251,113,133,0.4)',
+            glow: 'rgba(251,113,133,0.28)',
+        }
 
     useEffect(() => {
         if (propWorkspaceId) return
@@ -199,9 +231,9 @@ export function MessageThread({
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center" style={{ background: 'rgba(255,255,255,0.01)' }}>
                 <div
                     className="flex h-16 w-16 items-center justify-center rounded-2xl mb-4"
-                    style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.15)' }}
+                    style={{ background: accent.tint, border: `1px solid ${accent.tintStrong}` }}
                 >
-                    <MessageSquare className="h-8 w-8" style={{ color: '#8b5cf6' }} />
+                    <MessageSquare className="h-8 w-8" style={{ color: accent.primary }} />
                 </div>
                 <h3 className="font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>Select a conversation</h3>
                 <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>
@@ -216,11 +248,11 @@ export function MessageThread({
             {/* Thread header */}
             <div
                 className="shrink-0 flex items-center gap-3 px-4 py-3"
-                style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                style={{ borderBottom: `1px solid ${THREAD_THEME.borderSoft}` }}
             >
                 <Avatar className="h-9 w-9">
                     <AvatarImage src={conversation.participant_profile_picture || undefined} />
-                    <AvatarFallback style={{ background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', color: '#fff', fontSize: '12px' }}>
+                    <AvatarFallback style={{ background: `linear-gradient(135deg, ${accent.primary}, ${accent.secondary})`, color: '#fff', fontSize: '12px' }}>
                         {(conversation.participant_username || 'U')[0].toUpperCase()}
                     </AvatarFallback>
                 </Avatar>
@@ -271,7 +303,7 @@ export function MessageThread({
                                         <div className="flex items-center justify-center py-2">
                                             <span
                                                 className="text-[10px] font-medium px-3 py-1 rounded-full"
-                                                style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.3)' }}
+                                                style={{ background: 'rgba(255,255,255,0.05)', color: THREAD_THEME.mutedSoft, border: `1px solid ${THREAD_THEME.borderSoft}` }}
                                             >
                                                 {format(new Date(message.platform_created_at), 'MMM d, yyyy')}
                                             </span>
@@ -282,7 +314,7 @@ export function MessageThread({
                                         {!message.is_from_page && (
                                             <Avatar className="h-7 w-7 shrink-0">
                                                 <AvatarImage src={conversation.participant_profile_picture || undefined} />
-                                                <AvatarFallback style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)', fontSize: '10px' }}>
+                                                <AvatarFallback style={{ background: 'rgba(255,255,255,0.08)', color: THREAD_THEME.muted, fontSize: '10px' }}>
                                                     {(conversation.participant_username || 'U')[0].toUpperCase()}
                                                 </AvatarFallback>
                                             </Avatar>
@@ -295,15 +327,15 @@ export function MessageThread({
                                                     style={
                                                         message.is_from_page
                                                             ? {
-                                                                background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                                                                background: `linear-gradient(135deg, ${accent.primary}, ${accent.secondary})`,
                                                                 color: '#fff',
                                                                 borderBottomRightRadius: '4px',
-                                                                boxShadow: '0 2px 12px rgba(139,92,246,0.25)',
+                                                                boxShadow: `0 2px 14px ${accent.glow}`,
                                                             }
                                                             : {
-                                                                background: '#1a1830',
-                                                                color: 'rgba(255,255,255,0.75)',
-                                                                border: '1px solid rgba(255,255,255,0.07)',
+                                                                background: THREAD_THEME.inboundBg,
+                                                                color: THREAD_THEME.inboundText,
+                                                                border: `1px solid ${THREAD_THEME.border}`,
                                                                 borderBottomLeftRadius: '4px',
                                                             }
                                                     }
@@ -318,15 +350,15 @@ export function MessageThread({
                                                     style={
                                                         message.is_from_page
                                                             ? {
-                                                                background: 'rgba(139,92,246,0.16)',
-                                                                color: 'rgba(233,213,255,0.95)',
+                                                                background: accent.tint,
+                                                                color: accent.softText,
                                                                 borderBottomRightRadius: '4px',
-                                                                border: '1px solid rgba(139,92,246,0.22)',
+                                                                border: `1px solid ${accent.tintStrong}`,
                                                             }
                                                             : {
-                                                                background: '#1a1830',
-                                                                color: 'rgba(255,255,255,0.5)',
-                                                                border: '1px solid rgba(255,255,255,0.07)',
+                                                                background: THREAD_THEME.inboundBg,
+                                                                color: THREAD_THEME.inboundMuted,
+                                                                border: `1px solid ${THREAD_THEME.border}`,
                                                                 borderBottomLeftRadius: '4px',
                                                             }
                                                     }
@@ -340,8 +372,8 @@ export function MessageThread({
                                                             className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-semibold"
                                                             style={{
                                                                 background: message.is_from_page ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)',
-                                                                color: message.is_from_page ? '#f5e9ff' : 'rgba(255,255,255,0.72)',
-                                                                border: '1px solid rgba(255,255,255,0.08)',
+                                                                color: message.is_from_page ? accent.softText : 'rgba(255,255,255,0.72)',
+                                                                border: `1px solid ${THREAD_THEME.border}`,
                                                             }}
                                                             title="Open this conversation in Instagram (best effort)"
                                                         >
@@ -361,8 +393,8 @@ export function MessageThread({
                                                                 const label = getAttachmentLabel(att)
                                                                 const isImage = isImageAttachment(att) && !!attachmentUrl
                                                                 const bubbleStyle = message.is_from_page
-                                                                    ? { background: 'rgba(139,92,246,0.25)', color: '#c4b5fd' }
-                                                                    : { background: '#1a1830', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.07)' }
+                                                                    ? { background: accent.tintStrong, color: accent.softText }
+                                                                    : { background: THREAD_THEME.inboundBg, color: THREAD_THEME.inboundMuted, border: `1px solid ${THREAD_THEME.border}` }
 
                                                                 if (isImage) {
                                                                     return (
@@ -373,8 +405,8 @@ export function MessageThread({
                                                                             className="block rounded-xl overflow-hidden"
                                                                             style={{
                                                                                 ...(message.is_from_page
-                                                                                    ? { background: 'rgba(139,92,246,0.22)' }
-                                                                                    : { background: '#1a1830', border: '1px solid rgba(255,255,255,0.07)' }),
+                                                                                    ? { background: accent.tint }
+                                                                                    : { background: THREAD_THEME.inboundBg, border: `1px solid ${THREAD_THEME.border}` }),
                                                                             }}
                                                                         >
                                                                             <img
@@ -423,7 +455,7 @@ export function MessageThread({
                                                                                 target="_blank"
                                                                                 rel="noreferrer"
                                                                                 className="inline-flex items-center gap-1 text-[10px] font-semibold shrink-0"
-                                                                                style={{ color: message.is_from_page ? '#e9d5ff' : 'rgba(255,255,255,0.65)' }}
+                                                                                style={{ color: message.is_from_page ? accent.softText : 'rgba(255,255,255,0.65)' }}
                                                                             >
                                                                                 Open
                                                                                 <ExternalLink className="h-3 w-3" />
@@ -439,7 +471,7 @@ export function MessageThread({
 
                                             <p
                                                 className={`text-[10px] opacity-0 group-hover:opacity-100 transition-opacity ${message.is_from_page ? 'text-right' : ''}`}
-                                                style={{ color: 'rgba(255,255,255,0.25)' }}
+                                                style={{ color: THREAD_THEME.mutedFaint }}
                                             >
                                                 {format(new Date(message.platform_created_at), 'h:mm a')}
                                             </p>
@@ -455,15 +487,15 @@ export function MessageThread({
             {/* Input */}
             <div
                 className="shrink-0 p-3"
-                style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+                style={{ borderTop: `1px solid ${THREAD_THEME.borderSoft}` }}
             >
                 {composerDisabled && (
                     <div
                         className="mb-2.5 rounded-lg px-3 py-2 text-xs"
                         style={{
-                            background: 'rgba(59,130,246,0.08)',
-                            border: '1px solid rgba(59,130,246,0.18)',
-                            color: 'rgba(191,219,254,0.9)',
+                            background: 'rgba(245,158,11,0.08)',
+                            border: '1px solid rgba(245,158,11,0.18)',
+                            color: 'rgba(253,230,138,0.92)',
                         }}
                     >
                         {composerDisabledReason || 'Messaging is currently unavailable for this account.'}
@@ -479,12 +511,12 @@ export function MessageThread({
                         rows={1}
                         className="flex-1 min-h-[44px] max-h-32 resize-none rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all duration-150"
                         style={{
-                            background: composerDisabled ? 'rgba(255,255,255,0.03)' : '#12111e',
-                            border: '1px solid rgba(255,255,255,0.08)',
+                            background: composerDisabled ? 'rgba(255,255,255,0.03)' : THREAD_THEME.panelAlt,
+                            border: `1px solid ${THREAD_THEME.border}`,
                             color: composerDisabled ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.8)',
                         }}
-                        onFocus={(e) => { e.target.style.border = '1px solid rgba(139,92,246,0.4)' }}
-                        onBlur={(e) => { e.target.style.border = '1px solid rgba(255,255,255,0.08)' }}
+                        onFocus={(e) => { e.target.style.border = `1px solid ${accent.focus}` }}
+                        onBlur={(e) => { e.target.style.border = `1px solid ${THREAD_THEME.border}` }}
                     />
 
                     <TooltipProvider>
@@ -495,9 +527,9 @@ export function MessageThread({
                                     disabled={isGeneratingAI || !hasCustomerMessage || !workspaceId || composerDisabled}
                                     className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 disabled:opacity-40"
                                     style={{
-                                        background: 'rgba(139,92,246,0.12)',
-                                        border: '1px solid rgba(139,92,246,0.25)',
-                                        color: '#a78bfa',
+                                        background: 'rgba(245,158,11,0.10)',
+                                        border: '1px solid rgba(245,158,11,0.22)',
+                                        color: THREAD_THEME.amber,
                                     }}
                                 >
                                     {isGeneratingAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -512,9 +544,9 @@ export function MessageThread({
                         disabled={!inputValue.trim() || isSending || composerDisabled}
                         className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-all duration-150 disabled:opacity-40"
                         style={{
-                            background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                            background: `linear-gradient(135deg, ${accent.primary}, ${accent.secondary})`,
                             color: '#fff',
-                            boxShadow: '0 2px 12px rgba(139,92,246,0.3)',
+                            boxShadow: `0 2px 14px ${accent.glow}`,
                         }}
                     >
                         {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

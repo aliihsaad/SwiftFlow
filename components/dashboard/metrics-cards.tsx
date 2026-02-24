@@ -8,6 +8,13 @@ import {
     TooltipTrigger,
 } from "@/components/ui/tooltip"
 
+const DASH_THEME = {
+    panel: "#151620",
+    border: "rgba(255,255,255,0.08)",
+    text: "rgba(255,255,255,0.9)",
+    textMuted: "rgba(255,255,255,0.42)",
+}
+
 interface MetricsProps {
     draftCount: number
     scheduledCount: number
@@ -71,7 +78,7 @@ function MetricCard({
         <div
             className="group relative overflow-hidden rounded-xl p-5 transition-all duration-300 hover:translate-y-[-2px] cursor-pointer"
             style={{
-                background: '#0e0d1c',
+                background: DASH_THEME.panel,
                 border: `1px solid ${accentColor.border}`,
                 boxShadow: `${accentColor.glow}, 0 1px 0 rgba(255,255,255,0.04) inset`,
             }}
@@ -169,8 +176,8 @@ export function MetricsCards({ draftCount, scheduledCount, postedCount, workspac
                 sparkData={[2, 5, 3, 7, 4, 8, 6]}
                 sparkColor="#f59e0b"
                 accentColor={{
-                    border: 'rgba(245,158,11,0.15)',
-                    glow: '0 4px 24px rgba(245,158,11,0.06)',
+                    border: 'rgba(245,158,11,0.18)',
+                    glow: '0 8px 28px rgba(245,158,11,0.08)',
                     icon: '#f59e0b',
                     number: '#fbbf24',
                     badge: 'rgba(245,158,11,0.1)',
@@ -186,13 +193,13 @@ export function MetricsCards({ draftCount, scheduledCount, postedCount, workspac
                 count={scheduledCount}
                 trend={{ value: 5, isUp: true }}
                 sparkData={[4, 2, 5, 3, 6, 4, 7]}
-                sparkColor="#818cf8"
+                sparkColor="#22d3ee"
                 accentColor={{
-                    border: 'rgba(99,102,241,0.18)',
-                    glow: '0 4px 24px rgba(99,102,241,0.07)',
-                    icon: '#818cf8',
-                    number: '#a5b4fc',
-                    badge: 'rgba(99,102,241,0.1)',
+                    border: 'rgba(34,211,238,0.18)',
+                    glow: '0 8px 28px rgba(34,211,238,0.08)',
+                    icon: '#22d3ee',
+                    number: '#67e8f9',
+                    badge: 'rgba(34,211,238,0.1)',
                 }}
                 icon={Calendar}
                 isEmpty={isWorkspaceEmpty}
@@ -205,13 +212,13 @@ export function MetricsCards({ draftCount, scheduledCount, postedCount, workspac
                 count={postedCount}
                 trend={{ value: 2, isUp: false }}
                 sparkData={[1, 3, 2, 4, 5, 8, 9]}
-                sparkColor="#34d399"
+                sparkColor="#84cc16"
                 accentColor={{
-                    border: 'rgba(52,211,153,0.15)',
-                    glow: '0 4px 24px rgba(52,211,153,0.06)',
-                    icon: '#34d399',
-                    number: '#6ee7b7',
-                    badge: 'rgba(52,211,153,0.1)',
+                    border: 'rgba(132,204,22,0.16)',
+                    glow: '0 8px 28px rgba(132,204,22,0.07)',
+                    icon: '#84cc16',
+                    number: '#bef264',
+                    badge: 'rgba(132,204,22,0.1)',
                 }}
                 icon={CheckCircle2}
                 isEmpty={isWorkspaceEmpty}

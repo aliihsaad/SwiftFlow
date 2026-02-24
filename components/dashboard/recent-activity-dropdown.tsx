@@ -18,10 +18,10 @@ export type RecentAction = {
 
 const typeConfig: Record<RecentAction['type'], { icon: React.ElementType; color: string; bg: string }> = {
     draft:        { icon: FileEdit,      color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-    published:    { icon: Send,          color: '#34d399', bg: 'rgba(52,211,153,0.1)' },
-    scheduled:    { icon: CalendarClock, color: '#818cf8', bg: 'rgba(129,140,248,0.1)' },
-    ai_generated: { icon: Sparkles,      color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
-    failed:       { icon: Ban,           color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
+    published:    { icon: Send,          color: '#84cc16', bg: 'rgba(132,204,22,0.12)' },
+    scheduled:    { icon: CalendarClock, color: '#22d3ee', bg: 'rgba(34,211,238,0.1)' },
+    ai_generated: { icon: Sparkles,      color: '#fb7185', bg: 'rgba(251,113,133,0.1)' },
+    failed:       { icon: Ban,           color: '#fb7185', bg: 'rgba(251,113,133,0.1)' },
 }
 
 interface RecentActivityDropdownProps {
@@ -35,17 +35,17 @@ export function RecentActivityDropdown({ activities }: RecentActivityDropdownPro
                 <button
                     className="relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-150"
                     style={{
-                        background: 'rgba(255,255,255,0.05)',
+                        background: 'rgba(255,255,255,0.04)',
                         border: '1px solid rgba(255,255,255,0.08)',
                         color: 'rgba(255,255,255,0.5)',
                     }}
                     onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(139,92,246,0.12)'
-                        e.currentTarget.style.borderColor = 'rgba(139,92,246,0.3)'
-                        e.currentTarget.style.color = '#a78bfa'
+                        e.currentTarget.style.background = 'rgba(34,211,238,0.08)'
+                        e.currentTarget.style.borderColor = 'rgba(34,211,238,0.2)'
+                        e.currentTarget.style.color = '#22d3ee'
                     }}
                     onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
                         e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
                         e.currentTarget.style.color = 'rgba(255,255,255,0.5)'
                     }}
@@ -54,7 +54,7 @@ export function RecentActivityDropdown({ activities }: RecentActivityDropdownPro
                     {activities.length > 0 && (
                         <span
                             className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full text-[8px] font-bold text-white"
-                            style={{ background: '#7c3aed' }}
+                            style={{ background: '#fb7185' }}
                         >
                             {Math.min(activities.length, 9)}
                         </span>
@@ -66,7 +66,7 @@ export function RecentActivityDropdown({ activities }: RecentActivityDropdownPro
                 align="end"
                 className="p-0 w-[360px] rounded-xl overflow-hidden"
                 style={{
-                    background: 'rgba(12,11,22,0.98)',
+                    background: 'rgba(17,17,24,0.98)',
                     border: '1px solid rgba(255,255,255,0.08)',
                     boxShadow: '0 24px 48px rgba(0,0,0,0.7)',
                 }}
@@ -81,7 +81,7 @@ export function RecentActivityDropdown({ activities }: RecentActivityDropdownPro
                     </span>
                     <span
                         className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                        style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa' }}
+                        style={{ background: 'rgba(34,211,238,0.12)', color: '#22d3ee' }}
                     >
                         {activities.length}
                     </span>

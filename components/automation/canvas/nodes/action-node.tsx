@@ -25,15 +25,15 @@ const iconMap: Record<string, React.ElementType> = {
   action_ai_response: Sparkles,
 }
 
-const colorMap: Record<string, { bg: string; border: string; borderSelected: string }> = {
-  action_send_dm: { bg: 'bg-purple-500', border: 'border-purple-400/50', borderSelected: 'border-purple-500' },
-  action_private_reply: { bg: 'bg-purple-500', border: 'border-purple-400/50', borderSelected: 'border-purple-500' },
-  action_reply_comment: { bg: 'bg-purple-500', border: 'border-purple-400/50', borderSelected: 'border-purple-500' },
-  action_delay: { bg: 'bg-amber-500', border: 'border-amber-400/50', borderSelected: 'border-amber-500' },
-  action_condition: { bg: 'bg-emerald-500', border: 'border-emerald-400/50', borderSelected: 'border-emerald-500' },
-  action_send_email: { bg: 'bg-purple-500', border: 'border-purple-400/50', borderSelected: 'border-purple-500' },
-  action_http_request: { bg: 'bg-purple-500', border: 'border-purple-400/50', borderSelected: 'border-purple-500' },
-  action_ai_response: { bg: 'bg-pink-500', border: 'border-pink-400/50', borderSelected: 'border-pink-500' },
+const colorMap: Record<string, { bg: string; border: string; borderSelected: string; handle: string; trueLabel?: string }> = {
+  action_send_dm: { bg: 'linear-gradient(135deg, #fb7185, #f59e0b)', border: 'rgba(251,113,133,0.35)', borderSelected: 'rgba(251,113,133,0.85)', handle: '#fb7185' },
+  action_private_reply: { bg: 'linear-gradient(135deg, #fb7185, #f59e0b)', border: 'rgba(251,113,133,0.35)', borderSelected: 'rgba(251,113,133,0.85)', handle: '#fb7185' },
+  action_reply_comment: { bg: 'linear-gradient(135deg, #fb7185, #f59e0b)', border: 'rgba(251,113,133,0.35)', borderSelected: 'rgba(251,113,133,0.85)', handle: '#fb7185' },
+  action_delay: { bg: 'linear-gradient(135deg, #f59e0b, #fbbf24)', border: 'rgba(245,158,11,0.35)', borderSelected: 'rgba(245,158,11,0.85)', handle: '#f59e0b' },
+  action_condition: { bg: 'linear-gradient(135deg, #34d399, #10b981)', border: 'rgba(16,185,129,0.35)', borderSelected: 'rgba(16,185,129,0.85)', handle: '#10b981' },
+  action_send_email: { bg: 'linear-gradient(135deg, #38bdf8, #0ea5e9)', border: 'rgba(56,189,248,0.35)', borderSelected: 'rgba(56,189,248,0.85)', handle: '#38bdf8' },
+  action_http_request: { bg: 'linear-gradient(135deg, #38bdf8, #0ea5e9)', border: 'rgba(56,189,248,0.35)', borderSelected: 'rgba(56,189,248,0.85)', handle: '#38bdf8' },
+  action_ai_response: { bg: 'linear-gradient(135deg, #f43f5e, #fb7185)', border: 'rgba(251,113,133,0.35)', borderSelected: 'rgba(251,113,133,0.85)', handle: '#fb7185' },
 }
 
 function ActionNodeComponent({ data, selected }: NodeProps) {
@@ -45,20 +45,29 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
   return (
     <div
       className={`
-        relative rounded-xl border-2 bg-background shadow-md min-w-[180px] max-w-[220px]
+        relative rounded-xl border-2 shadow-md min-w-[180px] max-w-[220px]
         transition-all duration-150
-        ${selected ? `${colors.borderSelected} shadow-lg` : colors.border}
+        ${selected ? 'shadow-lg' : ''}
       `}
+      style={{
+        background: '#151620',
+        borderColor: selected ? colors.borderSelected : colors.border,
+        boxShadow: selected ? `0 10px 26px ${colors.border.replace('0.35', '0.16')}` : undefined,
+      }}
     >
       {/* Input Handle (top) */}
       <Handle
         type="target"
         position={Position.Top}
-        className={`!w-3 !h-3 !border-2 !border-background ${isCondition ? '!bg-emerald-500' : '!bg-purple-500'}`}
+        className="!w-3 !h-3 !border-2"
+        style={{ background: isCondition ? '#10b981' : colors.handle, borderColor: '#151620' }}
       />
 
       {/* Header */}
-      <div className={`flex items-center gap-2 px-3 py-2 ${colors.bg} rounded-t-[10px]`}>
+      <div
+        className="flex items-center gap-2 px-3 py-2 rounded-t-[10px]"
+        style={{ background: colors.bg }}
+      >
         <Icon className="h-4 w-4 text-white shrink-0" />
         <span className="text-sm font-medium text-white truncate">
           {nodeData.label}
@@ -67,7 +76,7 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
 
       {/* Body */}
       <div className="px-3 py-2">
-        <p className="text-xs text-muted-foreground truncate">
+        <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.55)' }}>
           {nodeData.description || getDescription(nodeData)}
         </p>
       </div>
@@ -80,29 +89,28 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
             type="source"
             position={Position.Bottom}
             id="true"
-            className="!w-3 !h-3 !bg-emerald-500 !border-2 !border-background"
-            style={{ left: '30%' }}
+            className="!w-3 !h-3 !border-2"
+            style={{ left: '30%', background: '#10b981', borderColor: '#151620' }}
           />
           {/* False output (right-bottom) */}
           <Handle
             type="source"
             position={Position.Bottom}
             id="false"
-            className="!w-3 !h-3 !bg-red-500 !border-2 !border-background"
-            style={{ left: '70%' }}
+            className="!w-3 !h-3 !border-2"
+            style={{ left: '70%', background: '#f87171', borderColor: '#151620' }}
           />
           <div className="flex justify-between px-4 pb-1">
-            <span className="text-[10px] text-emerald-600">True</span>
-            <span className="text-[10px] text-red-500">False</span>
+            <span className="text-[10px]" style={{ color: '#34d399' }}>True</span>
+            <span className="text-[10px]" style={{ color: '#f87171' }}>False</span>
           </div>
         </>
       ) : (
         <Handle
           type="source"
           position={Position.Bottom}
-          className={`!w-3 !h-3 !border-2 !border-background ${
-            nodeData.type === 'action_delay' ? '!bg-amber-500' : '!bg-purple-500'
-          }`}
+          className="!w-3 !h-3 !border-2"
+          style={{ background: colors.handle, borderColor: '#151620' }}
         />
       )}
     </div>

@@ -4,6 +4,22 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { formatDistanceToNow } from "date-fns"
 
+const LIST_THEME = {
+    panelAlt: '#1b1d28',
+    border: 'rgba(255,255,255,0.08)',
+    borderSoft: 'rgba(255,255,255,0.05)',
+    text: 'rgba(255,255,255,0.9)',
+    textStrong: 'rgba(255,255,255,0.85)',
+    muted: 'rgba(255,255,255,0.55)',
+    mutedSoft: 'rgba(255,255,255,0.35)',
+    mutedFaint: 'rgba(255,255,255,0.25)',
+    selectedBg: 'rgba(56,189,248,0.10)',
+    selectedBar: '#38bdf8',
+    avatarStart: '#fb7185',
+    avatarEnd: '#f59e0b',
+    unreadBg: '#fb7185',
+}
+
 interface Message {
     id: string
     platform_message_id: string
@@ -70,7 +86,7 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
     if (conversations.length === 0) {
         return (
             <div className="flex items-center justify-center h-full p-6 text-center">
-                <p className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>No conversations</p>
+                <p className="text-sm" style={{ color: LIST_THEME.mutedSoft }}>No conversations</p>
             </div>
         )
     }
@@ -88,22 +104,22 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                             onClick={() => onSelect(conversation)}
                             className="relative w-full flex items-start gap-3 px-4 py-3.5 text-left transition-all duration-150"
                             style={{
-                                background: isSelected ? 'rgba(139,92,246,0.1)' : 'transparent',
-                                borderBottom: index < conversations.length - 1 ? '1px solid rgba(255,255,255,0.04)' : undefined,
+                                background: isSelected ? LIST_THEME.selectedBg : 'transparent',
+                                borderBottom: index < conversations.length - 1 ? `1px solid ${LIST_THEME.borderSoft}` : undefined,
                             }}
                         >
                             {/* Selected indicator */}
                             {isSelected && (
                                 <div
                                     className="absolute left-0 top-2 bottom-2 w-0.5 rounded-r"
-                                    style={{ background: '#8b5cf6' }}
+                                    style={{ background: LIST_THEME.selectedBar }}
                                 />
                             )}
 
                             {/* Avatar */}
                             <Avatar className="h-10 w-10 shrink-0">
                                 <AvatarImage src={conversation.participant_profile_picture || undefined} />
-                                <AvatarFallback style={{ background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', color: '#fff', fontSize: '13px' }}>
+                                <AvatarFallback style={{ background: `linear-gradient(135deg, ${LIST_THEME.avatarStart}, ${LIST_THEME.avatarEnd})`, color: '#fff', fontSize: '13px' }}>
                                     {(conversation.participant_username || 'U')[0].toUpperCase()}
                                 </AvatarFallback>
                             </Avatar>
@@ -114,13 +130,13 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                                     <span
                                         className="text-sm truncate"
                                         style={{
-                                            color: hasUnread ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.65)',
+                                            color: hasUnread ? LIST_THEME.text : 'rgba(255,255,255,0.68)',
                                             fontWeight: hasUnread ? 600 : 500,
                                         }}
                                     >
                                         {conversation.participant_username || 'Unknown User'}
                                     </span>
-                                    <span className="text-[10px] shrink-0" style={{ color: 'rgba(255,255,255,0.25)' }} suppressHydrationWarning>
+                                    <span className="text-[10px] shrink-0" style={{ color: LIST_THEME.mutedFaint }} suppressHydrationWarning>
                                         {formatDistanceToNow(new Date(conversation.last_message_at), { addSuffix: false })}
                                     </span>
                                 </div>
@@ -128,12 +144,12 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                                 <div className="flex items-center justify-between gap-2">
                                     <p
                                         className="text-xs truncate"
-                                        style={{ color: hasUnread ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)' }}
+                                        style={{ color: hasUnread ? LIST_THEME.muted : LIST_THEME.mutedSoft }}
                                     >
                                         {conversation.lastMessage ? (
                                             <>
                                                 {conversation.lastMessage.is_from_page && (
-                                                    <span style={{ color: 'rgba(255,255,255,0.25)' }}>You: </span>
+                                                    <span style={{ color: LIST_THEME.mutedFaint }}>You: </span>
                                                 )}
                                                 {(!isAttachmentPlaceholderMessage(conversation.lastMessage.message) && conversation.lastMessage.message)
                                                     ? conversation.lastMessage.message
@@ -147,7 +163,7 @@ export function ConversationList({ conversations, selectedId, onSelect }: Conver
                                     {hasUnread && (
                                         <span
                                             className="h-5 min-w-5 px-1.5 flex items-center justify-center rounded-full text-[10px] font-bold shrink-0"
-                                            style={{ background: '#ec4899', color: '#fff' }}
+                                            style={{ background: LIST_THEME.unreadBg, color: '#fff' }}
                                         >
                                             {conversation.unread_count}
                                         </span>

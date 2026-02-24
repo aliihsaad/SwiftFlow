@@ -51,6 +51,20 @@ const fetcher = async (url: string) => {
     return data
 }
 
+const POSTS_THEME = {
+    panel: '#151620',
+    panelAlt: '#1b1d28',
+    border: 'rgba(255,255,255,0.08)',
+    text: 'rgba(255,255,255,0.9)',
+    muted: 'rgba(255,255,255,0.5)',
+    mutedSoft: 'rgba(255,255,255,0.35)',
+    mutedFaint: 'rgba(255,255,255,0.25)',
+    instagram: '#fb7185',
+    instagramSoft: 'rgba(251,113,133,0.14)',
+    facebook: '#38bdf8',
+    facebookSoft: 'rgba(56,189,248,0.14)',
+}
+
 export default function PostsPage() {
     const [activePlatform, setActivePlatform] = useState<'instagram' | 'facebook'>('instagram')
     const [selectedPost, setSelectedPost] = useState<PostData | null>(null)
@@ -117,15 +131,15 @@ export default function PostsPage() {
             id: 'instagram' as const,
             label: 'Instagram',
             icon: Instagram,
-            activeStyle: { background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', color: '#fff', boxShadow: '0 4px 16px rgba(236,72,153,0.25)' },
-            dot: '#ec4899',
+            activeStyle: { background: POSTS_THEME.instagramSoft, border: '1px solid rgba(251,113,133,0.25)', color: '#ffe4ea', boxShadow: '0 8px 24px rgba(251,113,133,0.12)' },
+            dot: POSTS_THEME.instagram,
         },
         {
             id: 'facebook' as const,
             label: 'Facebook',
             icon: Facebook,
-            activeStyle: { background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', color: '#fff', boxShadow: '0 4px 16px rgba(59,130,246,0.25)' },
-            dot: '#3b82f6',
+            activeStyle: { background: POSTS_THEME.facebookSoft, border: '1px solid rgba(56,189,248,0.25)', color: '#dff6ff', boxShadow: '0 8px 24px rgba(56,189,248,0.12)' },
+            dot: POSTS_THEME.facebook,
         },
     ]
 
@@ -134,10 +148,17 @@ export default function PostsPage() {
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                    <div
+                        className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold mb-2"
+                        style={{ background: 'rgba(56,189,248,0.10)', border: '1px solid rgba(56,189,248,0.18)', color: '#dff6ff' }}
+                    >
+                        <Grid3X3 className="h-3.5 w-3.5" />
+                        Posts
+                    </div>
+                    <h1 className="text-2xl font-bold tracking-tight" style={{ color: POSTS_THEME.text }}>
                         Posts
                     </h1>
-                    <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                    <p className="text-sm mt-0.5" style={{ color: POSTS_THEME.mutedSoft }}>
                         View your posts and manage comments
                     </p>
                 </div>
@@ -146,9 +167,9 @@ export default function PostsPage() {
                     disabled={isLoading || isRefreshing}
                     className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold self-start transition-all duration-150 disabled:opacity-50"
                     style={{
-                        background: '#12111e',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        color: 'rgba(255,255,255,0.5)',
+                        background: POSTS_THEME.panelAlt,
+                        border: `1px solid ${POSTS_THEME.border}`,
+                        color: POSTS_THEME.muted,
                     }}
                 >
                     <RefreshCw className={cn("h-3.5 w-3.5", (isLoading || isRefreshing) && "animate-spin")} />
@@ -169,9 +190,9 @@ export default function PostsPage() {
                                 isActive
                                     ? tab.activeStyle
                                     : {
-                                          background: '#12111e',
-                                          border: '1px solid rgba(255,255,255,0.08)',
-                                          color: 'rgba(255,255,255,0.4)',
+                                          background: POSTS_THEME.panelAlt,
+                                          border: `1px solid ${POSTS_THEME.border}`,
+                                          color: POSTS_THEME.muted,
                                       }
                             }
                         >
@@ -184,13 +205,13 @@ export default function PostsPage() {
 
             {/* Account info */}
             {account && (
-                <div className="flex items-center gap-2 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                <div className="flex items-center gap-2 text-xs" style={{ color: POSTS_THEME.mutedSoft }}>
                     <div
                         className="w-1.5 h-1.5 rounded-full"
-                        style={{ background: activePlatform === 'instagram' ? '#ec4899' : '#3b82f6' }}
+                        style={{ background: activePlatform === 'instagram' ? POSTS_THEME.instagram : POSTS_THEME.facebook }}
                     />
                     Connected as{' '}
-                    <span className="font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                    <span className="font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>
                         {account.account_name}
                     </span>
                 </div>
@@ -207,7 +228,7 @@ export default function PostsPage() {
                         <div
                             key={`post-skeleton-${index}`}
                             className="overflow-hidden rounded-xl animate-pulse"
-                            style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)' }}
+                            style={{ background: POSTS_THEME.panel, border: `1px solid ${POSTS_THEME.border}` }}
                         >
                             <div className="aspect-square" style={{ background: 'rgba(255,255,255,0.04)' }} />
                             <div className="p-3 space-y-2">
@@ -235,13 +256,13 @@ export default function PostsPage() {
             {noAccount && !showInitialLoading && (
                 <div
                     className="rounded-xl p-12 text-center"
-                    style={{ background: '#0e0d1c', border: '1px dashed rgba(255,255,255,0.08)' }}
+                    style={{ background: POSTS_THEME.panel, border: `1px dashed ${POSTS_THEME.border}` }}
                 >
                     <Grid3X3 className="h-10 w-10 mx-auto mb-4" style={{ color: 'rgba(255,255,255,0.12)' }} />
-                    <p className="font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    <p className="font-medium" style={{ color: POSTS_THEME.muted }}>
                         No {activePlatform === 'instagram' ? 'Instagram' : 'Facebook'} account connected
                     </p>
-                    <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                    <p className="text-sm mt-2" style={{ color: POSTS_THEME.mutedFaint }}>
                         Connect your account in Settings to view your posts.
                     </p>
                 </div>
@@ -264,11 +285,11 @@ export default function PostsPage() {
             {!showInitialLoading && !error && !noAccount && media.length === 0 && (
                 <div
                     className="rounded-xl p-12 text-center"
-                    style={{ background: '#0e0d1c', border: '1px dashed rgba(255,255,255,0.08)' }}
+                    style={{ background: POSTS_THEME.panel, border: `1px dashed ${POSTS_THEME.border}` }}
                 >
                     <Grid3X3 className="h-10 w-10 mx-auto mb-4" style={{ color: 'rgba(255,255,255,0.12)' }} />
-                    <p className="font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>No posts yet</p>
-                    <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                    <p className="font-medium" style={{ color: POSTS_THEME.muted }}>No posts yet</p>
+                    <p className="text-sm mt-2" style={{ color: POSTS_THEME.mutedFaint }}>
                         Posts will appear here once you publish content.
                     </p>
                 </div>

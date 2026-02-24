@@ -86,6 +86,21 @@ const ACTION_CARDS = [
     }
 ]
 
+const ASSIST_THEME = {
+    shell: '#151620',
+    shellAlt: '#1b1d28',
+    bubble: '#1b1d28',
+    border: 'rgba(255,255,255,0.08)',
+    borderSoft: 'rgba(255,255,255,0.06)',
+    text: 'rgba(255,255,255,0.85)',
+    textMuted: 'rgba(255,255,255,0.5)',
+    textDim: 'rgba(255,255,255,0.35)',
+    cyan: '#38bdf8',
+    cyanSoft: '#dff6ff',
+    coral: '#fb7185',
+    amber: '#fbbf24',
+}
+
 export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
     const [messages, setMessages] = useState<Message[]>([])
     const [input, setInput] = useState("")
@@ -715,17 +730,17 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         <div
             className="flex flex-col h-[calc(100vh-8.5rem)] max-w-6xl mx-auto w-full overflow-hidden rounded-2xl"
             style={{
-                background: '#0e0d1c',
-                border: '1px solid rgba(139,92,246,0.2)',
-                boxShadow: '0 0 60px rgba(139,92,246,0.06)',
+                background: ASSIST_THEME.shell,
+                border: `1px solid ${ASSIST_THEME.border}`,
+                boxShadow: '0 0 60px rgba(56,189,248,0.05)',
             }}
         >
             {/* ── TOOLBAR ── */}
             <div
                 className="flex-none flex items-center justify-between gap-4 px-5 py-3"
                 style={{
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
-                    background: 'rgba(14,13,28,0.9)',
+                    borderBottom: `1px solid ${ASSIST_THEME.borderSoft}`,
+                    background: 'rgba(21,22,32,0.92)',
                     backdropFilter: 'blur(12px)',
                 }}
             >
@@ -734,7 +749,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                     </span>
-                    <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                    <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: ASSIST_THEME.textDim }}>
                         Assistant Active
                     </span>
                 </div>
@@ -745,20 +760,26 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                         <DialogTrigger asChild>
                             <button
                                 className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150"
-                                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}
+                                style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${ASSIST_THEME.border}`, color: ASSIST_THEME.textMuted }}
                                 title="Chat History"
                             >
                                 <History className="h-3.5 w-3.5" />
                             </button>
                         </DialogTrigger>
-                        <DialogContent className="sm:max-w-[420px]">
+                        <DialogContent className="sm:max-w-[420px] border-white/10 bg-[#151620] text-white/85">
                             <DialogHeader>
-                                <DialogTitle>Chat History</DialogTitle>
-                                <DialogDescription>Select a previous conversation to resume or start a new chat.</DialogDescription>
+                                <DialogTitle className="text-white/90">Chat History</DialogTitle>
+                                <DialogDescription className="text-white/50">Select a previous conversation to resume or start a new chat.</DialogDescription>
                             </DialogHeader>
                             <div className="flex flex-col gap-4 mt-2">
                                 <div className="flex justify-end">
-                                    <Button size="icon" variant="outline" onClick={() => { loadSession('new'); setActiveFunction("chat-assistant"); toast({ title: "New Chat Started", duration: 1000 }) }} title="New Chat">
+                                    <Button
+                                        size="icon"
+                                        variant="outline"
+                                        className="border-white/10 bg-white/5 text-white/75 hover:bg-white/10 hover:text-white"
+                                        onClick={() => { loadSession('new'); setActiveFunction("chat-assistant"); toast({ title: "New Chat Started", duration: 1000 }) }}
+                                        title="New Chat"
+                                    >
                                         <RefreshCw className="h-4 w-4" />
                                     </Button>
                                 </div>
@@ -769,8 +790,8 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                 key={s.id}
                                                 className="flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors"
                                                 style={{
-                                                    background: s.id === sessionId ? 'rgba(139,92,246,0.12)' : 'transparent',
-                                                    border: s.id === sessionId ? '1px solid rgba(139,92,246,0.2)' : '1px solid transparent',
+                                                    background: s.id === sessionId ? 'rgba(56,189,248,0.12)' : 'transparent',
+                                                    border: s.id === sessionId ? '1px solid rgba(56,189,248,0.18)' : '1px solid transparent',
                                                 }}
                                             >
                                                 <button onClick={() => loadSession(s.id)} className="flex-1 text-left text-sm truncate px-2" style={{ color: 'rgba(255,255,255,0.7)' }}>
@@ -782,14 +803,14 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                             <Trash2 className="h-3.5 w-3.5" />
                                                         </Button>
                                                     </AlertDialogTrigger>
-                                                    <AlertDialogContent>
+                                                    <AlertDialogContent className="border-white/10 bg-[#1b1d28] text-white/85">
                                                         <AlertDialogHeader>
-                                                            <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
-                                                            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+                                                            <AlertDialogTitle className="text-white/90">Delete this chat?</AlertDialogTitle>
+                                                            <AlertDialogDescription className="text-white/50">This action cannot be undone.</AlertDialogDescription>
                                                         </AlertDialogHeader>
                                                         <AlertDialogFooter>
-                                                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={(e) => { e.stopPropagation(); handleDeleteSession(s.id) }} className="bg-destructive text-white hover:bg-destructive/90">Delete</AlertDialogAction>
+                                                            <AlertDialogCancel className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white">Cancel</AlertDialogCancel>
+                                                            <AlertDialogAction onClick={(e) => { e.stopPropagation(); handleDeleteSession(s.id) }} className="border border-red-500/25 bg-red-500/15 text-red-300 hover:bg-red-500/20">Delete</AlertDialogAction>
                                                         </AlertDialogFooter>
                                                     </AlertDialogContent>
                                                 </AlertDialog>
@@ -807,7 +828,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                     {/* New chat */}
                     <button
                         className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150"
-                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}
+                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${ASSIST_THEME.border}`, color: ASSIST_THEME.textMuted }}
                         onClick={() => { loadSession('new'); setActiveFunction("chat-assistant"); toast({ title: "New Chat Started", duration: 1000 }) }}
                         title="New Chat"
                     >
@@ -819,7 +840,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             {/* ── MESSAGES ── */}
             <div className="flex-1 min-h-0 relative">
                 <ScrollArea className="h-full w-full" ref={scrollRef}>
-                    <div className="p-5 max-w-4xl mx-auto">
+                    <div className="p-3 sm:p-5 max-w-4xl mx-auto">
 
                         {/* Empty state */}
                         {messages.length === 0 && (
@@ -827,13 +848,13 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                 <div className="text-center space-y-3">
                                     <div
                                         className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl"
-                                        style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', boxShadow: '0 0 40px rgba(124,58,237,0.35)' }}
+                                        style={{ background: 'linear-gradient(135deg, #38bdf8, #fb7185)', boxShadow: '0 0 40px rgba(56,189,248,0.22)' }}
                                     >
                                         <Bot className="h-7 w-7 text-white" />
                                     </div>
                                     <h1
                                         className="text-3xl font-bold tracking-tight"
-                                        style={{ background: 'linear-gradient(135deg, #a78bfa, #818cf8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
+                                        style={{ background: 'linear-gradient(135deg, #dff6ff, #fcd34d)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
                                     >
                                         AI Assistant
                                     </h1>
@@ -842,34 +863,36 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 w-full max-w-3xl">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-3xl">
                                     {ACTION_CARDS.map((card, i) => (
                                         <button
                                             key={i}
                                             onClick={() => handleCardClick(card)}
-                                            className="group flex flex-col items-start p-5 rounded-xl text-left transition-all duration-200 hover:-translate-y-1"
+                                            className="group flex sm:flex-col items-center sm:items-start gap-3 sm:gap-0 p-3 sm:p-5 rounded-xl text-left transition-all duration-200 sm:hover:-translate-y-1"
                                             style={{
-                                                background: '#12111e',
-                                                border: '1px solid rgba(139,92,246,0.15)',
+                                                background: ASSIST_THEME.shellAlt,
+                                                border: '1px solid rgba(255,255,255,0.08)',
                                                 boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
                                             }}
                                             onMouseEnter={(e) => {
-                                                e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)'
-                                                e.currentTarget.style.boxShadow = '0 8px 24px rgba(139,92,246,0.15)'
+                                                e.currentTarget.style.borderColor = 'rgba(56,189,248,0.22)'
+                                                e.currentTarget.style.boxShadow = '0 8px 24px rgba(56,189,248,0.08)'
                                             }}
                                             onMouseLeave={(e) => {
-                                                e.currentTarget.style.borderColor = 'rgba(139,92,246,0.15)'
+                                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
                                                 e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.3)'
                                             }}
                                         >
                                             <div
-                                                className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 group-hover:scale-110"
-                                                style={{ background: 'rgba(139,92,246,0.15)' }}
+                                                className="shrink-0 sm:mb-4 flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl transition-all duration-200 group-hover:scale-110"
+                                                style={{ background: 'rgba(56,189,248,0.12)' }}
                                             >
-                                                <card.icon className="h-5 w-5" style={{ color: '#a78bfa' }} />
+                                                <card.icon className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: ASSIST_THEME.cyan }} />
                                             </div>
-                                            <h3 className="font-semibold text-sm mb-1" style={{ color: 'rgba(255,255,255,0.85)' }}>{card.title}</h3>
-                                            <p className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.35)' }}>{card.description}</p>
+                                            <div>
+                                                <h3 className="font-semibold text-sm mb-0.5 sm:mb-1" style={{ color: 'rgba(255,255,255,0.85)' }}>{card.title}</h3>
+                                                <p className="text-xs leading-relaxed hidden sm:block" style={{ color: 'rgba(255,255,255,0.35)' }}>{card.description}</p>
+                                            </div>
                                         </button>
                                     ))}
                                 </div>
@@ -885,26 +908,27 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                     {msg.role === 'assistant' && (
                                         <div
                                             className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                                            style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)', boxShadow: '0 0 16px rgba(124,58,237,0.35)' }}
+                                            style={{ background: 'linear-gradient(135deg, #38bdf8, #fb7185)', boxShadow: '0 0 16px rgba(56,189,248,0.2)' }}
                                         >
                                             <Bot className="h-4 w-4 text-white" />
                                         </div>
                                     )}
 
-                                    <div className={`flex flex-col gap-2 max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                    <div className={`flex flex-col gap-2 max-w-[90%] sm:max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
 
                                         {/* Text bubble */}
                                         {msg.content && (
                                             <div
                                                 className="relative group px-4 py-3 rounded-2xl text-sm leading-relaxed"
                                                 style={msg.role === 'user' ? {
-                                                    background: 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                                                    background: 'linear-gradient(135deg, rgba(56,189,248,0.25), rgba(251,113,133,0.2))',
+                                                    border: '1px solid rgba(56,189,248,0.18)',
                                                     color: 'white',
                                                     borderBottomRightRadius: '4px',
-                                                    boxShadow: '0 4px 16px rgba(124,58,237,0.25)',
+                                                    boxShadow: '0 4px 16px rgba(56,189,248,0.08)',
                                                 } : {
-                                                    background: '#12111e',
-                                                    border: '1px solid rgba(255,255,255,0.08)',
+                                                    background: ASSIST_THEME.shellAlt,
+                                                    border: `1px solid ${ASSIST_THEME.border}`,
                                                     color: 'rgba(255,255,255,0.8)',
                                                     borderBottomLeftRadius: '4px',
                                                 }}
@@ -912,7 +936,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                 {msg.content}
                                                 {msg.role === 'assistant' && (
                                                     <button
-                                                        className="absolute -right-8 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex h-6 w-6 items-center justify-center rounded-md"
+                                                        className="absolute -right-7 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex h-6 w-6 items-center justify-center rounded-md"
                                                         style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}
                                                         onClick={() => handleCopy(msg.content)}
                                                     >
@@ -924,7 +948,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
                                         {/* Content cards */}
                                         {msg.type === 'content_cards' && msg.data?.data && (
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
                                                 {msg.data.data.map((card: any, idx: number) => (
                                                     <ContentCard key={idx} id={card.id || idx.toString()} title={card.title} body={card.body} workspaceId={workspaceId} onGenerateImage={handleGenerateImage} onRefine={handleRefine} onSchedule={handleSchedule} />
                                                 ))}
@@ -985,7 +1009,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                     {msg.role === 'user' && (
                                         <div
                                             className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                                            style={{ background: '#1a1828', border: '1px solid rgba(255,255,255,0.1)' }}
+                                            style={{ background: '#1b1d28', border: `1px solid ${ASSIST_THEME.border}` }}
                                         >
                                             <User className="h-4 w-4" style={{ color: 'rgba(255,255,255,0.5)' }} />
                                         </div>
@@ -998,17 +1022,17 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                 <div className="flex gap-3">
                                     <div
                                         className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 animate-pulse"
-                                        style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
+                                        style={{ background: 'linear-gradient(135deg, #38bdf8, #fb7185)' }}
                                     >
                                         <Bot className="h-4 w-4 text-white" />
                                     </div>
                                     <div
                                         className="flex items-center gap-1.5 px-4 py-3 rounded-2xl"
-                                        style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.07)', borderBottomLeftRadius: '4px' }}
+                                        style={{ background: ASSIST_THEME.shellAlt, border: `1px solid ${ASSIST_THEME.borderSoft}`, borderBottomLeftRadius: '4px' }}
                                     >
-                                        <div className="h-1.5 w-1.5 rounded-full animate-bounce [animation-delay:-0.3s]" style={{ background: '#a78bfa' }} />
-                                        <div className="h-1.5 w-1.5 rounded-full animate-bounce [animation-delay:-0.15s]" style={{ background: '#a78bfa' }} />
-                                        <div className="h-1.5 w-1.5 rounded-full animate-bounce" style={{ background: '#a78bfa' }} />
+                                        <div className="h-1.5 w-1.5 rounded-full animate-bounce [animation-delay:-0.3s]" style={{ background: ASSIST_THEME.cyan }} />
+                                        <div className="h-1.5 w-1.5 rounded-full animate-bounce [animation-delay:-0.15s]" style={{ background: ASSIST_THEME.coral }} />
+                                        <div className="h-1.5 w-1.5 rounded-full animate-bounce" style={{ background: ASSIST_THEME.amber }} />
                                     </div>
                                 </div>
                             )}
@@ -1020,7 +1044,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             {/* ── INPUT ── */}
             <div
                 className="flex-none p-4"
-                style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(14,13,28,0.8)' }}
+                style={{ borderTop: `1px solid ${ASSIST_THEME.borderSoft}`, background: 'rgba(21,22,32,0.86)' }}
             >
                 <div className="max-w-3xl mx-auto">
                     <div className="relative flex items-center">
@@ -1031,18 +1055,18 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                             placeholder={activeFunction !== 'chat-assistant' ? `Using ${activeFunction}…` : "Ask me anything…"}
                             className="w-full rounded-xl py-3.5 pl-4 pr-14 text-sm outline-none transition-all"
                             style={{
-                                background: '#12111e',
-                                border: '1px solid rgba(255,255,255,0.09)',
+                                background: ASSIST_THEME.shellAlt,
+                                border: `1px solid ${ASSIST_THEME.border}`,
                                 color: 'rgba(255,255,255,0.85)',
                             }}
-                            onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)')}
-                            onBlur={(e) => (e.currentTarget.style.borderColor = 'rgba(255,255,255,0.09)')}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(56,189,248,0.25)')}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = ASSIST_THEME.border)}
                         />
                         <button
                             onClick={() => handleSend()}
                             disabled={isLoading || !input.trim()}
                             className="absolute right-2 flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-150 disabled:opacity-30 hover:opacity-85 active:scale-95"
-                            style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
+                            style={{ background: 'linear-gradient(135deg, #38bdf8, #fb7185)' }}
                         >
                             <ArrowUp className="h-4 w-4 text-white" />
                         </button>

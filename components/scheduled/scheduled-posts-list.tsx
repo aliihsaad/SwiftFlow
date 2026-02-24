@@ -24,10 +24,19 @@ interface ScheduledPostsListProps {
 }
 
 const statusConfig = {
-    scheduled: { label: 'Scheduled', color: '#818cf8', bg: 'rgba(129,140,248,0.15)', border: 'rgba(129,140,248,0.3)', glow: 'rgba(129,140,248,0.08)' },
+    scheduled: { label: 'Scheduled', color: '#38bdf8', bg: 'rgba(56,189,248,0.15)', border: 'rgba(56,189,248,0.26)', glow: 'rgba(56,189,248,0.08)' },
     draft: { label: 'Draft', color: '#fbbf24', bg: 'rgba(251,191,36,0.15)', border: 'rgba(251,191,36,0.25)', glow: 'rgba(251,191,36,0.06)' },
-    published: { label: 'Published', color: '#34d399', bg: 'rgba(52,211,153,0.15)', border: 'rgba(52,211,153,0.25)', glow: 'rgba(52,211,153,0.07)' },
+    published: { label: 'Published', color: '#4ade80', bg: 'rgba(74,222,128,0.15)', border: 'rgba(74,222,128,0.25)', glow: 'rgba(74,222,128,0.07)' },
     failed: { label: 'Failed', color: '#f87171', bg: 'rgba(248,113,113,0.15)', border: 'rgba(248,113,113,0.3)', glow: 'rgba(248,113,113,0.08)' },
+}
+
+const SCHEDULED_THEME = {
+    panel: '#151620',
+    panelAlt: '#1b1d28',
+    border: 'rgba(255,255,255,0.08)',
+    borderSoft: 'rgba(255,255,255,0.06)',
+    text: 'rgba(255,255,255,0.85)',
+    textMuted: 'rgba(255,255,255,0.55)',
 }
 
 export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }: ScheduledPostsListProps) {
@@ -74,7 +83,7 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
             <div
                 className="flex flex-col items-center justify-center rounded-2xl py-20 text-center"
                 style={{
-                    background: '#0e0d1c',
+                    background: '#151620',
                     border: `1px dashed ${cfg.border}`,
                 }}
             >
@@ -119,7 +128,7 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                             key={post.id}
                             className="group relative flex flex-col overflow-hidden rounded-2xl transition-all duration-200 hover:-translate-y-1"
                             style={{
-                                background: '#0e0d1c',
+                                background: SCHEDULED_THEME.panel,
                                 border: `1px solid ${st.border}`,
                                 boxShadow: `0 4px 24px ${st.glow}, 0 1px 0 rgba(255,255,255,0.04) inset`,
                             }}
@@ -133,7 +142,7 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                                         // eslint-disable-next-line @next/next/no-img-element
                                         <img src={post.media_urls[0]} alt="Post media" className="w-full h-full object-cover opacity-90" />
                                     )}
-                                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, #0e0d1c 0%, transparent 55%)' }} />
+                                    <div className="absolute inset-0" style={{ background: `linear-gradient(to top, ${SCHEDULED_THEME.panel} 0%, transparent 55%)` }} />
 
                                     {/* Status badge floated on image */}
                                     <div className="absolute left-3 top-3">
@@ -180,7 +189,11 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                                             <span
                                                 key={p}
                                                 className="rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                                                style={{ background: 'rgba(139,92,246,0.12)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.2)' }}
+                                                style={{
+                                                    background: p === 'facebook' ? 'rgba(56,189,248,0.12)' : p === 'instagram' ? 'rgba(251,113,133,0.12)' : 'rgba(245,158,11,0.10)',
+                                                    color: p === 'facebook' ? '#dff6ff' : p === 'instagram' ? '#ffe4ea' : '#fcd34d',
+                                                    border: p === 'facebook' ? '1px solid rgba(56,189,248,0.2)' : p === 'instagram' ? '1px solid rgba(251,113,133,0.2)' : '1px solid rgba(245,158,11,0.2)'
+                                                }}
                                             >
                                                 {p}
                                             </span>
@@ -207,7 +220,7 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                                                             { icon: Share2, val: analytics.shares, label: 'Shares' },
                                                         ].filter(m => m.val > 0).map(({ icon: MIcon, val, label }) => (
                                                             <div key={label} className="flex items-center gap-1.5">
-                                                                <MIcon className="h-3.5 w-3.5" style={{ color: '#a78bfa' }} />
+                                                                <MIcon className="h-3.5 w-3.5" style={{ color: label === 'Views' ? '#38bdf8' : label === 'Likes' ? '#fb7185' : label === 'Comments' ? '#fbbf24' : '#4ade80' }} />
                                                                 <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>
                                                                     {val.toLocaleString()}
                                                                 </span>
@@ -225,18 +238,18 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                             {/* Action buttons — always visible, bottom right */}
                             <div
                                 className="flex items-center justify-end gap-2 px-4 py-3"
-                                style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
+                                style={{ borderTop: `1px solid ${SCHEDULED_THEME.borderSoft}` }}
                             >
                                 <button
-                                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150"
-                                    style={{ background: 'rgba(139,92,246,0.1)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.2)' }}
+                                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150 hover:brightness-110"
+                                    style={{ background: 'rgba(56,189,248,0.10)', color: '#dff6ff', border: '1px solid rgba(56,189,248,0.2)' }}
                                     onClick={() => handleEdit(post)}
                                 >
                                     <Pencil className="h-3 w-3" />
                                     Edit
                                 </button>
                                 <button
-                                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150"
+                                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150 hover:brightness-110"
                                     style={{ background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}
                                     onClick={() => handleDeleteClick(post.id)}
                                 >
@@ -257,19 +270,31 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
             />
 
             <AlertDialog open={!!deletePostId} onOpenChange={(open) => !open && setDeletePostId(null)}>
-                <AlertDialogContent>
+                <AlertDialogContent
+                    className="border-0"
+                    style={{
+                        background: SCHEDULED_THEME.panelAlt,
+                        color: SCHEDULED_THEME.text,
+                        boxShadow: `0 24px 80px rgba(0,0,0,0.45), 0 0 0 1px ${SCHEDULED_THEME.border} inset`,
+                    }}
+                >
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Post</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogTitle style={{ color: 'rgba(255,255,255,0.9)' }}>Delete Post</AlertDialogTitle>
+                        <AlertDialogDescription style={{ color: SCHEDULED_THEME.textMuted }}>
                             Are you sure you want to delete this post? This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel
+                            disabled={isDeleting}
+                            className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                        >
+                            Cancel
+                        </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDeleteConfirm}
                             disabled={isDeleting}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="border border-red-500/25 bg-red-500/15 text-red-300 hover:bg-red-500/20"
                         >
                             {isDeleting ? "Deleting…" : "Delete"}
                         </AlertDialogAction>

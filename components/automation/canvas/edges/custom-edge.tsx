@@ -37,12 +37,12 @@ export function CustomEdge({
         markerEnd={markerEnd}
         style={{
           strokeWidth: 2,
-          stroke: '#94A3B8',
+          stroke: '#64748B',
           ...style,
         }}
       />
       {/* Animated flow dot */}
-      <circle r="3" fill="#3B82F6">
+      <circle r="3" fill="#38BDF8">
         <animateMotion dur="2s" repeatCount="indefinite" path={edgePath} />
       </circle>
       {label && (
@@ -52,8 +52,11 @@ export function CustomEdge({
               position: 'absolute',
               transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
               pointerEvents: 'all',
+              background: '#151620',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: 'rgba(255,255,255,0.55)',
             }}
-            className="rounded bg-background border border-border px-2 py-0.5 text-xs text-muted-foreground"
+            className="rounded px-2 py-0.5 text-xs"
           >
             {label}
           </div>

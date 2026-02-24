@@ -3,10 +3,6 @@ import { PostsChart } from "@/components/dashboard/posts-chart"
 import { CalendarView } from "@/components/dashboard/calendar-view"
 import { QuickActions } from "@/components/dashboard/quick-actions"
 import { RecentActivityDropdown, RecentAction } from "@/components/dashboard/recent-activity-dropdown"
-import { CreatePostTrigger } from "@/components/create/create-post-trigger"
-import { Button } from "@/components/ui/button"
-import { Plus, ArrowRight } from "lucide-react"
-import Link from "next/link"
 import { createClient } from "@/utils/supabase/server"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { formatDistanceToNow } from "date-fns"
@@ -158,10 +154,20 @@ export default async function DashboardPage() {
         <div className="space-y-5 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-2xl font-bold tracking-tight" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                    <div
+                        className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] mb-3"
+                        style={{
+                            background: "rgba(34,211,238,0.06)",
+                            border: "1px solid rgba(34,211,238,0.16)",
+                            color: "rgba(255,255,255,0.78)",
+                        }}
+                    >
+                        Dashboard
+                    </div>
+                    <h2 className="text-2xl font-bold tracking-tight" style={{ color: 'rgba(255,255,255,0.92)' }}>
                         Overview
                     </h2>
-                    <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                    <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.42)' }}>
                         Welcome back to your social media command center.
                     </p>
                 </div>

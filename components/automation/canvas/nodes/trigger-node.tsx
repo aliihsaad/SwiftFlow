@@ -28,13 +28,21 @@ function TriggerNodeComponent({ data, selected }: NodeProps) {
   return (
     <div
       className={`
-        relative rounded-xl border-2 bg-background shadow-md min-w-[180px] max-w-[220px]
+        relative rounded-xl border-2 shadow-md min-w-[180px] max-w-[220px]
         transition-all duration-150
-        ${selected ? 'border-blue-500 shadow-blue-500/25 shadow-lg' : 'border-blue-400/50'}
+        ${selected ? 'shadow-lg' : ''}
       `}
+      style={{
+        background: '#151620',
+        borderColor: selected ? 'rgba(56,189,248,0.85)' : 'rgba(56,189,248,0.35)',
+        boxShadow: selected ? '0 10px 26px rgba(56,189,248,0.16)' : undefined,
+      }}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 px-3 py-2 bg-blue-500 rounded-t-[10px]">
+      <div
+        className="flex items-center gap-2 px-3 py-2 rounded-t-[10px]"
+        style={{ background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)' }}
+      >
         <Icon className="h-4 w-4 text-white shrink-0" />
         <span className="text-sm font-medium text-white truncate">
           {nodeData.label}
@@ -50,12 +58,12 @@ function TriggerNodeComponent({ data, selected }: NodeProps) {
               alt="Post"
               className="w-8 h-8 rounded object-cover shrink-0"
             />
-            <p className="text-xs text-muted-foreground truncate flex-1">
+            <p className="text-xs truncate flex-1" style={{ color: 'rgba(255,255,255,0.55)' }}>
               {getDescription(nodeData)}
             </p>
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground truncate">
+          <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.55)' }}>
             {nodeData.description || getDescription(nodeData)}
           </p>
         )}
@@ -65,7 +73,8 @@ function TriggerNodeComponent({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!w-3 !h-3 !bg-blue-500 !border-2 !border-background"
+        className="!w-3 !h-3 !border-2"
+        style={{ background: '#38bdf8', borderColor: '#151620' }}
       />
     </div>
   )

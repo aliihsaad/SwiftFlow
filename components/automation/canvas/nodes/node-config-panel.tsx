@@ -58,11 +58,14 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: NodeConfi
   }
 
   return (
-    <div className="w-80 border-l border-border bg-background h-full overflow-y-auto">
+    <div
+      className="w-80 h-full overflow-y-auto"
+      style={{ borderLeft: '1px solid rgba(255,255,255,0.08)', background: '#151620' }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border">
-        <h3 className="font-semibold text-sm">Configure Node</h3>
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7">
+      <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <h3 className="font-semibold text-sm" style={{ color: 'rgba(255,255,255,0.85)' }}>Configure Node</h3>
+        <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7" style={{ color: 'rgba(255,255,255,0.65)' }}>
           <X className="h-4 w-4" />
         </Button>
       </div>
@@ -82,11 +85,12 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: NodeConfi
         {renderConfigFields(data.type, config, updateConfig)}
 
         {/* Delete */}
-        <div className="pt-4 border-t border-border">
+        <div className="pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
           <Button
             variant="destructive"
             size="sm"
             className="w-full"
+            style={{ background: '#ef4444', color: '#fff' }}
             onClick={() => onDelete(node.id)}
           >
             Delete Node
@@ -128,7 +132,7 @@ function renderConfigFields(
     case 'action_ai_response':
       return <ActionAiFields config={config as unknown as ActionAiResponseConfig} onUpdate={updateConfig} />
     default:
-      return <p className="text-xs text-muted-foreground">No configuration available.</p>
+      return <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>No configuration available.</p>
   }
 }
 

@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { PostsTabView } from "@/components/scheduled/posts-tab-view"
+import { CalendarDays } from "lucide-react"
 
 export default async function ScheduledPostsPage({
     searchParams,
@@ -59,6 +60,13 @@ export default async function ScheduledPostsPage({
     return (
         <div className="space-y-6">
             <div>
+                <div
+                    className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold mb-2"
+                    style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.2)', color: '#fcd34d' }}
+                >
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    Scheduled
+                </div>
                 <h2 className="text-2xl font-bold tracking-tight" style={{ color: 'rgba(255,255,255,0.9)' }}>Posts</h2>
                 <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Manage all your posts for {activeWorkspace.name}.</p>
             </div>

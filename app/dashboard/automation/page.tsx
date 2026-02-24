@@ -27,6 +27,15 @@ const fetcher = async (url: string) => {
 
 type EditorView = 'list' | 'canvas' | 'wizard'
 
+const AUTO_PAGE_THEME = {
+    panel: '#151620',
+    panelAlt: '#1b1d28',
+    border: 'rgba(255,255,255,0.08)',
+    borderSoft: 'rgba(255,255,255,0.05)',
+    text: 'rgba(255,255,255,0.9)',
+    muted: 'rgba(255,255,255,0.35)',
+}
+
 export default function AutomationPage() {
     const [editorView, setEditorView] = useState<EditorView>('list')
     const [editingAutomation, setEditingAutomation] = useState<Automation | null>(null)
@@ -181,19 +190,30 @@ export default function AutomationPage() {
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
+                    <div
+                        className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold mb-2"
+                        style={{
+                            background: 'rgba(245,158,11,0.10)',
+                            border: '1px solid rgba(245,158,11,0.2)',
+                            color: '#fcd34d',
+                        }}
+                    >
+                        <Zap className="h-3.5 w-3.5" />
+                        Automation
+                    </div>
                     <h1
                         className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2.5"
-                        style={{ color: 'rgba(255,255,255,0.9)' }}
+                        style={{ color: AUTO_PAGE_THEME.text }}
                     >
                         <div
                             className="flex h-8 w-8 items-center justify-center rounded-lg"
-                            style={{ background: 'rgba(251,191,36,0.12)' }}
+                            style={{ background: 'rgba(56,189,248,0.10)', border: '1px solid rgba(56,189,248,0.18)' }}
                         >
-                            <Zap className="h-4 w-4" style={{ color: '#fbbf24' }} />
+                            <Zap className="h-4 w-4" style={{ color: '#67e8f9' }} />
                         </div>
                         Automation
                     </h1>
-                    <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                    <p className="text-sm mt-1" style={{ color: AUTO_PAGE_THEME.muted }}>
                         Automate your Instagram and Facebook engagement with smart triggers and actions.
                     </p>
                 </div>
@@ -231,16 +251,16 @@ export default function AutomationPage() {
 
             {/* Active Automations */}
             <div>
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-wrap items-center justify-between gap-y-2 mb-4">
                     <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.35)' }}>
                         Active Automations
                     </h2>
                     {data?.automations && data.automations.length > 0 && (
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={handleOpenTemplatePicker}
                                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
-                                style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
+                                style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.6)' }}
                             >
                                 <Sparkles className="h-3.5 w-3.5" />
                                 Template
@@ -248,7 +268,7 @@ export default function AutomationPage() {
                             <button
                                 onClick={handleCreateCanvas}
                                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
-                                style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
+                                style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.6)' }}
                             >
                                 <Workflow className="h-3.5 w-3.5" />
                                 Canvas
@@ -256,7 +276,7 @@ export default function AutomationPage() {
                             <button
                                 onClick={handleCreateWizard}
                                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
-                                style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
+                                style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.6)' }}
                             >
                                 <Plus className="h-3.5 w-3.5" />
                                 Simple
@@ -276,7 +296,7 @@ export default function AutomationPage() {
                             <div
                                 key={`automation-skeleton-${index}`}
                                 className="rounded-xl p-4 animate-pulse"
-                                style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)' }}
+                                style={{ background: AUTO_PAGE_THEME.panel, border: `1px solid ${AUTO_PAGE_THEME.border}` }}
                             >
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="min-w-0 flex-1 space-y-3">
@@ -314,13 +334,13 @@ export default function AutomationPage() {
                 {data?.automations && data.automations.length === 0 && !showInitialLoading && (
                     <div
                         className="rounded-xl p-8 sm:p-12 text-center"
-                        style={{ background: '#0e0d1c', border: '1px dashed rgba(139,92,246,0.2)' }}
+                        style={{ background: AUTO_PAGE_THEME.panel, border: `1px dashed ${AUTO_PAGE_THEME.border}` }}
                     >
                         <div
                             className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl"
-                            style={{ background: 'rgba(251,191,36,0.08)', boxShadow: '0 0 32px rgba(251,191,36,0.08)' }}
+                            style={{ background: 'rgba(56,189,248,0.08)', boxShadow: '0 0 32px rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.14)' }}
                         >
-                            <Zap className="h-8 w-8" style={{ color: '#fbbf24' }} />
+                            <Zap className="h-8 w-8" style={{ color: '#67e8f9' }} />
                         </div>
                         <p className="font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>No automations yet</p>
                         <p className="text-sm mt-2 mb-6" style={{ color: 'rgba(255,255,255,0.3)' }}>
@@ -330,7 +350,7 @@ export default function AutomationPage() {
                             <button
                                 onClick={handleOpenTemplatePicker}
                                 className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
-                                style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.65)' }}
+                                style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.72)' }}
                             >
                                 <Sparkles className="h-4 w-4" />
                                 Templates
@@ -339,9 +359,9 @@ export default function AutomationPage() {
                                 onClick={handleCreateCanvas}
                                 className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
                                 style={{
-                                    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                                    background: 'linear-gradient(135deg, #38bdf8, #fb7185)',
                                     color: '#fff',
-                                    boxShadow: '0 2px 16px rgba(139,92,246,0.3)',
+                                    boxShadow: '0 2px 16px rgba(56,189,248,0.2)',
                                 }}
                             >
                                 <Workflow className="h-4 w-4" />
@@ -350,7 +370,7 @@ export default function AutomationPage() {
                             <button
                                 onClick={handleCreateWizard}
                                 className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
-                                style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.65)' }}
+                                style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.72)' }}
                             >
                                 <ListChecks className="h-4 w-4" />
                                 Simple Setup
@@ -361,14 +381,14 @@ export default function AutomationPage() {
 
                 {/* List */}
                 {data?.automations && data.automations.length > 0 && (
-                        <ActiveAutomationsList
-                            automations={data.automations}
-                            onEdit={handleEdit}
-                            onToggle={handleToggle}
-                            onDelete={handleDelete}
-                            togglingAutomationIds={togglingAutomationIds}
-                            deletingAutomationIds={deletingAutomationIds}
-                        />
+                    <ActiveAutomationsList
+                        automations={data.automations}
+                        onEdit={handleEdit}
+                        onToggle={handleToggle}
+                        onDelete={handleDelete}
+                        togglingAutomationIds={togglingAutomationIds}
+                        deletingAutomationIds={deletingAutomationIds}
+                    />
                 )}
             </div>
 

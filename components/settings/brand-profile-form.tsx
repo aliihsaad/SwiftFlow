@@ -187,31 +187,62 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
         updateField('reference_image_urls', images)
     }
 
+    const panelClass = "border-white/10 bg-[#151620] text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]"
+    const inputClass = "border-white/10 bg-[#1b1d28] text-white/85 placeholder:text-white/25 focus-visible:ring-cyan-400/30 focus-visible:border-cyan-300/20"
+    const textareaClass = "border-white/10 bg-[#1b1d28] text-white/85 placeholder:text-white/25 focus-visible:ring-cyan-400/30 focus-visible:border-cyan-300/20"
+    const selectTriggerClass = "border-white/10 bg-[#1b1d28] text-white/85"
+    const selectContentClass = "border-white/10 bg-[#1b1d28] text-white/85"
+    const labelClass = "text-white/75"
+    const chipClass = "gap-1 border border-cyan-300/15 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/15"
+    const addIconBtnClass = "border border-white/10 bg-white/5 text-white/75 hover:bg-white/10 hover:text-white"
+
     if (loading) {
-        return <div className="flex justify-center p-8"><Loader2 className="h-8 w-8 animate-spin" /></div>
+        return (
+            <div className="flex justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-cyan-300" />
+            </div>
+        )
     }
 
     return (
-        <div className="space-y-6">
+        <div
+            className="space-y-6
+            [&_[data-slot=card-title]]:text-white/90
+            [&_[data-slot=card-description]]:text-white/50
+            [&_[data-slot=input]]:border-white/10
+            [&_[data-slot=input]]:bg-[#1b1d28]
+            [&_[data-slot=input]]:text-white/85
+            [&_[data-slot=input]]:placeholder:text-white/25
+            [&_[data-slot=textarea]]:border-white/10
+            [&_[data-slot=textarea]]:bg-[#1b1d28]
+            [&_[data-slot=textarea]]:text-white/85
+            [&_[data-slot=textarea]]:placeholder:text-white/25
+            [&_[data-slot=select-trigger]]:border-white/10
+            [&_[data-slot=select-trigger]]:bg-[#1b1d28]
+            [&_[data-slot=select-trigger]]:text-white/85
+            [&_[data-slot=badge]]:border-white/10"
+        >
             {/* Business Identity */}
-            <Card>
+            <Card className={panelClass}>
                 <CardHeader>
                     <CardTitle>Business Identity</CardTitle>
                     <CardDescription>Basic information about your business</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
-                            <Label>Business Name</Label>
+                            <Label className={labelClass}>Business Name</Label>
                             <Input
+                                className={inputClass}
                                 value={profile?.business_name || ''}
                                 onChange={(e) => updateField('business_name', e.target.value)}
                                 placeholder="Acme Corp"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>Owner Name</Label>
+                            <Label className={labelClass}>Owner Name</Label>
                             <Input
+                                className={inputClass}
                                 value={profile?.owner_name || ''}
                                 onChange={(e) => updateField('owner_name', e.target.value)}
                                 placeholder="John Doe"
@@ -219,10 +250,11 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
-                            <Label>Email</Label>
+                            <Label className={labelClass}>Email</Label>
                             <Input
+                                className={inputClass}
                                 type="email"
                                 value={profile?.email || ''}
                                 onChange={(e) => updateField('email', e.target.value)}
@@ -230,8 +262,9 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>Phone</Label>
+                            <Label className={labelClass}>Phone</Label>
                             <Input
+                                className={inputClass}
                                 value={profile?.phone || ''}
                                 onChange={(e) => updateField('phone', e.target.value)}
                                 placeholder="+1 (555) 123-4567"
@@ -240,8 +273,9 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Website</Label>
+                        <Label className={labelClass}>Website</Label>
                         <Input
+                            className={inputClass}
                             value={profile?.website || ''}
                             onChange={(e) => updateField('website', e.target.value)}
                             placeholder="https://acme.com"
@@ -251,15 +285,16 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
             </Card>
 
             {/* Business Details */}
-            <Card>
+            <Card className={panelClass}>
                 <CardHeader>
                     <CardTitle>Business Details</CardTitle>
                     <CardDescription>Information to help AI understand your brand</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label>Industry</Label>
+                        <Label className={labelClass}>Industry</Label>
                         <Input
+                            className={inputClass}
                             value={profile?.industry || ''}
                             onChange={(e) => updateField('industry', e.target.value)}
                             placeholder="E-commerce, Healthcare, Technology..."
@@ -267,8 +302,9 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Business Description</Label>
+                        <Label className={labelClass}>Business Description</Label>
                         <Textarea
+                            className={textareaClass}
                             value={profile?.business_description || ''}
                             onChange={(e) => updateField('business_description', e.target.value)}
                             placeholder="Describe what your business does..."
@@ -277,8 +313,9 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Target Audience</Label>
+                        <Label className={labelClass}>Target Audience</Label>
                         <Textarea
+                            className={textareaClass}
                             value={profile?.target_audience || ''}
                             onChange={(e) => updateField('target_audience', e.target.value)}
                             placeholder="Who are your ideal customers?"
@@ -286,17 +323,17 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
-                            <Label>Brand Voice</Label>
+                            <Label className={labelClass}>Brand Voice</Label>
                             <Select
                                 value={profile?.brand_voice || 'professional'}
                                 onValueChange={(value) => updateField('brand_voice', value)}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger className={selectTriggerClass}>
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className={selectContentClass}>
                                     <SelectItem value="professional">Professional</SelectItem>
                                     <SelectItem value="casual">Casual</SelectItem>
                                     <SelectItem value="friendly">Friendly</SelectItem>
@@ -308,15 +345,15 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Language</Label>
+                            <Label className={labelClass}>Language</Label>
                             <Select
                                 value={profile?.language || 'en'}
                                 onValueChange={(value) => updateField('language', value)}
                             >
-                                <SelectTrigger>
+                                <SelectTrigger className={selectTriggerClass}>
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className={selectContentClass}>
                                     <SelectItem value="en">English</SelectItem>
                                     <SelectItem value="es">Spanish</SelectItem>
                                     <SelectItem value="fr">French</SelectItem>
@@ -339,7 +376,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
             </Card>
 
             {/* Services */}
-            <Card>
+            <Card className={panelClass}>
                 <CardHeader>
                     <CardTitle>Services & Offerings</CardTitle>
                     <CardDescription>What products or services do you offer?</CardDescription>
@@ -347,19 +384,20 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                 <CardContent className="space-y-4">
                     <div className="flex gap-2">
                         <Input
+                            className={inputClass}
                             value={newService}
                             onChange={(e) => setNewService(e.target.value)}
                             placeholder="Add a service..."
                             onKeyDown={(e) => e.key === 'Enter' && addService()}
                         />
-                        <Button onClick={addService} size="icon">
+                        <Button onClick={addService} size="icon" className={addIconBtnClass}>
                             <Plus className="h-4 w-4" />
                         </Button>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
                         {profile?.services?.map((service: any, i: number) => (
-                            <Badge key={i} variant="secondary" className="gap-1">
+                            <Badge key={i} variant="secondary" className={chipClass}>
                                 {service.name}
                                 <X
                                     className="h-3 w-3 cursor-pointer"
@@ -372,7 +410,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
             </Card>
 
             {/* USPs */}
-            <Card>
+            <Card className={panelClass}>
                 <CardHeader>
                     <CardTitle>Unique Selling Points</CardTitle>
                     <CardDescription>What makes you different?</CardDescription>
@@ -380,19 +418,20 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                 <CardContent className="space-y-4">
                     <div className="flex gap-2">
                         <Input
+                            className={inputClass}
                             value={newUSP}
                             onChange={(e) => setNewUSP(e.target.value)}
                             placeholder="Add a USP..."
                             onKeyDown={(e) => e.key === 'Enter' && addUSP()}
                         />
-                        <Button onClick={addUSP} size="icon">
+                        <Button onClick={addUSP} size="icon" className={addIconBtnClass}>
                             <Plus className="h-4 w-4" />
                         </Button>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
                         {profile?.unique_selling_points?.map((usp: string, i: number) => (
-                            <Badge key={i} variant="secondary" className="gap-1">
+                            <Badge key={i} variant="secondary" className={chipClass}>
                                 {usp}
                                 <X
                                     className="h-3 w-3 cursor-pointer"
@@ -405,19 +444,20 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
             </Card>
 
             {/* Brand Assets */}
-            <Card>
+            <Card className={panelClass}>
                 <CardHeader>
                     <CardTitle>Brand Assets</CardTitle>
                     <CardDescription>Logo and reference images</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
-                        <Label>Logo</Label>
+                        <Label className={labelClass}>Logo</Label>
                         <div className="flex items-center gap-4">
                             {profile?.logo_url && (
-                                <img src={profile.logo_url} alt="Logo" className="h-16 w-16 object-contain border rounded" />
+                                <img src={profile.logo_url} alt="Logo" className="h-16 w-16 object-contain rounded border border-white/10 bg-[#1b1d28] p-2" />
                             )}
                             <Input
+                                className={inputClass}
                                 type="file"
                                 accept="image/*"
                                 onChange={handleLogoUpload}
@@ -426,20 +466,21 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Reference Images</Label>
+                        <Label className={labelClass}>Reference Images</Label>
                         <Input
+                            className={inputClass}
                             type="file"
                             accept="image/*"
                             multiple
                             onChange={handleReferenceUpload}
                         />
-                        <div className="grid grid-cols-4 gap-4 mt-4">
+                        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                             {profile?.reference_image_urls?.map((url: string, i: number) => (
                                 <div key={i} className="relative group">
-                                    <img src={url} alt={`Reference ${i + 1}`} className="w-full aspect-square object-cover rounded border" />
+                                    <img src={url} alt={`Reference ${i + 1}`} className="w-full aspect-square object-cover rounded border border-white/10" />
                                     <button
                                         onClick={() => removeReferenceImage(i)}
-                                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                        className="absolute top-1 right-1 rounded-full border border-red-400/25 bg-red-500/80 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
                                     >
                                         <X className="h-3 w-3" />
                                     </button>
@@ -451,7 +492,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
             </Card>
 
             {/* Brand Colors */}
-            <Card>
+            <Card className={panelClass}>
                 <CardHeader>
                     <CardTitle>Brand Colors</CardTitle>
                     <CardDescription>Define your brand color palette for AI-generated content</CardDescription>
@@ -460,10 +501,10 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                     <div className="space-y-3">
                         {/* Primary Color */}
                         <div className="flex items-center gap-4">
-                            <Label className="w-24">Primary</Label>
+                            <Label className={`w-24 ${labelClass}`}>Primary</Label>
                             <div className="flex items-center gap-2 flex-1">
                                 <div
-                                    className="h-10 w-10 rounded border-2 border-gray-300 shrink-0"
+                                    className="h-10 w-10 shrink-0 rounded border-2 border-white/20"
                                     style={{ backgroundColor: profile?.brand_colors?.primary || '#000000' }}
                                 />
                                 <Input
@@ -474,17 +515,17 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                                         accent: profile?.brand_colors?.accent || '#0066CC'
                                     })}
                                     placeholder="#000000"
-                                    className="w-32 font-mono text-sm"
+                                    className={`${inputClass} w-32 font-mono text-sm`}
                                 />
                             </div>
                         </div>
 
                         {/* Secondary Color */}
                         <div className="flex items-center gap-4">
-                            <Label className="w-24">Secondary</Label>
+                            <Label className={`w-24 ${labelClass}`}>Secondary</Label>
                             <div className="flex items-center gap-2 flex-1">
                                 <div
-                                    className="h-10 w-10 rounded border-2 border-gray-300 shrink-0"
+                                    className="h-10 w-10 shrink-0 rounded border-2 border-white/20"
                                     style={{ backgroundColor: profile?.brand_colors?.secondary || '#666666' }}
                                 />
                                 <Input
@@ -495,17 +536,17 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                                         accent: profile?.brand_colors?.accent || '#0066CC'
                                     })}
                                     placeholder="#666666"
-                                    className="w-32 font-mono text-sm"
+                                    className={`${inputClass} w-32 font-mono text-sm`}
                                 />
                             </div>
                         </div>
 
                         {/* Accent Color */}
                         <div className="flex items-center gap-4">
-                            <Label className="w-24">Accent</Label>
+                            <Label className={`w-24 ${labelClass}`}>Accent</Label>
                             <div className="flex items-center gap-2 flex-1">
                                 <div
-                                    className="h-10 w-10 rounded border-2 border-gray-300 shrink-0"
+                                    className="h-10 w-10 shrink-0 rounded border-2 border-white/20"
                                     style={{ backgroundColor: profile?.brand_colors?.accent || '#0066CC' }}
                                 />
                                 <Input
@@ -516,26 +557,26 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                                         accent: e.target.value
                                     })}
                                     placeholder="#0066CC"
-                                    className="w-32 font-mono text-sm"
+                                    className={`${inputClass} w-32 font-mono text-sm`}
                                 />
                             </div>
                         </div>
                     </div>
 
                     {/* Color Palette Preview */}
-                    <div className="pt-4 border-t">
-                        <Label className="mb-2 block">Color Palette Preview</Label>
+                    <div className="pt-4 border-t border-white/10">
+                        <Label className={`mb-2 block ${labelClass}`}>Color Palette Preview</Label>
                         <div className="flex gap-2">
                             <div
-                                className="h-16 flex-1 rounded-lg border-2 border-gray-200 shadow-sm"
+                                className="h-16 flex-1 rounded-lg border-2 border-white/15 shadow-sm"
                                 style={{ backgroundColor: profile?.brand_colors?.primary || '#000000' }}
                             />
                             <div
-                                className="h-16 flex-1 rounded-lg border-2 border-gray-200 shadow-sm"
+                                className="h-16 flex-1 rounded-lg border-2 border-white/15 shadow-sm"
                                 style={{ backgroundColor: profile?.brand_colors?.secondary || '#666666' }}
                             />
                             <div
-                                className="h-16 flex-1 rounded-lg border-2 border-gray-200 shadow-sm"
+                                className="h-16 flex-1 rounded-lg border-2 border-white/15 shadow-sm"
                                 style={{ backgroundColor: profile?.brand_colors?.accent || '#0066CC' }}
                             />
                         </div>
@@ -544,24 +585,26 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
             </Card>
 
             {/* Social Media */}
-            <Card>
+            <Card className={panelClass}>
                 <CardHeader>
                     <CardTitle>Social Media</CardTitle>
                     <CardDescription>Your social media presence</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
-                            <Label>Instagram Handle</Label>
+                            <Label className={labelClass}>Instagram Handle</Label>
                             <Input
+                                className={inputClass}
                                 value={profile?.instagram_handle || ''}
                                 onChange={(e) => updateField('instagram_handle', e.target.value)}
                                 placeholder="@yourbrand"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>Facebook Page</Label>
+                            <Label className={labelClass}>Facebook Page</Label>
                             <Input
+                                className={inputClass}
                                 value={profile?.facebook_page || ''}
                                 onChange={(e) => updateField('facebook_page', e.target.value)}
                                 placeholder="facebook.com/yourbrand"
@@ -570,21 +613,22 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Content Themes</Label>
+                        <Label className={labelClass}>Content Themes</Label>
                         <div className="flex gap-2">
                             <Input
+                                className={inputClass}
                                 value={newTheme}
                                 onChange={(e) => setNewTheme(e.target.value)}
                                 placeholder="Add a theme..."
                                 onKeyDown={(e) => e.key === 'Enter' && addTheme()}
                             />
-                            <Button onClick={addTheme} size="icon">
+                            <Button onClick={addTheme} size="icon" className={addIconBtnClass}>
                                 <Plus className="h-4 w-4" />
                             </Button>
                         </div>
                         <div className="flex flex-wrap gap-2 mt-2">
                             {profile?.content_themes?.map((theme: string, i: number) => (
-                                <Badge key={i} variant="secondary" className="gap-1">
+                                <Badge key={i} variant="secondary" className={chipClass}>
                                     {theme}
                                     <X
                                         className="h-3 w-3 cursor-pointer"
@@ -599,7 +643,12 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
 
             {/* Save Button */}
             <div className="flex justify-end">
-                <Button onClick={handleSave} disabled={saving} size="lg">
+                <Button
+                    onClick={handleSave}
+                    disabled={saving}
+                    size="lg"
+                    className="border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
+                >
                     {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Save Brand Profile
                 </Button>

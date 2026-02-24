@@ -14,19 +14,22 @@ export default async function BrandSettingsPage() {
     }
 
     return (
-        <div className="container max-w-4xl py-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold">Brand Profile</h1>
-                <p className="text-muted-foreground mt-2">
+        <div className="container max-w-5xl py-8">
+            <div className="mb-8 space-y-2">
+                <div className="inline-flex items-center rounded-full border border-cyan-300/15 bg-cyan-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-100">
+                    Brand Profile
+                </div>
+                <h1 className="text-3xl font-bold text-white/90">Brand Profile</h1>
+                <p className="mt-2 text-white/55">
                     Manage your brand identity and connected social accounts
                 </p>
             </div>
 
             <Tabs defaultValue="details" className="space-y-6">
-                <TabsList>
-                    <TabsTrigger value="details">Brand Details</TabsTrigger>
-                    <TabsTrigger value="social">Connected Accounts</TabsTrigger>
-                    <TabsTrigger value="services">External Services</TabsTrigger>
+                <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl border border-white/10 bg-[#1b1d28] p-1 sm:inline-flex sm:w-fit sm:grid-cols-none">
+                    <TabsTrigger value="details" className="min-w-0 rounded-lg px-2 py-2 text-xs font-medium text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white sm:px-4 sm:py-2.5 sm:text-sm">Brand Details</TabsTrigger>
+                    <TabsTrigger value="social" className="min-w-0 rounded-lg px-2 py-2 text-xs font-medium text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white sm:px-4 sm:py-2.5 sm:text-sm">Connected Accounts</TabsTrigger>
+                    <TabsTrigger value="services" className="min-w-0 rounded-lg px-2 py-2 text-xs font-medium text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white sm:px-4 sm:py-2.5 sm:text-sm">External Services</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="details">

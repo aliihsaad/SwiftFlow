@@ -90,6 +90,23 @@ const fetcher = async (url: string) => {
     return data
 }
 
+const MSG_THEME = {
+    panel: '#151620',
+    panelAlt: '#1b1d28',
+    border: 'rgba(255,255,255,0.08)',
+    borderSoft: 'rgba(255,255,255,0.05)',
+    text: 'rgba(255,255,255,0.9)',
+    textStrong: 'rgba(255,255,255,0.82)',
+    muted: 'rgba(255,255,255,0.5)',
+    mutedSoft: 'rgba(255,255,255,0.35)',
+    mutedFaint: 'rgba(255,255,255,0.25)',
+    instagram: '#fb7185',
+    instagramSoft: 'rgba(251,113,133,0.14)',
+    facebook: '#38bdf8',
+    facebookSoft: 'rgba(56,189,248,0.14)',
+    amber: '#f59e0b',
+}
+
 function isPermissionError(error: Error | null): boolean {
     if (!error) return false
     const msg = error.message?.toLowerCase() || ''
@@ -250,13 +267,23 @@ export default function MessagesPage() {
             id: 'instagram' as const,
             label: 'Instagram',
             icon: Instagram,
-            activeStyle: { background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', color: '#fff', boxShadow: '0 4px 16px rgba(236,72,153,0.25)' },
+            activeStyle: {
+                background: MSG_THEME.instagramSoft,
+                border: `1px solid rgba(251,113,133,0.25)`,
+                color: '#ffe4ea',
+                boxShadow: '0 8px 24px rgba(251,113,133,0.12)',
+            },
         },
         {
             id: 'facebook' as const,
             label: 'Facebook',
             icon: Facebook,
-            activeStyle: { background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', color: '#fff', boxShadow: '0 4px 16px rgba(59,130,246,0.25)' },
+            activeStyle: {
+                background: MSG_THEME.facebookSoft,
+                border: `1px solid rgba(56,189,248,0.25)`,
+                color: '#dff6ff',
+                boxShadow: '0 8px 24px rgba(56,189,248,0.12)',
+            },
         },
     ]
 
@@ -266,10 +293,21 @@ export default function MessagesPage() {
             <div className="shrink-0 space-y-4 mb-4">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'rgba(255,255,255,0.9)' }}>
+                        <div
+                            className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold mb-2"
+                            style={{
+                                background: 'rgba(56,189,248,0.10)',
+                                border: '1px solid rgba(56,189,248,0.2)',
+                                color: '#dff6ff',
+                            }}
+                        >
+                            <Inbox className="h-3.5 w-3.5" />
+                            Messages
+                        </div>
+                        <h1 className="text-2xl font-bold tracking-tight" style={{ color: MSG_THEME.text }}>
                             Messages
                         </h1>
-                        <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        <p className="text-sm mt-0.5" style={{ color: MSG_THEME.mutedSoft }}>
                             View and reply to your DMs
                         </p>
                     </div>
@@ -277,7 +315,7 @@ export default function MessagesPage() {
                         onClick={handleRefresh}
                         disabled={conversationsLoading || isRefreshing}
                         className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold self-start transition-all duration-150 disabled:opacity-50"
-                        style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
+                        style={{ background: MSG_THEME.panelAlt, border: `1px solid ${MSG_THEME.border}`, color: MSG_THEME.muted }}
                     >
                         <RefreshCw className={cn("h-3.5 w-3.5", (conversationsLoading || isRefreshing) && "animate-spin")} />
                         {isRefreshing ? 'Refreshing…' : 'Refresh'}
@@ -294,9 +332,9 @@ export default function MessagesPage() {
                                 onClick={() => handlePlatformSwitch(tab.id)}
                                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
                                 style={isActive ? tab.activeStyle : {
-                                    background: '#12111e',
-                                    border: '1px solid rgba(255,255,255,0.08)',
-                                    color: 'rgba(255,255,255,0.4)',
+                                    background: MSG_THEME.panelAlt,
+                                    border: `1px solid ${MSG_THEME.border}`,
+                                    color: MSG_THEME.muted,
                                 }}
                             >
                                 <tab.icon className="h-4 w-4" />
@@ -308,10 +346,10 @@ export default function MessagesPage() {
 
                 {/* Account info */}
                 {conversationsData?.account && (
-                    <div className="flex items-center gap-2 text-xs" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                        <div className="w-1.5 h-1.5 rounded-full" style={{ background: activePlatform === 'instagram' ? '#ec4899' : '#3b82f6' }} />
+                    <div className="flex items-center gap-2 text-xs" style={{ color: MSG_THEME.mutedSoft }}>
+                        <div className="w-1.5 h-1.5 rounded-full" style={{ background: activePlatform === 'instagram' ? MSG_THEME.instagram : MSG_THEME.facebook }} />
                         Connected as{' '}
-                        <span className="font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                        <span className="font-semibold" style={{ color: MSG_THEME.textStrong }}>
                             {conversationsData.account.account_name}
                         </span>
                     </div>
@@ -326,11 +364,11 @@ export default function MessagesPage() {
             {showInitialConversationsLoading && (
                 <div
                     className="flex flex-1 min-h-0 overflow-hidden rounded-xl"
-                    style={{ background: '#0e0d1c', border: '1px solid rgba(139,92,246,0.12)' }}
+                    style={{ background: MSG_THEME.panel, border: `1px solid ${MSG_THEME.border}` }}
                 >
                     <div
                         className="w-full md:w-80 shrink-0 p-3 space-y-2"
-                        style={{ borderRight: '1px solid rgba(255,255,255,0.05)' }}
+                        style={{ borderRight: `1px solid ${MSG_THEME.borderSoft}` }}
                     >
                         {Array.from({ length: 7 }).map((_, index) => (
                             <div
@@ -376,18 +414,18 @@ export default function MessagesPage() {
                 <div className="flex-1 flex items-center justify-center">
                     <div
                         className="rounded-2xl p-10 text-center max-w-md mx-auto"
-                        style={{ background: '#0e0d1c', border: '1px solid rgba(59,130,246,0.15)' }}
+                        style={{ background: MSG_THEME.panel, border: '1px solid rgba(245,158,11,0.18)' }}
                     >
                         <div
                             className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
-                            style={{ background: 'rgba(59,130,246,0.1)' }}
+                            style={{ background: 'rgba(245,158,11,0.10)', border: '1px solid rgba(245,158,11,0.18)' }}
                         >
-                            <Lock className="h-8 w-8" style={{ color: '#60a5fa' }} />
+                            <Lock className="h-8 w-8" style={{ color: '#fbbf24' }} />
                         </div>
-                        <h3 className="text-base font-semibold mb-2" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                        <h3 className="text-base font-semibold mb-2" style={{ color: MSG_THEME.textStrong }}>
                             {activePlatform === 'instagram' ? 'Instagram Messages' : 'Facebook Messages'}
                         </h3>
-                        <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                        <p className="text-sm leading-relaxed" style={{ color: MSG_THEME.muted }}>
                             {conversationsData?.error || 'Messaging permissions are not enabled for this account.'}
                         </p>
                         {!!conversationsData?.missingPermissions?.length && (
@@ -400,10 +438,10 @@ export default function MessagesPage() {
                         )}
                         <div
                             className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold"
-                            style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.2)' }}
+                            style={{ background: 'rgba(245,158,11,0.08)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.2)' }}
                         >
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            Coming Soon
+                            Access Blocked
                         </div>
                     </div>
                 </div>
@@ -423,12 +461,12 @@ export default function MessagesPage() {
 
             {/* No account */}
             {noAccount && !showInitialConversationsLoading && (
-                <div className="rounded-xl p-12 text-center" style={{ background: '#0e0d1c', border: '1px dashed rgba(255,255,255,0.08)' }}>
-                    <Inbox className="h-10 w-10 mx-auto mb-4" style={{ color: 'rgba(255,255,255,0.12)' }} />
-                    <p className="font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                <div className="rounded-xl p-12 text-center" style={{ background: MSG_THEME.panel, border: `1px dashed ${MSG_THEME.border}` }}>
+                    <Inbox className="h-10 w-10 mx-auto mb-4" style={{ color: 'rgba(255,255,255,0.16)' }} />
+                    <p className="font-medium" style={{ color: MSG_THEME.muted }}>
                         No {activePlatform === 'instagram' ? 'Instagram' : 'Facebook'} account connected
                     </p>
-                    <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                    <p className="text-sm mt-2" style={{ color: MSG_THEME.mutedFaint }}>
                         Connect your account in Settings to view messages.
                     </p>
                 </div>
@@ -438,7 +476,7 @@ export default function MessagesPage() {
             {!showInitialConversationsLoading && !conversationsError && conversations.length > 0 && (
                 <div
                     className={cn("flex flex-1 min-h-0 overflow-hidden rounded-xl transition-opacity", showConversationsRefreshingHint && "opacity-95")}
-                    style={{ background: '#0e0d1c', border: '1px solid rgba(139,92,246,0.12)' }}
+                    style={{ background: MSG_THEME.panel, border: `1px solid ${MSG_THEME.border}` }}
                 >
                     {/* Left — conversation list */}
                     <div
@@ -446,7 +484,7 @@ export default function MessagesPage() {
                             "w-full md:w-80 flex flex-col shrink-0 h-full",
                             showThread ? "hidden md:flex" : "flex"
                         )}
-                        style={{ borderRight: '1px solid rgba(255,255,255,0.05)' }}
+                        style={{ borderRight: `1px solid ${MSG_THEME.borderSoft}` }}
                     >
                         <ConversationList
                             conversations={conversations}
@@ -494,10 +532,10 @@ export default function MessagesPage() {
 
             {/* Empty state */}
             {!showInitialConversationsLoading && !conversationsError && !noAccount && conversations.length === 0 && (
-                <div className="rounded-xl p-12 text-center" style={{ background: '#0e0d1c', border: '1px dashed rgba(255,255,255,0.08)' }}>
-                    <Inbox className="h-10 w-10 mx-auto mb-4" style={{ color: 'rgba(255,255,255,0.12)' }} />
-                    <p className="font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>No conversations yet</p>
-                    <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                <div className="rounded-xl p-12 text-center" style={{ background: MSG_THEME.panel, border: `1px dashed ${MSG_THEME.border}` }}>
+                    <Inbox className="h-10 w-10 mx-auto mb-4" style={{ color: 'rgba(255,255,255,0.16)' }} />
+                    <p className="font-medium" style={{ color: MSG_THEME.muted }}>No conversations yet</p>
+                    <p className="text-sm mt-2" style={{ color: MSG_THEME.mutedFaint }}>
                         {activePlatform === 'instagram'
                             ? 'Instagram DMs will appear here once you receive messages.'
                             : 'Facebook messages will appear here once you receive messages.'}

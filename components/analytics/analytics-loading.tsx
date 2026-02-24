@@ -32,7 +32,7 @@ export function AnalyticsLoadingSkeleton() {
                     <div
                         key={i}
                         className="rounded-xl p-5 space-y-3"
-                        style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)' }}
+                        style={{ background: '#151620', border: '1px solid rgba(255,255,255,0.08)' }}
                     >
                         <div className="flex items-center justify-between">
                             <DarkSkeleton className="h-3 w-24" />
@@ -47,7 +47,7 @@ export function AnalyticsLoadingSkeleton() {
             {/* Follower growth chart skeleton */}
             <div
                 className="rounded-xl overflow-hidden"
-                style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)' }}
+                style={{ background: '#151620', border: '1px solid rgba(255,255,255,0.08)' }}
             >
                 <div className="px-6 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     <DarkSkeleton className="h-4 w-36 mb-2" />
@@ -77,7 +77,7 @@ export function AnalyticsLoadingSkeleton() {
                 {/* Latest post */}
                 <div
                     className="rounded-xl overflow-hidden"
-                    style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)' }}
+                    style={{ background: '#151620', border: '1px solid rgba(255,255,255,0.08)' }}
                 >
                     <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <DarkSkeleton className="h-4 w-24" />
@@ -103,7 +103,7 @@ export function AnalyticsLoadingSkeleton() {
                 {/* Account analytics */}
                 <div
                     className="rounded-xl overflow-hidden"
-                    style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)' }}
+                    style={{ background: '#151620', border: '1px solid rgba(255,255,255,0.08)' }}
                 >
                     <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <DarkSkeleton className="h-4 w-36 mb-1" />
@@ -125,7 +125,7 @@ export function AnalyticsLoadingSkeleton() {
                 {/* Other posts */}
                 <div
                     className="rounded-xl overflow-hidden"
-                    style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)' }}
+                    style={{ background: '#151620', border: '1px solid rgba(255,255,255,0.08)' }}
                 >
                     <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                         <DarkSkeleton className="h-4 w-24" />

@@ -13,19 +13,19 @@ export function AccountAnalyticsCard({ data }: AccountAnalyticsCardProps) {
             label: "Total Reach",
             value: data.totalReach.toLocaleString(),
             icon: TrendingUp,
-            color: '#60a5fa',
+            color: '#22d3ee',
         },
         {
             label: "Total Engagement",
             value: data.totalEngagement.toLocaleString(),
             icon: Activity,
-            color: '#a78bfa',
+            color: '#fb7185',
         },
         {
             label: "Followers",
             value: data.followers.toLocaleString(),
             icon: Users,
-            color: '#34d399',
+            color: '#84cc16',
             breakdown: (data.facebookFollowers > 0 || data.instagramFollowers > 0)
                 ? { fb: data.facebookFollowers, ig: data.instagramFollowers }
                 : null,
@@ -36,8 +36,8 @@ export function AccountAnalyticsCard({ data }: AccountAnalyticsCardProps) {
         <div
             className="rounded-xl overflow-hidden"
             style={{
-                background: '#0e0d1c',
-                border: '1px solid rgba(255,255,255,0.06)',
+                background: '#151620',
+                border: '1px solid rgba(255,255,255,0.08)',
             }}
         >
             {/* Header */}
@@ -75,11 +75,11 @@ export function AccountAnalyticsCard({ data }: AccountAnalyticsCardProps) {
                                 {'breakdown' in stat && stat.breakdown && (
                                     <div className="flex items-center justify-center gap-2">
                                         <span className="flex items-center gap-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                                            <span className="h-1.5 w-1.5 rounded-full bg-blue-400 inline-block" />
+                                            <span className="h-1.5 w-1.5 rounded-full inline-block" style={{ background: '#22d3ee' }} />
                                             {stat.breakdown.fb.toLocaleString()}
                                         </span>
                                         <span className="flex items-center gap-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                                            <span className="h-1.5 w-1.5 rounded-full bg-pink-400 inline-block" />
+                                            <span className="h-1.5 w-1.5 rounded-full inline-block" style={{ background: '#fb7185' }} />
                                             {stat.breakdown.ig.toLocaleString()}
                                         </span>
                                     </div>

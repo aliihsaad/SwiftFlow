@@ -11,19 +11,19 @@ interface StyleSelectorProps {
 }
 
 const STYLES = [
-    { id: 'realistic', label: 'Realistic', icon: Camera, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/20' },
-    { id: 'cartoon', label: 'Fun Cartoon', icon: Smile, color: 'text-pink-500', bg: 'bg-pink-50 dark:bg-pink-900/20' },
-    { id: 'minimal', label: 'Minimal', icon: Sparkles, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
-    { id: 'artistic', label: 'Artistic', icon: Palette, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-900/20' },
+    { id: 'realistic', label: 'Realistic', icon: Camera, color: 'text-cyan-300', bg: 'bg-cyan-400/10 border border-cyan-300/15' },
+    { id: 'cartoon', label: 'Fun Cartoon', icon: Smile, color: 'text-rose-300', bg: 'bg-rose-400/10 border border-rose-300/15' },
+    { id: 'minimal', label: 'Minimal', icon: Sparkles, color: 'text-amber-300', bg: 'bg-amber-400/10 border border-amber-300/15' },
+    { id: 'artistic', label: 'Artistic', icon: Palette, color: 'text-lime-300', bg: 'bg-lime-400/10 border border-lime-300/15' },
 ]
 
 export function StyleSelector({ onSelect, isGenerating = false }: StyleSelectorProps) {
     const [enhanceEnabled, setEnhanceEnabled] = useState(false)
 
     return (
-        <div className="w-full max-w-md bg-card border rounded-xl p-4 space-y-4 shadow-sm animate-in fade-in slide-in-from-bottom-2">
+        <div className="w-full max-w-md animate-in fade-in slide-in-from-bottom-2 space-y-4 rounded-xl border border-white/10 bg-[#1b1d28] p-4 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]">
             <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-muted-foreground">Choose a style for your image:</h3>
+                <h3 className="text-sm font-medium text-white/55">Choose a style for your image:</h3>
 
                 <Button
                     variant="outline"
@@ -32,8 +32,8 @@ export function StyleSelector({ onSelect, isGenerating = false }: StyleSelectorP
                     className={cn(
                         "transition-all gap-1.5 h-8 text-xs",
                         enhanceEnabled
-                            ? "border-violet-500 bg-violet-50 text-violet-600 dark:bg-violet-900/20 dark:text-violet-300 shadow-[0_0_10px_rgba(139,92,246,0.3)]"
-                            : "text-muted-foreground hover:text-foreground"
+                            ? "border-cyan-300/25 bg-cyan-400/10 text-cyan-200 shadow-[0_0_10px_rgba(56,189,248,0.18)]"
+                            : "border-white/10 bg-white/5 text-white/55 hover:bg-white/10 hover:text-white/80"
                     )}
                     title="Enhance prompt with AI"
                 >
@@ -53,22 +53,22 @@ export function StyleSelector({ onSelect, isGenerating = false }: StyleSelectorP
                             className={cn(
                                 "flex items-center gap-3 p-3 rounded-lg border transition-all text-left",
                                 "hover:scale-[1.02] active:scale-[0.98]",
-                                "hover:bg-accent hover:border-accent-foreground/20",
+                                "hover:bg-white/5 hover:border-white/20",
                                 style.bg
                             )}
                         >
-                            <div className={cn("p-2 rounded-full bg-white dark:bg-black/20 shadow-sm", style.color)}>
+                            <div className={cn("rounded-full bg-black/20 p-2 shadow-sm", style.color)}>
                                 <Icon className="w-4 h-4" />
                             </div>
-                            <span className="text-sm font-medium">{style.label}</span>
+                            <span className="text-sm font-medium text-white/85">{style.label}</span>
                         </button>
                     )
                 })}
             </div>
 
             {isGenerating && (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse">
-                    <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+                <div className="flex items-center gap-2 text-xs text-white/50 animate-pulse">
+                    <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
                     <span>Adding magic and generating...</span>
                 </div>
             )}

@@ -12,9 +12,8 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { AddServiceForm } from "./add-service-form"
-import { Copy, Trash2, Globe, Key, Eye, EyeOff, Pencil } from "lucide-react"
+import { Copy, Trash2, Globe, Key, Eye, EyeOff, Pencil, Loader2 } from "lucide-react"
 import { toast } from "sonner"
-import { cn } from "@/lib/utils"
 import {
     AlertDialog,
     AlertDialogAction,
@@ -71,8 +70,6 @@ export function ExternalServicesList({ workspaceId }: ExternalServicesListProps)
     }, [fetchServices])
 
     const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this service?")) return
-
         try {
             const { error } = await supabase
                 .from('external_services')
@@ -82,6 +79,7 @@ export function ExternalServicesList({ workspaceId }: ExternalServicesListProps)
             if (error) throw error
 
             toast.success("Service deleted")
+            setDeletingId(null)
             fetchServices()
         } catch (error: any) {
             toast.error(error.message || "Failed to delete service")
@@ -106,42 +104,49 @@ export function ExternalServicesList({ workspaceId }: ExternalServicesListProps)
         }))
     }
 
+    const panelClass = "rounded-2xl border border-white/10 bg-[#151620] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_20px_46px_rgba(0,0,0,0.22)] overflow-hidden"
+    const subtleBtn = "border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+    const iconBtn = "h-8 w-8 p-0 border border-white/10 bg-white/5 text-white/75 hover:bg-white/10 hover:text-white"
+
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium">External Services</h3>
+                <div className="space-y-1">
+                    <h3 className="text-lg font-semibold text-white/90">External Services</h3>
+                    <p className="text-sm text-white/45">Store credentials and subscriptions used by your workflows and team.</p>
+                </div>
                 <AddServiceForm workspaceId={workspaceId} onSuccess={fetchServices} />
             </div>
 
-            <div className="border rounded-md">
+            <div className={panelClass}>
                 <Table>
                     <TableHeader>
-                        <TableRow>
-                            <TableHead>Service</TableHead>
-                            <TableHead>Credentials</TableHead>
-                            <TableHead>Subscription</TableHead>
-                            <TableHead>API Key</TableHead>
+                        <TableRow className="border-white/10 hover:bg-transparent">
+                            <TableHead className="text-white/55">Service</TableHead>
+                            <TableHead className="text-white/55">Credentials</TableHead>
+                            <TableHead className="text-white/55">Subscription</TableHead>
+                            <TableHead className="text-white/55">API Key</TableHead>
                             <TableHead className="w-[100px]"></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {services.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={5} className="text-center h-24 text-muted-foreground">
+                                <TableCell colSpan={5} className="h-24 text-center text-white/45">
                                     {isLoading ? "Loading services..." : "No external services added yet."}
                                 </TableCell>
                             </TableRow>
                         ) : (
                             services.map((service) => (
-                                <TableRow key={service.id}>
+                                <TableRow key={service.id} className="border-white/5 hover:bg-white/[0.02]">
                                     <TableCell>
-                                        <div className="font-medium">{service.service_name}</div>
+                                        <div className="font-medium text-white/90">{service.service_name}</div>
                                         {service.website && (
                                             <a
                                                 href={service.website.startsWith('http') ? service.website : `https://${service.website}`}
                                                 target="_blank"
                                                 rel="noreferrer"
-                                                className="text-xs text-muted-foreground flex items-center hover:text-blue-500 mt-1"
+                                                className="mt-1 flex items-center text-xs text-cyan-200/70 hover:text-cyan-200"
                                             >
                                                 <Globe className="h-3 w-3 mr-1" />
                                                 Visit Website
@@ -149,16 +154,18 @@ export function ExternalServicesList({ workspaceId }: ExternalServicesListProps)
                                         )}
                                     </TableCell>
                                     <TableCell>
-                                        <div className="space-y-2 text-sm">
+                                        <div className="space-y-2 text-sm text-white/80">
                                             {service.email && (
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-muted-foreground text-xs uppercase w-8">User</span>
+                                                    <span className="w-8 text-xs uppercase text-white/40">User</span>
                                                     <div className="flex items-center gap-1">
-                                                        <span className="bg-muted/50 px-2 py-1 rounded max-w-[150px] truncate">{service.email}</span>
+                                                        <span className="max-w-[150px] truncate rounded border border-white/10 bg-[#1b1d28] px-2 py-1 text-white/80">
+                                                            {service.email}
+                                                        </span>
                                                         <button
                                                             type="button"
                                                             title="Copy email"
-                                                            className="p-1.5 hover:bg-muted rounded active:scale-90 transition-transform"
+                                                            className="rounded border border-white/10 bg-white/5 p-1.5 text-white/70 transition-transform hover:bg-white/10 hover:text-white active:scale-90"
                                                             onClick={() => copyToClipboard(service.email, "Email")}
                                                         >
                                                             <Copy className="h-3.5 w-3.5" />
@@ -168,15 +175,15 @@ export function ExternalServicesList({ workspaceId }: ExternalServicesListProps)
                                             )}
                                             {service.password && (
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-muted-foreground text-xs uppercase w-8">Pass</span>
+                                                    <span className="w-8 text-xs uppercase text-white/40">Pass</span>
                                                     <div className="flex items-center gap-1">
-                                                        <span className="bg-muted/50 px-2 py-1 rounded font-mono">
+                                                        <span className="rounded border border-white/10 bg-[#1b1d28] px-2 py-1 font-mono text-white/80">
                                                             {showPassword[service.id] ? service.password : "••••••••"}
                                                         </span>
                                                         <button
                                                             type="button"
                                                             title="Toggle visibility"
-                                                            className="p-1.5 hover:bg-muted rounded active:scale-90 transition-transform"
+                                                            className="rounded border border-white/10 bg-white/5 p-1.5 text-white/70 transition-transform hover:bg-white/10 hover:text-white active:scale-90"
                                                             onClick={() => togglePasswordVisibility(service.id)}
                                                         >
                                                             {showPassword[service.id] ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -184,7 +191,7 @@ export function ExternalServicesList({ workspaceId }: ExternalServicesListProps)
                                                         <button
                                                             type="button"
                                                             title="Copy password"
-                                                            className="p-1.5 hover:bg-muted rounded active:scale-90 transition-transform"
+                                                            className="rounded border border-white/10 bg-white/5 p-1.5 text-white/70 transition-transform hover:bg-white/10 hover:text-white active:scale-90"
                                                             onClick={() => copyToClipboard(service.password, "Password")}
                                                         >
                                                             <Copy className="h-3.5 w-3.5" />
@@ -196,19 +203,19 @@ export function ExternalServicesList({ workspaceId }: ExternalServicesListProps)
                                     </TableCell>
                                     <TableCell>
                                         <div className="text-sm">
-                                            {service.subscription_tier && <div className="font-medium">{service.subscription_tier}</div>}
-                                            {service.price && <div className="text-muted-foreground text-xs">{service.price}</div>}
+                                            {service.subscription_tier && <div className="font-medium text-white/85">{service.subscription_tier}</div>}
+                                            {service.price && <div className="text-xs text-white/45">{service.price}</div>}
                                         </div>
                                     </TableCell>
                                     <TableCell>
                                         {service.api_key && (
                                             <div className="flex items-center gap-1">
-                                                <Key className="h-3 w-3 text-muted-foreground" />
-                                                <span className="text-xs font-mono text-muted-foreground">configured</span>
+                                                <Key className="h-3 w-3 text-amber-200/70" />
+                                                <span className="text-xs font-mono text-white/45">configured</span>
                                                 <button
                                                     type="button"
                                                     title="Copy API key"
-                                                    className="p-1.5 hover:bg-muted rounded active:scale-90 transition-transform"
+                                                    className="rounded border border-white/10 bg-white/5 p-1.5 text-white/70 transition-transform hover:bg-white/10 hover:text-white active:scale-90"
                                                     onClick={() => copyToClipboard(service.api_key, "API Key")}
                                                 >
                                                     <Copy className="h-3.5 w-3.5" />
@@ -223,7 +230,7 @@ export function ExternalServicesList({ workspaceId }: ExternalServicesListProps)
                                                 onSuccess={fetchServices}
                                                 initialData={service}
                                                 trigger={
-                                                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted">
+                                                    <Button variant="ghost" size="sm" className={iconBtn}>
                                                         <Pencil className="h-4 w-4" />
                                                     </Button>
                                                 }
@@ -231,7 +238,7 @@ export function ExternalServicesList({ workspaceId }: ExternalServicesListProps)
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
-                                                className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                className="h-8 w-8 p-0 border border-red-300/15 bg-red-500/10 text-red-200 hover:bg-red-500/15 hover:text-red-100"
                                                 onClick={() => setDeletingId(service.id)}
                                             >
                                                 <Trash2 className="h-4 w-4" />
@@ -246,17 +253,25 @@ export function ExternalServicesList({ workspaceId }: ExternalServicesListProps)
             </div>
 
             <AlertDialog open={!!deletingId} onOpenChange={() => setDeletingId(null)}>
-                <AlertDialogContent>
+                <AlertDialogContent className="border-white/10 bg-[#151620] text-white/85">
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogTitle className="text-white/90">Delete external service?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-white/55">
                             This action cannot be undone. This will permanently delete the service credentials from your account.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deletingId && handleDelete(deletingId)} className="bg-red-600 hover:bg-red-700">
-                            Delete
+                        <AlertDialogCancel className={subtleBtn}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => deletingId && handleDelete(deletingId)}
+                            className="border border-red-300/15 bg-red-500/15 text-red-100 hover:bg-red-500/20"
+                        >
+                            {deletingId ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Delete
+                                </>
+                            ) : "Delete"}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

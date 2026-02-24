@@ -71,6 +71,16 @@ const fetcher = async (url: string) => {
     return data
 }
 
+const COMMENTS_THEME = {
+    panel: '#151620',
+    panelAlt: '#1b1d28',
+    border: 'rgba(255,255,255,0.08)',
+    borderSoft: 'rgba(255,255,255,0.05)',
+    cyan: '#38bdf8',
+    coral: '#fb7185',
+    amber: '#fbbf24',
+}
+
 export function PostCommentsDrawer({
     open,
     onOpenChange,
@@ -265,14 +275,14 @@ export function PostCommentsDrawer({
                 side="right"
                 className="w-full sm:max-w-lg p-0 flex flex-col border-0"
                 style={{
-                    background: '#0a0917',
-                    borderLeft: '1px solid rgba(139,92,246,0.15)',
+                    background: '#11131c',
+                    borderLeft: `1px solid ${COMMENTS_THEME.border}`,
                 }}
             >
                 {/* Header */}
                 <SheetHeader
                     className="px-5 py-4 flex-none space-y-3"
-                    style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
+                    style={{ borderBottom: `1px solid ${COMMENTS_THEME.borderSoft}` }}
                 >
                     <div className="flex items-center justify-between">
                         <SheetTitle className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }}>
@@ -284,7 +294,7 @@ export function PostCommentsDrawer({
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-1 text-xs transition-colors mr-8"
-                                style={{ color: 'rgba(255,255,255,0.3)' }}
+                                style={{ color: 'rgba(255,255,255,0.4)' }}
                             >
                                 View on {platform === 'instagram' ? 'Instagram' : 'Facebook'}
                                 <ExternalLink className="h-3 w-3" />
@@ -300,10 +310,10 @@ export function PostCommentsDrawer({
                                     src={post.thumbnail_url || post.media_url}
                                     alt=""
                                     className="h-14 w-14 rounded-lg object-cover flex-none"
-                                    style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+                                    style={{ border: `1px solid ${COMMENTS_THEME.border}` }}
                                 />
                             )}
-                            <p className="text-xs leading-relaxed line-clamp-3" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                            <p className="text-xs leading-relaxed line-clamp-3" style={{ color: 'rgba(255,255,255,0.42)' }}>
                                 {post.caption || 'No caption'}
                             </p>
                         </div>
@@ -313,7 +323,7 @@ export function PostCommentsDrawer({
                 {/* Comments list */}
                 <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
                     {!isLoading && !error && comments.length > 0 && (
-                        <div className="flex items-center justify-between gap-3 rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <div className="flex items-center justify-between gap-3 rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${COMMENTS_THEME.borderSoft}` }}>
                             <div className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
                                 {hiddenCommentsCount > 0
                                     ? `${hiddenCommentsCount} hidden comment${hiddenCommentsCount === 1 ? '' : 's'}`
@@ -325,9 +335,9 @@ export function PostCommentsDrawer({
                                 disabled={hiddenCommentsCount === 0}
                                 className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50"
                                 style={{
-                                    color: showHiddenComments ? '#e9d5ff' : 'rgba(255,255,255,0.45)',
-                                    background: showHiddenComments ? 'rgba(139,92,246,0.14)' : 'rgba(255,255,255,0.02)',
-                                    border: '1px solid rgba(255,255,255,0.06)',
+                                    color: showHiddenComments ? '#dff6ff' : 'rgba(255,255,255,0.45)',
+                                    background: showHiddenComments ? 'rgba(56,189,248,0.12)' : 'rgba(255,255,255,0.02)',
+                                    border: `1px solid ${COMMENTS_THEME.borderSoft}`,
                                 }}
                             >
                                 {showHiddenComments ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
@@ -338,16 +348,16 @@ export function PostCommentsDrawer({
 
                     {isLoading && (
                         <div className="flex items-center justify-center py-12">
-                            <Loader2 className="h-6 w-6 animate-spin" style={{ color: '#8b5cf6' }} />
+                            <Loader2 className="h-6 w-6 animate-spin" style={{ color: COMMENTS_THEME.cyan }} />
                         </div>
                     )}
 
                     {commentsReadBlocked && (
                         <div
                             className="rounded-xl p-4"
-                            style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.18)' }}
+                            style={{ background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.18)' }}
                         >
-                            <p className="text-sm font-medium" style={{ color: '#60a5fa' }}>
+                            <p className="text-sm font-medium" style={{ color: '#7dd3fc' }}>
                                 {platform === 'instagram' ? 'Instagram comment access unavailable' : 'Facebook comment access unavailable'}
                             </p>
                             <p className="text-xs mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
@@ -388,9 +398,9 @@ export function PostCommentsDrawer({
                     {actionsBlocked && comments.length > 0 && (
                         <div
                             className="rounded-xl p-3"
-                            style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)' }}
+                            style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.16)' }}
                         >
-                            <p className="text-xs font-semibold" style={{ color: '#60a5fa' }}>
+                            <p className="text-xs font-semibold" style={{ color: COMMENTS_THEME.amber }}>
                                 Comment actions unavailable
                             </p>
                             <p className="text-xs mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
@@ -410,16 +420,16 @@ export function PostCommentsDrawer({
                             <div
                                 className="rounded-xl p-3 transition-all duration-150"
                                 style={{
-                                    background: '#12111e',
-                                    border: '1px solid rgba(255,255,255,0.06)',
+                                    background: COMMENTS_THEME.panel,
+                                    border: `1px solid ${COMMENTS_THEME.border}`,
                                 }}
                             >
                                 <div className="flex items-start gap-2.5">
                                     <div
                                         className="flex-none w-7 h-7 rounded-full flex items-center justify-center"
-                                        style={{ background: 'rgba(139,92,246,0.15)' }}
+                                        style={{ background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.16)' }}
                                     >
-                                        <User className="h-3.5 w-3.5" style={{ color: '#a78bfa' }} />
+                                        <User className="h-3.5 w-3.5" style={{ color: '#7dd3fc' }} />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
@@ -460,7 +470,7 @@ export function PostCommentsDrawer({
                                     </button>
                                     <button
                                         className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all duration-150"
-                                        style={{ color: 'rgba(167,139,250,0.7)' }}
+                                        style={{ color: 'rgba(251,191,36,0.85)' }}
                                         onClick={() => handleAIReply(comment)}
                                         disabled={!!comment.is_hidden || generatingAI === comment.id}
                                     >
@@ -499,20 +509,20 @@ export function PostCommentsDrawer({
                                             autoFocus
                                             className="w-full rounded-lg px-3 py-2 text-sm resize-none outline-none transition-all duration-150"
                                             style={{
-                                                background: '#0e0d1c',
-                                                border: '1px solid rgba(139,92,246,0.25)',
+                                                background: COMMENTS_THEME.panelAlt,
+                                                border: `1px solid ${COMMENTS_THEME.border}`,
                                                 color: 'rgba(255,255,255,0.8)',
                                             }}
-                                            onFocus={(e) => { e.target.style.border = '1px solid rgba(139,92,246,0.5)' }}
-                                            onBlur={(e) => { e.target.style.border = '1px solid rgba(139,92,246,0.25)' }}
+                                            onFocus={(e) => { e.target.style.border = '1px solid rgba(56,189,248,0.3)' }}
+                                            onBlur={(e) => { e.target.style.border = `1px solid ${COMMENTS_THEME.border}` }}
                                         />
                                         <div className="flex items-center gap-2">
                                             <button
                                                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150 disabled:opacity-50"
                                                 style={{
-                                                    background: 'linear-gradient(135deg, #8b5cf6, #6366f1)',
+                                                    background: 'linear-gradient(135deg, #38bdf8, #fb7185)',
                                                     color: '#fff',
-                                                    boxShadow: '0 2px 12px rgba(139,92,246,0.3)',
+                                                    boxShadow: '0 2px 12px rgba(56,189,248,0.2)',
                                                 }}
                                                 onClick={() => handleSendReply(comment.platform_comment_id)}
                                                 disabled={commentActionsBlocked || sendingReply || !replyText.trim()}
@@ -536,7 +546,7 @@ export function PostCommentsDrawer({
                             {comment.replies && comment.replies.filter((reply) => showHiddenComments || !reply.is_hidden).length > 0 && (
                                 <div
                                     className="ml-6 space-y-2 pl-3"
-                                    style={{ borderLeft: '2px solid rgba(139,92,246,0.15)' }}
+                                    style={{ borderLeft: '2px solid rgba(56,189,248,0.15)' }}
                                 >
                                     {comment.replies
                                         .filter((reply) => showHiddenComments || !reply.is_hidden)
@@ -544,7 +554,7 @@ export function PostCommentsDrawer({
                                         <div
                                             key={reply.id}
                                             className="rounded-lg p-2.5"
-                                            style={{ background: 'rgba(255,255,255,0.02)' }}
+                                            style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${COMMENTS_THEME.borderSoft}` }}
                                         >
                                             <div className="flex items-start gap-2">
                                                 <div

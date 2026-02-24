@@ -1,7 +1,5 @@
-"use client"
-
-import PostsPage from "@/components/posts/posts-page"
+import { redirect } from "next/navigation"
 
 export default function CommentsPage() {
-    return <PostsPage />
+    redirect("/dashboard/posts")
 }

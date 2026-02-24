@@ -32,33 +32,34 @@ export function ImagePreview({
                 />
             </div>
 
-            <div className="p-3 bg-card border-t border-border flex gap-2">
+            <div className="grid grid-cols-2 gap-2 border-t border-border bg-card p-3 sm:grid-cols-[1fr_1fr_auto]">
                 <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1 text-xs gap-2"
+                    className="min-w-0 gap-2 text-xs"
                     onClick={() => onDownload(imageUrl)}
                 >
                     <Download className="w-3 h-3" />
-                    Download
+                    <span className="truncate">Download</span>
                 </Button>
                 <Button
                     variant="default"
                     size="sm"
-                    className="flex-1 text-xs gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                    className="min-w-0 gap-2 text-xs bg-blue-600 hover:bg-blue-700 text-white"
                     onClick={() => onUseInPost(imageUrl)}
                 >
                     <PlusSquare className="w-3 h-3" />
-                    Use in Post
+                    <span className="truncate">Use in Post</span>
                 </Button>
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="col-span-2 h-8 w-full sm:col-span-1 sm:w-8"
                     onClick={() => onRegenerate(promptUsed)}
                     title="Regenerate"
                 >
                     <RefreshCw className="w-3 h-3" />
+                    <span className="ml-2 text-xs sm:hidden">Regenerate</span>
                 </Button>
             </div>
         </Card>

@@ -23,18 +23,18 @@ export function IdeaOptionsSelector({ onGenerate, isLoading }: IdeaOptionsSelect
     }
 
     return (
-        <div className="w-full max-w-md bg-card border rounded-xl p-4 space-y-6 shadow-sm animate-in fade-in zoom-in-95 duration-200">
+        <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-200 space-y-6 rounded-xl border border-white/10 bg-[#1b1d28] p-4 text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]">
             <div className="space-y-4">
                 <div className="space-y-2">
-                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Inspiration Source</Label>
+                    <Label className="text-xs font-medium uppercase tracking-wider text-white/50">Inspiration Source</Label>
                     <div className="grid grid-cols-2 gap-2">
                         <button
                             onClick={() => setSource('auto')}
                             className={cn(
                                 "flex flex-col items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all hover:bg-accent/50",
                                 source === 'auto'
-                                    ? "border-primary bg-primary/5 text-primary"
-                                    : "border-muted bg-transparent hover:border-primary/50"
+                                    ? "border-cyan-300/25 bg-cyan-400/10 text-cyan-200"
+                                    : "border-white/10 bg-[#151620] text-white/70 hover:border-cyan-300/15 hover:bg-white/5"
                             )}
                         >
                             <Zap className="w-5 h-5" />
@@ -45,8 +45,8 @@ export function IdeaOptionsSelector({ onGenerate, isLoading }: IdeaOptionsSelect
                             className={cn(
                                 "flex flex-col items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all hover:bg-accent/50",
                                 source === 'custom'
-                                    ? "border-primary bg-primary/5 text-primary"
-                                    : "border-muted bg-transparent hover:border-primary/50"
+                                    ? "border-cyan-300/25 bg-cyan-400/10 text-cyan-200"
+                                    : "border-white/10 bg-[#151620] text-white/70 hover:border-cyan-300/15 hover:bg-white/5"
                             )}
                         >
                             <Type className="w-5 h-5" />
@@ -57,18 +57,18 @@ export function IdeaOptionsSelector({ onGenerate, isLoading }: IdeaOptionsSelect
 
                 {source === 'custom' && (
                     <div className="space-y-2 animate-in slide-in-from-top-2 duration-200">
-                        <Label>Topic or Keyword</Label>
+                        <Label className="text-white/75">Topic or Keyword</Label>
                         <Input
                             placeholder="E.g., Summer Sale, Industry Trends..."
                             value={topic}
                             onChange={(e) => setTopic(e.target.value)}
-                            className="bg-background"
+                            className="border-white/10 bg-[#151620] text-white/85 placeholder:text-white/25"
                         />
                     </div>
                 )}
 
                 <div className="space-y-2">
-                    <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Number of Ideas</Label>
+                    <Label className="text-xs font-medium uppercase tracking-wider text-white/50">Number of Ideas</Label>
                     <div className="flex items-center gap-2">
                         {[3, 5, 10].map((num) => (
                             <button
@@ -77,8 +77,8 @@ export function IdeaOptionsSelector({ onGenerate, isLoading }: IdeaOptionsSelect
                                 className={cn(
                                     "flex-1 h-9 rounded-md border text-sm font-medium transition-colors hover:bg-accent",
                                     count === num
-                                        ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
-                                        : "bg-transparent border-input"
+                                        ? "border-cyan-300/25 bg-cyan-400/12 text-cyan-100 hover:bg-cyan-400/15"
+                                        : "border-white/10 bg-[#151620] text-white/70 hover:bg-white/5"
                                 )}
                             >
                                 {num} Ideas
@@ -89,7 +89,7 @@ export function IdeaOptionsSelector({ onGenerate, isLoading }: IdeaOptionsSelect
             </div>
 
             <Button
-                className="w-full gap-2"
+                className="w-full gap-2 border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
                 size="lg"
                 onClick={handleGenerate}
                 disabled={isLoading || (source === 'custom' && !topic.trim())}

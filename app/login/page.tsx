@@ -9,6 +9,18 @@ import { Loader2, KeyRound, UserPlus, Zap, ArrowRight } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+const AUTH_THEME = {
+    bg: "#0b0b0f",
+    bgSoft: "#111118",
+    panel: "#151620",
+    border: "rgba(255,255,255,0.08)",
+    text: "rgba(255,255,255,0.94)",
+    textMuted: "rgba(255,255,255,0.48)",
+    amber: "#f59e0b",
+    cyan: "#22d3ee",
+    coral: "#fb7185",
+}
+
 export default function LoginPage() {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
@@ -103,21 +115,21 @@ export default function LoginPage() {
     return (
         <div
             className="dark relative min-h-screen flex items-center justify-center overflow-hidden"
-            style={{ background: '#070710' }}
+            style={{ background: AUTH_THEME.bg }}
         >
-            {/* Ambient violet glow blobs */}
+            {/* Ambient landing-style glow blobs */}
             <div className="pointer-events-none absolute inset-0 overflow-hidden">
                 <div
                     className="absolute -left-48 top-1/4 h-[500px] w-[500px] rounded-full blur-[120px]"
-                    style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.25) 0%, transparent 70%)' }}
+                    style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.16) 0%, transparent 70%)' }}
                 />
                 <div
                     className="absolute -right-48 bottom-1/4 h-[400px] w-[400px] rounded-full blur-[100px]"
-                    style={{ background: 'radial-gradient(circle, rgba(79,70,229,0.2) 0%, transparent 70%)' }}
+                    style={{ background: 'radial-gradient(circle, rgba(34,211,238,0.16) 0%, transparent 70%)' }}
                 />
                 <div
                     className="absolute left-1/2 top-0 h-[300px] w-[600px] -translate-x-1/2 blur-[80px]"
-                    style={{ background: 'radial-gradient(ellipse, rgba(139,92,246,0.08) 0%, transparent 70%)' }}
+                    style={{ background: 'radial-gradient(ellipse, rgba(251,113,133,0.09) 0%, transparent 70%)' }}
                 />
             </div>
 
@@ -138,32 +150,47 @@ export default function LoginPage() {
                     <div
                         className="flex h-12 w-12 items-center justify-center rounded-xl mb-5 shadow-lg"
                         style={{
-                            background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
-                            boxShadow: '0 0 30px rgba(124,58,237,0.4), 0 4px 12px rgba(0,0,0,0.4)',
+                            background: 'linear-gradient(135deg, #f59e0b 0%, #fb7185 55%, #22d3ee 100%)',
+                            boxShadow: '0 0 30px rgba(34,211,238,0.22), 0 4px 12px rgba(0,0,0,0.4)',
                         }}
                     >
                         <Zap className="h-6 w-6 text-white" />
                     </div>
                     <h1
                         className="text-2xl font-bold tracking-tight"
-                        style={{ color: 'rgba(255,255,255,0.95)' }}
+                        style={{ color: AUTH_THEME.text }}
                     >
                         SocialAI
                     </h1>
-                    <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                        Social Media Management Platform
+                    <p className="text-sm mt-1 text-center" style={{ color: AUTH_THEME.textMuted }}>
+                        AI-assisted social ops for Instagram + Facebook
                     </p>
+                    <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                        {["Publishing", "Messages", "Analytics", "Automations"].map((pill, i) => (
+                            <span
+                                key={pill}
+                                className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
+                                style={{
+                                    background: i % 2 ? "rgba(34,211,238,0.06)" : "rgba(245,158,11,0.06)",
+                                    border: "1px solid rgba(255,255,255,0.06)",
+                                    color: "rgba(255,255,255,0.64)",
+                                }}
+                            >
+                                {pill}
+                            </span>
+                        ))}
+                    </div>
                 </div>
 
                 {/* Glass card */}
                 <div
                     className="rounded-2xl p-7"
                     style={{
-                        background: 'rgba(255,255,255,0.035)',
-                        border: '1px solid rgba(255,255,255,0.07)',
+                        background: 'linear-gradient(180deg, rgba(18,19,26,0.88), rgba(11,11,15,0.92))',
+                        border: `1px solid ${AUTH_THEME.border}`,
                         backdropFilter: 'blur(24px)',
                         WebkitBackdropFilter: 'blur(24px)',
-                        boxShadow: '0 32px 64px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06)',
+                        boxShadow: '0 32px 64px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.03), inset 0 1px 0 rgba(255,255,255,0.04)',
                     }}
                 >
                     <Tabs defaultValue="signin" onValueChange={() => { setError(null); setSuccess(null) }}>
@@ -178,16 +205,13 @@ export default function LoginPage() {
                         >
                             <TabsTrigger
                                 value="signin"
-                                className="rounded-md text-xs font-semibold uppercase tracking-wider transition-all duration-200 data-[state=inactive]:text-white/30 data-[state=active]:text-white data-[state=active]:shadow-sm"
-                                style={{
-                                    '--tab-active-bg': 'rgba(124,58,237,0.25)',
-                                } as React.CSSProperties}
+                                className="rounded-md text-xs font-semibold uppercase tracking-wider transition-all duration-200 data-[state=inactive]:text-white/30 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-white/10 data-[state=active]:bg-white/[0.05]"
                             >
                                 Sign In
                             </TabsTrigger>
                             <TabsTrigger
                                 value="signup"
-                                className="rounded-md text-xs font-semibold uppercase tracking-wider transition-all duration-200 data-[state=inactive]:text-white/30 data-[state=active]:text-white data-[state=active]:shadow-sm"
+                                className="rounded-md text-xs font-semibold uppercase tracking-wider transition-all duration-200 data-[state=inactive]:text-white/30 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-white/10 data-[state=active]:bg-white/[0.05]"
                             >
                                 Sign Up
                             </TabsTrigger>
@@ -199,12 +223,12 @@ export default function LoginPage() {
                                 {error && (
                                     <div
                                         className="p-3 text-sm rounded-lg"
-                                        style={{
-                                            background: 'rgba(239,68,68,0.08)',
-                                            border: '1px solid rgba(239,68,68,0.2)',
-                                            color: '#f87171',
-                                        }}
-                                    >
+                                    style={{
+                                        background: 'rgba(251,113,133,0.08)',
+                                        border: '1px solid rgba(239,68,68,0.2)',
+                                        color: '#fb7185',
+                                    }}
+                                >
                                         {error}
                                     </div>
                                 )}
@@ -213,7 +237,7 @@ export default function LoginPage() {
                                     <Label
                                         htmlFor="signin-email"
                                         className="text-xs font-semibold uppercase tracking-wider"
-                                        style={{ color: 'rgba(255,255,255,0.45)' }}
+                                        style={{ color: 'rgba(255,255,255,0.42)' }}
                                     >
                                         Email
                                     </Label>
@@ -263,8 +287,8 @@ export default function LoginPage() {
                                     className="w-full h-10 font-semibold text-white border-0 rounded-lg mt-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
                                     disabled={isLoading || isGoogleLoading}
                                     style={{
-                                        background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
-                                        boxShadow: '0 4px 24px rgba(124,58,237,0.35), 0 1px 0 rgba(255,255,255,0.1) inset',
+                                        background: 'linear-gradient(135deg, #f59e0b 0%, #fb7185 55%, #22d3ee 100%)',
+                                        boxShadow: '0 8px 26px rgba(34,211,238,0.14), 0 1px 0 rgba(255,255,255,0.1) inset',
                                     }}
                                 >
                                     {isLoading
@@ -281,24 +305,24 @@ export default function LoginPage() {
                                 {error && (
                                     <div
                                         className="p-3 text-sm rounded-lg"
-                                        style={{
-                                            background: 'rgba(239,68,68,0.08)',
-                                            border: '1px solid rgba(239,68,68,0.2)',
-                                            color: '#f87171',
-                                        }}
-                                    >
+                                    style={{
+                                        background: 'rgba(251,113,133,0.08)',
+                                        border: '1px solid rgba(239,68,68,0.2)',
+                                        color: '#fb7185',
+                                    }}
+                                >
                                         {error}
                                     </div>
                                 )}
                                 {success && (
                                     <div
                                         className="p-3 text-sm rounded-lg"
-                                        style={{
-                                            background: 'rgba(34,197,94,0.08)',
-                                            border: '1px solid rgba(34,197,94,0.2)',
-                                            color: '#4ade80',
-                                        }}
-                                    >
+                                    style={{
+                                        background: 'rgba(132,204,22,0.08)',
+                                        border: '1px solid rgba(34,197,94,0.2)',
+                                        color: '#84cc16',
+                                    }}
+                                >
                                         {success}
                                     </div>
                                 )}
@@ -307,7 +331,7 @@ export default function LoginPage() {
                                     <Label
                                         htmlFor="signup-email"
                                         className="text-xs font-semibold uppercase tracking-wider"
-                                        style={{ color: 'rgba(255,255,255,0.45)' }}
+                                        style={{ color: 'rgba(255,255,255,0.42)' }}
                                     >
                                         Email
                                     </Label>
@@ -332,7 +356,7 @@ export default function LoginPage() {
                                     <Label
                                         htmlFor="signup-password"
                                         className="text-xs font-semibold uppercase tracking-wider"
-                                        style={{ color: 'rgba(255,255,255,0.45)' }}
+                                        style={{ color: 'rgba(255,255,255,0.42)' }}
                                     >
                                         Password
                                     </Label>
@@ -357,7 +381,7 @@ export default function LoginPage() {
                                     <Label
                                         htmlFor="confirm-password"
                                         className="text-xs font-semibold uppercase tracking-wider"
-                                        style={{ color: 'rgba(255,255,255,0.45)' }}
+                                        style={{ color: 'rgba(255,255,255,0.42)' }}
                                     >
                                         Confirm Password
                                     </Label>
@@ -383,8 +407,8 @@ export default function LoginPage() {
                                     className="w-full h-10 font-semibold text-white border-0 rounded-lg mt-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
                                     disabled={isLoading || isGoogleLoading}
                                     style={{
-                                        background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
-                                        boxShadow: '0 4px 24px rgba(124,58,237,0.35), 0 1px 0 rgba(255,255,255,0.1) inset',
+                                        background: 'linear-gradient(135deg, #f59e0b 0%, #fb7185 55%, #22d3ee 100%)',
+                                        boxShadow: '0 8px 26px rgba(34,211,238,0.14), 0 1px 0 rgba(255,255,255,0.1) inset',
                                     }}
                                 >
                                     {isLoading
@@ -415,17 +439,17 @@ export default function LoginPage() {
                         disabled={isLoading || isGoogleLoading}
                         className="group w-full h-10 flex items-center justify-center gap-2.5 rounded-lg text-sm font-medium transition-all duration-200 active:scale-[0.98]"
                         style={{
-                            background: 'rgba(255,255,255,0.05)',
-                            border: '1px solid rgba(255,255,255,0.09)',
-                            color: 'rgba(255,255,255,0.6)',
+                            background: 'rgba(255,255,255,0.035)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            color: 'rgba(255,255,255,0.68)',
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'rgba(255,255,255,0.08)'
-                            e.currentTarget.style.color = 'rgba(255,255,255,0.85)'
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
+                            e.currentTarget.style.color = 'rgba(255,255,255,0.9)'
                         }}
                         onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
-                            e.currentTarget.style.color = 'rgba(255,255,255,0.6)'
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.035)'
+                            e.currentTarget.style.color = 'rgba(255,255,255,0.68)'
                         }}
                     >
                         {isGoogleLoading ? (

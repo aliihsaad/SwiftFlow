@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/layout/sidebar"
+import { MobileNav } from "@/components/layout/mobile-nav"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { createClient } from "@/utils/supabase/server"
 import { Workspace } from "@/types/workspace"
@@ -34,15 +35,18 @@ export default async function DashboardLayout({
 
     return (
         <div className="flex h-screen overflow-hidden" style={{ background: '#070710' }}>
-            <Sidebar
-                workspaces={workspaceList}
-                activeWorkspace={activeWorkspace}
-            />
+            {/* Sidebar — desktop only */}
+            <div className="hidden sm:flex h-full">
+                <Sidebar
+                    workspaces={workspaceList}
+                    activeWorkspace={activeWorkspace}
+                />
+            </div>
 
             <div className="flex flex-1 flex-col overflow-hidden min-w-0">
                 {/* Header */}
                 <header
-                    className="flex h-14 shrink-0 items-center gap-4 px-6"
+                    className="flex h-14 shrink-0 items-center gap-3 px-4 sm:px-6"
                     style={{
                         background: 'rgba(7,7,16,0.9)',
                         backdropFilter: 'blur(20px)',
@@ -50,6 +54,11 @@ export default async function DashboardLayout({
                         borderBottom: '1px solid rgba(255,255,255,0.055)',
                     }}
                 >
+                    {/* Mobile hamburger — hidden on desktop */}
+                    <div className="sm:hidden">
+                        <MobileNav activeWorkspace={activeWorkspace} workspaces={workspaceList} />
+                    </div>
+
                     {/* Workspace indicator */}
                     <div className="flex items-center gap-2.5">
                         <div
@@ -78,7 +87,7 @@ export default async function DashboardLayout({
 
                 {/* Main content */}
                 <main
-                    className="flex-1 overflow-y-auto p-6"
+                    className="flex-1 overflow-y-auto p-3 sm:p-6"
                     style={{ background: '#080813' }}
                 >
                     {children}

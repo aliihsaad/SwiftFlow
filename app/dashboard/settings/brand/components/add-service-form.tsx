@@ -115,29 +115,34 @@ export function AddServiceForm({ workspaceId, onSuccess, initialData, trigger }:
         setApiKey("")
     }
 
+    const inputClass = "border-white/10 bg-[#1b1d28] text-white/85 placeholder:text-white/25 focus-visible:ring-cyan-400/30 focus-visible:border-cyan-300/20"
+    const labelClass = "text-white/70"
+    const secondaryBtnClass = "border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 {trigger || (
-                    <Button>
+                    <Button className="border border-cyan-300/20 bg-gradient-to-r from-cyan-400/15 to-amber-300/15 text-white hover:from-cyan-400/20 hover:to-amber-300/20">
                         <Plus className="h-4 w-4 mr-2" />
                         Add Service
                     </Button>
                 )}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px] overflow-y-auto max-h-[90vh]">
+            <DialogContent className="sm:max-w-[425px] overflow-y-auto max-h-[90vh] border-white/10 bg-[#151620] text-white/85">
                 <DialogHeader>
-                    <DialogTitle>{initialData ? 'Edit' : 'Add'} External Service</DialogTitle>
-                    <DialogDescription>
+                    <DialogTitle className="text-white/90">{initialData ? 'Edit' : 'Add'} External Service</DialogTitle>
+                    <DialogDescription className="text-white/55">
                         {initialData ? 'Update' : 'Store'} credentials for external services used by your brand.
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-4 py-4">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Service Name *</Label>
+                        <Label htmlFor="name" className={labelClass}>Service Name *</Label>
                         <Input
                             id="name"
                             required
+                            className={inputClass}
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             placeholder="e.g. Canva, Zapier"
@@ -145,28 +150,31 @@ export function AddServiceForm({ workspaceId, onSuccess, initialData, trigger }:
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="website">Website</Label>
+                        <Label htmlFor="website" className={labelClass}>Website</Label>
                         <Input
                             id="website"
+                            className={inputClass}
                             value={website}
                             onChange={(e) => setWebsite(e.target.value)}
                             placeholder="https://..."
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="email">Email / Username</Label>
+                            <Label htmlFor="email" className={labelClass}>Email / Username</Label>
                             <Input
                                 id="email"
+                                className={inputClass}
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="password">Password</Label>
+                            <Label htmlFor="password" className={labelClass}>Password</Label>
                             <Input
                                 id="password"
+                                className={inputClass}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 type="text" // Plain text as requested
@@ -175,20 +183,22 @@ export function AddServiceForm({ workspaceId, onSuccess, initialData, trigger }:
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="subscription">Subscription</Label>
+                            <Label htmlFor="subscription" className={labelClass}>Subscription</Label>
                             <Input
                                 id="subscription"
+                                className={inputClass}
                                 value={subscription}
                                 onChange={(e) => setSubscription(e.target.value)}
                                 placeholder="e.g. Pro, Enterprise"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="price">Price</Label>
+                            <Label htmlFor="price" className={labelClass}>Price</Label>
                             <Input
                                 id="price"
+                                className={inputClass}
                                 value={price}
                                 onChange={(e) => setPrice(e.target.value)}
                                 placeholder="e.g. $29/mo"
@@ -197,17 +207,24 @@ export function AddServiceForm({ workspaceId, onSuccess, initialData, trigger }:
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="api">API Key (if applicable)</Label>
+                        <Label htmlFor="api" className={labelClass}>API Key (if applicable)</Label>
                         <Input
                             id="api"
+                            className={`${inputClass} font-mono text-sm`}
                             value={apiKey}
                             onChange={(e) => setApiKey(e.target.value)}
-                            className="font-mono text-sm"
                         />
                     </div>
 
                     <DialogFooter className="pt-4">
-                        <Button type="submit" disabled={loading}>
+                        <Button type="button" variant="ghost" className={secondaryBtnClass} onClick={() => setOpen(false)} disabled={loading}>
+                            Cancel
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={loading}
+                            className="border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
+                        >
                             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             {initialData ? 'Update' : 'Save'} Service
                         </Button>

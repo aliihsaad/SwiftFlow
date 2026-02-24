@@ -125,53 +125,61 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
         }
     }
 
+    const panelClass = "border-white/10 bg-[#1b1d28] text-white/80"
+    const subtleBorder = "border-white/10"
+
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium">Workspaces</h3>
-                <Button onClick={() => setIsAddOpen(true)}>Add Workspace</Button>
+                <h3 className="text-lg font-medium text-white/85">Workspaces</h3>
+                <Button
+                    onClick={() => setIsAddOpen(true)}
+                    className="border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
+                >
+                    Add Workspace
+                </Button>
             </div>
 
-            <div className="rounded-md border">
+            <div className={`overflow-hidden rounded-xl border ${subtleBorder} bg-[#151620]`}>
                 <Table>
                     <TableHeader>
-                        <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Role</TableHead>
-                            <TableHead>Created</TableHead>
-                            <TableHead className="w-[50px]"></TableHead>
+                        <TableRow className="border-white/10 hover:bg-transparent">
+                            <TableHead className="text-white/45">Name</TableHead>
+                            <TableHead className="text-white/45">Role</TableHead>
+                            <TableHead className="text-white/45">Created</TableHead>
+                            <TableHead className="w-[50px] text-white/45"></TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {workspaces.map((ws) => (
-                            <TableRow key={ws.id}>
-                                <TableCell className="font-medium">{ws.name}</TableCell>
-                                <TableCell className="capitalize">{ws.role}</TableCell>
-                                <TableCell suppressHydrationWarning>{new Date(ws.created_at).toLocaleDateString("en-US")}</TableCell>
+                            <TableRow key={ws.id} className="border-white/5 hover:bg-white/5">
+                                <TableCell className="font-medium text-white/85">{ws.name}</TableCell>
+                                <TableCell className="capitalize text-white/60">{ws.role}</TableCell>
+                                <TableCell suppressHydrationWarning className="text-white/55">{new Date(ws.created_at).toLocaleDateString("en-US")}</TableCell>
                                 <TableCell>
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-white/60 hover:bg-white/8 hover:text-white">
                                                 <MoreHorizontal className="h-4 w-4" />
                                                 <span className="sr-only">Actions</span>
                                             </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
+                                        <DropdownMenuContent align="end" className="border-white/10 bg-[#1b1d28] text-white/80">
                                             {ws.role === 'owner' && (
-                                                <DropdownMenuItem onClick={() => handleRenameClick(ws)}>
+                                                <DropdownMenuItem className="focus:bg-white/10 focus:text-white" onClick={() => handleRenameClick(ws)}>
                                                     <SettingsIcon className="mr-2 h-4 w-4" /> Rename
                                                 </DropdownMenuItem>
                                             )}
                                             {ws.role === 'owner' ? (
                                                 <DropdownMenuItem
-                                                    className="text-destructive focus:text-destructive"
+                                                    className="text-red-300 focus:bg-red-500/10 focus:text-red-200"
                                                     onClick={() => handleDeleteClick(ws)}
                                                 >
                                                     <Trash2 className="mr-2 h-4 w-4" /> Delete
                                                 </DropdownMenuItem>
                                             ) : (
                                                 <DropdownMenuItem
-                                                    className="text-destructive focus:text-destructive"
+                                                    className="text-red-300 focus:bg-red-500/10 focus:text-red-200"
                                                     onClick={() => handleLeaveClick(ws)}
                                                 >
                                                     <LogOut className="mr-2 h-4 w-4" /> Leave
@@ -191,17 +199,17 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
 
             {/* Rename Workspace Dialog */}
             <Dialog open={isRenameOpen} onOpenChange={setIsRenameOpen}>
-                <DialogContent>
+                <DialogContent className={panelClass}>
                     <DialogHeader>
-                        <DialogTitle>Rename Workspace</DialogTitle>
-                        <DialogDescription>
+                        <DialogTitle className="text-white/90">Rename Workspace</DialogTitle>
+                        <DialogDescription className="text-white/50">
                             Enter a new name for "{selectedWorkspace?.name}"
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleRenameSubmit}>
                         <div className="grid gap-4 py-4">
                             <div className="space-y-2">
-                                <Label htmlFor="new-name">New Name</Label>
+                                <Label htmlFor="new-name" className="text-white/75">New Name</Label>
                                 <Input
                                     id="new-name"
                                     value={newName}
@@ -209,6 +217,7 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
                                     placeholder="Workspace name"
                                     required
                                     disabled={isLoading}
+                                    className="border-white/10 bg-[#151620] text-white/85 placeholder:text-white/25"
                                 />
                             </div>
                         </div>
@@ -218,10 +227,15 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
                                 variant="outline"
                                 onClick={() => setIsRenameOpen(false)}
                                 disabled={isLoading}
+                                className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={isLoading || !newName.trim()}>
+                            <Button
+                                type="submit"
+                                disabled={isLoading || !newName.trim()}
+                                className="border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
+                            >
                                 {isLoading ? "Renaming..." : "Rename"}
                             </Button>
                         </DialogFooter>
@@ -231,20 +245,20 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
 
             {/* Delete Workspace Confirmation */}
             <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-                <AlertDialogContent>
+                <AlertDialogContent className={panelClass}>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Workspace?</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogTitle className="text-white/90">Delete Workspace?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-white/55">
                             Are you sure you want to delete "{selectedWorkspace?.name}"? This action cannot be undone.
                             All posts, analytics, and social connections will be permanently deleted.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isLoading} className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white">Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDeleteConfirm}
                             disabled={isLoading}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="border border-red-500/25 bg-red-500/15 text-red-300 hover:bg-red-500/20"
                         >
                             {isLoading ? "Deleting..." : "Delete"}
                         </AlertDialogAction>
@@ -254,20 +268,20 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
 
             {/* Leave Workspace Confirmation */}
             <AlertDialog open={isLeaveOpen} onOpenChange={setIsLeaveOpen}>
-                <AlertDialogContent>
+                <AlertDialogContent className={panelClass}>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Leave Workspace?</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogTitle className="text-white/90">Leave Workspace?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-white/55">
                             Are you sure you want to leave "{selectedWorkspace?.name}"?
                             You will lose access to all workspace content and will need to be re-invited by the owner.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isLoading} className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white">Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleLeaveConfirm}
                             disabled={isLoading}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="border border-red-500/25 bg-red-500/15 text-red-300 hover:bg-red-500/20"
                         >
                             {isLoading ? "Leaving..." : "Leave"}
                         </AlertDialogAction>

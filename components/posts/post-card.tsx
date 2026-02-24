@@ -35,21 +35,21 @@ export function PostCard({ post, onClick }: PostCardProps) {
             onClick={onClick}
             className="group relative overflow-hidden rounded-xl text-left w-full focus:outline-none transition-all duration-200 hover:-translate-y-0.5"
             style={{
-                background: '#0e0d1c',
-                border: '1px solid rgba(255,255,255,0.07)',
-                boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
+                background: '#151620',
+                border: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 8px 20px rgba(0,0,0,0.16)',
             }}
             onMouseEnter={(e) => {
-                e.currentTarget.style.border = '1px solid rgba(139,92,246,0.3)'
-                e.currentTarget.style.boxShadow = '0 4px 20px rgba(139,92,246,0.12)'
+                e.currentTarget.style.border = '1px solid rgba(56,189,248,0.2)'
+                e.currentTarget.style.boxShadow = '0 12px 28px rgba(56,189,248,0.08)'
             }}
             onMouseLeave={(e) => {
-                e.currentTarget.style.border = '1px solid rgba(255,255,255,0.07)'
-                e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.3)'
+                e.currentTarget.style.border = '1px solid rgba(255,255,255,0.08)'
+                e.currentTarget.style.boxShadow = '0 8px 20px rgba(0,0,0,0.16)'
             }}
         >
             {/* Image */}
-            <div className="relative aspect-square overflow-hidden" style={{ background: '#12111e' }}>
+            <div className="relative aspect-square overflow-hidden" style={{ background: '#1b1d28' }}>
                 {post.media_url ? (
                     <img
                         src={post.thumbnail_url || post.media_url}
@@ -85,7 +85,7 @@ export function PostCard({ post, onClick }: PostCardProps) {
             {/* Caption + meta */}
             <div className="p-3 space-y-1.5">
                 {post.caption && (
-                    <p className="text-xs leading-snug line-clamp-2" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                    <p className="text-xs leading-snug line-clamp-2" style={{ color: 'rgba(255,255,255,0.62)' }}>
                         {post.caption}
                     </p>
                 )}
@@ -94,10 +94,10 @@ export function PostCard({ post, onClick }: PostCardProps) {
                         {formatDistanceToNow(new Date(post.timestamp), { addSuffix: true })}
                     </span>
                     <div className="flex items-center gap-2.5">
-                        <span className="flex items-center gap-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        <span className="flex items-center gap-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.38)' }}>
                             <Heart className="h-2.5 w-2.5" /> {formatCount(post.like_count)}
                         </span>
-                        <span className="flex items-center gap-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        <span className="flex items-center gap-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.38)' }}>
                             <MessageCircle className="h-2.5 w-2.5" /> {formatCount(post.comments_count)}
                         </span>
                     </div>

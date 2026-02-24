@@ -34,7 +34,7 @@ interface UnsplashResultsProps {
 export function UnsplashResults({ results, query, onSelect, selectedId }: UnsplashResultsProps) {
     if (results.length === 0) {
         return (
-            <div className="text-center py-12 text-muted-foreground">
+            <div className="py-12 text-center text-white/50">
                 <p>No images found for "{query}"</p>
                 <p className="text-sm mt-2">Try a different search term</p>
             </div>
@@ -43,8 +43,8 @@ export function UnsplashResults({ results, query, onSelect, selectedId }: Unspla
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-white/50">
                     Found {results.length} photos for "{query}"
                 </p>
             </div>
@@ -54,7 +54,7 @@ export function UnsplashResults({ results, query, onSelect, selectedId }: Unspla
                     {results.map((photo) => (
                         <Card
                             key={photo.id}
-                            className={`group relative overflow-hidden cursor-pointer transition-all hover:ring-2 hover:ring-primary ${selectedId === photo.id ? 'ring-2 ring-primary' : ''
+                            className={`group relative overflow-hidden cursor-pointer rounded-xl border border-white/10 bg-[#1b1d28] transition-all hover:ring-2 hover:ring-cyan-300/30 ${selectedId === photo.id ? 'ring-2 ring-cyan-300/30 border-cyan-300/20' : ''
                                 }`}
                             onClick={() => onSelect(photo)}
                         >
@@ -69,8 +69,8 @@ export function UnsplashResults({ results, query, onSelect, selectedId }: Unspla
 
                                 {/* Selected Indicator */}
                                 {selectedId === photo.id && (
-                                    <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-                                        <div className="bg-primary text-primary-foreground rounded-full p-2">
+                                    <div className="absolute inset-0 flex items-center justify-center bg-cyan-400/20">
+                                        <div className="rounded-full bg-cyan-400 text-[#0d1220] p-2">
                                             <Check className="w-6 h-6" />
                                         </div>
                                     </div>
@@ -85,7 +85,7 @@ export function UnsplashResults({ results, query, onSelect, selectedId }: Unspla
                                                 href={photo.photographer.profileUrl}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="underline hover:text-primary"
+                                                className="underline hover:text-cyan-200"
                                                 onClick={(e) => e.stopPropagation()}
                                             >
                                                 {photo.photographer.name}
@@ -105,13 +105,13 @@ export function UnsplashResults({ results, query, onSelect, selectedId }: Unspla
             </ScrollArea>
 
             {/* Attribution Footer */}
-            <div className="flex items-center gap-2 text-xs text-muted-foreground pt-2 border-t">
+            <div className="flex flex-wrap items-center gap-2 border-t border-white/10 pt-2 text-xs text-white/45">
                 <span>Photos from</span>
                 <a
                     href="https://unsplash.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold hover:text-primary inline-flex items-center gap-1"
+                    className="inline-flex items-center gap-1 font-semibold text-cyan-200 hover:text-cyan-100"
                 >
                     Unsplash
                     <ExternalLink className="w-3 h-3" />

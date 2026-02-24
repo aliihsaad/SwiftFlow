@@ -35,6 +35,15 @@ import {
     Loader2,
 } from "lucide-react"
 
+const AUTO_THEME = {
+    panel: '#151620',
+    panelAlt: '#1b1d28',
+    border: 'rgba(255,255,255,0.08)',
+    borderSoft: 'rgba(255,255,255,0.05)',
+    muted: 'rgba(255,255,255,0.45)',
+    mutedSoft: 'rgba(255,255,255,0.35)',
+}
+
 interface ActiveAutomationsListProps {
     automations: Automation[]
     onEdit: (automation: Automation) => void
@@ -81,16 +90,16 @@ function getAutomationPlatformLabel(automation: Automation): PlatformLabel {
 function getPlatformChipStyles(platform: PlatformLabel) {
     if (platform === 'Facebook') {
         return {
-            background: 'rgba(59,130,246,0.12)',
-            color: '#60a5fa',
-            border: '1px solid rgba(59,130,246,0.24)',
+            background: 'rgba(56,189,248,0.12)',
+            color: '#dff6ff',
+            border: '1px solid rgba(56,189,248,0.24)',
         }
     }
     if (platform === 'Instagram') {
         return {
-            background: 'rgba(236,72,153,0.12)',
-            color: '#f472b6',
-            border: '1px solid rgba(236,72,153,0.24)',
+            background: 'rgba(251,113,133,0.12)',
+            color: '#ffe4ea',
+            border: '1px solid rgba(251,113,133,0.24)',
         }
     }
     return {
@@ -236,20 +245,20 @@ export function ActiveAutomationsList({
                                 key={automation.id}
                                 className="overflow-hidden rounded-xl transition-all duration-200"
                                 style={{
-                                    background: '#0e0d1c',
+                                    background: AUTO_THEME.panel,
                                     border: automation.is_active
-                                        ? '1px solid rgba(52,211,153,0.2)'
-                                        : '1px solid rgba(255,255,255,0.06)',
+                                        ? '1px solid rgba(74,222,128,0.22)'
+                                        : `1px solid ${AUTO_THEME.border}`,
                                     boxShadow: automation.is_active
-                                        ? '0 4px 20px rgba(52,211,153,0.06)'
-                                        : 'none',
+                                        ? '0 8px 28px rgba(74,222,128,0.08)'
+                                        : '0 4px 20px rgba(0,0,0,0.18)',
                                 }}
                             >
                                 <div className="flex flex-col sm:flex-row sm:items-stretch">
                             {/* Post Thumbnail */}
                             <div
                                 className="relative w-full sm:w-24 h-28 sm:h-auto shrink-0 overflow-hidden"
-                                style={{ background: '#12111e' }}
+                                style={{ background: AUTO_THEME.panelAlt, borderRight: `1px solid ${AUTO_THEME.borderSoft}` }}
                             >
                                 {automation.post_thumbnail_url ? (
                                     <img
@@ -259,7 +268,7 @@ export function ActiveAutomationsList({
                                     />
                                 ) : (
                                     <div className="flex items-center justify-center h-full">
-                                        <Zap className="h-7 w-7" style={{ color: 'rgba(255,255,255,0.12)' }} />
+                                        <Zap className="h-7 w-7" style={{ color: 'rgba(255,255,255,0.16)' }} />
                                     </div>
                                 )}
                             </div>
@@ -279,7 +288,7 @@ export function ActiveAutomationsList({
                                                 style={
                                                     automation.is_active
                                                         ? { background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }
-                                                        : { background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)', border: '1px solid rgba(255,255,255,0.08)' }
+                                                        : { background: 'rgba(255,255,255,0.05)', color: AUTO_THEME.mutedSoft, border: `1px solid ${AUTO_THEME.border}` }
                                                 }
                                             >
                                                 {automation.is_active ? 'Active' : 'Paused'}
@@ -295,7 +304,7 @@ export function ActiveAutomationsList({
                                             </span>
                                             <span
                                                 className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                                                style={{ background: 'rgba(167,139,250,0.10)', color: '#c4b5fd', border: '1px solid rgba(167,139,250,0.18)' }}
+                                                style={{ background: 'rgba(245,158,11,0.10)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.2)' }}
                                             >
                                                 {isCanvas ? 'Canvas' : 'Wizard'}
                                             </span>
@@ -303,10 +312,10 @@ export function ActiveAutomationsList({
 
                                         <div
                                             className="space-y-1 text-xs"
-                                            style={{ color: 'rgba(255,255,255,0.42)' }}
+                                            style={{ color: AUTO_THEME.muted }}
                                         >
                                             <div className="flex items-center gap-1.5 min-w-0">
-                                                <MessageCircle className="h-3.5 w-3.5 shrink-0" style={{ color: '#60a5fa' }} />
+                                                <MessageCircle className="h-3.5 w-3.5 shrink-0" style={{ color: '#38bdf8' }} />
                                                 <span className="truncate">
                                                     Trigger: <span style={{ color: 'rgba(255,255,255,0.72)' }}>{triggerSummary}</span>
                                                 </span>
@@ -321,30 +330,30 @@ export function ActiveAutomationsList({
 
                                         <div
                                             className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs mt-2"
-                                            style={{ color: 'rgba(255,255,255,0.35)' }}
+                                            style={{ color: AUTO_THEME.mutedSoft }}
                                         >
                                             <span className="flex items-center gap-1">
-                                                <Activity className="h-3 w-3" style={{ color: '#34d399' }} />
+                                                <Activity className="h-3 w-3" style={{ color: '#4ade80' }} />
                                                 {automation.total_triggered} runs
                                             </span>
 
                                             {hasDMAction && (
                                                 <span className="flex items-center gap-1">
-                                                    <Send className="h-3 w-3" style={{ color: '#22c55e' }} />
+                                                    <Send className="h-3 w-3" style={{ color: '#fb7185' }} />
                                                     {automation.total_dms_sent} DMs sent
                                                 </span>
                                             )}
 
                                             {isCanvas && (
                                                 <span className="flex items-center gap-1">
-                                                    <Layers className="h-3 w-3" style={{ color: '#a78bfa' }} />
+                                                    <Layers className="h-3 w-3" style={{ color: '#fbbf24' }} />
                                                     {canvasNodeCount} nodes
                                                 </span>
                                             )}
 
                                             {!isCanvas && automation.trigger_config?.trigger_type === 'keywords' && (
                                                 <span className="flex items-center gap-1">
-                                                    <Hash className="h-3 w-3" style={{ color: '#60a5fa' }} />
+                                                    <Hash className="h-3 w-3" style={{ color: '#38bdf8' }} />
                                                     {automation.trigger_config.keywords?.length || 0} keywords
                                                 </span>
                                             )}
@@ -353,7 +362,7 @@ export function ActiveAutomationsList({
                                         {automation.post_caption && (
                                             <p
                                                 className="text-xs mt-1.5 truncate max-w-[200px] sm:max-w-md"
-                                                style={{ color: 'rgba(255,255,255,0.25)' }}
+                                                style={{ color: 'rgba(255,255,255,0.28)' }}
                                             >
                                                 {automation.post_caption}
                                             </p>
@@ -381,15 +390,15 @@ export function ActiveAutomationsList({
                                             <DropdownMenuTrigger asChild>
                                                 <button
                                                     disabled={isDeleting}
-                                                    className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150"
-                                                    style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)' }}
+                                                className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150"
+                                                    style={{ background: 'rgba(255,255,255,0.05)', color: AUTO_THEME.muted }}
                                                 >
                                                     <MoreVertical className="h-4 w-4" />
                                                 </button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent
                                                 align="end"
-                                                style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.08)' }}
+                                                style={{ background: AUTO_THEME.panelAlt, border: `1px solid ${AUTO_THEME.border}` }}
                                             >
                                                 <DropdownMenuItem
                                                     disabled={isDeleting}
@@ -426,7 +435,9 @@ export function ActiveAutomationsList({
                     if (!open) setDeleteConfirmId(null)
                 }}
             >
-                <AlertDialogContent>
+                <AlertDialogContent
+                    style={{ background: AUTO_THEME.panel, border: `1px solid ${AUTO_THEME.border}` }}
+                >
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete Automation?</AlertDialogTitle>
                         <AlertDialogDescription>

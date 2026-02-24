@@ -52,15 +52,15 @@ export function AutomationTemplatePicker({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="max-w-4xl p-0 overflow-hidden"
-        style={{ background: "#0e0d1c", border: "1px solid rgba(255,255,255,0.08)" }}
+        style={{ background: "#151620", border: "1px solid rgba(255,255,255,0.08)" }}
       >
         <DialogHeader className="px-6 pt-6 pb-4 border-b border-white/5">
           <DialogTitle className="flex items-center gap-2 text-base" style={{ color: "rgba(255,255,255,0.9)" }}>
             <div
               className="flex h-8 w-8 items-center justify-center rounded-lg"
-              style={{ background: "rgba(139,92,246,0.12)" }}
+              style={{ background: "rgba(56,189,248,0.10)", border: "1px solid rgba(56,189,248,0.18)" }}
             >
-              <Sparkles className="h-4 w-4" style={{ color: "#a78bfa" }} />
+              <Sparkles className="h-4 w-4" style={{ color: "#67e8f9" }} />
             </div>
             Automation Templates
           </DialogTitle>
@@ -77,9 +77,9 @@ export function AutomationTemplatePicker({
                 key={template.id}
                 className="rounded-xl p-4 transition-all"
                 style={{
-                  background: "#12111e",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  boxShadow: "0 4px 20px rgba(0,0,0,0.20)",
+                  background: "#1b1d28",
+                  border: "1px solid rgba(255,255,255,0.07)",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.16)",
                 }}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -87,9 +87,9 @@ export function AutomationTemplatePicker({
                     <div className="flex items-center gap-2 mb-2">
                       <div
                         className="flex h-8 w-8 items-center justify-center rounded-lg shrink-0"
-                        style={{ background: "rgba(139,92,246,0.12)" }}
+                        style={{ background: "rgba(251,113,133,0.10)", border: "1px solid rgba(251,113,133,0.16)" }}
                       >
-                        <CategoryIcon className="h-4 w-4" style={{ color: "#a78bfa" }} />
+                        <CategoryIcon className="h-4 w-4" style={{ color: "#fda4af" }} />
                       </div>
                       <div className="min-w-0">
                         <h3 className="text-sm font-semibold truncate" style={{ color: "rgba(255,255,255,0.88)" }}>
@@ -105,8 +105,8 @@ export function AutomationTemplatePicker({
                               variant="outline"
                               className={
                                 platform === "instagram"
-                                  ? "text-[10px] border-pink-400/20 text-pink-300"
-                                  : "text-[10px] border-blue-400/20 text-blue-300"
+                                  ? "text-[10px] border-rose-300/25 text-rose-200"
+                                  : "text-[10px] border-cyan-300/25 text-cyan-100"
                               }
                             >
                               {platform === "instagram" ? (
@@ -147,6 +147,11 @@ export function AutomationTemplatePicker({
                   <Button
                     size="sm"
                     className="h-8 text-xs"
+                    style={{
+                      background: "linear-gradient(135deg, #38bdf8, #fb7185)",
+                      color: "#fff",
+                      boxShadow: "0 2px 14px rgba(56,189,248,0.18)",
+                    }}
                     onClick={() => onSelectTemplate(template)}
                   >
                     <Plus className="h-3.5 w-3.5 mr-1" />
@@ -161,4 +166,3 @@ export function AutomationTemplatePicker({
     </Dialog>
   )
 }
-

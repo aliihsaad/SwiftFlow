@@ -75,11 +75,12 @@ export function WorkflowCanvas({
   const [automationName, setAutomationName] = useState(initialName)
   const [isActive, setIsActive] = useState(initialActive)
   const [isSaving, setIsSaving] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
 
   // Track undo/redo history
   const [history, setHistory] = useState<{ nodes: WorkflowNode[]; edges: WorkflowEdge[] }[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
-
   const pushHistory = useCallback(() => {
     setHistory(prev => {
       const newHistory = prev.slice(0, historyIndex + 1)
@@ -394,9 +395,13 @@ export function WorkflowCanvas({
       />
 
       <div className="flex flex-1 overflow-hidden">
-        <WorkflowSidebar onAddNode={addNodeToCanvas} />
+        <WorkflowSidebar
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(c => !c)}
+          onAddNode={addNodeToCanvas}
+        />
 
-        <div className="flex-1 relative" ref={reactFlowWrapper}>
+        <div className="flex-1 relative" ref={reactFlowWrapper} style={{ background: '#11131c' }}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -413,21 +418,27 @@ export function WorkflowCanvas({
             defaultEdgeOptions={{ type: 'custom', animated: true }}
             fitView
             deleteKeyCode={['Backspace', 'Delete']}
-            className="bg-muted/20"
+            className=""
+            style={{ background: '#11131c' }}
           >
-            <Controls className="!bg-background !border-border !shadow-md" />
+            <Controls
+              className="shadow-md!"
+              style={{ background: '#151620', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.75)' }}
+            />
             <MiniMap
-              className="!bg-background !border-border"
+              className=""
+              style={{ background: '#151620', border: '1px solid rgba(255,255,255,0.08)' }}
               nodeColor={(n) => {
                 const d = n.data as unknown as WorkflowNodeData
-                if (isTriggerNode(d.type)) return '#3B82F6'
+                if (isTriggerNode(d.type)) return '#38BDF8'
                 if (d.type === 'action_condition') return '#10B981'
                 if (d.type === 'action_delay') return '#F59E0B'
-                if (d.type === 'action_ai_response') return '#EC4899'
-                return '#8B5CF6'
+                if (d.type === 'action_ai_response') return '#FB7185'
+                if (d.type === 'action_send_dm' || d.type === 'action_reply_comment' || d.type === 'action_private_reply') return '#FB7185'
+                return '#38BDF8'
               }}
             />
-            <Background variant={BackgroundVariant.Dots} gap={16} size={1} />
+            <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="rgba(255,255,255,0.08)" />
           </ReactFlow>
         </div>
 

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ScheduledPostsList } from "./scheduled-posts-list"
-import { Calendar, FileText, CheckCircle2, XCircle, RefreshCw } from "lucide-react"
+import { Calendar, FileText, CheckCircle2, XCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import {
@@ -25,32 +25,27 @@ interface PostsTabViewProps {
 
 type PostView = "scheduled" | "drafts" | "posted" | "failed"
 
+const SCHED_THEME = {
+    panel: '#151620',
+    panelAlt: '#1b1d28',
+    border: 'rgba(255,255,255,0.08)',
+    muted: 'rgba(255,255,255,0.55)',
+    cyan: '#38bdf8',
+    coral: '#fb7185',
+    amber: '#fbbf24',
+    lime: '#4ade80',
+}
+
 export function PostsTabView({ scheduledPosts, draftPosts, postedPosts, failedPosts, workspaceId, defaultTab = "scheduled" }: PostsTabViewProps) {
     const [activeView, setActiveView] = useState<PostView>(defaultTab as PostView)
-    const [isSyncing, setIsSyncing] = useState(false)
     const { toast } = useToast()
     const router = useRouter()
 
-    const handleSyncAnalytics = async () => {
-        setIsSyncing(true)
-        try {
-            const response = await fetch('/api/sync-analytics', { method: 'POST' })
-            if (!response.ok) throw new Error('Failed to sync analytics')
-            const data = await response.json()
-            toast({ title: "Analytics synced!", description: `Updated insights for ${data.synced || 0} posts.` })
-            router.refresh()
-        } catch {
-            toast({ title: "Sync failed", description: "Could not fetch latest insights. Please try again.", variant: "destructive" })
-        } finally {
-            setIsSyncing(false)
-        }
-    }
-
     const viewConfig = {
-        scheduled: { icon: Calendar,    label: "Scheduled", posts: scheduledPosts, status: "scheduled" as const },
-        drafts:    { icon: FileText,    label: "Drafts",    posts: draftPosts,     status: "draft"      as const },
-        posted:    { icon: CheckCircle2,label: "Posted",    posts: postedPosts,    status: "published"  as const },
-        failed:    { icon: XCircle,     label: "Failed",    posts: failedPosts,    status: "failed"     as const },
+        scheduled: { icon: Calendar, label: "Scheduled", posts: scheduledPosts, status: "scheduled" as const },
+        drafts: { icon: FileText, label: "Drafts", posts: draftPosts, status: "draft" as const },
+        posted: { icon: CheckCircle2, label: "Posted", posts: postedPosts, status: "published" as const },
+        failed: { icon: XCircle, label: "Failed", posts: failedPosts, status: "failed" as const },
     }
 
     const currentView = viewConfig[activeView]
@@ -65,21 +60,21 @@ export function PostsTabView({ scheduledPosts, draftPosts, postedPosts, failedPo
                     <SelectTrigger
                         className="w-full sm:w-[240px] h-9 border font-medium"
                         style={{
-                            background: '#12111e',
-                            borderColor: 'rgba(139,92,246,0.25)',
+                            background: SCHED_THEME.panelAlt,
+                            borderColor: SCHED_THEME.border,
                             color: 'rgba(255,255,255,0.85)',
                         }}
                     >
                         <SelectValue>
                             <div className="flex items-center gap-2">
-                                <Icon className="h-4 w-4" style={{ color: '#a78bfa' }} />
+                                <Icon className="h-4 w-4" style={{ color: activeView === 'failed' ? '#f87171' : activeView === 'drafts' ? SCHED_THEME.amber : activeView === 'posted' ? SCHED_THEME.lime : SCHED_THEME.cyan }} />
                                 <span>{currentView.label}</span>
                                 {currentView.posts.length > 0 && (
                                     <span
                                         className="ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold"
                                         style={{
-                                            background: activeView === 'failed' ? 'rgba(248,113,113,0.2)' : 'rgba(139,92,246,0.2)',
-                                            color: activeView === 'failed' ? '#f87171' : '#a78bfa',
+                                            background: activeView === 'failed' ? 'rgba(248,113,113,0.16)' : activeView === 'drafts' ? 'rgba(245,158,11,0.14)' : activeView === 'posted' ? 'rgba(74,222,128,0.14)' : 'rgba(56,189,248,0.14)',
+                                            color: activeView === 'failed' ? '#f87171' : activeView === 'drafts' ? '#fcd34d' : activeView === 'posted' ? '#86efac' : '#dff6ff',
                                         }}
                                     >
                                         {currentView.posts.length}
@@ -90,8 +85,8 @@ export function PostsTabView({ scheduledPosts, draftPosts, postedPosts, failedPo
                     </SelectTrigger>
                     <SelectContent
                         style={{
-                            background: '#12111e',
-                            border: '1px solid rgba(139,92,246,0.2)',
+                            background: SCHED_THEME.panelAlt,
+                            border: `1px solid ${SCHED_THEME.border}`,
                         }}
                     >
                         {(Object.entries(viewConfig) as [PostView, typeof viewConfig[PostView]][]).map(([key, config]) => {
@@ -105,14 +100,14 @@ export function PostsTabView({ scheduledPosts, draftPosts, postedPosts, failedPo
                                     style={{ color: 'rgba(255,255,255,0.75)' }}
                                 >
                                     <div className="flex items-center gap-2">
-                                        <ViewIcon className="h-4 w-4" style={{ color: isFailed ? '#f87171' : '#a78bfa' }} />
+                                        <ViewIcon className="h-4 w-4" style={{ color: isFailed ? '#f87171' : key === 'drafts' ? SCHED_THEME.amber : key === 'posted' ? SCHED_THEME.lime : SCHED_THEME.cyan }} />
                                         <span>{config.label}</span>
                                         {config.posts.length > 0 && (
                                             <span
                                                 className="ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold"
                                                 style={{
-                                                    background: isFailed ? 'rgba(248,113,113,0.15)' : 'rgba(139,92,246,0.15)',
-                                                    color: isFailed ? '#f87171' : '#a78bfa',
+                                                    background: isFailed ? 'rgba(248,113,113,0.15)' : key === 'drafts' ? 'rgba(245,158,11,0.14)' : key === 'posted' ? 'rgba(74,222,128,0.14)' : 'rgba(56,189,248,0.14)',
+                                                    color: isFailed ? '#f87171' : key === 'drafts' ? '#fcd34d' : key === 'posted' ? '#86efac' : '#dff6ff',
                                                 }}
                                             >
                                                 {config.posts.length}
@@ -125,22 +120,6 @@ export function PostsTabView({ scheduledPosts, draftPosts, postedPosts, failedPo
                     </SelectContent>
                 </Select>
 
-                {/* Sync button */}
-                <Button
-                    onClick={handleSyncAnalytics}
-                    disabled={isSyncing}
-                    variant="outline"
-                    size="sm"
-                    className="w-full sm:w-auto font-medium"
-                    style={{
-                        background: '#12111e',
-                        borderColor: 'rgba(255,255,255,0.1)',
-                        color: 'rgba(255,255,255,0.55)',
-                    }}
-                >
-                    <RefreshCw className={`h-3.5 w-3.5 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
-                    {isSyncing ? 'Syncing…' : 'Sync Insights'}
-                </Button>
             </div>
 
             <ScheduledPostsList

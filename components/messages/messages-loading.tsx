@@ -15,8 +15,8 @@ export function MessagesLoadingSkeleton() {
             className="flex mt-6 overflow-hidden rounded-xl"
             style={{
                 height: 'calc(100% - 5rem)',
-                background: '#0e0d1c',
-                border: '1px solid rgba(139,92,246,0.12)',
+                background: '#151620',
+                border: '1px solid rgba(255,255,255,0.08)',
             }}
         >
             {/* Conversation list skeleton */}

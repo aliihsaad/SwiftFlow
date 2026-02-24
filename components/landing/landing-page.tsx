@@ -611,10 +611,22 @@ function HeroControlBoard() {
 
 function Hero() {
     const containerRef = useRef(null)
+    const [isMobileViewport, setIsMobileViewport] = useState(false)
+
+    useEffect(() => {
+        const query = window.matchMedia("(max-width: 768px)")
+        const update = () => setIsMobileViewport(query.matches)
+        update()
+        query.addEventListener("change", update)
+        return () => query.removeEventListener("change", update)
+    }, [])
+
     const { scrollYProgress } = useScroll({ target: containerRef, offset: ["start start", "end start"] })
-    const y = useTransform(scrollYProgress, [0, 1], [0, 180])
-    const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0])
-    const scale = useTransform(scrollYProgress, [0, 1], [1, 0.95])
+    const y = useTransform(scrollYProgress, [0, 1], [0, isMobileViewport ? 80 : 180])
+    const opacity = isMobileViewport
+        ? useTransform(scrollYProgress, [0, 0.42, 0.9], [1, 1, 0])
+        : useTransform(scrollYProgress, [0, 0.5], [1, 0])
+    const scale = useTransform(scrollYProgress, [0, 1], [1, isMobileViewport ? 0.985 : 0.95])
 
     return (
         <section

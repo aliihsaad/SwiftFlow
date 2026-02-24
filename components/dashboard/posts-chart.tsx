@@ -42,8 +42,9 @@ export function PostsChart({ data }: PostsChartProps) {
         <div
             className="overflow-hidden rounded-xl"
             style={{
-                background: '#0e0d1c',
-                border: '1px solid rgba(139,92,246,0.15)',
+                background: '#151620',
+                border: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 14px 34px rgba(0,0,0,0.16)',
             }}
         >
             {/* Header */}
@@ -62,11 +63,11 @@ export function PostsChart({ data }: PostsChartProps) {
 
                 <div className="flex items-center gap-4 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
                     <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full" style={{ background: '#34d399' }} />
+                        <span className="h-2 w-2 rounded-full" style={{ background: '#84cc16' }} />
                         Posted
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full" style={{ background: '#818cf8' }} />
+                        <span className="h-2 w-2 rounded-full" style={{ background: '#22d3ee' }} />
                         Scheduled
                     </div>
                 </div>
@@ -78,12 +79,12 @@ export function PostsChart({ data }: PostsChartProps) {
                     <AreaChart data={data} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
                         <defs>
                             <linearGradient id="gradPosted" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#34d399" stopOpacity={0.18} />
-                                <stop offset="100%" stopColor="#34d399" stopOpacity={0} />
+                                <stop offset="0%" stopColor="#84cc16" stopOpacity={0.18} />
+                                <stop offset="100%" stopColor="#84cc16" stopOpacity={0} />
                             </linearGradient>
                             <linearGradient id="gradScheduled" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#818cf8" stopOpacity={0.18} />
-                                <stop offset="100%" stopColor="#818cf8" stopOpacity={0} />
+                                <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.18} />
+                                <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
                             </linearGradient>
                         </defs>
 
@@ -122,24 +123,24 @@ export function PostsChart({ data }: PostsChartProps) {
                             type="monotone"
                             dataKey="posted"
                             name="Posted"
-                            stroke="#34d399"
+                            stroke="#84cc16"
                             strokeWidth={1.5}
                             fillOpacity={1}
                             fill="url(#gradPosted)"
                             dot={false}
-                            activeDot={{ r: 3, fill: '#34d399', strokeWidth: 0 }}
+                            activeDot={{ r: 3, fill: '#84cc16', strokeWidth: 0 }}
                         />
 
                         <Area
                             type="monotone"
                             dataKey="scheduled"
                             name="Scheduled"
-                            stroke="#818cf8"
+                            stroke="#22d3ee"
                             strokeWidth={1.5}
                             fillOpacity={1}
                             fill="url(#gradScheduled)"
                             dot={false}
-                            activeDot={{ r: 3, fill: '#818cf8', strokeWidth: 0 }}
+                            activeDot={{ r: 3, fill: '#22d3ee', strokeWidth: 0 }}
                         />
                     </AreaChart>
                 </ResponsiveContainer>

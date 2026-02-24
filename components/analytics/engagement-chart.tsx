@@ -14,7 +14,7 @@ function DarkTooltip({ active, payload, label }: any) {
         <div
             className="rounded-xl px-4 py-3 text-sm"
             style={{
-                background: 'rgba(15,14,28,0.97)',
+                background: 'rgba(17,17,24,0.98)',
                 border: '1px solid rgba(255,255,255,0.08)',
                 boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
             }}
@@ -65,8 +65,9 @@ export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
         <div
             className="col-span-full overflow-hidden rounded-xl"
             style={{
-                background: '#0e0d1c',
-                border: '1px solid rgba(139,92,246,0.15)',
+                background: '#151620',
+                border: '1px solid rgba(255,255,255,0.08)',
+                boxShadow: '0 14px 34px rgba(0,0,0,0.16)',
             }}
         >
             {/* Header */}
@@ -84,11 +85,11 @@ export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
                 </div>
                 <div className="flex items-center gap-4 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
                     <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-blue-400" />
+                        <span className="h-2 w-2 rounded-full" style={{ background: '#22d3ee' }} />
                         Facebook
                     </div>
                     <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-pink-400" />
+                        <span className="h-2 w-2 rounded-full" style={{ background: '#fb7185' }} />
                         Instagram
                     </div>
                 </div>
@@ -99,7 +100,7 @@ export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
                 {data.labels.length <= 1 && (
                     <div
                         className="flex items-center gap-2 mb-4 rounded-lg px-3 py-2 text-xs"
-                        style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.15)', color: '#93c5fd' }}
+                        style={{ background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.15)', color: '#67e8f9' }}
                     >
                         <Info className="h-3.5 w-3.5 shrink-0" />
                         <span>Limited data available. The chart will fill in as more daily syncs run.</span>
@@ -111,12 +112,12 @@ export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
                         <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -4, bottom: 0 }}>
                             <defs>
                                 <linearGradient id="gradFacebook" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.22} />
-                                    <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
+                                    <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.22} />
+                                    <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
                                 </linearGradient>
                                 <linearGradient id="gradInstagram" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#ec4899" stopOpacity={0.22} />
-                                    <stop offset="100%" stopColor="#ec4899" stopOpacity={0} />
+                                    <stop offset="0%" stopColor="#fb7185" stopOpacity={0.22} />
+                                    <stop offset="100%" stopColor="#fb7185" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
 
@@ -151,23 +152,23 @@ export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
                                 type="monotone"
                                 dataKey="facebook"
                                 name="facebook"
-                                stroke="#3b82f6"
+                                stroke="#22d3ee"
                                 strokeWidth={2}
                                 fillOpacity={1}
                                 fill="url(#gradFacebook)"
                                 dot={false}
-                                activeDot={{ r: 4, fill: '#3b82f6', strokeWidth: 0 }}
+                                activeDot={{ r: 4, fill: '#22d3ee', strokeWidth: 0 }}
                             />
                             <Area
                                 type="monotone"
                                 dataKey="instagram"
                                 name="instagram"
-                                stroke="#ec4899"
+                                stroke="#fb7185"
                                 strokeWidth={2}
                                 fillOpacity={1}
                                 fill="url(#gradInstagram)"
                                 dot={false}
-                                activeDot={{ r: 4, fill: '#ec4899', strokeWidth: 0 }}
+                                activeDot={{ r: 4, fill: '#fb7185', strokeWidth: 0 }}
                             />
                         </AreaChart>
                     </ResponsiveContainer>
@@ -179,9 +180,9 @@ export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
                     style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}
                 >
                     {[
-                        { icon: Calendar, label: 'Best Day', value: data.bestDay || '—', color: '#60a5fa' },
-                        { icon: BarChart3, label: 'Avg. Daily', value: data.avgDaily, color: '#34d399' },
-                        { icon: TrendingUp, label: 'Total Gain', value: data.totalGain, color: '#34d399' },
+                        { icon: Calendar, label: 'Best Day', value: data.bestDay || '—', color: '#22d3ee' },
+                        { icon: BarChart3, label: 'Avg. Daily', value: data.avgDaily, color: '#f59e0b' },
+                        { icon: TrendingUp, label: 'Total Gain', value: data.totalGain, color: '#84cc16' },
                     ].map(({ icon: Icon, label, value, color }) => (
                         <div key={label} className="flex items-center gap-3">
                             <div

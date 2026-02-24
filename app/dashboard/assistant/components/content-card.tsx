@@ -81,16 +81,16 @@ export function ContentCard({ id, title, body, workspaceId, onGenerateImage, onR
     }
 
     return (
-        <Card className="p-4 bg-muted/30 border-muted-foreground/20 hover:scale-[1.02] transition-transform duration-200 flex flex-col h-full">
-            <h3 className="font-bold text-lg mb-2">{title}</h3>
-            <p className="text-sm text-muted-foreground mb-4 whitespace-pre-wrap">{body}</p>
+        <Card className="flex h-full flex-col border-white/10 bg-[#1b1d28] p-4 text-white/85 transition-transform duration-200 hover:scale-[1.02] shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_12px_32px_rgba(0,0,0,0.2)]">
+            <h3 className="mb-2 text-lg font-bold text-white/90">{title}</h3>
+            <p className="mb-4 whitespace-pre-wrap text-sm text-white/50">{body}</p>
 
             {/* In-Card Image Area */}
             {(generatedImage || isGenerating) && (
-                <div className="relative aspect-square w-full rounded-md overflow-hidden bg-black/5 mb-4 border border-border">
+                <div className="relative mb-4 aspect-square w-full overflow-hidden rounded-md border border-white/10 bg-black/10">
                     {isGenerating ? (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground gap-2">
-                            <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/50">
+                            <div className="h-6 w-6 animate-spin rounded-full border-2 border-cyan-300/20 border-t-cyan-300" />
                             <span className="text-xs">Generating image...</span>
                         </div>
                     ) : (
@@ -99,7 +99,7 @@ export function ContentCard({ id, title, body, workspaceId, onGenerateImage, onR
                             <Button
                                 variant="secondary"
                                 size="sm"
-                                className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-xs h-7"
+                                className="absolute bottom-2 right-2 h-7 border-white/10 bg-[#151620]/90 text-xs text-white/75 opacity-0 transition-opacity hover:bg-[#151620] hover:text-white group-hover:opacity-100"
                                 onClick={handleDownload}
                             >
                                 Download
@@ -109,49 +109,50 @@ export function ContentCard({ id, title, body, workspaceId, onGenerateImage, onR
                 </div>
             )}
 
-            <div className="flex gap-2 mt-auto pt-2 border-t border-muted-foreground/10">
+            <div className="mt-auto grid grid-cols-2 gap-2 border-t border-white/10 pt-3 sm:grid-cols-3">
                 {!generatedImage ? (
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="flex-1 text-xs gap-1 h-8"
+                        className="h-8 min-w-0 gap-1 border border-white/10 bg-white/5 px-2 text-xs text-white/75 hover:bg-white/10 hover:text-white"
                         onClick={handleGenerateInternal}
                         disabled={isGenerating}
                     >
-                        <Sparkles className="w-3 h-3 text-blue-400" />
-                        Generate
+                        <Sparkles className="h-3 w-3 text-cyan-300" />
+                        <span className="truncate">Generate</span>
                     </Button>
                 ) : (
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="flex-1 text-xs gap-1 h-8"
+                        className="h-8 min-w-0 gap-1 border border-white/10 bg-white/5 px-2 text-xs text-white/75 hover:bg-white/10 hover:text-white"
                         onClick={handleGenerateInternal}
                         disabled={isGenerating}
                     >
-                        <Sparkles className="w-3 h-3 text-blue-400" />
-                        Regenerate
+                        <Sparkles className="h-3 w-3 text-cyan-300" />
+                        <span className="truncate">Regenerate</span>
                     </Button>
                 )}
 
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="flex-1 text-xs gap-1 h-8"
+                    className="h-8 min-w-0 gap-1 border border-white/10 bg-white/5 px-2 text-xs text-white/75 hover:bg-white/10 hover:text-white"
                     onClick={() => onRefine(id, body)}
                 >
                     <MessageCircle className="w-3 h-3 text-emerald-400" />
-                    Ask AI
+                    <span className="truncate">Ask AI</span>
                 </Button>
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="flex-1 text-xs gap-1 h-8"
+                    className="col-span-2 h-8 min-w-0 gap-1 border border-white/10 bg-white/5 px-2 text-xs text-white/75 hover:bg-white/10 hover:text-white sm:col-span-1"
                     // Pass generated image if available, else null/undefined
                     onClick={() => onSchedule(id, body, generatedImage || undefined)}
                 >
-                    <Calendar className="w-3 h-3 text-purple-400" />
-                    Schedule Post
+                    <Calendar className="w-3 h-3 text-amber-300" />
+                    <span className="truncate sm:hidden">Schedule</span>
+                    <span className="hidden truncate sm:inline">Schedule Post</span>
                 </Button>
             </div>
         </Card>

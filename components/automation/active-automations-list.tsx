@@ -32,6 +32,7 @@ import {
     Workflow,
     Layers,
     Activity,
+    Loader2,
 } from "lucide-react"
 
 interface ActiveAutomationsListProps {
@@ -39,6 +40,7 @@ interface ActiveAutomationsListProps {
     onEdit: (automation: Automation) => void
     onToggle: (automationId: string, isActive: boolean) => void
     onDelete: (automationId: string) => void
+    togglingAutomationIds?: string[]
 }
 
 type PlatformLabel = 'Instagram' | 'Facebook' | 'Meta'
@@ -190,9 +192,11 @@ export function ActiveAutomationsList({
     automations,
     onEdit,
     onToggle,
-    onDelete
+    onDelete,
+    togglingAutomationIds = [],
 }: ActiveAutomationsListProps) {
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+    const togglingSet = new Set(togglingAutomationIds)
 
     const handleDeleteConfirm = () => {
         if (deleteConfirmId) {
@@ -213,6 +217,7 @@ export function ActiveAutomationsList({
                         const actionSummary = getAutomationActionSummary(automation)
                         const hasDMAction = automationUsesSendDM(automation)
                         const canvasNodeCount = isCanvas ? (automation.workflow_graph?.nodes?.length || 0) : 0
+                        const isToggling = togglingSet.has(automation.id)
 
                         return (
                             <div
@@ -345,8 +350,18 @@ export function ActiveAutomationsList({
 
                                 {/* Actions */}
                                     <div className="flex items-center gap-3 self-end sm:self-center">
+                                        {isToggling && (
+                                            <div
+                                                className="flex items-center gap-1.5 text-[10px] font-semibold"
+                                                style={{ color: 'rgba(255,255,255,0.45)' }}
+                                            >
+                                                <Loader2 className="h-3 w-3 animate-spin" />
+                                                Updating…
+                                            </div>
+                                        )}
                                         <Switch
                                             checked={automation.is_active}
+                                            disabled={isToggling}
                                             onCheckedChange={(checked) => onToggle(automation.id, checked)}
                                         />
 

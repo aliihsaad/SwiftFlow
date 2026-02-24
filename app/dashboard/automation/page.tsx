@@ -33,6 +33,7 @@ export default function AutomationPage() {
     const [canvasTemplateName, setCanvasTemplateName] = useState<string | null>(null)
     const [isSetupModalOpen, setIsSetupModalOpen] = useState(false)
     const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false)
+    const [togglingAutomationIds, setTogglingAutomationIds] = useState<string[]>([])
     const { toast } = useToast()
 
     const { data, error, isLoading, mutate } = useSWR<AutomationsResponse>(
@@ -83,6 +84,7 @@ export default function AutomationPage() {
     }
 
     const handleToggle = async (automationId: string, isActive: boolean) => {
+        setTogglingAutomationIds((prev) => (prev.includes(automationId) ? prev : [...prev, automationId]))
         try {
             const response = await fetch(`/api/automations/${automationId}/toggle`, {
                 method: 'POST',
@@ -99,6 +101,8 @@ export default function AutomationPage() {
             mutate()
         } catch {
             toast({ title: "Error", description: "Failed to update automation status.", variant: "destructive" })
+        } finally {
+            setTogglingAutomationIds((prev) => prev.filter((id) => id !== automationId))
         }
     }
 
@@ -334,12 +338,13 @@ export default function AutomationPage() {
 
                 {/* List */}
                 {data?.automations && data.automations.length > 0 && (
-                    <ActiveAutomationsList
-                        automations={data.automations}
-                        onEdit={handleEdit}
-                        onToggle={handleToggle}
-                        onDelete={handleDelete}
-                    />
+                        <ActiveAutomationsList
+                            automations={data.automations}
+                            onEdit={handleEdit}
+                            onToggle={handleToggle}
+                            onDelete={handleDelete}
+                            togglingAutomationIds={togglingAutomationIds}
+                        />
                 )}
             </div>
 

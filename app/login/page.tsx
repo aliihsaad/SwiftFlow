@@ -14,6 +14,7 @@ export default function LoginPage() {
     const [password, setPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
     const [isLoading, setIsLoading] = useState(false)
+    const [isGoogleLoading, setIsGoogleLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
 
@@ -83,6 +84,8 @@ export default function LoginPage() {
     }
 
     const handleGoogleLogin = async () => {
+        if (isLoading || isGoogleLoading) return
+        setIsGoogleLoading(true)
         try {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
@@ -93,6 +96,7 @@ export default function LoginPage() {
             if (error) throw error
         } catch (error) {
             console.error(error)
+            setIsGoogleLoading(false)
         }
     }
 
@@ -257,7 +261,7 @@ export default function LoginPage() {
                                 <Button
                                     type="submit"
                                     className="w-full h-10 font-semibold text-white border-0 rounded-lg mt-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
-                                    disabled={isLoading}
+                                    disabled={isLoading || isGoogleLoading}
                                     style={{
                                         background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
                                         boxShadow: '0 4px 24px rgba(124,58,237,0.35), 0 1px 0 rgba(255,255,255,0.1) inset',
@@ -377,7 +381,7 @@ export default function LoginPage() {
                                 <Button
                                     type="submit"
                                     className="w-full h-10 font-semibold text-white border-0 rounded-lg mt-2 transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
-                                    disabled={isLoading}
+                                    disabled={isLoading || isGoogleLoading}
                                     style={{
                                         background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)',
                                         boxShadow: '0 4px 24px rgba(124,58,237,0.35), 0 1px 0 rgba(255,255,255,0.1) inset',
@@ -408,6 +412,7 @@ export default function LoginPage() {
                     <button
                         type="button"
                         onClick={handleGoogleLogin}
+                        disabled={isLoading || isGoogleLoading}
                         className="group w-full h-10 flex items-center justify-center gap-2.5 rounded-lg text-sm font-medium transition-all duration-200 active:scale-[0.98]"
                         style={{
                             background: 'rgba(255,255,255,0.05)',
@@ -423,10 +428,19 @@ export default function LoginPage() {
                             e.currentTarget.style.color = 'rgba(255,255,255,0.6)'
                         }}
                     >
-                        <svg className="h-4 w-4 shrink-0" viewBox="0 0 488 512" aria-hidden="true">
-                            <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z" />
-                        </svg>
-                        Continue with Google
+                        {isGoogleLoading ? (
+                            <>
+                                <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                                Redirecting to Google…
+                            </>
+                        ) : (
+                            <>
+                                <svg className="h-4 w-4 shrink-0" viewBox="0 0 488 512" aria-hidden="true">
+                                    <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z" />
+                                </svg>
+                                Continue with Google
+                            </>
+                        )}
                     </button>
                 </div>
 

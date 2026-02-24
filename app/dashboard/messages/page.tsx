@@ -102,6 +102,7 @@ export default function MessagesPage() {
     const [activePlatform, setActivePlatform] = useState<'instagram' | 'facebook'>('instagram')
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
     const [showThread, setShowThread] = useState(false)
+    const [isRefreshing, setIsRefreshing] = useState(false)
     const { toast } = useToast()
 
     const {
@@ -216,6 +217,18 @@ export default function MessagesPage() {
         setShowThread(false)
     }
 
+    const handleRefresh = async () => {
+        setIsRefreshing(true)
+        try {
+            await Promise.all([
+                mutateConversations(),
+                selectedConversation ? mutateMessages() : Promise.resolve(null),
+            ])
+        } finally {
+            setIsRefreshing(false)
+        }
+    }
+
     const tabs = [
         {
             id: 'instagram' as const,
@@ -245,13 +258,13 @@ export default function MessagesPage() {
                         </p>
                     </div>
                     <button
-                        onClick={() => { mutateConversations(); if (selectedConversation) mutateMessages() }}
-                        disabled={conversationsLoading}
+                        onClick={handleRefresh}
+                        disabled={conversationsLoading || isRefreshing}
                         className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold self-start transition-all duration-150 disabled:opacity-50"
                         style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}
                     >
-                        <RefreshCw className={cn("h-3.5 w-3.5", conversationsLoading && "animate-spin")} />
-                        Refresh
+                        <RefreshCw className={cn("h-3.5 w-3.5", (conversationsLoading || isRefreshing) && "animate-spin")} />
+                        {isRefreshing ? 'Refreshing…' : 'Refresh'}
                     </button>
                 </div>
 

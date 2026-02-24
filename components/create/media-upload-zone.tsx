@@ -182,6 +182,7 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
     const [unsplashQuery, setUnsplashQuery] = useState("")
     const [unsplashResults, setUnsplashResults] = useState<any[]>([])
     const [isSearching, setIsSearching] = useState(false)
+    const [isAddingUnsplash, setIsAddingUnsplash] = useState(false)
     const [selectedUnsplashIds, setSelectedUnsplashIds] = useState<Set<string>>(new Set())
     const { toast } = useToast()
 
@@ -223,41 +224,47 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
     }
 
     const handleAddSelectedUnsplash = async () => {
-        const selectedPhotos = unsplashResults.filter(p => selectedUnsplashIds.has(p.id))
-        const newUrls: string[] = []
+        if (isAddingUnsplash) return
+        setIsAddingUnsplash(true)
+        try {
+            const selectedPhotos = unsplashResults.filter(p => selectedUnsplashIds.has(p.id))
+            const newUrls: string[] = []
 
-        for (const photo of selectedPhotos) {
-            try {
-                const response = await fetch('/api/assistant/invoke', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        functionName: 'select-unsplash-image',
-                        body: {
-                            unsplashId: photo.id,
-                            downloadLocation: photo.downloadLink,
-                            photographer: photo.photographer
-                        }
+            for (const photo of selectedPhotos) {
+                try {
+                    const response = await fetch('/api/assistant/invoke', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            functionName: 'select-unsplash-image',
+                            body: {
+                                unsplashId: photo.id,
+                                downloadLocation: photo.downloadLink,
+                                photographer: photo.photographer
+                            }
+                        })
                     })
-                })
-                const payload = await response.json().catch(() => ({}))
-                if (!response.ok) {
-                    throw new Error(payload?.error || 'Failed to select image')
-                }
-                const data = payload?.data
+                    const payload = await response.json().catch(() => ({}))
+                    if (!response.ok) {
+                        throw new Error(payload?.error || 'Failed to select image')
+                    }
+                    const data = payload?.data
 
-                if (data?.result?.imageUrl) {
-                    newUrls.push(data.result.imageUrl)
+                    if (data?.result?.imageUrl) {
+                        newUrls.push(data.result.imageUrl)
+                    }
+                } catch (e) {
+                    console.error('Failed to add Unsplash image:', e)
                 }
-            } catch (e) {
-                console.error('Failed to add Unsplash image:', e)
             }
-        }
 
-        if (newUrls.length > 0) {
-            onMediaChange([...mediaUrls, ...newUrls])
-            setSelectedUnsplashIds(new Set())
-            toast({ title: "Images added!", description: `Added ${newUrls.length} photo(s) from Unsplash` })
+            if (newUrls.length > 0) {
+                onMediaChange([...mediaUrls, ...newUrls])
+                setSelectedUnsplashIds(new Set())
+                toast({ title: "Images added!", description: `Added ${newUrls.length} photo(s) from Unsplash` })
+            }
+        } finally {
+            setIsAddingUnsplash(false)
         }
     }
 
@@ -295,10 +302,12 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
                         >
                             <input {...getInputProps()} />
                             <div className="p-3 rounded-full bg-muted group-hover:bg-background transition-colors">
-                                <Upload className="h-5 w-5 text-muted-foreground" />
+                                {isUploading
+                                    ? <Wand2 className="h-5 w-5 text-purple-500 animate-spin" />
+                                    : <Upload className="h-5 w-5 text-muted-foreground" />}
                             </div>
                             <p className="text-sm text-muted-foreground text-center">
-                                Drag & drop images or a video here, or click to select
+                                {isUploading ? 'Uploading media…' : 'Drag & drop images or a video here, or click to select'}
                             </p>
                         </div>
                     </TabsContent>
@@ -411,8 +420,12 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
                                     <Button
                                         onClick={handleAddSelectedUnsplash}
                                         className="w-full"
+                                        disabled={isAddingUnsplash}
                                     >
-                                        Add {selectedUnsplashIds.size} Selected Photo{selectedUnsplashIds.size > 1 ? 's' : ''}
+                                        {isAddingUnsplash && <Wand2 className="h-4 w-4 mr-2 animate-spin" />}
+                                        {isAddingUnsplash
+                                            ? 'Adding selected photos…'
+                                            : `Add ${selectedUnsplashIds.size} Selected Photo${selectedUnsplashIds.size > 1 ? 's' : ''}`}
                                     </Button>
                                 </div>
                             )}

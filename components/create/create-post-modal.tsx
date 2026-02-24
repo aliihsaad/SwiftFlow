@@ -42,7 +42,8 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
     const [scheduledAt, setScheduledAt] = useState<Date | undefined>(undefined)
     const [isGeneratingAI, setIsGeneratingAI] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [isPosting, setIsPosting] = useState(false)
+    const [submitAction, setSubmitAction] = useState<'draft' | 'scheduled' | 'published' | null>(null)
+    const [isRefreshingHashtags, setIsRefreshingHashtags] = useState(false)
     const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
     // Initialize scheduledAt client-side to avoid hydration mismatch
@@ -188,6 +189,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
 
     const handleRefreshHashtags = async () => {
         // Generate relevant hashtags using AI
+        setIsRefreshingHashtags(true)
         try {
             const response = await fetch('/api/ai/generate-caption', {
                 method: 'POST',
@@ -213,6 +215,8 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
             }
         } catch (e) {
             console.error("Hashtag Gen Error", e)
+        } finally {
+            setIsRefreshingHashtags(false)
         }
     }
 
@@ -234,7 +238,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
 
     const handleSubmit = async (status: 'draft' | 'scheduled' | 'published') => {
         setIsSubmitting(true)
-        if (status === 'published') setIsPosting(true)
+        setSubmitAction(status)
         const supabase = createClient()
 
         try {
@@ -299,7 +303,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
             alert(e.message || 'Failed to create post')
         } finally {
             setIsSubmitting(false)
-            setIsPosting(false)
+            setSubmitAction(null)
         }
     }
 
@@ -425,10 +429,11 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
                             <span className="text-xs text-muted-foreground uppercase tracking-wide">Suggested Hashtags</span>
                             <button
                                 onClick={handleRefreshHashtags}
+                                disabled={isRefreshingHashtags || isGeneratingAI}
                                 className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded"
                                 title="Refresh hashtags"
                             >
-                                <RefreshCw className="h-3 w-3 text-muted-foreground" />
+                                <RefreshCw className={cn("h-3 w-3 text-muted-foreground", isRefreshingHashtags && "animate-spin")} />
                             </button>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -501,7 +506,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
                                 variant="outline"
                                 onClick={() => setIsPreviewOpen(true)}
                                 className="gap-2"
-                                disabled={globalMedia.length === 0 && !globalCaption}
+                                disabled={(globalMedia.length === 0 && !globalCaption) || isSubmitting}
                             >
                                 <Eye className="h-4 w-4" />
                                 Preview
@@ -512,23 +517,26 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
                                 disabled={!isValid || isSubmitting}
                                 className="text-pink-500 border-pink-200 hover:bg-pink-50"
                             >
-                                Save as Draft
+                                {submitAction === 'draft' && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                                {submitAction === 'draft' ? 'Saving...' : 'Save as Draft'}
                             </Button>
                             <Button
                                 onClick={() => handleSubmit('scheduled')}
                                 disabled={!canPublish || isSubmitting}
                                 className="bg-blue-500 hover:bg-blue-600 text-white gap-2"
                             >
-                                {(isSubmitting && !isPosting) && <Loader2 className="h-4 w-4 animate-spin" />}
-                                {postToEdit && postToEdit.status === 'scheduled' ? 'Save Changes' : 'Schedule Post'}
+                                {submitAction === 'scheduled' && <Loader2 className="h-4 w-4 animate-spin" />}
+                                {submitAction === 'scheduled'
+                                    ? (postToEdit && postToEdit.status === 'scheduled' ? 'Saving...' : 'Scheduling...')
+                                    : (postToEdit && postToEdit.status === 'scheduled' ? 'Save Changes' : 'Schedule Post')}
                             </Button>
                             <Button
                                 onClick={() => handleSubmit('published')}
                                 disabled={!canPublish || isSubmitting}
                                 className="bg-pink-500 hover:bg-pink-600 text-white gap-2"
                             >
-                                {isPosting && <Loader2 className="h-4 w-4 animate-spin" />}
-                                {isPosting ? 'Posting...' : 'Post Now'}
+                                {submitAction === 'published' && <Loader2 className="h-4 w-4 animate-spin" />}
+                                {submitAction === 'published' ? 'Posting...' : 'Post Now'}
                             </Button>
                         </div>
                     </div>

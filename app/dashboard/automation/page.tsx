@@ -34,6 +34,7 @@ export default function AutomationPage() {
     const [isSetupModalOpen, setIsSetupModalOpen] = useState(false)
     const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false)
     const [togglingAutomationIds, setTogglingAutomationIds] = useState<string[]>([])
+    const [deletingAutomationIds, setDeletingAutomationIds] = useState<string[]>([])
     const { toast } = useToast()
 
     const { data, error, isLoading, mutate } = useSWR<AutomationsResponse>(
@@ -107,6 +108,7 @@ export default function AutomationPage() {
     }
 
     const handleDelete = async (automationId: string) => {
+        setDeletingAutomationIds((prev) => (prev.includes(automationId) ? prev : [...prev, automationId]))
         try {
             const response = await fetch(`/api/automations/${automationId}`, { method: 'DELETE' })
             if (!response.ok) throw new Error('Failed to delete automation')
@@ -114,6 +116,9 @@ export default function AutomationPage() {
             mutate()
         } catch {
             toast({ title: "Error", description: "Failed to delete automation.", variant: "destructive" })
+            throw new Error('Failed to delete automation')
+        } finally {
+            setDeletingAutomationIds((prev) => prev.filter((id) => id !== automationId))
         }
     }
 
@@ -344,6 +349,7 @@ export default function AutomationPage() {
                             onToggle={handleToggle}
                             onDelete={handleDelete}
                             togglingAutomationIds={togglingAutomationIds}
+                            deletingAutomationIds={deletingAutomationIds}
                         />
                 )}
             </div>

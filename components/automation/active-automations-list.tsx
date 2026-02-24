@@ -39,8 +39,9 @@ interface ActiveAutomationsListProps {
     automations: Automation[]
     onEdit: (automation: Automation) => void
     onToggle: (automationId: string, isActive: boolean) => void
-    onDelete: (automationId: string) => void
+    onDelete: (automationId: string) => Promise<void> | void
     togglingAutomationIds?: string[]
+    deletingAutomationIds?: string[]
 }
 
 type PlatformLabel = 'Instagram' | 'Facebook' | 'Meta'
@@ -194,14 +195,24 @@ export function ActiveAutomationsList({
     onToggle,
     onDelete,
     togglingAutomationIds = [],
+    deletingAutomationIds = [],
 }: ActiveAutomationsListProps) {
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+    const [isDeleteSubmitting, setIsDeleteSubmitting] = useState(false)
     const togglingSet = new Set(togglingAutomationIds)
+    const deletingSet = new Set(deletingAutomationIds)
 
-    const handleDeleteConfirm = () => {
+    const handleDeleteConfirm = async () => {
         if (deleteConfirmId) {
-            onDelete(deleteConfirmId)
-            setDeleteConfirmId(null)
+            setIsDeleteSubmitting(true)
+            try {
+                await onDelete(deleteConfirmId)
+                setDeleteConfirmId(null)
+            } catch {
+                // Toast feedback is handled by the parent page.
+            } finally {
+                setIsDeleteSubmitting(false)
+            }
         }
     }
 
@@ -218,6 +229,7 @@ export function ActiveAutomationsList({
                         const hasDMAction = automationUsesSendDM(automation)
                         const canvasNodeCount = isCanvas ? (automation.workflow_graph?.nodes?.length || 0) : 0
                         const isToggling = togglingSet.has(automation.id)
+                        const isDeleting = deletingSet.has(automation.id)
 
                         return (
                             <div
@@ -350,24 +362,25 @@ export function ActiveAutomationsList({
 
                                 {/* Actions */}
                                     <div className="flex items-center gap-3 self-end sm:self-center">
-                                        {isToggling && (
+                                        {(isToggling || isDeleting) && (
                                             <div
                                                 className="flex items-center gap-1.5 text-[10px] font-semibold"
                                                 style={{ color: 'rgba(255,255,255,0.45)' }}
                                             >
                                                 <Loader2 className="h-3 w-3 animate-spin" />
-                                                Updating…
+                                                {isDeleting ? 'Deleting…' : 'Updating…'}
                                             </div>
                                         )}
                                         <Switch
                                             checked={automation.is_active}
-                                            disabled={isToggling}
+                                            disabled={isToggling || isDeleting}
                                             onCheckedChange={(checked) => onToggle(automation.id, checked)}
                                         />
 
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <button
+                                                    disabled={isDeleting}
                                                     className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150"
                                                     style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.4)' }}
                                                 >
@@ -379,6 +392,7 @@ export function ActiveAutomationsList({
                                                 style={{ background: '#12111e', border: '1px solid rgba(255,255,255,0.08)' }}
                                             >
                                                 <DropdownMenuItem
+                                                    disabled={isDeleting}
                                                     onClick={() => onEdit(automation)}
                                                     style={{ color: 'rgba(255,255,255,0.7)' }}
                                                 >
@@ -387,6 +401,7 @@ export function ActiveAutomationsList({
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator style={{ background: 'rgba(255,255,255,0.06)' }} />
                                                 <DropdownMenuItem
+                                                    disabled={isDeleting}
                                                     onClick={() => setDeleteConfirmId(automation.id)}
                                                     style={{ color: '#f87171' }}
                                                 >
@@ -404,7 +419,13 @@ export function ActiveAutomationsList({
                 ))}
             </div>
 
-            <AlertDialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
+            <AlertDialog
+                open={!!deleteConfirmId}
+                onOpenChange={(open) => {
+                    if (isDeleteSubmitting) return
+                    if (!open) setDeleteConfirmId(null)
+                }}
+            >
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete Automation?</AlertDialogTitle>
@@ -413,12 +434,20 @@ export function ActiveAutomationsList({
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel disabled={isDeleteSubmitting}>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDeleteConfirm}
+                            disabled={isDeleteSubmitting}
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                            Delete
+                            {isDeleteSubmitting ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Deleting…
+                                </>
+                            ) : (
+                                'Delete'
+                            )}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

@@ -48,6 +48,7 @@ export function AutomationSetupModal({
     const { toast } = useToast()
     const [currentStep, setCurrentStep] = useState<Step>('select-post')
     const [isSaving, setIsSaving] = useState(false)
+    const [inlineError, setInlineError] = useState<string | null>(null)
 
     // Form state
     const [name, setName] = useState('')
@@ -71,6 +72,7 @@ export function AutomationSetupModal({
     // Reset form when modal opens/closes or automation changes
     useEffect(() => {
         if (open) {
+            setInlineError(null)
             if (automation) {
                 // Editing existing automation
                 setName(automation.name)
@@ -151,6 +153,7 @@ export function AutomationSetupModal({
         if (!selectedPost || !selectedAccountId) return
 
         setIsSaving(true)
+        setInlineError(null)
         try {
             const dmEnabled = dmConfig.opening_message.trim() !== ''
             const payload: CreateAutomationPayload = {
@@ -194,6 +197,7 @@ export function AutomationSetupModal({
 
             onSave()
         } catch (error: any) {
+            setInlineError(error.message || "Failed to save automation")
             toast({
                 title: "Error",
                 description: error.message || "Failed to save automation",
@@ -263,6 +267,11 @@ export function AutomationSetupModal({
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+                    {inlineError && (
+                        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                            {inlineError}
+                        </div>
+                    )}
                     {currentStep === 'select-post' && (
                         <PostSelector
                             selectedPost={selectedPost}

@@ -4,8 +4,10 @@ import { useState, useEffect } from "react"
 import useSWR from "swr"
 import { PostCard } from "@/components/posts/post-card"
 import { PostCommentsDrawer } from "@/components/posts/post-comments-drawer"
+import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
 import { createClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
+import { useToast } from "@/components/ui/use-toast"
 import {
     Instagram,
     Facebook,
@@ -55,6 +57,7 @@ export default function PostsPage() {
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [workspaceId, setWorkspaceId] = useState<string | null>(null)
     const [isRefreshing, setIsRefreshing] = useState(false)
+    const { toast } = useToast()
 
     useEffect(() => {
         const fetchWorkspace = async () => {
@@ -97,6 +100,13 @@ export default function PostsPage() {
         setIsRefreshing(true)
         try {
             await mutate()
+            toast({ title: "Posts refreshed", description: "Latest posts and comments counts were updated." })
+        } catch (error: any) {
+            toast({
+                title: "Refresh failed",
+                description: error?.message || "Could not refresh posts.",
+                variant: "destructive",
+            })
         } finally {
             setIsRefreshing(false)
         }
@@ -187,13 +197,7 @@ export default function PostsPage() {
             )}
 
             {showRefreshingHint && (
-                <div
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium w-fit"
-                    style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)' }}
-                >
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Updating posts…
-                </div>
+                <InlineLoadingHint label="Updating posts…" className="w-fit" />
             )}
 
             {/* Initial Loading Skeleton */}

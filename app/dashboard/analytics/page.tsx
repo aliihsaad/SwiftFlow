@@ -11,6 +11,7 @@ import { AccountAnalyticsCard } from "@/components/analytics/account-analytics-c
 import { OtherPostsList } from "@/components/analytics/other-posts-list"
 import { AnalyticsLoadingSkeleton } from "@/components/analytics/analytics-loading"
 import { useToast } from "@/components/ui/use-toast"
+import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
 import { AlertTriangle, Info, ShieldAlert } from "lucide-react"
 
 const fetcher = async (url: string) => {
@@ -243,13 +244,9 @@ export default function AnalyticsPage() {
             />
 
             {showAnalyticsRefreshingHint && (
-                <div
-                    className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium"
-                    style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)' }}
-                >
-                    <Info className="h-3.5 w-3.5" />
-                    {isSyncing ? 'Syncing analytics and refreshing data…' : 'Refreshing analytics…'}
-                </div>
+                <InlineLoadingHint
+                    label={isSyncing ? 'Syncing analytics and refreshing data…' : 'Refreshing analytics…'}
+                />
             )}
 
             {/* Loading state */}

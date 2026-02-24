@@ -47,6 +47,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
     const [submitAction, setSubmitAction] = useState<'draft' | 'scheduled' | 'published' | null>(null)
     const [isRefreshingHashtags, setIsRefreshingHashtags] = useState(false)
     const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+    const [inlineError, setInlineError] = useState<string | null>(null)
 
     // Initialize scheduledAt client-side to avoid hydration mismatch
     useEffect(() => {
@@ -58,6 +59,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
     // Check for props, draft data, or edit mode when modal opens
     useEffect(() => {
         if (!open) return
+        setInlineError(null)
 
         if (postToEdit) {
             setGlobalCaption(postToEdit.content || '')
@@ -111,6 +113,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
 
     const handleGenerateImage = async (prompt: string) => {
         setIsGeneratingAI(true)
+        setInlineError(null)
         try {
             const response = await fetch('/api/assistant/invoke', {
                 method: 'POST',
@@ -139,6 +142,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
             }
         } catch (e) {
             console.error("Image Gen Error", e)
+            setInlineError(e instanceof Error ? e.message : "Failed to generate image.")
         } finally {
             setIsGeneratingAI(false)
         }
@@ -146,6 +150,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
 
     const handleGenerateCaption = async () => {
         setIsGeneratingAI(true)
+        setInlineError(null)
         try {
             // Build a better description based on available context
             let description = globalCaption
@@ -179,9 +184,11 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
                 setGlobalCaption(data.suggestions[0])
             } else if (data?.error) {
                 console.error('Caption generation error from API:', data.error)
+                setInlineError(data.error)
             }
         } catch (e) {
             console.error("Caption Gen Error", e)
+            setInlineError(e instanceof Error ? e.message : "Failed to generate caption.")
         } finally {
             setIsGeneratingAI(false)
         }
@@ -192,6 +199,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
     const handleRefreshHashtags = async () => {
         // Generate relevant hashtags using AI
         setIsRefreshingHashtags(true)
+        setInlineError(null)
         try {
             const response = await fetch('/api/ai/generate-caption', {
                 method: 'POST',
@@ -217,6 +225,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
             }
         } catch (e) {
             console.error("Hashtag Gen Error", e)
+            setInlineError(e instanceof Error ? e.message : "Failed to refresh hashtags.")
         } finally {
             setIsRefreshingHashtags(false)
         }
@@ -241,6 +250,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
     const handleSubmit = async (status: 'draft' | 'scheduled' | 'published') => {
         setIsSubmitting(true)
         setSubmitAction(status)
+        setInlineError(null)
         const supabase = createClient()
 
         try {
@@ -302,6 +312,7 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
             router.refresh()
         } catch (e: any) {
             console.error('[CREATE_POST] Error:', e)
+            setInlineError(e.message || 'Failed to create post')
             toast({
                 title: "Post action failed",
                 description: e.message || 'Failed to create post',
@@ -367,6 +378,11 @@ export function CreatePostModal({ open, onOpenChange, postToEdit, workspaceId, i
 
                 {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                    {inlineError && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                            {inlineError}
+                        </div>
+                    )}
 
                     {/* Platform Tabs */}
                     <div className="flex gap-2">

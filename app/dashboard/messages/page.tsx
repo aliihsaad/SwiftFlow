@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/client"
 import { ConversationList } from "@/components/messages/conversation-list"
 import { MessageThread } from "@/components/messages/message-thread"
 import { useToast } from "@/components/ui/use-toast"
+import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
 import { cn } from "@/lib/utils"
 import {
     Instagram,
@@ -229,6 +230,16 @@ export default function MessagesPage() {
                 mutateConversations(),
                 selectedConversation ? mutateMessages() : Promise.resolve(null),
             ])
+            toast({
+                title: "Messages refreshed",
+                description: "Conversation and thread data were updated.",
+            })
+        } catch (error: any) {
+            toast({
+                title: "Refresh failed",
+                description: error?.message || "Could not refresh messages.",
+                variant: "destructive",
+            })
         } finally {
             setIsRefreshing(false)
         }
@@ -308,13 +319,7 @@ export default function MessagesPage() {
             </div>
 
             {showConversationsRefreshingHint && (
-                <div
-                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium w-fit"
-                    style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)' }}
-                >
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Updating conversations…
-                </div>
+                <InlineLoadingHint label="Updating conversations…" className="w-fit" />
             )}
 
             {/* Initial Loading Skeleton */}
@@ -470,13 +475,7 @@ export default function MessagesPage() {
                         )}
                         {showThreadRefreshingHint && (
                             <div className="shrink-0 px-4 pt-2">
-                                <div
-                                    className="inline-flex items-center gap-2 rounded-lg px-2.5 py-1 text-[11px] font-medium"
-                                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.45)' }}
-                                >
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                    Updating messages…
-                                </div>
+                                <InlineLoadingHint label="Updating messages…" className="px-2.5 py-1 text-[11px]" />
                             </div>
                         )}
                         <MessageThread

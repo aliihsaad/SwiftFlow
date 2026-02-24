@@ -8,6 +8,7 @@ import { AutomationSetupModal } from "@/components/automation/automation-setup-m
 import { ActiveAutomationsList } from "@/components/automation/active-automations-list"
 import { AutomationTemplatePicker } from "@/components/automation/automation-template-picker"
 import { WorkflowCanvas } from "@/components/automation/canvas/workflow-canvas"
+import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
 import { Automation } from "@/types/automation"
 import { WorkflowGraph } from "@/types/automation-graph"
 import { useToast } from "@/components/ui/use-toast"
@@ -265,13 +266,7 @@ export default function AutomationPage() {
                 </div>
 
                 {showRefreshingHint && (
-                    <div
-                        className="mb-3 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium"
-                        style={{ background: '#0e0d1c', border: '1px solid rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.45)' }}
-                    >
-                        <Zap className="h-3.5 w-3.5 animate-pulse" style={{ color: '#fbbf24' }} />
-                        Updating automations…
-                    </div>
+                    <InlineLoadingHint label="Updating automations…" className="mb-3" />
                 )}
 
                 {/* Loading */}

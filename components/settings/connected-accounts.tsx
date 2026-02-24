@@ -12,6 +12,24 @@ interface ConnectedAccountsProps {
     workspaceId: string;
 }
 
+function ConnectedAccountSkeleton({ accent }: { accent: "blue" | "pink" }) {
+    const iconBg = accent === "blue" ? "bg-blue-100 dark:bg-blue-900/30" : "bg-pink-100 dark:bg-pink-900/30"
+    return (
+        <div className="flex items-center justify-between p-4 border rounded-lg animate-pulse">
+            <div className="flex items-center gap-4">
+                <div className={`p-2 rounded-full ${iconBg}`}>
+                    <div className="h-6 w-6 rounded bg-white/40 dark:bg-white/10" />
+                </div>
+                <div className="space-y-2">
+                    <div className="h-4 w-36 rounded bg-muted" />
+                    <div className="h-3 w-28 rounded bg-muted/80" />
+                </div>
+            </div>
+            <div className="h-9 w-40 rounded-md bg-muted" />
+        </div>
+    )
+}
+
 export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     const searchParams = useSearchParams();
     const [status, setStatus] = useState<{ facebook: boolean, instagram: boolean, accounts: any[] }>({
@@ -162,73 +180,82 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                         </div>
                     )}
 
-                    {/* Facebook Connection */}
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center gap-4">
-                            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
-                                <Facebook className="h-6 w-6 text-blue-600" />
-                            </div>
-                            <div>
-                                <h4 className="font-semibold">Facebook Pages</h4>
-                                <p className="text-sm text-muted-foreground">
-                                    {status.facebook
-                                        ? `${status.accounts.filter(a => a.platform === 'facebook').length} page(s) connected`
-                                        : "Not connected"}
-                                </p>
-                            </div>
-                        </div>
-                        <Button
-                            variant={status.facebook ? "outline" : "default"}
-                            onClick={handleConnectPages}
-                            disabled={isConnectingMeta}
-                            className={status.facebook ? "text-green-600 border-green-200 bg-green-50 hover:bg-green-100" : ""}
-                        >
-                            {isConnectingMeta ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    {status.facebook ? "Reconnecting..." : "Connecting..."}
-                                </>
-                            ) : (
-                                status.facebook ? "Reconnect Pages" : "Connect Facebook Pages"
-                            )}
-                        </Button>
-                    </div>
-
-                    {/* Instagram Connection */}
-                    <div className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="flex items-center gap-4">
-                            <div className="p-2 bg-pink-100 dark:bg-pink-900/30 rounded-full">
-                                <Instagram className="h-6 w-6 text-pink-600" />
-                            </div>
-                            <div>
-                                <h4 className="font-semibold">Instagram</h4>
-                                <p className="text-sm text-muted-foreground">
-                                    {status.instagram ? "Connected via Facebook" : "Not connected"}
-                                </p>
-                            </div>
-                        </div>
-                        <InstagramConnectDialog
-                            workspaceId={workspaceId}
-                            isConnecting={isConnectingMeta}
-                            onConnectStart={() => setIsConnectingMeta(true)}
-                            trigger={
+                    {loading ? (
+                        <>
+                            <ConnectedAccountSkeleton accent="blue" />
+                            <ConnectedAccountSkeleton accent="pink" />
+                        </>
+                    ) : (
+                        <>
+                            {/* Facebook Connection */}
+                            <div className="flex items-center justify-between p-4 border rounded-lg">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+                                        <Facebook className="h-6 w-6 text-blue-600" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold">Facebook Pages</h4>
+                                        <p className="text-sm text-muted-foreground">
+                                            {status.facebook
+                                                ? `${status.accounts.filter(a => a.platform === 'facebook').length} page(s) connected`
+                                                : "Not connected"}
+                                        </p>
+                                    </div>
+                                </div>
                                 <Button
-                                    variant={status.instagram ? "outline" : "default"}
+                                    variant={status.facebook ? "outline" : "default"}
+                                    onClick={handleConnectPages}
                                     disabled={isConnectingMeta}
-                                    className={status.instagram ? "text-green-600 border-green-200 bg-green-50 hover:bg-green-100" : "bg-pink-600 hover:bg-pink-700 text-white"}
+                                    className={status.facebook ? "text-green-600 border-green-200 bg-green-50 hover:bg-green-100" : ""}
                                 >
                                     {isConnectingMeta ? (
                                         <>
                                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            {status.instagram ? "Reconnecting..." : "Connecting..."}
+                                            {status.facebook ? "Reconnecting..." : "Connecting..."}
                                         </>
                                     ) : (
-                                        status.instagram ? "Reconnect Instagram" : "Connect Instagram"
+                                        status.facebook ? "Reconnect Pages" : "Connect Facebook Pages"
                                     )}
                                 </Button>
-                            }
-                        />
-                    </div>
+                            </div>
+
+                            {/* Instagram Connection */}
+                            <div className="flex items-center justify-between p-4 border rounded-lg">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-2 bg-pink-100 dark:bg-pink-900/30 rounded-full">
+                                        <Instagram className="h-6 w-6 text-pink-600" />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-semibold">Instagram</h4>
+                                        <p className="text-sm text-muted-foreground">
+                                            {status.instagram ? "Connected via Facebook" : "Not connected"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <InstagramConnectDialog
+                                    workspaceId={workspaceId}
+                                    isConnecting={isConnectingMeta}
+                                    onConnectStart={() => setIsConnectingMeta(true)}
+                                    trigger={
+                                        <Button
+                                            variant={status.instagram ? "outline" : "default"}
+                                            disabled={isConnectingMeta}
+                                            className={status.instagram ? "text-green-600 border-green-200 bg-green-50 hover:bg-green-100" : "bg-pink-600 hover:bg-pink-700 text-white"}
+                                        >
+                                            {isConnectingMeta ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                    {status.instagram ? "Reconnecting..." : "Connecting..."}
+                                                </>
+                                            ) : (
+                                                status.instagram ? "Reconnect Instagram" : "Connect Instagram"
+                                            )}
+                                        </Button>
+                                    }
+                                />
+                            </div>
+                        </>
+                    )}
 
                     {/* Info Note */}
                     <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">

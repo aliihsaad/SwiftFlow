@@ -12,6 +12,7 @@ import {
   useNodesState,
   useEdgesState,
   type Connection,
+  type Edge,
   type ReactFlowInstance,
   type Node,
   type IsValidConnection,
@@ -68,6 +69,20 @@ type ConnectionLike = {
 
 function normalizeHandleKey(handle: string | null | undefined): string {
   return handle || '__default__'
+}
+
+function getEdgeLabelFromSourceHandle(handle: string | null | undefined): string {
+  if (handle === 'true') return 'True'
+  if (handle === 'false') return 'False'
+  if (handle === 'error') return 'Error'
+  return 'Next'
+}
+
+function getEdgeStyleFromSourceHandle(handle: string | null | undefined): { stroke?: string } {
+  if (handle === 'true') return { stroke: '#34d399' }
+  if (handle === 'false') return { stroke: '#f87171' }
+  if (handle === 'error') return { stroke: '#fbbf24' }
+  return { stroke: '#64748B' }
 }
 
 export function WorkflowCanvas({
@@ -258,6 +273,15 @@ export function WorkflowCanvas({
     return issues
   }, [edges, checkConnection])
 
+  const handleDeleteEdgeById = useCallback((edgeId: string) => {
+    pushHistory()
+    setEdges((eds) => eds.filter((edge) => edge.id !== edgeId))
+    toast({
+      title: 'Connection deleted',
+      description: 'The link between nodes was removed.',
+    })
+  }, [pushHistory, setEdges, toast])
+
   // Connection handler
   const onConnect = useCallback(
     (params: Connection) => {
@@ -274,7 +298,15 @@ export function WorkflowCanvas({
       pushHistory()
       setEdges((eds) =>
         addEdge(
-          { ...params, type: 'custom', animated: true },
+          {
+            ...params,
+            type: 'custom',
+            animated: true,
+            data: {
+              label: getEdgeLabelFromSourceHandle(params.sourceHandle ?? null),
+            },
+            style: getEdgeStyleFromSourceHandle(params.sourceHandle ?? null),
+          },
           eds,
         ),
       )
@@ -285,6 +317,15 @@ export function WorkflowCanvas({
   const isValidConnection: IsValidConnection = useCallback(
     (connection) => checkConnection(connection, edges).ok,
     [checkConnection, edges],
+  )
+
+  const handleEdgeDoubleClick = useCallback(
+    (event: React.MouseEvent, edge: Edge) => {
+      event.preventDefault()
+      event.stopPropagation()
+      handleDeleteEdgeById(edge.id)
+    },
+    [handleDeleteEdgeById],
   )
 
   const getCanvasCenterPosition = useCallback(() => {
@@ -601,6 +642,7 @@ export function WorkflowCanvas({
             onEdgesChange={handleEdgesChange}
             onConnect={onConnect}
             isValidConnection={isValidConnection}
+            onEdgeDoubleClick={handleEdgeDoubleClick}
             onInit={setReactFlowInstance}
             onDrop={onDrop}
             onDragOver={onDragOver}
@@ -624,7 +666,8 @@ export function WorkflowCanvas({
                 boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
               }}
             >
-              Drag from a node&apos;s bottom dot (Next/Error/True/False) to another node&apos;s top dot to connect.
+              Drag from a node&apos;s bottom dot (Next/Error/True/False) to another node&apos;s top dot to connect. Yellow
+              {' '}`Error` runs only if that node fails. Double-click a connection line to delete only the link.
             </div>
             <Controls
               className="shadow-md! automation-canvas-controls"

@@ -79,7 +79,10 @@ A powerful, AI-driven social media management platform built with Next.js, Supab
 
 ### 🔐 Multi-Workspace Support
 - **Workspace Isolation**: Separate data for different brands/clients
-- **Team Collaboration**: Multiple users per workspace
+- **Team Members & Invites**: Owner-managed team members with invite links and automatic invite emails
+- **Role-Based Access Control (RBAC)**: `owner`, `admin`, `editor`, `viewer` with server-enforced permissions and matching UI restrictions
+- **Email-Bound Invite Acceptance**: Invited users must sign up/sign in with the same invited email address to accept
+- **Invite History**: Pending invites + invite history tracking (accepted/revoked/expired), including "accepted then left workspace" visibility
 - **Workspace Switching**: Easy navigation between workspaces
 - **Per-Workspace Social Accounts**: Connect exactly **one Facebook Page and one Instagram Business Account** per workspace
 - **Smart Page Selector**: New OAuth flow allows selecting specific pages for each workspace to prevent token mixing
@@ -155,6 +158,11 @@ NEXT_PUBLIC_META_APP_ID=your_meta_app_id
 META_APP_SECRET=your_meta_app_secret
 NEXT_PUBLIC_APP_URL=https://yourdomain.com
 
+# Invite Emails (Resend)
+RESEND_API_KEY=your_resend_api_key
+INVITE_EMAIL_FROM=Your App <noreply@yourdomain.com>
+INVITE_EMAIL_REPLY_TO=support@yourdomain.com
+
 # Instagram Webhooks
 INSTAGRAM_APP_SECRET=your_instagram_app_secret
 META_WEBHOOK_VERIFY_TOKEN=your_random_verify_token
@@ -181,6 +189,7 @@ supabase db push
 The database schema includes:
 - `workspaces` - Multi-tenant workspace management
 - `workspace_members` - User-workspace relationships
+- `workspace_invites` - Team invitation links and invite history
 - `workspace_settings` - AI configuration per workspace
 - `workspace_brand_profiles` - Brand identity and voice
 - `posts` - Content scheduling and drafts
@@ -488,6 +497,9 @@ META_APP_SECRET
 INSTAGRAM_APP_SECRET
 META_WEBHOOK_VERIFY_TOKEN
 NEXT_PUBLIC_APP_URL
+RESEND_API_KEY
+INVITE_EMAIL_FROM
+INVITE_EMAIL_REPLY_TO
 ```
 
 ### Supabase Edge Functions
@@ -534,6 +546,8 @@ For issues or questions:
 ## 🔮 Roadmap
 
 ### ✅ Recently Completed
+- [x] **Team Members & Invites** - Owner-managed member list, invite links, invite acceptance page, and automatic invite emails (Resend)
+- [x] **Workspace RBAC Enforcement** - `owner/admin/editor/viewer` roles enforced across posts, messages, comments, automations, settings, integrations, and analytics sync
 - [x] **Meta OAuth Integration** - Connect Facebook Pages and Instagram Business accounts
 - [x] **Multi-Workspace OAuth Fix** - Resolved empty `/me/accounts` issue with debug_token fallback
 - [x] **Smart Page Selector** - Implemented page selection flow to enforce 1-to-1 workspace-to-page mapping and prevent token mixing
@@ -564,7 +578,7 @@ For issues or questions:
 - [x] **Supabase Realtime Messages** - Instant UI updates for new messages via Realtime broadcast
 
 ### 📋 Planned Features
-- [ ] Team Collaboration Features
+- [ ] Advanced Team Collaboration Features (approvals, mentions, activity feed)
 - [ ] Content Calendar Templates
 - [ ] AI-Powered Hashtag Research
 - [ ] Competitor Analysis

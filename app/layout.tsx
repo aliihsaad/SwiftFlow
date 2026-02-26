@@ -16,7 +16,35 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "SwiftFlow — Social Media Manager",
-  description: "AI-powered social media management platform",
+  description: "AI-powered social media management platform for Instagram and Facebook. Schedule posts, manage your inbox, build automations, and track analytics — all in one place.",
+  keywords: ["social media manager", "Instagram automation", "Facebook automation", "AI content generation", "social media scheduling", "SwiftFlow"],
+  authors: [{ name: "SwiftFlow" }],
+  creator: "SwiftFlow",
+  metadataBase: new URL("https://swiftflow.app"),
+  openGraph: {
+    title: "SwiftFlow — Social Media Manager",
+    description: "AI-powered social media management for Instagram and Facebook. Automate, schedule, and scale your presence.",
+    type: "website",
+    locale: "en_US",
+    siteName: "SwiftFlow",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SwiftFlow — Social Media Manager",
+    description: "AI-powered social media management for Instagram and Facebook.",
+  },
+  icons: {
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    other: [
+      { rel: "manifest", url: "/site.webmanifest" },
+    ],
+  },
 };
 
 export default function RootLayout({

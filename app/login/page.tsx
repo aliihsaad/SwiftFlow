@@ -3,11 +3,11 @@
 import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, KeyRound, UserPlus, Zap, ArrowRight, ChevronLeft, ChevronRight, Home } from "lucide-react"
+import { Loader2, KeyRound, UserPlus, ArrowRight, ChevronLeft, ChevronRight, Home } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -23,6 +23,17 @@ const AUTH_THEME = {
     coral: "#fb7185",
 }
 
+function getSafeNextPath(rawNext: string | null): string {
+    if (!rawNext) return "/dashboard"
+    if (!rawNext.startsWith("/") || rawNext.startsWith("//")) return "/dashboard"
+    return rawNext
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message) return error.message
+    return fallback
+}
+
 export default function LoginPage() {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
@@ -33,7 +44,17 @@ export default function LoginPage() {
     const [success, setSuccess] = useState<string | null>(null)
 
     const router = useRouter()
+    const searchParams = useSearchParams()
     const supabase = createClient()
+    const nextPath = getSafeNextPath(searchParams.get("next"))
+
+    const getAuthCallbackRedirectUrl = () => {
+        const callbackUrl = new URL("/auth/callback", location.origin)
+        if (nextPath !== "/dashboard") {
+            callbackUrl.searchParams.set("next", nextPath)
+        }
+        return callbackUrl.toString()
+    }
 
     const handleSignIn = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -47,10 +68,10 @@ export default function LoginPage() {
                 password
             })
             if (error) throw error
-            router.push('/dashboard')
-        } catch (error: any) {
+            router.push(nextPath)
+        } catch (error: unknown) {
             console.error(error)
-            setError(error.message || "Authentication failed")
+            setError(getErrorMessage(error, "Authentication failed"))
         } finally {
             setIsLoading(false)
         }
@@ -79,19 +100,19 @@ export default function LoginPage() {
                 email,
                 password,
                 options: {
-                    emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL || location.origin}/auth/callback`,
+                    emailRedirectTo: getAuthCallbackRedirectUrl(),
                 }
             })
             if (error) throw error
 
             if (data.session) {
-                router.push('/dashboard')
+                router.push(nextPath)
             } else {
                 setSuccess("Check your email for a confirmation link to complete your registration.")
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error(error)
-            setError(error.message || "Sign up failed")
+            setError(getErrorMessage(error, "Sign up failed"))
         } finally {
             setIsLoading(false)
         }
@@ -104,7 +125,7 @@ export default function LoginPage() {
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${location.origin}/auth/callback`,
+                    redirectTo: getAuthCallbackRedirectUrl(),
                 },
             })
             if (error) throw error

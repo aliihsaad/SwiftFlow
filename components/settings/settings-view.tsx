@@ -2,18 +2,36 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { ManageWorkspacesList } from "@/components/workspace/manage-workspaces-list"
 import { ApiSettingsForm } from "@/components/settings/api-settings-form"
 import { Workspace, WorkspaceRole } from "@/types/workspace"
 import { WorkspaceSettings } from "@/types/settings"
+import { TeamMembersPanel } from "@/components/settings/team-members-panel"
+import { TeamMemberRow, WorkspaceInviteRow } from "@/types/team"
 
 interface SettingsViewProps {
     workspaces: (Workspace & { role: WorkspaceRole })[]
     settings: WorkspaceSettings | null
+    activeWorkspace: { id: string; name: string } | null
+    currentUserId: string
+    activeWorkspaceRole: WorkspaceRole | null
+    teamMembers: TeamMemberRow[]
+    workspaceInvites: WorkspaceInviteRow[]
+    inviteFeatureReady: boolean
+    inviteFeatureMessage: string | null
 }
 
-export function SettingsView({ workspaces, settings }: SettingsViewProps) {
+export function SettingsView({
+    workspaces,
+    settings,
+    activeWorkspace,
+    currentUserId,
+    activeWorkspaceRole,
+    teamMembers,
+    workspaceInvites,
+    inviteFeatureReady,
+    inviteFeatureMessage,
+}: SettingsViewProps) {
     const panelClass = "border-white/10 bg-[#151620] text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]"
     const tabListClass = "h-auto w-full sm:w-fit rounded-xl border border-white/10 bg-[#1b1d28] p-1"
     const tabTriggerClass = "rounded-lg px-4 py-2.5 text-sm font-medium text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-none"
@@ -62,9 +80,15 @@ export function SettingsView({ workspaces, settings }: SettingsViewProps) {
                             <CardDescription className="text-white/50">Invite your team to collaborate on this workspace.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="rounded-xl border border-white/10 bg-white/5 py-8 text-center text-sm text-white/50">
-                                Team management coming soon.
-                            </div>
+                            <TeamMembersPanel
+                                activeWorkspace={activeWorkspace}
+                                currentUserId={currentUserId}
+                                activeWorkspaceRole={activeWorkspaceRole}
+                                teamMembers={teamMembers}
+                                workspaceInvites={workspaceInvites}
+                                inviteFeatureReady={inviteFeatureReady}
+                                inviteFeatureMessage={inviteFeatureMessage}
+                            />
                         </CardContent>
                     </Card>
                 </TabsContent>

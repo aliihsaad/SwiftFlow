@@ -103,7 +103,7 @@ export default async function DashboardLayout({
                         fontSize: '11px',
                     }}
                 >
-                    <span>© 2026 SocialAI</span>
+                    <span>© 2026 SwiftFlow</span>
                     <nav className="flex items-center gap-4">
                         {[
                             { href: '/privacy', label: 'Privacy' },

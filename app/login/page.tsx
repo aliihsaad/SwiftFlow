@@ -195,7 +195,7 @@ export default function LoginPage() {
                         className="text-2xl font-bold tracking-tight"
                         style={{ color: AUTH_THEME.text }}
                     >
-                        SocialAI
+                        SwiftFlow
                     </h1>
                     <p className="text-sm mt-1 text-center" style={{ color: AUTH_THEME.textMuted }}>
                         AI-assisted social ops for Instagram + Facebook
@@ -258,12 +258,12 @@ export default function LoginPage() {
                                 {error && (
                                     <div
                                         className="p-3 text-sm rounded-lg"
-                                    style={{
-                                        background: 'rgba(251,113,133,0.08)',
-                                        border: '1px solid rgba(239,68,68,0.2)',
-                                        color: '#fb7185',
-                                    }}
-                                >
+                                        style={{
+                                            background: 'rgba(251,113,133,0.08)',
+                                            border: '1px solid rgba(239,68,68,0.2)',
+                                            color: '#fb7185',
+                                        }}
+                                    >
                                         {error}
                                     </div>
                                 )}
@@ -340,24 +340,24 @@ export default function LoginPage() {
                                 {error && (
                                     <div
                                         className="p-3 text-sm rounded-lg"
-                                    style={{
-                                        background: 'rgba(251,113,133,0.08)',
-                                        border: '1px solid rgba(239,68,68,0.2)',
-                                        color: '#fb7185',
-                                    }}
-                                >
+                                        style={{
+                                            background: 'rgba(251,113,133,0.08)',
+                                            border: '1px solid rgba(239,68,68,0.2)',
+                                            color: '#fb7185',
+                                        }}
+                                    >
                                         {error}
                                     </div>
                                 )}
                                 {success && (
                                     <div
                                         className="p-3 text-sm rounded-lg"
-                                    style={{
-                                        background: 'rgba(132,204,22,0.08)',
-                                        border: '1px solid rgba(34,197,94,0.2)',
-                                        color: '#84cc16',
-                                    }}
-                                >
+                                        style={{
+                                            background: 'rgba(132,204,22,0.08)',
+                                            border: '1px solid rgba(34,197,94,0.2)',
+                                            color: '#84cc16',
+                                        }}
+                                    >
                                         {success}
                                     </div>
                                 )}

@@ -2,9 +2,9 @@ import Link from "next/link"
 import { ArrowLeft, ArrowRight, Check, Sparkles, Zap } from "lucide-react"
 
 export const metadata = {
-  title: "Pricing | SocialAI",
+  title: "Pricing | SwiftFlow",
   description:
-    "Simple pricing for SocialAI. Start free and upgrade to Pro (coming soon) for advanced automation, analytics, and team features.",
+    "Simple pricing for SwiftFlow. Start free and upgrade to Pro (coming soon) for advanced automation, analytics, and team features.",
 }
 
 const theme = {

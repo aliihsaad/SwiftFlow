@@ -38,7 +38,7 @@ export default function CreateFirstWorkspace() {
         <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
             <Card className="w-full max-w-md">
                 <CardHeader>
-                    <CardTitle>Welcome to SocialAI</CardTitle>
+                    <CardTitle>Welcome to SwiftFlow</CardTitle>
                     <CardDescription>To get started, create your first workspace.</CardDescription>
                 </CardHeader>
                 <CardContent>

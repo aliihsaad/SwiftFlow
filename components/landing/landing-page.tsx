@@ -218,7 +218,7 @@ const marqueeItems = [
 const faqItems = [
     {
         q: "Which platforms are supported right now?",
-        a: "SocialAI supports Instagram and Facebook workflows for publishing, inbox management, analytics, and core automation triggers/actions such as comments and messages.",
+        a: "SwiftFlow supports Instagram and Facebook workflows for publishing, inbox management, analytics, and core automation triggers/actions such as comments and messages.",
     },
     {
         q: "Do automations use real webhooks or polling?",
@@ -226,7 +226,7 @@ const faqItems = [
     },
     {
         q: "Why do some analytics metrics show as partial?",
-        a: "Meta does not always return every metric for every post type or endpoint. SocialAI shows platform-aware partial states so you can distinguish missing data from actual zero performance.",
+        a: "Meta does not always return every metric for every post type or endpoint. SwiftFlow shows platform-aware partial states so you can distinguish missing data from actual zero performance.",
     },
     {
         q: "How does Brand Profile help AI outputs?",
@@ -294,7 +294,7 @@ function Navbar() {
                     >
                         <Zap className="h-4 w-4 text-white" />
                     </div>
-                    <span className="font-bold text-white tracking-tight">SocialAI</span>
+                    <span className="font-bold text-white tracking-tight">SwiftFlow</span>
                 </Link>
 
                 {/* Desktop nav links */}
@@ -684,7 +684,7 @@ function Hero() {
                             className="text-base md:text-lg leading-relaxed mb-8 max-w-xl"
                             style={{ color: THEME.textMuted }}
                         >
-                            SocialAI gives creators and brands one place to run publishing, conversations, analytics and automations without bouncing between tabs all day.
+                            SwiftFlow gives creators and brands one place to run publishing, conversations, analytics and automations without bouncing between tabs all day.
                         </motion.p>
 
                         <motion.div
@@ -921,7 +921,7 @@ function CapabilityGrid() {
                                 A working social ops stack, not just an AI prompt box
                             </h2>
                             <p className="mt-4 text-base leading-relaxed" style={{ color: THEME.textMuted }}>
-                                SocialAI combines the repetitive parts of social media operations into one flow: create content, publish it, manage conversations, monitor results, and automate common engagement tasks.
+                                SwiftFlow combines the repetitive parts of social media operations into one flow: create content, publish it, manage conversations, monitor results, and automate common engagement tasks.
                             </p>
                             <div className="mt-6 space-y-3">
                                 {[
@@ -1159,7 +1159,7 @@ function AutomationPlaybook() {
                 </Reveal>
 
                 <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-6">
-                    
+
                     <Reveal>
                         <AutomationCanvasLandingMock />
                     </Reveal>
@@ -1232,7 +1232,7 @@ function HowItWorks() {
                         Up and running in minutes
                     </h2>
                     <p className="mt-4 text-base max-w-xl mx-auto leading-relaxed" style={{ color: THEME.textMuted }}>
-                        No complicated setup. Just connect, create, and let SocialAI handle the rest.
+                        No complicated setup. Just connect, create, and let SwiftFlow handle the rest.
                     </p>
                 </Reveal>
 
@@ -1383,7 +1383,7 @@ function CTABanner() {
                             className="text-base md:text-lg leading-relaxed max-w-2xl mb-6"
                             style={{ color: THEME.textMuted }}
                         >
-                            Use SocialAI to centralize content creation, scheduling, inbox management and automations so your team spends more time shipping content and less time coordinating it.
+                            Use SwiftFlow to centralize content creation, scheduling, inbox management and automations so your team spends more time shipping content and less time coordinating it.
                         </p>
 
                         <div className="grid sm:grid-cols-3 gap-3">
@@ -1638,7 +1638,7 @@ function Footer() {
                                 <Zap className="h-4 w-4 text-white" />
                             </div>
                             <span className="text-base font-bold" style={{ color: "rgba(255,255,255,0.9)" }}>
-                                SocialAI
+                                SwiftFlow
                             </span>
                         </div>
                         <p className="text-sm leading-relaxed max-w-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
@@ -1742,7 +1742,7 @@ function Footer() {
                     style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
                 >
                     <span className="text-sm font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
-                        © 2026 SocialAI
+                        © 2026 SwiftFlow
                     </span>
                     <div className="flex items-center gap-3 text-xs" style={{ color: "rgba(255,255,255,0.28)" }}>
                         <span>Instagram + Facebook connected workflows</span>

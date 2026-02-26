@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SocialAI — Social Media Manager",
+  title: "SwiftFlow — Social Media Manager",
   description: "AI-powered social media management platform",
 };
 

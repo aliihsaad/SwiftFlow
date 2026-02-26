@@ -2,10 +2,71 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { executeWorkflowGraph } from "../process-automations/graph-executor.ts"
+import {
+  getAutomationFailureAlertRecipients,
+  sendResendEmail,
+  textToSimpleHtml,
+} from "../_shared/resend-email.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+function summarizeFailedNodes(
+  nodeResults: Record<string, { success: boolean; output?: any; error?: string }> | undefined,
+  maxItems = 10,
+) {
+  return Object.entries(nodeResults || {})
+    .filter(([, nodeResult]) => nodeResult?.success === false)
+    .slice(0, maxItems)
+    .map(([nodeId, nodeResult]) => ({
+      nodeId,
+      error: String(nodeResult?.error || 'Node failed'),
+    }));
+}
+
+async function sendAutomationFailureAlert(params: {
+  automation: any
+  workspaceId: string
+  runId: string
+  eventId?: string
+  triggerType?: string
+  graphResult: {
+    processed?: number
+    dmsSent?: number
+    errors?: number
+    nodeResults?: Record<string, { success: boolean; output?: any; error?: string }>
+  }
+}) {
+  const recipients = getAutomationFailureAlertRecipients()
+  if (!recipients.length) return
+
+  const failedNodes = summarizeFailedNodes(params.graphResult.nodeResults)
+  const subject = `[SwiftFlow] Automation failure alert: ${params.automation?.name || params.automation?.id || 'Unknown automation'}`
+
+  const lines = [
+    'SwiftFlow automation run reported one or more node failures.',
+    '',
+    `Automation: ${params.automation?.name || 'Unknown'} (${params.automation?.id || 'n/a'})`,
+    `Workspace ID: ${params.workspaceId}`,
+    `Run ID: ${params.runId}`,
+    params.eventId ? `Event ID: ${params.eventId}` : null,
+    params.triggerType ? `Trigger: ${params.triggerType}` : null,
+    `Error count: ${Number(params.graphResult.errors || 0)}`,
+    `Processed nodes: ${Number(params.graphResult.processed || 0)}`,
+    `DMs sent: ${Number(params.graphResult.dmsSent || 0)}`,
+    '',
+    failedNodes.length ? 'Failed nodes:' : 'Failed nodes: none listed',
+    ...failedNodes.map((item) => `- ${item.nodeId}: ${item.error}`),
+  ].filter(Boolean).join('\n')
+
+  await sendResendEmail({
+    to: recipients,
+    subject,
+    text: lines,
+    html: textToSimpleHtml(lines),
+  })
 }
 
 async function upsertNodeRuns(
@@ -197,6 +258,21 @@ serve(async (req) => {
             updated_at: new Date().toISOString(),
           })
           .eq('id', automation.id);
+      }
+    }
+
+    if (graphResult.errors > 0 && effectiveRunId) {
+      try {
+        await sendAutomationFailureAlert({
+          automation,
+          workspaceId,
+          runId: effectiveRunId,
+          eventId,
+          triggerType,
+          graphResult,
+        })
+      } catch (alertError) {
+        console.error('[RUN_WORKER] Failed to send automation failure alert email:', alertError)
       }
     }
 

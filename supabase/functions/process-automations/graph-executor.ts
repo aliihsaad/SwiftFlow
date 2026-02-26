@@ -7,7 +7,8 @@
  * condition nodes and parallel edges.
  */
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
-import { buildAutomationAiPrompt } from "../_shared/automation-context.ts"
+import { buildAutomationAiPrompt, interpolateTemplate } from "../_shared/automation-context.ts"
+import { sendResendEmail, textToSimpleHtml } from "../_shared/resend-email.ts"
 
 const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
 
@@ -79,6 +80,54 @@ interface ExecutionResult {
   dmsSent: number
   errors: number
   nodeResults: Record<string, { success: boolean; output?: any; error?: string }>
+}
+
+function getOutgoingEdges(
+  adjacency: Map<string, { targetId: string; sourceHandle?: string }[]>,
+  nodeId: string,
+) {
+  return adjacency.get(nodeId) || [];
+}
+
+function queueEdges(
+  edges: { targetId: string; sourceHandle?: string }[],
+  queue: string[],
+) {
+  for (const edge of edges) {
+    queue.push(edge.targetId);
+  }
+}
+
+function queueErrorBranchIfPresent(
+  adjacency: Map<string, { targetId: string; sourceHandle?: string }[]>,
+  nodeId: string,
+  queue: string[],
+): boolean {
+  const errorEdges = getOutgoingEdges(adjacency, nodeId).filter((edge) => edge.sourceHandle === 'error');
+  if (!errorEdges.length) return false;
+  queueEdges(errorEdges, queue);
+  return true;
+}
+
+function queueStandardActionChildren(
+  adjacency: Map<string, { targetId: string; sourceHandle?: string }[]>,
+  nodeId: string,
+  queue: string[],
+  nodeSucceeded: boolean,
+) {
+  const outEdges = getOutgoingEdges(adjacency, nodeId);
+  const nonErrorEdges = outEdges.filter((edge) => edge.sourceHandle !== 'error');
+
+  if (nodeSucceeded) {
+    queueEdges(nonErrorEdges, queue);
+    return;
+  }
+
+  const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, queue);
+  if (!hadErrorBranch) {
+    // Preserve legacy behavior: failed nodes continue on their normal path unless an explicit error edge is connected.
+    queueEdges(nonErrorEdges, queue);
+  }
 }
 
 const NODE_WORKER_MAP: Record<string, string> = {
@@ -209,11 +258,24 @@ export async function executeWorkflowGraph(
 
       // Handle condition branching
       if (node.data.type === 'action_condition') {
-        const outEdges = adjacency.get(nodeId) || [];
-        const branch = nodeResult.output?.conditionResult ? 'true' : 'false';
-        for (const edge of outEdges) {
-          if (edge.sourceHandle === branch) {
-            executionQueue.push(edge.targetId);
+        const outEdges = getOutgoingEdges(adjacency, nodeId);
+
+        if (nodeResult.success) {
+          const branch = nodeResult.output?.conditionResult ? 'true' : 'false';
+          for (const edge of outEdges) {
+            if (edge.sourceHandle === branch) {
+              executionQueue.push(edge.targetId);
+            }
+          }
+        } else {
+          const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, executionQueue);
+          if (!hadErrorBranch) {
+            // Preserve legacy behavior: failed condition nodes fall through the "false" path
+            for (const edge of outEdges) {
+              if (edge.sourceHandle === 'false') {
+                executionQueue.push(edge.targetId);
+              }
+            }
           }
         }
       }
@@ -224,7 +286,9 @@ export async function executeWorkflowGraph(
         const scheduledFor = new Date(Date.now() + delayMs).toISOString();
 
         // Save remaining graph state for later resumption
-        const remainingNodes = (adjacency.get(nodeId) || []).map(e => e.targetId);
+        const remainingNodes = getOutgoingEdges(adjacency, nodeId)
+          .filter((edge) => edge.sourceHandle !== 'error')
+          .map((e) => e.targetId);
         if (remainingNodes.length > 0) {
           await supabase.from('automation_scheduled_executions').insert({
             automation_id: automation.id,
@@ -247,15 +311,13 @@ export async function executeWorkflowGraph(
       }
       // Normal node: add all children to queue
       else {
-        const outEdges = adjacency.get(nodeId) || [];
-        for (const edge of outEdges) {
-          executionQueue.push(edge.targetId);
-        }
+        queueStandardActionChildren(adjacency, nodeId, executionQueue, nodeResult.success);
       }
     } catch (err) {
       console.error(`[GRAPH] Error executing node ${nodeId}:`, err);
-      result.nodeResults[nodeId] = { success: false, error: err.message };
+      result.nodeResults[nodeId] = { success: false, error: err?.message || 'Unknown error' };
       result.errors++;
+      queueErrorBranchIfPresent(adjacency, nodeId, executionQueue);
     }
   }
 
@@ -339,16 +401,28 @@ export async function resumeFromDelay(
       }
 
       if (node.data.type === 'action_condition') {
-        const outEdges = adjacency.get(nodeId) || [];
-        const branch = nodeResult.output?.conditionResult ? 'true' : 'false';
-        for (const edge of outEdges) {
-          if (edge.sourceHandle === branch) queue.push(edge.targetId);
+        const outEdges = getOutgoingEdges(adjacency, nodeId);
+
+        if (nodeResult.success) {
+          const branch = nodeResult.output?.conditionResult ? 'true' : 'false';
+          for (const edge of outEdges) {
+            if (edge.sourceHandle === branch) queue.push(edge.targetId);
+          }
+        } else {
+          const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, queue);
+          if (!hadErrorBranch) {
+            for (const edge of outEdges) {
+              if (edge.sourceHandle === 'false') queue.push(edge.targetId);
+            }
+          }
         }
       } else if (node.data.type === 'action_delay') {
         // Another delay — schedule again
         const config = node.data.config;
         const delayMs = getDelayMs(config.duration_value, config.duration_unit);
-        const remainingNodes = (adjacency.get(nodeId) || []).map(e => e.targetId);
+        const remainingNodes = getOutgoingEdges(adjacency, nodeId)
+          .filter((edge) => edge.sourceHandle !== 'error')
+          .map((e) => e.targetId);
         if (remainingNodes.length > 0) {
           await supabase.from('automation_scheduled_executions').insert({
             automation_id: automation.id,
@@ -367,12 +441,12 @@ export async function resumeFromDelay(
         }
         continue;
       } else {
-        const outEdges = adjacency.get(nodeId) || [];
-        for (const edge of outEdges) queue.push(edge.targetId);
+        queueStandardActionChildren(adjacency, nodeId, queue, nodeResult.success);
       }
     } catch (err) {
-      result.nodeResults[nodeId] = { success: false, error: err.message };
+      result.nodeResults[nodeId] = { success: false, error: err?.message || 'Unknown error' };
       result.errors++;
+      queueErrorBranchIfPresent(adjacency, nodeId, queue);
     }
   }
 
@@ -447,13 +521,72 @@ async function executeNode(
       return await executeAiResponse(supabase, config, triggerContext, automation.workspace_id);
 
     case 'action_send_email':
-      // Placeholder — email sending would need an email service integration
-      console.log(`[GRAPH] Email action (placeholder): ${config.subject}`);
-      return { success: true, output: { placeholder: true } };
+      return await executeSendEmail(config, triggerContext, automation, node);
 
     default:
       console.warn(`[GRAPH] Unknown node type: ${node.data.type}`);
       return { success: true };
+  }
+}
+
+async function executeSendEmail(
+  config: any,
+  ctx: TriggerContext,
+  automation: any,
+  node: WorkflowNode,
+): Promise<{ success: boolean; output?: any; error?: string }> {
+  try {
+    const recipientType = String(config?.recipient_type || 'custom');
+    if (recipientType !== 'custom') {
+      return { success: false, error: 'Send Email node supports custom recipients only' };
+    }
+
+    const to = String(config?.recipient_email || '').trim();
+    if (!to) {
+      return { success: false, error: 'Email address is required' };
+    }
+
+    const subject = interpolateTemplate(String(config?.subject || ''), ctx).trim();
+    const messageBody = interpolateTemplate(String(config?.body || ''), ctx).trim();
+
+    if (!subject) {
+      return { success: false, error: 'Email subject is required' };
+    }
+
+    if (!messageBody) {
+      return { success: false, error: 'Email body is required' };
+    }
+
+    const footerLines = [
+      '',
+      '---',
+      'Sent by SwiftFlow Automation',
+      automation?.name ? `Automation: ${String(automation.name)}` : null,
+      automation?.workspace_id ? `Workspace: ${String(automation.workspace_id)}` : null,
+      automation?.id ? `Automation ID: ${String(automation.id)}` : null,
+      node?.id ? `Node ID: ${String(node.id)}` : null,
+    ].filter(Boolean).join('\n');
+
+    const text = `${messageBody}${footerLines}`;
+
+    const sendResult = await sendResendEmail({
+      to,
+      subject,
+      text,
+      html: textToSimpleHtml(text),
+    });
+
+    return {
+      success: true,
+      output: {
+        to,
+        subject,
+        provider: 'resend',
+        email_id: sendResult.id || null,
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err?.message || 'Email send failed' };
   }
 }
 

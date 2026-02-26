@@ -90,7 +90,15 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
             position={Position.Bottom}
             id="true"
             className="!w-3 !h-3 !border-2"
-            style={{ left: '30%', background: '#10b981', borderColor: '#151620' }}
+            style={{ left: '24%', background: '#10b981', borderColor: '#151620' }}
+          />
+          {/* Error output (center-bottom) */}
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="error"
+            className="!w-3 !h-3 !border-2"
+            style={{ left: '50%', background: '#f59e0b', borderColor: '#151620' }}
           />
           {/* False output (right-bottom) */}
           <Handle
@@ -98,20 +106,34 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
             position={Position.Bottom}
             id="false"
             className="!w-3 !h-3 !border-2"
-            style={{ left: '70%', background: '#f87171', borderColor: '#151620' }}
+            style={{ left: '76%', background: '#f87171', borderColor: '#151620' }}
           />
-          <div className="flex justify-between px-4 pb-1">
+          <div className="grid grid-cols-3 items-center px-3 pb-1 text-center">
             <span className="text-[10px]" style={{ color: '#34d399' }}>True</span>
+            <span className="text-[10px]" style={{ color: '#fbbf24' }}>Error</span>
             <span className="text-[10px]" style={{ color: '#f87171' }}>False</span>
           </div>
         </>
       ) : (
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          className="!w-3 !h-3 !border-2"
-          style={{ background: colors.handle, borderColor: '#151620' }}
-        />
+        <>
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            className="!w-3 !h-3 !border-2"
+            style={{ left: '35%', background: colors.handle, borderColor: '#151620' }}
+          />
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="error"
+            className="!w-3 !h-3 !border-2"
+            style={{ left: '65%', background: '#f59e0b', borderColor: '#151620' }}
+          />
+          <div className="flex justify-between px-4 pb-1">
+            <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.6)' }}>Next</span>
+            <span className="text-[10px]" style={{ color: '#fbbf24' }}>Error</span>
+          </div>
+        </>
       )}
     </div>
   )

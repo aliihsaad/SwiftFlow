@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Suspense, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -34,7 +34,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
     return fallback
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
@@ -536,5 +536,22 @@ export default function LoginPage() {
                 </p>
             </div>
         </div>
+    )
+}
+
+function LoginPageFallback() {
+    return (
+        <div
+            className="min-h-screen"
+            style={{ background: AUTH_THEME.bg }}
+        />
+    )
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={<LoginPageFallback />}>
+            <LoginPageContent />
+        </Suspense>
     )
 }

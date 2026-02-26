@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
 import { createAdminClient } from "@/utils/supabase/admin"
+import { sendWorkspaceInviteEmail } from "@/lib/email/send-workspace-invite-email"
 import type { WorkspaceRole } from "@/types/workspace"
 import type { TeamInviteRole } from "@/types/team"
 
@@ -173,14 +174,57 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
         throw new Error(`Failed to create invite: ${error.message}`)
     }
 
-    revalidatePath("/dashboard/settings")
-
     const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "")
+    const inviteUrl = appUrl ? `${appUrl}/invite/${token}` : `/invite/${token}`
+
+    let workspaceName = "Workspace"
+    try {
+        const { data: workspaceRow } = await supabaseAdmin
+            .from("workspaces")
+            .select("name")
+            .eq("id", workspaceId)
+            .maybeSingle()
+
+        if (workspaceRow?.name && typeof workspaceRow.name === "string") {
+            workspaceName = workspaceRow.name
+        }
+    } catch (workspaceLookupError) {
+        console.warn("Failed to load workspace name for invite email", workspaceLookupError)
+    }
+
+    let emailSent = false
+    let emailError: string | null = null
+    let emailProviderId: string | null = null
+
+    try {
+        const result = await sendWorkspaceInviteEmail({
+            to: normalizedEmail,
+            workspaceName,
+            inviterEmail: user.email ?? null,
+            role,
+            inviteUrl,
+            expiresAt,
+        })
+        emailSent = true
+        emailProviderId = result.id
+    } catch (sendError) {
+        emailError = sendError instanceof Error ? sendError.message : "Unknown email send error"
+        console.error("Workspace invite email send failed", {
+            workspaceId,
+            email: normalizedEmail,
+            error: emailError,
+        })
+    }
+
+    revalidatePath("/dashboard/settings")
 
     return {
         token,
-        inviteUrl: appUrl ? `${appUrl}/invite/${token}` : `/invite/${token}`,
+        inviteUrl,
         expiresAt,
+        emailSent,
+        emailError,
+        emailProviderId,
     }
 }
 

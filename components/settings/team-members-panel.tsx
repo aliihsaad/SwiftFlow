@@ -171,8 +171,15 @@ export function TeamMembersPanel({
 
             setLastInviteLink(inviteUrl)
             setInviteEmail("")
-            toast.success("Invite link created")
-            await copyToClipboard(inviteUrl, "Invite link copied")
+            if (result.emailSent) {
+                await copyToClipboard(inviteUrl, "Invite email sent and link copied")
+            } else {
+                if (result.emailError) {
+                    console.warn("Automatic invite email failed", result.emailError)
+                }
+                toast.error("Invite created, but automatic email could not be sent. Share the copied link manually.")
+                await copyToClipboard(inviteUrl, "Invite link copied (share manually)")
+            }
             router.refresh()
         } catch (error: unknown) {
             toast.error(getErrorMessage(error, "Failed to create invite"))

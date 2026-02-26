@@ -25,7 +25,7 @@ export function AnalyticsNavbar() {
                     <Link href="/dashboard" className="flex items-center gap-2">
                         <Sparkles className="h-5 w-5 text-primary" />
                         <span className="text-lg font-bold bg-linear-to-r from-primary to-purple-600 bg-clip-text text-transparent">
-                            SocialRails
+                            SocialAI
                         </span>
                     </Link>
 

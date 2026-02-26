@@ -210,6 +210,44 @@ export async function revokeWorkspaceInvite(workspaceId: string, inviteId: strin
     revalidatePath("/dashboard/settings")
 }
 
+export async function deleteWorkspaceInviteRecord(workspaceId: string, inviteId: string) {
+    if (!workspaceId || !inviteId) throw new Error("Missing invite details")
+
+    await requireWorkspaceManageRole(workspaceId, ["owner"])
+    const supabaseAdmin = createAdminClient()
+
+    const { data: invite, error: inviteError } = await supabaseAdmin
+        .from("workspace_invites")
+        .select("id, status")
+        .eq("id", inviteId)
+        .eq("workspace_id", workspaceId)
+        .maybeSingle()
+
+    if (inviteError) {
+        throw new Error(`Failed to load invite: ${inviteError.message}`)
+    }
+
+    if (!invite) {
+        throw new Error("Invite not found")
+    }
+
+    if ((invite.status as string) === "pending") {
+        throw new Error("Pending invites should be revoked instead of deleted")
+    }
+
+    const { error } = await supabaseAdmin
+        .from("workspace_invites")
+        .delete()
+        .eq("id", inviteId)
+        .eq("workspace_id", workspaceId)
+
+    if (error) {
+        throw new Error(`Failed to delete invite record: ${error.message}`)
+    }
+
+    revalidatePath("/dashboard/settings")
+}
+
 export async function updateWorkspaceMemberRole(workspaceId: string, memberId: string, role: TeamInviteRole) {
     if (!workspaceId || !memberId) throw new Error("Missing member details")
     if (!isInviteRole(role)) throw new Error("Invalid role")

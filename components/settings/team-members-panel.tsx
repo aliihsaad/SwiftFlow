@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Copy, Link2, Trash2, UserMinus, Users } from "lucide-react"
+import { ChevronDown, ChevronRight, Copy, Link2, Trash2, UserMinus, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -27,6 +27,7 @@ import type { WorkspaceRole } from "@/types/workspace"
 import type { TeamInviteRole, TeamMemberRow, WorkspaceInviteRow } from "@/types/team"
 import {
     createWorkspaceInvite,
+    deleteWorkspaceInviteRecord,
     removeWorkspaceMember,
     revokeWorkspaceInvite,
     updateWorkspaceMemberRole,
@@ -71,6 +72,37 @@ function statusBadgeClass(status: WorkspaceInviteRow["status"]) {
     return "border-white/15 bg-white/5 text-white/70"
 }
 
+function isAcceptedInviteLeftWorkspace(invite: WorkspaceInviteRow, activeMemberUserIds: Set<string>) {
+    return invite.status === "accepted" && !!invite.accepted_by && !activeMemberUserIds.has(invite.accepted_by)
+}
+
+function getInviteStatusLabel(invite: WorkspaceInviteRow, activeMemberUserIds: Set<string>) {
+    if (isAcceptedInviteLeftWorkspace(invite, activeMemberUserIds)) {
+        return "Accepted (Left Workspace)"
+    }
+    return roleLabel(invite.status)
+}
+
+function getInviteStatusBadgeClass(invite: WorkspaceInviteRow, activeMemberUserIds: Set<string>) {
+    if (isAcceptedInviteLeftWorkspace(invite, activeMemberUserIds)) {
+        return "border-amber-300/25 bg-amber-300/10 text-amber-100"
+    }
+    return statusBadgeClass(invite.status)
+}
+
+function getInviteHistoryDateLabel(invite: WorkspaceInviteRow) {
+    if (invite.status === "accepted") {
+        return invite.accepted_at ? `Accepted ${formatDate(invite.accepted_at)}` : "Accepted"
+    }
+    if (invite.status === "revoked") {
+        return `Revoked (created ${formatDate(invite.created_at)})`
+    }
+    if (invite.status === "expired") {
+        return `Expired ${formatDate(invite.expires_at)}`
+    }
+    return formatDate(invite.created_at)
+}
+
 async function copyToClipboard(value: string, successLabel: string) {
     try {
         await navigator.clipboard.writeText(value)
@@ -110,6 +142,7 @@ export function TeamMembersPanel({
     const [busyKey, setBusyKey] = useState<string | null>(null)
     const [lastInviteLink, setLastInviteLink] = useState<string | null>(null)
     const [memberRoleDrafts, setMemberRoleDrafts] = useState<Record<string, TeamInviteRole>>({})
+    const [showInviteHistory, setShowInviteHistory] = useState(false)
 
     useEffect(() => {
         const nextDrafts: Record<string, TeamInviteRole> = {}
@@ -121,8 +154,9 @@ export function TeamMembersPanel({
         setMemberRoleDrafts(nextDrafts)
     }, [teamMembers])
 
+    const activeMemberUserIds = new Set(teamMembers.map((member) => member.user_id))
     const pendingInvites = workspaceInvites.filter((invite) => invite.status === "pending")
-    const recentInviteHistory = workspaceInvites.filter((invite) => invite.status !== "pending").slice(0, 8)
+    const inviteHistory = workspaceInvites.filter((invite) => invite.status !== "pending")
 
     const handleInviteSubmit = async (event: React.FormEvent) => {
         event.preventDefault()
@@ -195,6 +229,23 @@ export function TeamMembersPanel({
             router.refresh()
         } catch (error: unknown) {
             toast.error(getErrorMessage(error, "Failed to revoke invite"))
+        } finally {
+            setBusyKey(null)
+        }
+    }
+
+    const handleDeleteInviteRecord = async (invite: WorkspaceInviteRow) => {
+        if (!activeWorkspace) return
+        const confirmed = window.confirm(`Delete invite record for ${invite.email}? This removes the invite from history.`)
+        if (!confirmed) return
+
+        setBusyKey(`invite-delete:${invite.id}`)
+        try {
+            await deleteWorkspaceInviteRecord(activeWorkspace.id, invite.id)
+            toast.success("Invite record deleted")
+            router.refresh()
+        } catch (error: unknown) {
+            toast.error(getErrorMessage(error, "Failed to delete invite record"))
         } finally {
             setBusyKey(null)
         }
@@ -427,7 +478,7 @@ export function TeamMembersPanel({
                 <div className="flex items-center justify-between">
                     <h4 className="text-sm font-semibold tracking-wide text-white/85">Invites</h4>
                     <span className="text-xs text-white/45">
-                        {pendingInvites.length} pending{recentInviteHistory.length ? ` • ${recentInviteHistory.length} recent history` : ""}
+                        {pendingInvites.length} pending{inviteHistory.length ? ` • ${inviteHistory.length} history` : ""}
                     </span>
                 </div>
 
@@ -453,15 +504,14 @@ export function TeamMembersPanel({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {workspaceInvites.length === 0 ? (
+                                    {pendingInvites.length === 0 ? (
                                         <TableRow className="border-white/5">
                                             <TableCell colSpan={5} className="py-8 text-center text-sm text-white/50">
-                                                No invites yet.
+                                                No pending invites.
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        workspaceInvites.map((invite) => {
-                                            const isPending = invite.status === "pending"
+                                        pendingInvites.map((invite) => {
                                             const rowBusy = busyKey === `invite:${invite.id}`
                                             const inviteUrl = getInviteUrl(invite.token)
 
@@ -481,31 +531,27 @@ export function TeamMembersPanel({
                                                     <TableCell className="text-white/55">{formatDate(invite.expires_at)}</TableCell>
                                                     <TableCell>
                                                         <div className="flex justify-end gap-2">
-                                                            {canManage && (
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    onClick={() => copyToClipboard(inviteUrl, "Invite link copied")}
-                                                                    className="border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
-                                                                >
-                                                                    <Copy className="h-4 w-4" />
-                                                                    Copy
-                                                                </Button>
-                                                            )}
-                                                            {canManage && isPending && (
-                                                                <Button
-                                                                    type="button"
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    disabled={rowBusy}
-                                                                    onClick={() => handleRevokeInvite(invite)}
-                                                                    className="border-red-400/20 bg-red-500/10 text-red-200 hover:bg-red-500/15 hover:text-red-100"
-                                                                >
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                    {rowBusy ? "Revoking..." : "Revoke"}
-                                                                </Button>
-                                                            )}
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() => copyToClipboard(inviteUrl, "Invite link copied")}
+                                                                className="border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                                                            >
+                                                                <Copy className="h-4 w-4" />
+                                                                Copy
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                disabled={rowBusy}
+                                                                onClick={() => handleRevokeInvite(invite)}
+                                                                className="border-red-400/20 bg-red-500/10 text-red-200 hover:bg-red-500/15 hover:text-red-100"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                                {rowBusy ? "Revoking..." : "Revoke"}
+                                                            </Button>
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>
@@ -515,6 +561,89 @@ export function TeamMembersPanel({
                                 </TableBody>
                             </Table>
                         </div>
+
+                        {inviteHistory.length > 0 && (
+                            <div className="rounded-xl border border-white/10 bg-[#151620]">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowInviteHistory((prev) => !prev)}
+                                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        {showInviteHistory ? (
+                                            <ChevronDown className="h-4 w-4 text-white/55" />
+                                        ) : (
+                                            <ChevronRight className="h-4 w-4 text-white/55" />
+                                        )}
+                                        <span className="text-sm font-medium text-white/80">Invite History</span>
+                                    </div>
+                                    <span className="text-xs text-white/45">{inviteHistory.length} records</span>
+                                </button>
+
+                                {showInviteHistory && (
+                                    <div className="border-t border-white/10">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow className="border-white/10 hover:bg-transparent">
+                                                    <TableHead className="text-white/45">Email</TableHead>
+                                                    <TableHead className="text-white/45">Role</TableHead>
+                                                    <TableHead className="text-white/45">Status</TableHead>
+                                                    <TableHead className="text-white/45">History</TableHead>
+                                                    <TableHead className="text-right text-white/45">Actions</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {inviteHistory.map((invite) => {
+                                                    const rowBusy = busyKey === `invite-delete:${invite.id}`
+                                                    const statusLabel = getInviteStatusLabel(invite, activeMemberUserIds)
+                                                    const statusClass = getInviteStatusBadgeClass(invite, activeMemberUserIds)
+
+                                                    return (
+                                                        <TableRow key={invite.id} className="border-white/5 hover:bg-white/5">
+                                                            <TableCell className="align-top">
+                                                                <div className="font-medium text-white/85">{invite.email}</div>
+                                                                <div className="mt-1 text-xs text-white/45">
+                                                                    Created {formatDate(invite.created_at)}
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="align-top">
+                                                                <Badge className={`border ${roleBadgeClass(invite.role)}`}>
+                                                                    {roleLabel(invite.role)}
+                                                                </Badge>
+                                                            </TableCell>
+                                                            <TableCell className="align-top">
+                                                                <Badge className={`border ${statusClass}`}>
+                                                                    {statusLabel}
+                                                                </Badge>
+                                                            </TableCell>
+                                                            <TableCell className="align-top text-white/55">
+                                                                {getInviteHistoryDateLabel(invite)}
+                                                            </TableCell>
+                                                            <TableCell className="align-top">
+                                                                <div className="flex justify-end gap-2">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        disabled={rowBusy}
+                                                                        onClick={() => handleDeleteInviteRecord(invite)}
+                                                                        className="border-red-400/20 bg-red-500/10 text-red-200 hover:bg-red-500/15 hover:text-red-100"
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                        {rowBusy ? "Deleting..." : "Delete"}
+                                                                    </Button>
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    )
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                     </div>
                 )}
             </div>

@@ -96,7 +96,7 @@ export function InstagramConnectDialog({ workspaceId, trigger, isConnecting = fa
                     <Button
                         onClick={handleConnect}
                         disabled={isConnecting}
-                        className="w-full gap-2 border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
+                        className="w-full gap-2 border border-cyan-300/20 bg-linear-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
                     >
                         {isConnecting ? (
                             <>

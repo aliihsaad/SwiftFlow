@@ -208,7 +208,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                     disabled={isConnectingMeta}
                                     className={status.facebook
                                         ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15"
-                                        : "border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"}
+                                        : "border-cyan-300/20 bg-linear-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"}
                                 >
                                     {isConnectingMeta ? (
                                         <>
@@ -244,7 +244,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                             disabled={isConnectingMeta}
                                             className={status.instagram
                                                 ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15"
-                                                : "border-rose-300/20 bg-gradient-to-r from-rose-400/20 via-rose-300/10 to-amber-300/15 text-white hover:from-rose-400/25 hover:to-amber-300/20"}
+                                                : "border-rose-300/20 bg-linear-to-r from-rose-400/20 via-rose-300/10 to-amber-300/15 text-white hover:from-rose-400/25 hover:to-amber-300/20"}
                                         >
                                             {isConnectingMeta ? (
                                                 <>

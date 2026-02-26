@@ -207,20 +207,20 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
     return (
         <div
             className="space-y-6
-            [&_[data-slot=card-title]]:text-white/90
-            [&_[data-slot=card-description]]:text-white/50
-            [&_[data-slot=input]]:border-white/10
-            [&_[data-slot=input]]:bg-[#1b1d28]
-            [&_[data-slot=input]]:text-white/85
-            [&_[data-slot=input]]:placeholder:text-white/25
-            [&_[data-slot=textarea]]:border-white/10
-            [&_[data-slot=textarea]]:bg-[#1b1d28]
-            [&_[data-slot=textarea]]:text-white/85
-            [&_[data-slot=textarea]]:placeholder:text-white/25
-            [&_[data-slot=select-trigger]]:border-white/10
-            [&_[data-slot=select-trigger]]:bg-[#1b1d28]
-            [&_[data-slot=select-trigger]]:text-white/85
-            [&_[data-slot=badge]]:border-white/10"
+            **:data-[slot=card-title]:text-white/90
+            **:data-[slot=card-description]:text-white/50
+            **:data-[slot=input]:border-white/10
+            **:data-[slot=input]:bg-[#1b1d28]
+            **:data-[slot=input]:text-white/85
+            **:data-[slot=input]:placeholder:text-white/25
+            **:data-[slot=textarea]:border-white/10
+            **:data-[slot=textarea]:bg-[#1b1d28]
+            **:data-[slot=textarea]:text-white/85
+            **:data-[slot=textarea]:placeholder:text-white/25
+            **:data-[slot=select-trigger]:border-white/10
+            **:data-[slot=select-trigger]:bg-[#1b1d28]
+            **:data-[slot=select-trigger]:text-white/85
+            **:data-[slot=badge]:border-white/10"
         >
             {/* Business Identity */}
             <Card className={panelClass}>
@@ -647,7 +647,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                     onClick={handleSave}
                     disabled={saving}
                     size="lg"
-                    className="border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
+                    className="border border-cyan-300/20 bg-linear-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
                 >
                     {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Save Brand Profile

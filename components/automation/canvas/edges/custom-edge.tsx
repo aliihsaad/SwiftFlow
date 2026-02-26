@@ -7,18 +7,19 @@ import {
   type EdgeProps,
 } from '@xyflow/react'
 
-export function CustomEdge({
-  id,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  data,
-  style = {},
-  markerEnd,
-}: EdgeProps) {
+export function CustomEdge(props: EdgeProps) {
+  const {
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    data,
+    style = {},
+    markerEnd,
+  } = props
+  const sourceHandle = (props as EdgeProps & { sourceHandle?: string | null }).sourceHandle
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -28,7 +29,8 @@ export function CustomEdge({
     targetPosition,
   })
 
-  const label = data?.label as string | undefined
+  const label = (data?.label as string | undefined) || getEdgeLabelFromHandle(sourceHandle)
+  const stroke = getEdgeStrokeFromHandle(sourceHandle)
 
   return (
     <>
@@ -37,7 +39,7 @@ export function CustomEdge({
         markerEnd={markerEnd}
         style={{
           strokeWidth: 2,
-          stroke: '#64748B',
+          stroke,
           ...style,
         }}
       />
@@ -64,4 +66,18 @@ export function CustomEdge({
       )}
     </>
   )
+}
+
+function getEdgeLabelFromHandle(handle: string | null | undefined): string | undefined {
+  if (handle === 'true') return 'True'
+  if (handle === 'false') return 'False'
+  if (handle === 'error') return 'Alert'
+  return 'Next'
+}
+
+function getEdgeStrokeFromHandle(handle: string | null | undefined): string {
+  if (handle === 'true') return '#34d399'
+  if (handle === 'false') return '#f87171'
+  if (handle === 'error') return '#fbbf24'
+  return '#64748B'
 }

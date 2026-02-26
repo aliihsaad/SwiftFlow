@@ -9,6 +9,7 @@ import {
   Clock,
   AtSign,
   Reply,
+  Info,
 } from 'lucide-react'
 import type { WorkflowNodeData } from '@/types/automation-graph'
 
@@ -24,6 +25,7 @@ const iconMap: Record<string, React.ElementType> = {
 function TriggerNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as unknown as WorkflowNodeData
   const Icon = iconMap[nodeData.type] || MessageCircle
+  const nodeHelp = getTriggerNodeHelp(nodeData)
 
   return (
     <div
@@ -44,8 +46,15 @@ function TriggerNodeComponent({ data, selected }: NodeProps) {
         style={{ background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)' }}
       >
         <Icon className="h-4 w-4 text-white shrink-0" />
-        <span className="text-sm font-medium text-white truncate">
+        <span className="text-sm font-medium text-white truncate flex-1">
           {nodeData.label}
+        </span>
+        <span
+          title={nodeHelp}
+          className="inline-flex items-center justify-center rounded-full bg-black/20 p-1 text-white/80 shrink-0"
+          aria-label={`${nodeData.label} help`}
+        >
+          <Info className="h-3.5 w-3.5" />
         </span>
       </div>
 
@@ -78,6 +87,11 @@ function TriggerNodeComponent({ data, selected }: NodeProps) {
       />
     </div>
   )
+}
+
+function getTriggerNodeHelp(data: WorkflowNodeData): string {
+  const base = data.description || getDescription(data)
+  return `${data.label}: ${base}\nThis starts the workflow.\nConnect its bottom output to the first action node.`
 }
 
 function getDescription(data: WorkflowNodeData): string {

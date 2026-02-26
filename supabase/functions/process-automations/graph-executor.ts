@@ -133,6 +133,12 @@ function validateExecutableGraph(graph: WorkflowGraph): string[] {
       if (sourceHandle === 'error' && isTriggerNodeType(sourceType)) {
         issues.push(`Trigger node ${edge.source} cannot use an Error output.`);
       }
+      if (sourceType === 'action_send_email' && sourceHandle === 'error') {
+        issues.push(`Send Email node ${edge.source} cannot use an Error output.`);
+      }
+      if (sourceHandle === 'error' && String(targetNode?.data?.type || '') !== 'action_send_email') {
+        issues.push(`Error/Alert output from ${edge.source} must target a Send Email node.`);
+      }
       if (!isTriggerNodeType(sourceType)) {
         outgoingHandleCounts.set(handleKey, (outgoingHandleCounts.get(handleKey) || 0) + 1);
       }

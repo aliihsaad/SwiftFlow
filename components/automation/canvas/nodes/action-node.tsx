@@ -11,6 +11,7 @@ import {
   MailPlus,
   Globe,
   Sparkles,
+  Info,
 } from 'lucide-react'
 import type { WorkflowNodeData } from '@/types/automation-graph'
 
@@ -41,6 +42,8 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
   const Icon = iconMap[nodeData.type] || Send
   const colors = colorMap[nodeData.type] || colorMap.action_send_dm
   const isCondition = nodeData.type === 'action_condition'
+  const supportsAlertOutput = !isCondition && nodeData.type !== 'action_send_email'
+  const nodeHelp = getActionNodeHelp(nodeData)
 
   return (
     <div
@@ -69,8 +72,15 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
         style={{ background: colors.bg }}
       >
         <Icon className="h-4 w-4 text-white shrink-0" />
-        <span className="text-sm font-medium text-white truncate">
+        <span className="text-sm font-medium text-white truncate flex-1">
           {nodeData.label}
+        </span>
+        <span
+          title={nodeHelp}
+          className="inline-flex items-center justify-center rounded-full bg-black/20 p-1 text-white/80 shrink-0"
+          aria-label={`${nodeData.label} help`}
+        >
+          <Info className="h-3.5 w-3.5" />
         </span>
       </div>
 
@@ -92,7 +102,7 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
             className="!w-3 !h-3 !border-2"
             style={{ left: '24%', background: '#10b981', borderColor: '#151620' }}
           />
-          {/* Error output (center-bottom) */}
+          {/* Alert output (center-bottom) */}
           <Handle
             type="source"
             position={Position.Bottom}
@@ -110,7 +120,7 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
           />
           <div className="grid grid-cols-3 items-center px-3 pb-1 text-center">
             <span className="text-[10px]" style={{ color: '#34d399' }}>True</span>
-            <span className="text-[10px]" style={{ color: '#fbbf24' }}>Error</span>
+            <span className="text-[10px]" style={{ color: '#fbbf24' }}>Alert</span>
             <span className="text-[10px]" style={{ color: '#f87171' }}>False</span>
           </div>
         </>
@@ -120,23 +130,45 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
             type="source"
             position={Position.Bottom}
             className="!w-3 !h-3 !border-2"
-            style={{ left: '35%', background: colors.handle, borderColor: '#151620' }}
+            style={{ left: supportsAlertOutput ? '35%' : '50%', background: colors.handle, borderColor: '#151620' }}
           />
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="error"
-            className="!w-3 !h-3 !border-2"
-            style={{ left: '65%', background: '#f59e0b', borderColor: '#151620' }}
-          />
-          <div className="flex justify-between px-4 pb-1">
-            <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.6)' }}>Next</span>
-            <span className="text-[10px]" style={{ color: '#fbbf24' }}>Error</span>
-          </div>
+          {supportsAlertOutput && (
+            <Handle
+              type="source"
+              position={Position.Bottom}
+              id="error"
+              className="!w-3 !h-3 !border-2"
+              style={{ left: '65%', background: '#f59e0b', borderColor: '#151620' }}
+            />
+          )}
+          {supportsAlertOutput ? (
+            <div className="flex justify-between px-4 pb-1">
+              <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.6)' }}>Next</span>
+              <span className="text-[10px]" style={{ color: '#fbbf24' }}>Alert</span>
+            </div>
+          ) : (
+            <div className="flex justify-center px-4 pb-1">
+              <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.6)' }}>Next</span>
+            </div>
+          )}
         </>
       )}
     </div>
   )
+}
+
+function getActionNodeHelp(data: WorkflowNodeData): string {
+  const base = data.description || getDescription(data)
+
+  if (data.type === 'action_condition') {
+    return `${data.label}: ${base}\nTrue/False are normal branches.\nAlert runs only if this node fails and should point to Send Email.`
+  }
+
+  if (data.type === 'action_send_email') {
+    return `${data.label}: Sends an email to a custom address.\nUse this as the target of an Alert path for failure notifications.`
+  }
+
+  return `${data.label}: ${base}\nNext continues the normal path.\nAlert runs only if this node fails and should point to Send Email.`
 }
 
 function getDescription(data: WorkflowNodeData): string {

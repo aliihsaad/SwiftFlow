@@ -74,7 +74,7 @@ function normalizeHandleKey(handle: string | null | undefined): string {
 function getEdgeLabelFromSourceHandle(handle: string | null | undefined): string {
   if (handle === 'true') return 'True'
   if (handle === 'false') return 'False'
-  if (handle === 'error') return 'Error'
+  if (handle === 'error') return 'Alert'
   return 'Next'
 }
 
@@ -199,6 +199,10 @@ export function WorkflowCanvas({
       edge.source === sourceId && normalizeHandleKey(edge.sourceHandle) === sourceHandleKey,
     )
 
+    if (sourceHandle === 'error' && targetType !== 'action_send_email') {
+      return { ok: false, reason: 'Alert paths can only connect to a Send Email node.' }
+    }
+
     const isConditionSource = sourceType === 'action_condition'
     if (isConditionSource) {
       if (!['true', 'false', 'error'].includes(sourceHandle || '')) {
@@ -212,10 +216,13 @@ export function WorkflowCanvas({
         return { ok: false, reason: 'Only Condition nodes can use True/False outputs.' }
       }
       if (sourceHandle === 'error' && isTriggerNode(sourceType)) {
-        return { ok: false, reason: 'Trigger nodes do not have an Error output.' }
+        return { ok: false, reason: 'Trigger nodes do not have an Alert output.' }
+      }
+      if (sourceType === 'action_send_email' && sourceHandle === 'error') {
+        return { ok: false, reason: 'Send Email does not support an Alert output.' }
       }
       if (!isTriggerNode(sourceType) && outgoingFromSameHandle.length >= 1) {
-        const handleLabel = sourceHandle === 'error' ? 'Error' : 'Next'
+        const handleLabel = sourceHandle === 'error' ? 'Alert' : 'Next'
         return { ok: false, reason: `"${sourceData.label}" ${handleLabel} output can only connect to one node.` }
       }
     }
@@ -666,8 +673,9 @@ export function WorkflowCanvas({
                 boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
               }}
             >
-              Drag from a node&apos;s bottom dot (Next/Error/True/False) to another node&apos;s top dot to connect. Yellow
-              {' '}`Error` runs only if that node fails. Double-click a connection line to delete only the link.
+              Drag from a node&apos;s bottom dot (Next/Alert/True/False) to another node&apos;s top dot to connect. Yellow
+              {' '}`Alert` runs only if that node fails and should connect to a `Send Email` node. Double-click a
+              {' '}connection line to delete only the link.
             </div>
             <Controls
               className="shadow-md! automation-canvas-controls"

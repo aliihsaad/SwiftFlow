@@ -45,6 +45,114 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
     errors.push({ code: 'TOO_MANY_NODES', message: 'Maximum 25 nodes per workflow.' })
   }
 
+  // 2b. Connection topology/handle validation
+  {
+    const nodeById = new Map(graph.nodes.map((node) => [node.id, node]))
+    const incomingByTarget = new Map<string, number>()
+    const outgoingHandleCounts = new Map<string, number>()
+
+    for (const edge of graph.edges || []) {
+      const sourceNode = nodeById.get(edge.source)
+      const targetNode = nodeById.get(edge.target)
+
+      if (!sourceNode || !targetNode) {
+        errors.push({
+          code: 'INVALID_EDGE',
+          message: 'A connection references a missing node.',
+        })
+        continue
+      }
+
+      if (edge.source === edge.target) {
+        errors.push({
+          code: 'SELF_LOOP',
+          message: 'A node cannot connect to itself.',
+          nodeId: edge.source,
+        })
+      }
+
+      const sourceType = String(sourceNode.data?.type || '')
+      const targetType = String(targetNode.data?.type || '')
+      const sourceHandle = String(edge.sourceHandle || '')
+      const handleKey = `${edge.source}:${sourceHandle || '__default__'}`
+
+      if (isTriggerNode(targetType)) {
+        errors.push({
+          code: 'TRIGGER_HAS_INCOMING',
+          message: 'Trigger nodes cannot have incoming connections.',
+          nodeId: edge.target,
+        })
+      }
+
+      incomingByTarget.set(edge.target, (incomingByTarget.get(edge.target) || 0) + 1)
+
+      if (sourceHandle === 'error' && targetType !== 'action_send_email') {
+        errors.push({
+          code: 'ALERT_TARGET_INVALID',
+          message: 'Alert connections can only target a Send Email node.',
+          nodeId: edge.target,
+        })
+      }
+
+      if (sourceType === 'action_condition') {
+        if (!['true', 'false', 'error'].includes(sourceHandle)) {
+          errors.push({
+            code: 'INVALID_CONDITION_HANDLE',
+            message: 'Condition node outputs must use True, False, or Alert.',
+            nodeId: edge.source,
+          })
+        }
+        outgoingHandleCounts.set(handleKey, (outgoingHandleCounts.get(handleKey) || 0) + 1)
+      } else {
+        if (sourceHandle === 'true' || sourceHandle === 'false') {
+          errors.push({
+            code: 'INVALID_SOURCE_HANDLE',
+            message: 'Only Condition nodes can use True/False outputs.',
+            nodeId: edge.source,
+          })
+        }
+        if (isTriggerNode(sourceType) && sourceHandle === 'error') {
+          errors.push({
+            code: 'TRIGGER_ALERT_INVALID',
+            message: 'Trigger nodes do not have an Alert output.',
+            nodeId: edge.source,
+          })
+        }
+        if (sourceType === 'action_send_email' && sourceHandle === 'error') {
+          errors.push({
+            code: 'SEND_EMAIL_ALERT_INVALID',
+            message: 'Send Email node does not support an Alert output.',
+            nodeId: edge.source,
+          })
+        }
+        if (!isTriggerNode(sourceType)) {
+          outgoingHandleCounts.set(handleKey, (outgoingHandleCounts.get(handleKey) || 0) + 1)
+        }
+      }
+    }
+
+    for (const [targetId, count] of incomingByTarget) {
+      if (count > 1) {
+        errors.push({
+          code: 'MULTIPLE_INCOMING',
+          message: 'Each action node can only have one incoming connection.',
+          nodeId: targetId,
+        })
+      }
+    }
+
+    for (const [key, count] of outgoingHandleCounts) {
+      if (count > 1) {
+        const [nodeId] = key.split(':')
+        errors.push({
+          code: 'MULTIPLE_HANDLE_OUTPUTS',
+          message: 'Each node output handle can only connect to one node.',
+          nodeId,
+        })
+      }
+    }
+  }
+
   // 3. All non-trigger nodes must be reachable from trigger
   if (triggerNodes.length === 1) {
     const reachable = new Set<string>()

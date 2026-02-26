@@ -335,7 +335,7 @@ export function TeamMembersPanel({
                         </Button>
                     </div>
                     <p className="text-xs text-white/45">
-                        This creates a shareable link (7-day expiry). Automatic invite emails are not wired yet.
+                        Sends an invite email and creates a shareable link (7-day expiry). The teammate must sign up or sign in with the same invited email address to accept.
                     </p>
                     {lastInviteLink && (
                         <div className="space-y-2 rounded-lg border border-white/10 bg-[#151620] p-3">

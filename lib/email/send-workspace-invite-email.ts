@@ -77,6 +77,9 @@ export async function sendWorkspaceInviteEmail({
         You were invited to collaborate on this workspace as <strong style="color:#ffffff;">${safeRole}</strong>.
       </p>
       ${inviterLine}
+      <p style="margin:0 0 12px;color:#d4d4d8;font-size:14px;line-height:1.5;">
+        Use the same email address (<strong style="color:#ffffff;">${escapeHtml(to)}</strong>) to sign up or sign in before accepting the invite.
+      </p>
       <p style="margin:0 0 18px;color:#a1a1aa;font-size:13px;">This invite expires on ${safeExpiryLabel}.</p>
       <a href="${safeInviteUrl}" style="display:inline-block;padding:11px 16px;border-radius:10px;background:linear-gradient(135deg,#22d3ee,#fb7185);color:#fff;text-decoration:none;font-size:14px;font-weight:700;">Accept Invitation</a>
     </div>
@@ -92,6 +95,7 @@ export async function sendWorkspaceInviteEmail({
     const text = [
         `You were invited to join ${workspaceName} as ${role}.`,
         inviterEmail ? `Invited by: ${inviterEmail}` : null,
+        `Sign up or sign in with this email to accept: ${to}`,
         `Accept invite: ${inviteUrl}`,
         `Expires: ${expiryLabel}`,
     ].filter(Boolean).join("\n")

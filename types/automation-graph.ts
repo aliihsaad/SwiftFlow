@@ -103,7 +103,7 @@ export interface ActionConditionConfig {
 }
 
 export interface ActionSendEmailConfig {
-  recipient_type: 'commenter' | 'custom'
+  recipient_type?: 'custom'
   recipient_email?: string
   subject: string
   body: string
@@ -320,7 +320,7 @@ export const NODE_CATALOG: NodeCatalogEntry[] = [
   {
     type: 'action_send_email',
     label: 'Send Email',
-    description: 'Send an email notification',
+    description: 'Send an email to a custom address (alerts/notifications)',
     category: 'action',
     icon: 'MailPlus',
     color: '#8B5CF6',

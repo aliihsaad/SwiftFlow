@@ -915,30 +915,31 @@ function ActionConditionFields({ config, onUpdate }: { config: ActionConditionCo
 }
 
 function ActionEmailFields({ config, onUpdate }: { config: ActionSendEmailConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+  useEffect(() => {
+    // Migrate legacy node configs that used a non-sendable "commenter" recipient option.
+    if (config.recipient_type !== 'custom') {
+      onUpdate({ recipient_type: 'custom' })
+    }
+  }, [config.recipient_type, onUpdate])
+
   return (
     <>
-      <div>
-        <Label className="text-xs">Recipient</Label>
-        <select
-          value={config.recipient_type || 'custom'}
-          onChange={(e) => onUpdate({ recipient_type: e.target.value })}
-          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-        >
-          <option value="custom">Custom Email</option>
-          <option value="commenter">Commenter</option>
-        </select>
+      <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+        <Label className="text-xs">Recipient Type</Label>
+        <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+          This node sends to a custom email address only. Use it for internal alerts, error notifications, and other custom emails.
+        </p>
       </div>
-      {config.recipient_type === 'custom' && (
-        <div>
-          <Label className="text-xs">Email Address</Label>
-          <Input
-            type="email"
-            value={config.recipient_email || ''}
-            onChange={(e) => onUpdate({ recipient_email: e.target.value })}
-            className="mt-1"
-          />
-        </div>
-      )}
+      <div>
+        <Label className="text-xs">Email Address</Label>
+        <Input
+          type="email"
+          value={config.recipient_email || ''}
+          onChange={(e) => onUpdate({ recipient_email: e.target.value, recipient_type: 'custom' })}
+          placeholder="alerts@company.com"
+          className="mt-1"
+        />
+      </div>
       <div>
         <Label className="text-xs">Subject</Label>
         <Input

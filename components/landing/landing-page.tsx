@@ -9,6 +9,7 @@ import {
     useInView,
 } from "framer-motion"
 import Link from "next/link"
+import Image from "next/image"
 import {
     Zap,
     Sparkles,
@@ -285,15 +286,13 @@ function Navbar() {
             <div className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
                 {/* Logo */}
                 <Link href="/" className="flex items-center gap-2.5 group">
-                    <div
-                        className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-300 group-hover:scale-110"
-                        style={{
-                            background: "linear-gradient(135deg, #f59e0b 0%, #fb7185 55%, #22d3ee 100%)",
-                            boxShadow: "0 0 24px rgba(34,211,238,0.18)",
-                        }}
-                    >
-                        <Zap className="h-4 w-4 text-white" />
-                    </div>
+                    <Image
+                        src="/logo.png"
+                        alt="SwiftFlow Logo"
+                        width={32}
+                        height={32}
+                        className="rounded-lg transition-all duration-300 group-hover:scale-110 shadow-[0_0_24px_rgba(34,211,238,0.18)]"
+                    />
                     <span className="font-bold text-white tracking-tight">SwiftFlow</span>
                 </Link>
 
@@ -744,7 +743,7 @@ function Hero() {
                         animate={{ x: [0, 6, 0] }}
                         transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
                     >
-                        <ChevronDown className="h-4 w-4 rotate-[-90deg]" />
+                        <ChevronDown className="h-4 w-4 -rotate-90" />
                     </motion.div>
                 </motion.div>
             </motion.div>
@@ -1631,12 +1630,13 @@ function Footer() {
                 <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-[1.2fr_0.8fr_0.8fr_1fr]">
                     <div>
                         <div className="flex items-center gap-2.5 mb-4">
-                            <div
-                                className="flex h-8 w-8 items-center justify-center rounded-lg"
-                                style={{ background: "linear-gradient(135deg, #f59e0b, #fb7185 55%, #22d3ee)" }}
-                            >
-                                <Zap className="h-4 w-4 text-white" />
-                            </div>
+                            <Image
+                                src="/logo.png"
+                                alt="SwiftFlow Logo"
+                                width={32}
+                                height={32}
+                                className="rounded-lg"
+                            />
                             <span className="text-base font-bold" style={{ color: "rgba(255,255,255,0.9)" }}>
                                 SwiftFlow
                             </span>

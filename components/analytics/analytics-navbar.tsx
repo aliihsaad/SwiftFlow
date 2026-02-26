@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Sparkles } from "lucide-react"
@@ -23,7 +24,13 @@ export function AnalyticsNavbar() {
                 <div className="flex items-center gap-8">
                     {/* Logo */}
                     <Link href="/dashboard" className="flex items-center gap-2">
-                        <Sparkles className="h-5 w-5 text-primary" />
+                        <Image
+                            src="/logo.png"
+                            alt="SwiftFlow Logo"
+                            width={24}
+                            height={24}
+                            className="rounded-md"
+                        />
                         <span className="text-lg font-bold bg-linear-to-r from-primary to-purple-600 bg-clip-text text-transparent">
                             SwiftFlow
                         </span>

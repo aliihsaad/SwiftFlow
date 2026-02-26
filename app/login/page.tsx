@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -182,15 +183,13 @@ export default function LoginPage() {
 
                 {/* Brand */}
                 <div className="flex flex-col items-center mb-8">
-                    <div
-                        className="flex h-12 w-12 items-center justify-center rounded-xl mb-5 shadow-lg"
-                        style={{
-                            background: 'linear-gradient(135deg, #f59e0b 0%, #fb7185 55%, #22d3ee 100%)',
-                            boxShadow: '0 0 30px rgba(34,211,238,0.22), 0 4px 12px rgba(0,0,0,0.4)',
-                        }}
-                    >
-                        <Zap className="h-6 w-6 text-white" />
-                    </div>
+                    <Image
+                        src="/logo.png"
+                        alt="SwiftFlow Logo"
+                        width={48}
+                        height={48}
+                        className="mb-5 rounded-xl shadow-[0_0_30px_rgba(34,211,238,0.22),0_4px_12px_rgba(0,0,0,0.4)]"
+                    />
                     <h1
                         className="text-2xl font-bold tracking-tight"
                         style={{ color: AUTH_THEME.text }}
@@ -240,13 +239,13 @@ export default function LoginPage() {
                         >
                             <TabsTrigger
                                 value="signin"
-                                className="rounded-md text-xs font-semibold uppercase tracking-wider transition-all duration-200 data-[state=inactive]:text-white/30 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-white/10 data-[state=active]:bg-white/[0.05]"
+                                className="rounded-md text-xs font-semibold uppercase tracking-wider transition-all duration-200 data-[state=inactive]:text-white/30 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-white/10 data-[state=active]:bg-white/5"
                             >
                                 Sign In
                             </TabsTrigger>
                             <TabsTrigger
                                 value="signup"
-                                className="rounded-md text-xs font-semibold uppercase tracking-wider transition-all duration-200 data-[state=inactive]:text-white/30 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-white/10 data-[state=active]:bg-white/[0.05]"
+                                className="rounded-md text-xs font-semibold uppercase tracking-wider transition-all duration-200 data-[state=inactive]:text-white/30 data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-white/10 data-[state=active]:bg-white/5"
                             >
                                 Sign Up
                             </TabsTrigger>
@@ -285,7 +284,7 @@ export default function LoginPage() {
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         disabled={isLoading}
-                                        className="h-10 border-0 rounded-lg text-white placeholder:text-white/20 focus-visible:ring-[2px]"
+                                        className="h-10 border-0 rounded-lg text-white placeholder:text-white/20 focus-visible:ring-2"
                                         style={{
                                             background: 'rgba(255,255,255,0.06)',
                                             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
@@ -309,7 +308,7 @@ export default function LoginPage() {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         disabled={isLoading}
-                                        className="h-10 border-0 rounded-lg text-white placeholder:text-white/20 focus-visible:ring-[2px]"
+                                        className="h-10 border-0 rounded-lg text-white placeholder:text-white/20 focus-visible:ring-2"
                                         style={{
                                             background: 'rgba(255,255,255,0.06)',
                                             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
@@ -379,7 +378,7 @@ export default function LoginPage() {
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         disabled={isLoading}
-                                        className="h-10 border-0 rounded-lg text-white placeholder:text-white/20 focus-visible:ring-[2px]"
+                                        className="h-10 border-0 rounded-lg text-white placeholder:text-white/20 focus-visible:ring-2"
                                         style={{
                                             background: 'rgba(255,255,255,0.06)',
                                             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
@@ -404,7 +403,7 @@ export default function LoginPage() {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         disabled={isLoading}
-                                        className="h-10 border-0 rounded-lg text-white placeholder:text-white/20 focus-visible:ring-[2px]"
+                                        className="h-10 border-0 rounded-lg text-white placeholder:text-white/20 focus-visible:ring-2"
                                         style={{
                                             background: 'rgba(255,255,255,0.06)',
                                             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
@@ -429,7 +428,7 @@ export default function LoginPage() {
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}
                                         disabled={isLoading}
-                                        className="h-10 border-0 rounded-lg text-white placeholder:text-white/20 focus-visible:ring-[2px]"
+                                        className="h-10 border-0 rounded-lg text-white placeholder:text-white/20 focus-visible:ring-2"
                                         style={{
                                             background: 'rgba(255,255,255,0.06)',
                                             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',

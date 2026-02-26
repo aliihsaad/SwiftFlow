@@ -276,6 +276,20 @@ function Navbar() {
         return () => window.removeEventListener("scroll", onScroll)
     }, [])
 
+    // Close mobile menu on route change / resize
+    useEffect(() => {
+        if (mobileOpen) document.body.style.overflow = 'hidden'
+        else document.body.style.overflow = ''
+        return () => { document.body.style.overflow = '' }
+    }, [mobileOpen])
+
+    const navLinks = [
+        { label: "Features", href: "#phases" },
+        { label: "How it works", href: "#how-it-works" },
+        { label: "FAQ", href: "#faq" },
+        { label: "Pricing", href: "/pricing" },
+    ]
+
     return (
         <motion.nav
             initial={{ y: -80, opacity: 0 }}
@@ -283,15 +297,15 @@ function Navbar() {
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
             style={{
-                background: scrolled ? "rgba(11,11,15,0.82)" : "transparent",
-                backdropFilter: scrolled ? "blur(20px)" : "none",
-                WebkitBackdropFilter: scrolled ? "blur(20px)" : "none",
+                background: (scrolled || mobileOpen) ? "rgba(0,0,0,0.95)" : "transparent",
+                backdropFilter: (scrolled || mobileOpen) ? "blur(20px)" : "none",
+                WebkitBackdropFilter: (scrolled || mobileOpen) ? "blur(20px)" : "none",
                 borderBottom: scrolled ? "1px solid rgba(255,255,255,0.05)" : "1px solid transparent",
             }}
         >
             <div className="mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
                 {/* Logo */}
-                <Link href="/" className="flex items-center gap-2.5 group">
+                <Link href="/" className="flex items-center gap-2.5 group" onClick={() => setMobileOpen(false)}>
                     <Image
                         src="/logo.png"
                         alt="SwiftFlow Logo"
@@ -304,47 +318,28 @@ function Navbar() {
 
                 {/* Desktop nav links */}
                 <div className="hidden md:flex items-center gap-8">
-                    {[
-                        { label: "Features", href: "#features" },
-                        { label: "How it works", href: "#how-it-works" },
-                        { label: "FAQ", href: "#faq" },
-                    ].map((item) => (
-                        <a
+                    {navLinks.map((item) => (
+                        <Link
                             key={item.label}
                             href={item.href}
-                            className="text-sm font-medium transition-colors duration-200"
-                            style={{ color: "rgba(255,255,255,0.45)" }}
-                            onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.9)")}
-                            onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}
+                            className="text-sm font-medium transition-colors duration-200 text-white/45 hover:text-white/90"
                         >
                             {item.label}
-                        </a>
+                        </Link>
                     ))}
-                    <Link
-                        href="/pricing"
-                        className="text-sm font-medium transition-colors duration-200"
-                        style={{ color: "rgba(255,255,255,0.45)" }}
-                        onMouseEnter={e => (e.currentTarget.style.color = "rgba(255,255,255,0.9)")}
-                        onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.45)")}
-                    >
-                        Pricing
-                    </Link>
                 </div>
 
-                {/* CTA buttons */}
+                {/* Right side: CTA + Hamburger */}
                 <div className="flex items-center gap-3">
                     <Link
                         href="/login"
-                        className="hidden md:inline-flex items-center text-sm font-medium px-4 py-2 rounded-lg transition-all duration-200"
-                        style={{ color: "rgba(255,255,255,0.6)", border: "1px solid rgba(255,255,255,0.1)" }}
-                        onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.95)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)" }}
-                        onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.6)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)" }}
+                        className="hidden md:inline-flex items-center text-sm font-medium px-4 py-2 rounded-lg transition-all duration-200 text-white/60 hover:text-white/95 border border-white/10 hover:border-white/20"
                     >
                         Sign In
                     </Link>
                     <Link
                         href="/login"
-                        className="inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg text-white transition-all duration-200 hover:opacity-90 active:scale-95"
+                        className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg text-white transition-all duration-200 hover:opacity-90 active:scale-95"
                         style={{
                             background: "linear-gradient(135deg, #f59e0b 0%, #fb7185 55%, #22d3ee 100%)",
                             boxShadow: "0 6px 22px rgba(34,211,238,0.18)",
@@ -353,8 +348,58 @@ function Navbar() {
                         Get Started
                         <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
+
+                    {/* Hamburger */}
+                    <button
+                        type="button"
+                        className="md:hidden flex flex-col justify-center items-center w-10 h-10 rounded-lg border border-white/10 gap-1.5 transition-colors hover:bg-white/5"
+                        onClick={() => setMobileOpen(v => !v)}
+                        aria-label="Toggle menu"
+                    >
+                        <span className={`block w-5 h-0.5 bg-white transition-all duration-300 ${mobileOpen ? 'rotate-45 translate-y-2' : ''}`} />
+                        <span className={`block w-5 h-0.5 bg-white transition-all duration-300 ${mobileOpen ? 'opacity-0' : ''}`} />
+                        <span className={`block w-5 h-0.5 bg-white transition-all duration-300 ${mobileOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+                    </button>
                 </div>
             </div>
+
+            {/* Mobile Menu */}
+            <motion.div
+                initial={false}
+                animate={{ height: mobileOpen ? 'auto' : 0, opacity: mobileOpen ? 1 : 0 }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className="md:hidden overflow-hidden border-t border-white/5"
+            >
+                <div className="px-6 py-6 space-y-1">
+                    {navLinks.map((item) => (
+                        <Link
+                            key={item.label}
+                            href={item.href}
+                            onClick={() => setMobileOpen(false)}
+                            className="block px-4 py-3 rounded-xl text-base font-bold text-white/60 hover:text-white hover:bg-white/5 transition-colors"
+                        >
+                            {item.label}
+                        </Link>
+                    ))}
+                    <div className="pt-4 border-t border-white/5 mt-4 flex flex-col gap-3">
+                        <Link
+                            href="/login"
+                            onClick={() => setMobileOpen(false)}
+                            className="block text-center py-3 rounded-xl text-sm font-bold text-white/70 border border-white/10 hover:bg-white/5 transition-colors"
+                        >
+                            Sign In
+                        </Link>
+                        <Link
+                            href="/login"
+                            onClick={() => setMobileOpen(false)}
+                            className="block text-center py-3 rounded-xl text-sm font-bold text-white transition-all"
+                            style={{ background: "linear-gradient(135deg, #f59e0b 0%, #fb7185 55%, #22d3ee 100%)" }}
+                        >
+                            Get Started Free
+                        </Link>
+                    </div>
+                </div>
+            </motion.div>
         </motion.nav>
     )
 }
@@ -559,7 +604,7 @@ function Hero() {
                         initial={{ opacity: 0, y: 40 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.9, delay: 0.1, ease: EASE }}
-                        className="text-6xl md:text-8xl lg:text-[7.5rem] font-black tracking-tighter leading-[0.9] mb-8 text-white drop-shadow-2xl"
+                        className="text-4xl sm:text-6xl md:text-8xl lg:text-[7.5rem] font-black tracking-tighter leading-[0.9] mb-8 text-white drop-shadow-2xl"
                     >
                         Create. Schedule. <br />
                         <span className="text-transparent bg-clip-text bg-linear-to-r from-cyan-400 via-fuchsia-500 to-amber-400">
@@ -571,7 +616,7 @@ function Hero() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.2, ease: EASE }}
-                        className="text-lg md:text-2xl text-white/50 max-w-2xl font-medium mb-12"
+                        className="text-base md:text-2xl text-white/50 max-w-2xl font-medium mb-8 md:mb-12 px-2 md:px-0"
                     >
                         The ultimate execution workspace for modern creators. <br className="hidden md:block" />
                         Stop bouncing between tabs. Start scaling your brand.
@@ -581,17 +626,23 @@ function Hero() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.3, ease: EASE }}
-                        className="flex items-center gap-4"
+                        className="flex flex-col sm:flex-row items-center gap-3"
                     >
                         <MagneticButton>
                             <Link
                                 href="/login"
-                                className="group inline-flex items-center gap-2 px-8 py-4 rounded-xl text-lg font-bold text-black bg-white transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_40px_rgba(255,255,255,0.3)]"
+                                className="group inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-4 rounded-xl text-base sm:text-lg font-bold text-black bg-white transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_40px_rgba(255,255,255,0.3)]"
                             >
                                 Start for Free
-                                <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
+                                <ArrowRight className="h-4 sm:h-5 w-4 sm:w-5 transition-transform duration-300 group-hover:translate-x-1" />
                             </Link>
                         </MagneticButton>
+                        <Link
+                            href="#phases"
+                            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white/60 hover:text-white transition-colors border border-white/10 hover:border-white/20"
+                        >
+                            See Features
+                        </Link>
                     </motion.div>
                 </motion.div>
 
@@ -1096,74 +1147,133 @@ function FeatureShowcase() {
     }, [activeIndex])
 
     return (
-        <section ref={containerRef} className="relative bg-[#000000]" style={{ height: "500vh" }}>
-            <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 bg-[#000000] z-0" />
+        <>
+            {/* Desktop: Sticky scroll-jacking version */}
+            <section id="phases" ref={containerRef} className="relative bg-[#000000] hidden md:block" style={{ height: "500vh" }}>
+                <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden">
+                    <div className="absolute inset-0 bg-[#000000] z-0" />
 
-                {/* Huge Background Typography */}
-                <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none z-0 overflow-hidden opacity-30 mix-blend-screen">
-                    {/* Using WebkitTextStroke for the outline effect */}
-                    <h2 className="text-[10rem] md:text-[15rem] font-black text-transparent whitespace-nowrap" style={{ WebkitTextStroke: "2px rgba(255,255,255,0.1)", WebkitTextFillColor: "transparent" }}>
-                        {SHOWCASE_ITEMS[currentIdx]?.title.toUpperCase()}
-                    </h2>
-                </div>
+                    {/* Huge Background Typography */}
+                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none z-0 overflow-hidden opacity-30 mix-blend-screen">
+                        <h2 className="text-[10rem] md:text-[15rem] font-black text-transparent whitespace-nowrap" style={{ WebkitTextStroke: "2px rgba(255,255,255,0.1)", WebkitTextFillColor: "transparent" }}>
+                            {SHOWCASE_ITEMS[currentIdx]?.title.toUpperCase()}
+                        </h2>
+                    </div>
 
-                <div className="max-w-7xl w-full mx-auto px-6 grid md:grid-cols-2 gap-16 relative z-10 h-full">
+                    <div className="max-w-7xl w-full mx-auto px-6 grid md:grid-cols-2 gap-16 relative z-10 h-full">
 
-                    {/* Left Side: Changing Visual */}
-                    <div className="h-full w-full flex flex-col justify-center order-2 md:order-1 perspective-1000">
-                        <div className="h-[50vh] md:h-[60vh] w-full rounded-2xl relative">
-                            {SHOWCASE_ITEMS.map((item, idx) => (
-                                <div
-                                    key={item.id}
-                                    className="absolute inset-0 transition-all duration-700 pointer-events-none"
-                                    style={{
-                                        opacity: currentIdx === idx ? 1 : 0,
-                                        transform: `scale(${currentIdx === idx ? 1 : 0.95}) rotateY(${currentIdx === idx ? 0 : -5}deg)`,
-                                        zIndex: currentIdx === idx ? 10 : 0,
-                                        transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)"
-                                    }}
-                                >
-                                    {/* Enable pointer events on active item so user can interact if needed */}
-                                    <div className="w-full h-full" style={{ pointerEvents: currentIdx === idx ? 'auto' : 'none' }}>
-                                        {item.ui}
+                        {/* Left Side: Changing Visual */}
+                        <div className="h-full w-full flex flex-col justify-center order-2 md:order-1 perspective-1000">
+                            <div className="h-[50vh] md:h-[60vh] w-full rounded-2xl relative">
+                                {SHOWCASE_ITEMS.map((item, idx) => (
+                                    <div
+                                        key={item.id}
+                                        className="absolute inset-0 transition-all duration-700 pointer-events-none"
+                                        style={{
+                                            opacity: currentIdx === idx ? 1 : 0,
+                                            transform: `scale(${currentIdx === idx ? 1 : 0.95}) rotateY(${currentIdx === idx ? 0 : -5}deg)`,
+                                            zIndex: currentIdx === idx ? 10 : 0,
+                                            transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)"
+                                        }}
+                                    >
+                                        <div className="w-full h-full" style={{ pointerEvents: currentIdx === idx ? 'auto' : 'none' }}>
+                                            {item.ui}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
-                    </div>
 
-                    {/* Right Side: Text Scrubbing inside bounded container */}
-                    <div className="h-[50vh] md:h-full flex flex-col justify-center order-1 md:order-2">
-                        <div className="relative h-[40vh] md:h-[50vh] w-full overflow-hidden flex flex-col justify-center">
-                            {SHOWCASE_ITEMS.map((item, idx) => (
-                                <div
-                                    key={item.id}
-                                    className="absolute inset-x-0 transition-all duration-700 flex flex-col justify-center max-w-md pointer-events-none"
-                                    style={{
-                                        top: "50%",
-                                        opacity: currentIdx === idx ? 1 : 0,
-                                        transform: `translateY(-50%) translateY(${(idx - currentIdx) * 80}px) scale(${currentIdx === idx ? 1 : 0.98})`,
-                                        transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)"
-                                    }}
-                                >
-                                    <p className="text-sm font-bold uppercase tracking-[0.2em] mb-3 text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-fuchsia-500">
-                                        0{idx + 1} // Phase
-                                    </p>
-                                    <h3 className="text-4xl md:text-5xl font-black text-white mb-6 leading-tight">
-                                        {item.title}
-                                    </h3>
-                                    <p className="text-xl text-white/50 leading-relaxed font-medium">
-                                        {item.desc}
-                                    </p>
-                                </div>
-                            ))}
+                        {/* Right Side: Text Scrubbing */}
+                        <div className="h-[50vh] md:h-full flex flex-col justify-center order-1 md:order-2">
+                            <div className="relative h-[40vh] md:h-[50vh] w-full overflow-hidden flex flex-col justify-center">
+                                {SHOWCASE_ITEMS.map((item, idx) => (
+                                    <div
+                                        key={item.id}
+                                        className="absolute inset-x-0 transition-all duration-700 flex flex-col justify-center max-w-md pointer-events-none"
+                                        style={{
+                                            top: "50%",
+                                            opacity: currentIdx === idx ? 1 : 0,
+                                            transform: `translateY(-50%) translateY(${(idx - currentIdx) * 80}px) scale(${currentIdx === idx ? 1 : 0.98})`,
+                                            transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)"
+                                        }}
+                                    >
+                                        <p className="text-sm font-bold uppercase tracking-[0.2em] mb-3 text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-fuchsia-500">
+                                            0{idx + 1} // Phase
+                                        </p>
+                                        <h3 className="text-4xl md:text-5xl font-black text-white mb-6 leading-tight">
+                                            {item.title}
+                                        </h3>
+                                        <p className="text-xl text-white/50 leading-relaxed font-medium">
+                                            {item.desc}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    </div>
 
+                    </div>
                 </div>
-            </div>
-        </section>
+            </section>
+
+            {/* Mobile: Simple stacked tab cards */}
+            <section id="phases" className="relative bg-black md:hidden py-20 px-5">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-cyan-500/10 blur-[100px] rounded-full pointer-events-none" />
+                <div className="text-center mb-10 relative z-10">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold uppercase tracking-widest mb-5">
+                        <Sparkles className="w-3.5 h-3.5" /> Phases
+                    </div>
+                    <h2 className="text-3xl font-black text-white tracking-tight">Everything you need.<br /><span className="text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-fuchsia-500">Built in.</span></h2>
+                </div>
+
+                {/* Tab buttons */}
+                <div className="flex gap-2 overflow-x-auto scrollbar-none pb-3 mb-6 relative z-10">
+                    {SHOWCASE_ITEMS.map((item, idx) => (
+                        <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setCurrentIdx(idx)}
+                            className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${currentIdx === idx
+                                ? 'bg-white text-black'
+                                : 'bg-white/5 border border-white/10 text-white/50'
+                                }`}
+                        >
+                            {item.title}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Active card UI */}
+                <div className="relative z-10 h-[55vh] w-full rounded-2xl mb-6 overflow-hidden border border-white/10">
+                    {SHOWCASE_ITEMS.map((item, idx) => (
+                        <div
+                            key={item.id}
+                            className="absolute inset-0 transition-all duration-500"
+                            style={{
+                                opacity: currentIdx === idx ? 1 : 0,
+                                pointerEvents: currentIdx === idx ? 'auto' : 'none',
+                                transform: `scale(${currentIdx === idx ? 1 : 0.97})`,
+                            }}
+                        >
+                            {item.ui}
+                        </div>
+                    ))}
+                </div>
+
+                {/* Active description */}
+                {SHOWCASE_ITEMS.map((item, idx) => (
+                    currentIdx === idx && (
+                        <div key={item.id} className="text-center relative z-10">
+                            <p className="text-xs font-bold uppercase tracking-[0.2em] mb-2 text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-fuchsia-500">
+                                0{idx + 1} // Phase
+                            </p>
+                            <h3 className="text-2xl font-black text-white mb-3">{item.title}</h3>
+                            <p className="text-sm text-white/50 leading-relaxed font-medium max-w-sm mx-auto">{item.desc}</p>
+                        </div>
+                    )
+                ))}
+            </section>
+        </>
     )
 }
 
@@ -1298,7 +1408,7 @@ function AutomationCanvasLandingMock() {
 
 function AutomationPlaybook() {
     return (
-        <section className="relative py-32 overflow-hidden bg-[#000000]">
+        <section className="relative py-16 md:py-32 overflow-hidden bg-[#000000]">
             <div className="absolute top-0 right-1/4 w-[800px] h-[800px] bg-cyan-500/10 blur-[150px] rounded-full pointer-events-none mix-blend-screen opacity-50" />
             <div className="absolute bottom-0 left-1/4 w-[600px] h-[600px] bg-fuchsia-500/10 blur-[120px] rounded-full pointer-events-none mix-blend-screen opacity-50" />
 
@@ -1307,7 +1417,7 @@ function AutomationPlaybook() {
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold uppercase tracking-widest mb-6">
                         <Workflow className="w-3.5 h-3.5" /> Workflow Engine
                     </div>
-                    <h2 className="text-5xl md:text-7xl font-black tracking-tight text-white leading-[1.1]">
+                    <h2 className="text-3xl sm:text-5xl md:text-7xl font-black tracking-tight text-white leading-[1.1]">
                         What scaleups can automate <span className="text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-fuchsia-500">today.</span>
                     </h2>
                     <p className="mt-8 text-lg sm:text-xl leading-relaxed text-white/50 font-medium max-w-2xl mx-auto">
@@ -1363,7 +1473,7 @@ function AutomationPlaybook() {
 ───────────────────────────────── */
 function HowItWorks() {
     return (
-        <section id="how-it-works" className="relative py-32 overflow-hidden bg-black">
+        <section id="how-it-works" className="relative py-16 md:py-32 overflow-hidden bg-black">
             {/* Background elements */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-px bg-linear-to-r from-transparent via-fuchsia-500/50 to-transparent" />
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-fuchsia-500/10 blur-[120px] rounded-full pointer-events-none" />
@@ -1373,10 +1483,10 @@ function HowItWorks() {
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-white/70 text-xs font-bold uppercase tracking-widest mb-6">
                         Rapid Onboarding
                     </div>
-                    <h2 className="text-5xl md:text-7xl font-black tracking-tight text-white mb-6">
+                    <h2 className="text-3xl sm:text-5xl md:text-7xl font-black tracking-tight text-white mb-6">
                         Up and running in <span className="text-transparent bg-clip-text bg-linear-to-r from-fuchsia-500 to-amber-500">minutes.</span>
                     </h2>
-                    <p className="mt-4 text-xl max-w-2xl mx-auto leading-relaxed text-white/50 font-medium">
+                    <p className="mt-4 text-base md:text-xl max-w-2xl mx-auto leading-relaxed text-white/50 font-medium">
                         No massive migration plans. Just connect your accounts, setup your brand voice, and let SwiftFlow take the wheel.
                     </p>
                 </Reveal>
@@ -1471,7 +1581,7 @@ function CTABanner() {
     const inView = useInView(ref, { once: true, margin: "-100px" })
 
     return (
-        <section ref={ref} className="relative py-32 overflow-hidden bg-black">
+        <section ref={ref} className="relative py-16 md:py-32 overflow-hidden bg-black">
             <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-cyan-500/10 blur-[150px] pointer-events-none rounded-full mix-blend-screen opacity-50" />
             <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-fuchsia-500/10 blur-[150px] pointer-events-none rounded-full mix-blend-screen opacity-50" />
 
@@ -1487,7 +1597,7 @@ function CTABanner() {
                             <Zap className="h-3.5 w-3.5" /> Start Executing
                         </div>
 
-                        <h2 className="text-5xl md:text-6xl font-black tracking-tight leading-[1.05] text-white mb-8">
+                        <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.05] text-white mb-8">
                             Scale your impact.<br />
                             <span className="text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-fuchsia-500">Not headcount.</span>
                         </h2>
@@ -1592,7 +1702,7 @@ function CTABanner() {
 function FAQSection() {
     const [openIndex, setOpenIndex] = useState<number>(0)
     return (
-        <section id="faq" className="relative py-32 overflow-hidden bg-black">
+        <section id="faq" className="relative py-16 md:py-32 overflow-hidden bg-black">
             <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-fuchsia-500/10 blur-[120px] rounded-full pointer-events-none opacity-50 mix-blend-screen" />
 
             <div className="mx-auto max-w-7xl px-6 relative z-10">
@@ -1602,10 +1712,10 @@ function FAQSection() {
                             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold uppercase tracking-widest mb-6">
                                 <HelpCircle className="w-3.5 h-3.5" /> FAQ
                             </div>
-                            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
+                            <h2 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight">
                                 Answers before you commit.
                             </h2>
-                            <p className="mt-6 text-lg leading-relaxed text-white/50 font-medium max-w-md">
+                            <p className="mt-6 text-base leading-relaxed text-white/50 font-medium max-w-md">
                                 Covering everything from API permissions, platform connections, to edge cases.
                             </p>
                             <div className="mt-8">

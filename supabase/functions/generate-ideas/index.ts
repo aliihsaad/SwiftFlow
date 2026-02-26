@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -65,7 +66,7 @@ serve(async (req) => {
             console.error('Brand profile error:', brandError)
         }
 
-        const dbKey = settings?.gemini_api_key
+        const dbKey = await decryptSecretIfNeeded(settings?.gemini_api_key)
         const envKey = Deno.env.get('GEMINI_API_KEY')
         const apiKey = dbKey || envKey
 

@@ -2,11 +2,37 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
+import { decryptSecretIfNeeded, encryptSecretIfNeeded, isEncryptedSecret, normalizeOptionalSecretInput } from '@/lib/secret-crypto';
 
 /**
  * GET /api/workspace/settings
  * Fetch workspace settings
  */
+
+function decryptWorkspaceSettingsSecrets<T extends Record<string, unknown>>(row: T): T {
+    return {
+        ...row,
+        gemini_api_key: decryptSecretIfNeeded(typeof row.gemini_api_key === 'string' ? row.gemini_api_key : null),
+        openai_api_key: decryptSecretIfNeeded(typeof row.openai_api_key === 'string' ? row.openai_api_key : null),
+    }
+}
+
+function buildWorkspaceSettingsUpdatePayload(settings: Record<string, unknown>) {
+    const payload: Record<string, unknown> = { ...settings }
+
+    if ('gemini_api_key' in settings) {
+        payload.gemini_api_key = encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.gemini_api_key))
+    }
+    if ('openai_api_key' in settings) {
+        payload.openai_api_key = encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.openai_api_key))
+    }
+    if (typeof payload.ai_model_name === 'string') {
+        payload.ai_model_name = payload.ai_model_name.trim()
+    }
+
+    return payload
+}
+
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const workspaceId = searchParams.get('workspaceId');
@@ -51,7 +77,25 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        return NextResponse.json(data);
+        const needsMigration =
+            (typeof data.gemini_api_key === 'string' && data.gemini_api_key.length > 0 && !isEncryptedSecret(data.gemini_api_key)) ||
+            (typeof data.openai_api_key === 'string' && data.openai_api_key.length > 0 && !isEncryptedSecret(data.openai_api_key))
+
+        if (needsMigration) {
+            try {
+                await supabaseAdmin
+                    .from('workspace_settings')
+                    .update({
+                        gemini_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(data.gemini_api_key)),
+                        openai_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(data.openai_api_key)),
+                    })
+                    .eq('workspace_id', workspaceId)
+            } catch (migrationError) {
+                console.warn('[WORKSPACE_SETTINGS] Secret lazy-migration failed:', migrationError)
+            }
+        }
+
+        return NextResponse.json(decryptWorkspaceSettingsSecrets(data));
     } catch (error) {
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
@@ -101,6 +145,7 @@ export async function PUT(request: NextRequest) {
             .eq('workspace_id', workspaceId)
             .maybeSingle();
 
+        const sanitizedSettings = buildWorkspaceSettingsUpdatePayload(settings as Record<string, unknown>);
         let result;
 
         if (existing) {
@@ -108,7 +153,7 @@ export async function PUT(request: NextRequest) {
             result = await supabaseAdmin
                 .from('workspace_settings')
                 .update({
-                    ...settings,
+                    ...sanitizedSettings,
                     updated_at: new Date().toISOString()
                 })
                 .eq('workspace_id', workspaceId)
@@ -120,7 +165,7 @@ export async function PUT(request: NextRequest) {
                 .from('workspace_settings')
                 .insert({
                     workspace_id: workspaceId,
-                    ...settings
+                    ...sanitizedSettings
                 })
                 .select()
                 .single();
@@ -134,7 +179,7 @@ export async function PUT(request: NextRequest) {
             );
         }
 
-        return NextResponse.json(result.data);
+        return NextResponse.json(decryptWorkspaceSettingsSecrets(result.data));
     } catch (error) {
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {

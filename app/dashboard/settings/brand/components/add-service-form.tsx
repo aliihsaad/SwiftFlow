@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { createClient } from "@/utils/supabase/client"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -39,7 +38,6 @@ export function AddServiceForm({ workspaceId, onSuccess, initialData, trigger }:
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const { toast } = useToast()
-    const supabase = createClient()
 
     // Form states
     const [name, setName] = useState(initialData?.service_name || "")
@@ -56,7 +54,6 @@ export function AddServiceForm({ workspaceId, onSuccess, initialData, trigger }:
 
         try {
             const serviceData = {
-                workspace_id: workspaceId,
                 service_name: name,
                 website,
                 email,
@@ -66,23 +63,24 @@ export function AddServiceForm({ workspaceId, onSuccess, initialData, trigger }:
                 api_key: apiKey
             }
 
-            let error
+            let response: Response
             if (initialData) {
-                // Update existing service
-                const result = await supabase
-                    .from('external_services')
-                    .update(serviceData)
-                    .eq('id', initialData.id)
-                error = result.error
+                response = await fetch(`/api/external-services/${initialData.id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ workspaceId, ...serviceData }),
+                })
             } else {
-                // Insert new service
-                const result = await supabase
-                    .from('external_services')
-                    .insert(serviceData)
-                error = result.error
+                response = await fetch("/api/external-services", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ workspaceId, ...serviceData }),
+                })
             }
-
-            if (error) throw error
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}))
+                throw new Error(payload?.error || `Failed to ${initialData ? "update" : "add"} service`)
+            }
 
             toast({
                 title: initialData ? "Service updated" : "Service added",
@@ -94,10 +92,11 @@ export function AddServiceForm({ workspaceId, onSuccess, initialData, trigger }:
             setOpen(false)
             resetForm()
             onSuccess()
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : `Failed to ${initialData ? 'update' : 'add'} service.`
             toast({
                 title: "Error",
-                description: error.message || `Failed to ${initialData ? 'update' : 'add'} service.`,
+                description: message,
                 variant: "destructive",
             })
         } finally {
@@ -177,8 +176,8 @@ export function AddServiceForm({ workspaceId, onSuccess, initialData, trigger }:
                                 className={inputClass}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                type="text" // Plain text as requested
-                                placeholder="Stored as plain text"
+                                type="text"
+                                placeholder="Stored encrypted at rest"
                             />
                         </div>
                     </div>

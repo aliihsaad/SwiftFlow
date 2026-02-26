@@ -9,6 +9,7 @@
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
 import { buildAutomationAiPrompt, interpolateTemplate } from "../_shared/automation-context.ts"
 import { sendResendEmail, textToSimpleHtml } from "../_shared/resend-email.ts"
+import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
 
 const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
 
@@ -1036,7 +1037,7 @@ async function executeAiResponse(
       .eq('workspace_id', workspaceId)
       .maybeSingle();
 
-    const apiKey = settings?.gemini_api_key || Deno.env.get('GEMINI_API_KEY');
+    const apiKey = (await decryptSecretIfNeeded(settings?.gemini_api_key)) || Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) {
       return { success: false, error: 'Gemini API key not configured. Add it in Settings > AI Provider.' };
     }

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -41,7 +42,7 @@ serve(async (req) => {
             .maybeSingle()
 
         // Get API key
-        const apiKey = settings?.gemini_api_key || Deno.env.get('GEMINI_API_KEY')
+        const apiKey = (await decryptSecretIfNeeded(settings?.gemini_api_key)) || Deno.env.get('GEMINI_API_KEY')
         if (!apiKey) {
             throw new Error('Gemini API key not configured. Please add it in Settings > AI Provider')
         }

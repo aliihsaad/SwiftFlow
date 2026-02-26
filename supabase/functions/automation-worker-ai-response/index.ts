@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { buildAutomationAiPrompt } from "../_shared/automation-context.ts"
+import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -97,7 +98,7 @@ serve(async (req) => {
     let responseText = '';
 
     if (provider === 'openai') {
-      const openaiKey = settings?.openai_api_key || Deno.env.get('OPENAI_API_KEY');
+      const openaiKey = (await decryptSecretIfNeeded(settings?.openai_api_key)) || Deno.env.get('OPENAI_API_KEY');
       if (!openaiKey) {
         return new Response(JSON.stringify({
           success: false,
@@ -109,7 +110,7 @@ serve(async (req) => {
       }
       responseText = await generateWithOpenAI(openaiKey, modelName, prompt, temperature, maxTokens);
     } else {
-      const geminiKey = settings?.gemini_api_key || Deno.env.get('GEMINI_API_KEY');
+      const geminiKey = (await decryptSecretIfNeeded(settings?.gemini_api_key)) || Deno.env.get('GEMINI_API_KEY');
       if (!geminiKey) {
         return new Response(JSON.stringify({
           success: false,

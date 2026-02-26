@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -40,10 +41,10 @@ serve(async (req) => {
             console.error('workspace_settings lookup failed:', settingsError)
         }
 
-        const rows = (settingsRows || []).map((row: any) => ({
+        const rows = await Promise.all((settingsRows || []).map(async (row: any) => ({
             ...row,
-            normalizedKey: normalizeApiKey(row?.gemini_api_key),
-        }))
+            normalizedKey: normalizeApiKey(await decryptSecretIfNeeded(row?.gemini_api_key)),
+        })))
         const hasWorkspaceSettings = rows.length > 0
         const latestRow = rows[0] || null
         const rowWithKey = rows.find((row: any) => !!row.normalizedKey) || null

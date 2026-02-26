@@ -6,6 +6,7 @@ import {
   isAIProvider,
   type AIProvider,
 } from '@/lib/ai-models'
+import { decryptSecretIfNeeded } from '@/lib/secret-crypto'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -115,8 +116,8 @@ export async function GET(request: NextRequest) {
 
     const apiKey =
       providerParam === 'gemini'
-        ? normalizeApiKey(settings?.gemini_api_key)
-        : normalizeApiKey(settings?.openai_api_key)
+        ? normalizeApiKey(decryptSecretIfNeeded(settings?.gemini_api_key))
+        : normalizeApiKey(decryptSecretIfNeeded(settings?.openai_api_key))
 
     if (!apiKey) {
       return NextResponse.json(

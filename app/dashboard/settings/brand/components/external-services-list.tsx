@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { createClient } from "@/utils/supabase/client"
 import {
     Table,
     TableBody,
@@ -45,25 +44,25 @@ export function ExternalServicesList({ workspaceId }: ExternalServicesListProps)
     const [isLoading, setIsLoading] = useState(true)
     const [showPassword, setShowPassword] = useState<Record<string, boolean>>({})
     const [deletingId, setDeletingId] = useState<string | null>(null)
-    const supabase = createClient()
 
     const fetchServices = useCallback(async () => {
         setIsLoading(true)
         try {
-            const { data, error } = await supabase
-                .from('external_services')
-                .select('*')
-                .eq('workspace_id', workspaceId)
-                .order('created_at', { ascending: false })
-
-            if (error) throw error
-            setServices(data || [])
+            const response = await fetch(`/api/external-services?workspaceId=${encodeURIComponent(workspaceId)}`, {
+                cache: 'no-store',
+            })
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}))
+                throw new Error(payload?.error || 'Failed to fetch external services')
+            }
+            const data = await response.json()
+            setServices(Array.isArray(data) ? data : [])
         } catch (error) {
             console.error("Error fetching services:", error)
         } finally {
             setIsLoading(false)
         }
-    }, [workspaceId, supabase])
+    }, [workspaceId])
 
     useEffect(() => {
         fetchServices()
@@ -71,18 +70,20 @@ export function ExternalServicesList({ workspaceId }: ExternalServicesListProps)
 
     const handleDelete = async (id: string) => {
         try {
-            const { error } = await supabase
-                .from('external_services')
-                .delete()
-                .eq('id', id)
-
-            if (error) throw error
+            const response = await fetch(`/api/external-services/${id}?workspaceId=${encodeURIComponent(workspaceId)}`, {
+                method: 'DELETE',
+            })
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}))
+                throw new Error(payload?.error || "Failed to delete service")
+            }
 
             toast.success("Service deleted")
             setDeletingId(null)
             fetchServices()
-        } catch (error: any) {
-            toast.error(error.message || "Failed to delete service")
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Failed to delete service"
+            toast.error(message)
         }
     }
 

@@ -6,12 +6,7 @@ import { UpdateSettingsInput, WorkspaceSettings } from "@/types/settings"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { getDefaultModelForProvider } from "@/lib/ai-models"
 import { requireWorkspacePermission } from "@/lib/workspace-permissions"
-
-function normalizeSecret(value: string | undefined): string | null {
-    if (typeof value !== 'string') return null
-    const trimmed = value.trim().replace(/^['"]|['"]$/g, '')
-    return trimmed.length > 0 ? trimmed : null
-}
+import { decryptSecretIfNeeded, encryptSecretIfNeeded, normalizeOptionalSecretInput } from "@/lib/secret-crypto"
 
 export async function togglePageSelection(platform: string, pageId: string, selected: boolean) {
     const supabase = await createClient()
@@ -88,7 +83,11 @@ export async function getWorkspaceSettings(workspaceId: string): Promise<Workspa
         } as WorkspaceSettings
     }
 
-    return data as WorkspaceSettings
+    return {
+        ...(data as WorkspaceSettings),
+        gemini_api_key: decryptSecretIfNeeded(data.gemini_api_key),
+        openai_api_key: decryptSecretIfNeeded(data.openai_api_key),
+    } as WorkspaceSettings
 }
 
 /**
@@ -139,8 +138,8 @@ export async function updateWorkspaceSettings(
     const updatePayload = {
         workspace_id: workspaceId,
         ...settings,
-        gemini_api_key: normalizeSecret(settings.gemini_api_key),
-        openai_api_key: normalizeSecret(settings.openai_api_key),
+        gemini_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.gemini_api_key)),
+        openai_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.openai_api_key)),
         ai_model_name: settings.ai_model_name?.trim(),
     }
 

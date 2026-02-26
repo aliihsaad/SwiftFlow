@@ -10,7 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
-import { X, Plus, Upload, Loader2 } from "lucide-react"
+import { X, Plus, Upload, Loader2, Info } from "lucide-react"
+import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 
 interface BrandProfileFormProps {
     workspaceId: string
@@ -25,6 +26,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
     const [newTheme, setNewTheme] = useState("")
     const supabase = createClient()
     const { toast } = useToast()
+    const canEditSettings = useWorkspacePermission("settings:write")
 
     useEffect(() => {
         fetchProfile()
@@ -48,6 +50,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
     }
 
     const handleSave = async () => {
+        if (!canEditSettings) return
         setSaving(true)
         try {
             const res = await fetch('/api/brand-profile', {
@@ -75,6 +78,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
     }
 
     const updateField = (field: string, value: any) => {
+        if (!canEditSettings) return
         setProfile({ ...profile, [field]: value })
     }
 
@@ -118,6 +122,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
     }
 
     const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!canEditSettings) return
         const file = e.target.files?.[0]
         if (!file) return
 
@@ -147,6 +152,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
     }
 
     const handleReferenceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!canEditSettings) return
         const files = e.target.files
         if (!files) return
 
@@ -195,6 +201,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
     const labelClass = "text-white/75"
     const chipClass = "gap-1 border border-cyan-300/15 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/15"
     const addIconBtnClass = "border border-white/10 bg-white/5 text-white/75 hover:bg-white/10 hover:text-white"
+    const readOnlyBlockClass = !canEditSettings ? "pointer-events-none opacity-70" : ""
 
     if (loading) {
         return (
@@ -205,23 +212,34 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
     }
 
     return (
-        <div
-            className="space-y-6
-            **:data-[slot=card-title]:text-white/90
-            **:data-[slot=card-description]:text-white/50
-            **:data-[slot=input]:border-white/10
-            **:data-[slot=input]:bg-[#1b1d28]
-            **:data-[slot=input]:text-white/85
-            **:data-[slot=input]:placeholder:text-white/25
-            **:data-[slot=textarea]:border-white/10
-            **:data-[slot=textarea]:bg-[#1b1d28]
-            **:data-[slot=textarea]:text-white/85
-            **:data-[slot=textarea]:placeholder:text-white/25
-            **:data-[slot=select-trigger]:border-white/10
-            **:data-[slot=select-trigger]:bg-[#1b1d28]
-            **:data-[slot=select-trigger]:text-white/85
-            **:data-[slot=badge]:border-white/10"
-        >
+        <div className="space-y-4">
+            {!canEditSettings && (
+                <div className="rounded-xl border border-amber-300/20 bg-amber-400/8 p-4 text-amber-100/90">
+                    <p className="flex items-start gap-2 text-sm">
+                        <Info className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>Read-only access: only admins and owners can edit the brand profile and upload brand assets.</span>
+                    </p>
+                </div>
+            )}
+
+            <fieldset disabled={!canEditSettings} className={`m-0 min-w-0 border-0 p-0 ${readOnlyBlockClass}`}>
+                <div
+                    className="space-y-6
+                    **:data-[slot=card-title]:text-white/90
+                    **:data-[slot=card-description]:text-white/50
+                    **:data-[slot=input]:border-white/10
+                    **:data-[slot=input]:bg-[#1b1d28]
+                    **:data-[slot=input]:text-white/85
+                    **:data-[slot=input]:placeholder:text-white/25
+                    **:data-[slot=textarea]:border-white/10
+                    **:data-[slot=textarea]:bg-[#1b1d28]
+                    **:data-[slot=textarea]:text-white/85
+                    **:data-[slot=textarea]:placeholder:text-white/25
+                    **:data-[slot=select-trigger]:border-white/10
+                    **:data-[slot=select-trigger]:bg-[#1b1d28]
+                    **:data-[slot=select-trigger]:text-white/85
+                    **:data-[slot=badge]:border-white/10"
+                >
             {/* Business Identity */}
             <Card className={panelClass}>
                 <CardHeader>
@@ -653,6 +671,8 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                     Save Brand Profile
                 </Button>
             </div>
+                </div>
+            </fieldset>
         </div>
     )
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 // POST - Trigger automation processing
 // Can be called manually or by an external cron service
@@ -19,6 +20,7 @@ export async function POST(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write');
 
         // Optional: target a specific automation 
         let automationId: string | null = null;
@@ -56,6 +58,10 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+        }
         console.error('Process automations API error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to process automations' },

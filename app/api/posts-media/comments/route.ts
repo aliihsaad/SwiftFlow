@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 const META_GRAPH_URL = 'https://graph.facebook.com/v21.0';
 
@@ -172,6 +173,7 @@ export async function POST(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write');
 
         const body = await request.json();
         const { commentId, message, platform } = body;
@@ -228,6 +230,10 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+        }
         console.error('Reply to comment API error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to reply to comment' },
@@ -250,6 +256,7 @@ export async function DELETE(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write');
 
         const { searchParams } = new URL(request.url);
         const commentId = searchParams.get('commentId');
@@ -288,6 +295,10 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ success: true });
 
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+        }
         console.error('Hide comment API error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to hide comment' },
@@ -310,6 +321,7 @@ export async function PATCH(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write');
 
         const body = await request.json();
         const commentId = body?.commentId as string | undefined;
@@ -352,6 +364,10 @@ export async function PATCH(request: NextRequest) {
 
         return NextResponse.json({ success: true, hidden });
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+        }
         console.error('Comment moderation API error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to update comment visibility' },

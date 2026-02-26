@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 // This route proxies a long-running Supabase Edge Function call (analytics sync).
 // Using Node runtime + a higher maxDuration avoids Vercel Edge timeouts (504) on larger workspaces.
@@ -23,6 +24,7 @@ export async function POST(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'analytics:sync');
 
         const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
         if (!serviceKey) {
@@ -153,6 +155,19 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json(
+                {
+                    error: error.message || 'Forbidden',
+                    errorCode: 'forbidden',
+                    missingPermissions: [],
+                    requiresReconnect: false,
+                    meta: null,
+                },
+                { status: permissionStatus }
+            );
+        }
         console.error('Sync analytics API error:', error);
         const normalized = normalizeMetaGraphError(
             { message: error.message || 'Failed to sync analytics' },

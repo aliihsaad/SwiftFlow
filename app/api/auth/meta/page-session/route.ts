@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/utils/supabase/server';
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
-const supabaseAdmin = createClient(
+const supabaseAdmin = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_KEY!
 );
@@ -12,46 +14,66 @@ const supabaseAdmin = createClient(
  * Fetches the temporary page session data for the page selector UI.
  */
 export async function GET(request: NextRequest) {
-    const sessionId = request.nextUrl.searchParams.get('sessionId');
+    try {
+        const sessionId = request.nextUrl.searchParams.get('sessionId');
 
-    if (!sessionId) {
-        return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
+        if (!sessionId) {
+            return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
+        }
+
+        const supabase = await createServerClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { data: session, error } = await supabaseAdmin
+            .from('oauth_page_sessions')
+            .select('workspace_id, pages_data, expires_at')
+            .eq('id', sessionId)
+            .maybeSingle();
+
+        if (error || !session) {
+            return NextResponse.json(
+                { error: 'Session not found. Please start the connection flow again.' },
+                { status: 404 }
+            );
+        }
+
+        await requireWorkspacePermission(supabase, user.id, session.workspace_id, 'integrations:write');
+
+        // Check expiry
+        if (new Date(session.expires_at) < new Date()) {
+            await supabaseAdmin.from('oauth_page_sessions').delete().eq('id', sessionId);
+            return NextResponse.json(
+                { error: 'Session expired. Please start the connection flow again.' },
+                { status: 410 }
+            );
+        }
+
+        // Return pages data WITHOUT access tokens (those stay server-side)
+        const safePagesData = (session.pages_data as any[]).map((p: any) => ({
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            ig_account_id: p.ig_account_id,
+            ig_username: p.ig_username,
+            // access_token intentionally EXCLUDED — stays server-side only
+        }));
+
+        return NextResponse.json({
+            workspace_id: session.workspace_id,
+            pages_data: safePagesData,
+        });
+    } catch (error) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json(
+                { error: error instanceof Error ? error.message : 'Forbidden' },
+                { status: permissionStatus }
+            );
+        }
+        console.error('[META_PAGE_SESSION] Error:', error);
+        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
-
-    const { data: session, error } = await supabaseAdmin
-        .from('oauth_page_sessions')
-        .select('workspace_id, pages_data, expires_at')
-        .eq('id', sessionId)
-        .maybeSingle();
-
-    if (error || !session) {
-        return NextResponse.json(
-            { error: 'Session not found. Please start the connection flow again.' },
-            { status: 404 }
-        );
-    }
-
-    // Check expiry
-    if (new Date(session.expires_at) < new Date()) {
-        await supabaseAdmin.from('oauth_page_sessions').delete().eq('id', sessionId);
-        return NextResponse.json(
-            { error: 'Session expired. Please start the connection flow again.' },
-            { status: 410 }
-        );
-    }
-
-    // Return pages data WITHOUT access tokens (those stay server-side)
-    const safePagesData = (session.pages_data as any[]).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        category: p.category,
-        ig_account_id: p.ig_account_id,
-        ig_username: p.ig_username,
-        // access_token intentionally EXCLUDED — stays server-side only
-    }));
-
-    return NextResponse.json({
-        workspace_id: session.workspace_id,
-        pages_data: safePagesData,
-    });
 }

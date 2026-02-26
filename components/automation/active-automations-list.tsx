@@ -51,6 +51,7 @@ interface ActiveAutomationsListProps {
     onDelete: (automationId: string) => Promise<void> | void
     togglingAutomationIds?: string[]
     deletingAutomationIds?: string[]
+    readOnly?: boolean
 }
 
 type PlatformLabel = 'Instagram' | 'Facebook' | 'Meta'
@@ -205,6 +206,7 @@ export function ActiveAutomationsList({
     onDelete,
     togglingAutomationIds = [],
     deletingAutomationIds = [],
+    readOnly = false,
 }: ActiveAutomationsListProps) {
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
     const [isDeleteSubmitting, setIsDeleteSubmitting] = useState(false)
@@ -382,14 +384,17 @@ export function ActiveAutomationsList({
                                         )}
                                         <Switch
                                             checked={automation.is_active}
-                                            disabled={isToggling || isDeleting}
-                                            onCheckedChange={(checked) => onToggle(automation.id, checked)}
+                                            disabled={readOnly || isToggling || isDeleting}
+                                            onCheckedChange={(checked) => {
+                                                if (readOnly) return
+                                                onToggle(automation.id, checked)
+                                            }}
                                         />
 
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <button
-                                                    disabled={isDeleting}
+                                                    disabled={readOnly || isDeleting}
                                                 className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150"
                                                     style={{ background: 'rgba(255,255,255,0.05)', color: AUTO_THEME.muted }}
                                                 >
@@ -401,8 +406,11 @@ export function ActiveAutomationsList({
                                                 style={{ background: AUTO_THEME.panelAlt, border: `1px solid ${AUTO_THEME.border}` }}
                                             >
                                                 <DropdownMenuItem
-                                                    disabled={isDeleting}
-                                                    onClick={() => onEdit(automation)}
+                                                    disabled={readOnly || isDeleting}
+                                                    onClick={() => {
+                                                        if (readOnly) return
+                                                        onEdit(automation)
+                                                    }}
                                                     style={{ color: 'rgba(255,255,255,0.7)' }}
                                                 >
                                                     <Edit2 className="h-4 w-4 mr-2" />
@@ -410,8 +418,11 @@ export function ActiveAutomationsList({
                                                 </DropdownMenuItem>
                                                 <DropdownMenuSeparator style={{ background: 'rgba(255,255,255,0.06)' }} />
                                                 <DropdownMenuItem
-                                                    disabled={isDeleting}
-                                                    onClick={() => setDeleteConfirmId(automation.id)}
+                                                    disabled={readOnly || isDeleting}
+                                                    onClick={() => {
+                                                        if (readOnly) return
+                                                        setDeleteConfirmId(automation.id)
+                                                    }}
                                                     style={{ color: '#f87171' }}
                                                 >
                                                     <Trash2 className="h-4 w-4 mr-2" />

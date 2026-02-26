@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { getActiveWorkspace } from '@/lib/workspace-utils'
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions'
 
 export async function GET(request: NextRequest) {
     try {
@@ -15,6 +16,7 @@ export async function GET(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace' }, { status: 404 })
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'workspace:read')
 
         // Fetch brand profile for workspace
         const { data: profile, error } = await supabase
@@ -53,6 +55,10 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(profile)
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error)
+        if (permissionStatus) {
+            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus })
+        }
         console.error('Brand Profile Fetch Error:', error)
         return NextResponse.json({ error: 'Failed to fetch brand profile' }, { status: 500 })
     }
@@ -71,6 +77,7 @@ export async function PUT(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace' }, { status: 404 })
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'settings:write')
 
         const body = await request.json()
 
@@ -116,6 +123,10 @@ export async function PUT(request: NextRequest) {
 
         return NextResponse.json(result.data)
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error)
+        if (permissionStatus) {
+            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus })
+        }
         console.error('Brand Profile Update Error:', error)
         return NextResponse.json({ error: 'Failed to update brand profile' }, { status: 500 })
     }

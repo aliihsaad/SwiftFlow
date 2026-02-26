@@ -17,6 +17,7 @@ import {
     isAIProvider,
     type AIProvider,
 } from "@/lib/ai-models"
+import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 
 interface ApiSettingsFormProps {
     settings: WorkspaceSettings | null
@@ -26,6 +27,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
     const [isLoading, setIsLoading] = useState(false)
     const [showGeminiKey, setShowGeminiKey] = useState(false)
     const [showOpenAIKey, setShowOpenAIKey] = useState(false)
+    const canEditSettings = useWorkspacePermission("settings:write")
 
     const initialProvider: AIProvider = isAIProvider(settings?.ai_provider || '')
         ? (settings!.ai_provider as AIProvider)
@@ -84,6 +86,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        if (!canEditSettings) return
         setIsLoading(true)
 
         try {
@@ -120,6 +123,15 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                 </CardDescription>
             </CardHeader>
             <CardContent>
+                {!canEditSettings && (
+                    <div className="mb-4 rounded-xl border border-amber-300/20 bg-amber-400/8 p-3 text-sm text-amber-100/90">
+                        Read-only access: only admins and owners can change AI provider settings and API keys.
+                    </div>
+                )}
+                <fieldset
+                    disabled={!canEditSettings}
+                    className={`m-0 min-w-0 border-0 p-0 ${!canEditSettings ? "pointer-events-none opacity-70" : ""}`}
+                >
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* AI Provider Selection */}
                     <div className="space-y-2">
@@ -311,6 +323,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                         </div>
                     )}
                 </form>
+                </fieldset>
             </CardContent>
         </Card>
     )

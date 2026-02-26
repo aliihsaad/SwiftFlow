@@ -12,6 +12,7 @@ import { OtherPostsList } from "@/components/analytics/other-posts-list"
 import { AnalyticsLoadingSkeleton } from "@/components/analytics/analytics-loading"
 import { useToast } from "@/components/ui/use-toast"
 import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
+import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 import { AlertTriangle, Info, ShieldAlert } from "lucide-react"
 
 const fetcher = async (url: string) => {
@@ -72,6 +73,7 @@ export default function AnalyticsPage() {
     const [isSyncing, setIsSyncing] = useState(false)
     const [initialSyncDone, setInitialSyncDone] = useState(false)
     const { toast } = useToast()
+    const canSyncAnalytics = useWorkspacePermission("analytics:sync")
 
     // Fetch analytics data
     const { data, error, isLoading, isValidating, mutate } = useSWR<AnalyticsResponse>(
@@ -89,6 +91,10 @@ export default function AnalyticsPage() {
     useEffect(() => {
         if (hasSynced.current) return
         hasSynced.current = true
+        if (!canSyncAnalytics) {
+            setInitialSyncDone(true)
+            return
+        }
 
         const autoSync = async () => {
             setIsSyncing(true)
@@ -105,9 +111,17 @@ export default function AnalyticsPage() {
             }
         }
         autoSync()
-    }, [])
+    }, [canSyncAnalytics])
 
     const handleSync = async () => {
+        if (!canSyncAnalytics) {
+            toast({
+                title: "Read-only role",
+                description: "Only admins and owners can sync analytics for this workspace.",
+                variant: "destructive",
+            })
+            return
+        }
         setIsSyncing(true)
         try {
             const response = await fetch('/api/sync-analytics', {
@@ -241,6 +255,8 @@ export default function AnalyticsPage() {
                 onExport={handleExport}
                 onSync={handleSync}
                 isSyncing={isSyncing}
+                syncDisabled={!canSyncAnalytics}
+                syncDisabledReason={!canSyncAnalytics ? "Admins/owners only" : undefined}
             />
 
             {showAnalyticsRefreshingHint && (

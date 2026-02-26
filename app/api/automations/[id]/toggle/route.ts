@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 // POST - Toggle automation active status
 export async function POST(
@@ -22,6 +23,7 @@ export async function POST(
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write');
 
         const body = await request.json();
         const { is_active } = body;
@@ -68,6 +70,10 @@ export async function POST(
         });
 
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+        }
         console.error('Toggle automation API error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to toggle automation' },

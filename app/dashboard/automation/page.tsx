@@ -2,13 +2,14 @@
 
 import { useState, useCallback } from "react"
 import useSWR from "swr"
-import { Zap, MessageCircle, Plus, Workflow, ListChecks, Sparkles } from "lucide-react"
+import { Zap, MessageCircle, Plus, Workflow, ListChecks, Sparkles, ShieldAlert } from "lucide-react"
 import { AutomationCard } from "@/components/automation/automation-card"
 import { AutomationSetupModal } from "@/components/automation/automation-setup-modal"
 import { ActiveAutomationsList } from "@/components/automation/active-automations-list"
 import { AutomationTemplatePicker } from "@/components/automation/automation-template-picker"
 import { WorkflowCanvas } from "@/components/automation/canvas/workflow-canvas"
 import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
+import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 import { Automation } from "@/types/automation"
 import { WorkflowGraph } from "@/types/automation-graph"
 import { useToast } from "@/components/ui/use-toast"
@@ -46,6 +47,15 @@ export default function AutomationPage() {
     const [togglingAutomationIds, setTogglingAutomationIds] = useState<string[]>([])
     const [deletingAutomationIds, setDeletingAutomationIds] = useState<string[]>([])
     const { toast } = useToast()
+    const canWriteAutomations = useWorkspacePermission("automation:write")
+
+    const showReadOnlyToast = () => {
+        toast({
+            title: "Read-only role",
+            description: "Only admins and owners can create or manage automations in this workspace.",
+            variant: "destructive",
+        })
+    }
 
     const { data, error, isLoading, isValidating, mutate } = useSWR<AutomationsResponse>(
         '/api/automations',
@@ -61,12 +71,20 @@ export default function AutomationPage() {
     }
 
     const handleCreateCanvas = () => {
+        if (!canWriteAutomations) {
+            showReadOnlyToast()
+            return
+        }
         setEditingAutomation(null)
         resetCanvasDraftSeed()
         setEditorView('canvas')
     }
 
     const handleOpenTemplatePicker = () => {
+        if (!canWriteAutomations) {
+            showReadOnlyToast()
+            return
+        }
         setEditingAutomation(null)
         resetCanvasDraftSeed()
         setIsTemplatePickerOpen(true)
@@ -81,12 +99,20 @@ export default function AutomationPage() {
     }
 
     const handleCreateWizard = () => {
+        if (!canWriteAutomations) {
+            showReadOnlyToast()
+            return
+        }
         setEditingAutomation(null)
         resetCanvasDraftSeed()
         setIsSetupModalOpen(true)
     }
 
     const handleEdit = (automation: Automation) => {
+        if (!canWriteAutomations) {
+            showReadOnlyToast()
+            return
+        }
         setEditingAutomation(automation)
         resetCanvasDraftSeed()
         if (automation.editor_version === 'canvas' && automation.workflow_graph) {
@@ -97,6 +123,10 @@ export default function AutomationPage() {
     }
 
     const handleToggle = async (automationId: string, isActive: boolean) => {
+        if (!canWriteAutomations) {
+            showReadOnlyToast()
+            return
+        }
         setTogglingAutomationIds((prev) => (prev.includes(automationId) ? prev : [...prev, automationId]))
         try {
             const response = await fetch(`/api/automations/${automationId}/toggle`, {
@@ -120,6 +150,10 @@ export default function AutomationPage() {
     }
 
     const handleDelete = async (automationId: string) => {
+        if (!canWriteAutomations) {
+            showReadOnlyToast()
+            return
+        }
         setDeletingAutomationIds((prev) => (prev.includes(automationId) ? prev : [...prev, automationId]))
         try {
             const response = await fetch(`/api/automations/${automationId}`, { method: 'DELETE' })
@@ -137,6 +171,9 @@ export default function AutomationPage() {
     const handleWizardSave = () => { setIsSetupModalOpen(false); setEditingAutomation(null); mutate() }
 
     const handleCanvasSave = useCallback(async (graph: WorkflowGraph, name: string, isActive: boolean) => {
+        if (!canWriteAutomations) {
+            throw new Error('Only admins and owners can manage automations.')
+        }
         const isEditing = !!editingAutomation?.id
         const body: Record<string, unknown> = {
             workflow_graph: graph,
@@ -162,7 +199,7 @@ export default function AutomationPage() {
         }
         resetCanvasDraftSeed()
         mutate()
-    }, [editingAutomation, mutate])
+    }, [canWriteAutomations, editingAutomation, mutate])
 
     // Canvas editor (full-screen)
     if (editorView === 'canvas') {
@@ -186,7 +223,28 @@ export default function AutomationPage() {
 
     // List view
     return (
-        <div className="space-y-8">
+            <div className="space-y-8">
+            {!canWriteAutomations && (
+                <div
+                    className="rounded-xl p-4"
+                    style={{
+                        background: 'rgba(245,158,11,0.06)',
+                        border: '1px solid rgba(245,158,11,0.18)',
+                    }}
+                >
+                    <div className="flex items-start gap-2">
+                        <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" style={{ color: '#fbbf24' }} />
+                        <div>
+                            <p className="text-sm font-semibold" style={{ color: '#fbbf24' }}>
+                                Read-only automation access
+                            </p>
+                            <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                                You can view automation status and performance, but only admins/owners can create, edit, toggle, or delete automations.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* Page Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -231,6 +289,7 @@ export default function AutomationPage() {
                         description="Build complex automations with a drag-and-drop canvas. Chain triggers, conditions, delays, and actions for powerful multi-step flows."
                         onClick={handleCreateCanvas}
                         badge="New"
+                        disabled={!canWriteAutomations}
                     />
                     <AutomationCard
                         icon={Sparkles}
@@ -238,6 +297,7 @@ export default function AutomationPage() {
                         description="Start from prebuilt canvas workflows for comment and message automations, then customize them for Instagram or Facebook."
                         onClick={handleOpenTemplatePicker}
                         badge="Templates"
+                        disabled={!canWriteAutomations}
                     />
                     <AutomationCard
                         icon={MessageCircle}
@@ -245,6 +305,7 @@ export default function AutomationPage() {
                         description="Quick setup: automatically reply to comments and optionally send a DM with a link. Great for lead magnets."
                         onClick={handleCreateWizard}
                         badge="Simple"
+                        disabled={!canWriteAutomations}
                     />
                 </div>
             </div>
@@ -259,6 +320,7 @@ export default function AutomationPage() {
                         <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={handleOpenTemplatePicker}
+                                disabled={!canWriteAutomations}
                                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
                                 style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.6)' }}
                             >
@@ -267,6 +329,7 @@ export default function AutomationPage() {
                             </button>
                             <button
                                 onClick={handleCreateCanvas}
+                                disabled={!canWriteAutomations}
                                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
                                 style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.6)' }}
                             >
@@ -275,6 +338,7 @@ export default function AutomationPage() {
                             </button>
                             <button
                                 onClick={handleCreateWizard}
+                                disabled={!canWriteAutomations}
                                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
                                 style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.6)' }}
                             >
@@ -349,6 +413,7 @@ export default function AutomationPage() {
                         <div className="flex gap-3 justify-center">
                             <button
                                 onClick={handleOpenTemplatePicker}
+                                disabled={!canWriteAutomations}
                                 className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
                                 style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.72)' }}
                             >
@@ -357,6 +422,7 @@ export default function AutomationPage() {
                             </button>
                             <button
                                 onClick={handleCreateCanvas}
+                                disabled={!canWriteAutomations}
                                 className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
                                 style={{
                                     background: 'linear-gradient(135deg, #38bdf8, #fb7185)',
@@ -369,6 +435,7 @@ export default function AutomationPage() {
                             </button>
                             <button
                                 onClick={handleCreateWizard}
+                                disabled={!canWriteAutomations}
                                 className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
                                 style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.72)' }}
                             >
@@ -388,19 +455,20 @@ export default function AutomationPage() {
                         onDelete={handleDelete}
                         togglingAutomationIds={togglingAutomationIds}
                         deletingAutomationIds={deletingAutomationIds}
+                        readOnly={!canWriteAutomations}
                     />
                 )}
             </div>
 
             <AutomationTemplatePicker
-                open={isTemplatePickerOpen}
+                open={canWriteAutomations && isTemplatePickerOpen}
                 onOpenChange={setIsTemplatePickerOpen}
                 onSelectTemplate={handleApplyTemplate}
             />
 
             {/* Wizard modal */}
             <AutomationSetupModal
-                open={isSetupModalOpen}
+                open={canWriteAutomations && isSetupModalOpen}
                 onOpenChange={setIsSetupModalOpen}
                 automation={editingAutomation}
                 onSave={handleWizardSave}

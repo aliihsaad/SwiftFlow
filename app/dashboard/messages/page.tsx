@@ -7,6 +7,7 @@ import { ConversationList } from "@/components/messages/conversation-list"
 import { MessageThread } from "@/components/messages/message-thread"
 import { useToast } from "@/components/ui/use-toast"
 import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
+import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 import { cn } from "@/lib/utils"
 import {
     Instagram,
@@ -122,6 +123,7 @@ export default function MessagesPage() {
     const [showThread, setShowThread] = useState(false)
     const [isRefreshing, setIsRefreshing] = useState(false)
     const { toast } = useToast()
+    const canWriteContent = useWorkspacePermission("content:write")
 
     const {
         data: conversationsData,
@@ -180,8 +182,11 @@ export default function MessagesPage() {
     const noAccount = conversationsData?.errorCode === 'no_account_connected'
     const permissionDenied = responsePermissionDenied || isPermissionError(conversationsError)
     const messagingCapabilities = conversationsData?.messagingCapabilities
-    const sendDisabled = messagingCapabilities?.canSendMessages === false
-    const sendDisabledReason = responseTokenInvalid
+    const sendDisabledByRole = !canWriteContent
+    const sendDisabled = sendDisabledByRole || messagingCapabilities?.canSendMessages === false
+    const sendDisabledReason = sendDisabledByRole
+        ? "Your workspace role is read-only. Viewers cannot send or reply to messages."
+        : responseTokenInvalid
         ? 'Meta token expired or invalid. Reconnect your account in Settings.'
         : permissionDenied
             ? (conversationsData?.error || 'Messaging permissions are not enabled for this account.')

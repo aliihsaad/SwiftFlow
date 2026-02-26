@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 // GET - List all automations for the workspace
 export async function GET(request: NextRequest) {
@@ -18,6 +19,7 @@ export async function GET(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'workspace:read');
 
         const { data: automations, error } = await supabase
             .from('automations')
@@ -82,6 +84,10 @@ export async function GET(request: NextRequest) {
         });
 
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+        }
         console.error('Get automations API error:', error);
         console.error('Error details:', JSON.stringify(error, null, 2));
         return NextResponse.json(
@@ -110,6 +116,7 @@ export async function POST(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write');
 
         const body = await request.json();
         const {
@@ -288,6 +295,10 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+        }
         console.error('Create automation API error:', error);
         console.error('Error details:', JSON.stringify(error, null, 2));
         return NextResponse.json(

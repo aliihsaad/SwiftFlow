@@ -23,6 +23,7 @@ import {
 import { formatDistanceToNow } from "date-fns"
 import { createClient } from "@/utils/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
+import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 
 interface PostData {
     id: string
@@ -101,6 +102,7 @@ export function PostCommentsDrawer({
         requiresReconnect: boolean
     } | null>(null)
     const { toast } = useToast()
+    const canWriteContent = useWorkspacePermission("content:write")
 
     const { data, error, isLoading, mutate } = useSWR(
         open && post ? `/api/posts-media/comments?postId=${post.id}&platform=${platform}` : null,
@@ -121,6 +123,7 @@ export function PostCommentsDrawer({
     const commentsRequiresReconnect = !!commentsError?.requiresReconnect
     const commentsReadBlocked = commentsErrorCode === 'meta_missing_permission' || commentsErrorCode === 'meta_auth_invalid_token'
     const commentActionsBlocked = !!actionsBlocked
+    const roleActionsBlocked = !canWriteContent
 
     useEffect(() => {
         if (!open) {
@@ -132,6 +135,14 @@ export function PostCommentsDrawer({
     }, [open, post?.id, platform])
 
     const handleAIReply = async (comment: CommentData) => {
+        if (!canWriteContent) {
+            toast({
+                title: "Read-only role",
+                description: "Your role can view comments but cannot reply or moderate comments.",
+                variant: "destructive",
+            })
+            return
+        }
         setGeneratingAI(comment.id)
         setReplyingTo(comment.id)
 
@@ -163,6 +174,7 @@ export function PostCommentsDrawer({
 
     const handleSendReply = async (commentId: string) => {
         if (!replyText.trim()) return
+        if (!canWriteContent) return
         setSendingReply(true)
 
         try {
@@ -221,6 +233,7 @@ export function PostCommentsDrawer({
     }
 
     const handleSetCommentHidden = async (commentId: string, hidden: boolean) => {
+        if (!canWriteContent) return
         setHidingComment(commentId)
         try {
             const response = await fetch('/api/posts-media/comments', {
@@ -413,6 +426,19 @@ export function PostCommentsDrawer({
                             )}
                         </div>
                     )}
+                    {roleActionsBlocked && comments.length > 0 && (
+                        <div
+                            className="rounded-xl p-3"
+                            style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.16)' }}
+                        >
+                            <p className="text-xs font-semibold" style={{ color: COMMENTS_THEME.amber }}>
+                                Read-only role
+                            </p>
+                            <p className="text-xs mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                                You can view comments, but replying and hide/unhide actions are disabled for viewers.
+                            </p>
+                        </div>
+                    )}
 
                     {visibleComments.map((comment) => (
                         <div key={comment.id} className="space-y-2">
@@ -463,7 +489,7 @@ export function PostCommentsDrawer({
                                             setReplyingTo(replyingTo === comment.id ? null : comment.id)
                                             setReplyText("")
                                         }}
-                                        disabled={commentActionsBlocked || !!comment.is_hidden}
+                                        disabled={roleActionsBlocked || commentActionsBlocked || !!comment.is_hidden}
                                     >
                                         <CornerDownRight className="h-3 w-3" />
                                         Reply
@@ -472,7 +498,7 @@ export function PostCommentsDrawer({
                                         className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all duration-150"
                                         style={{ color: 'rgba(251,191,36,0.85)' }}
                                         onClick={() => handleAIReply(comment)}
-                                        disabled={!!comment.is_hidden || generatingAI === comment.id}
+                                        disabled={roleActionsBlocked || !!comment.is_hidden || generatingAI === comment.id}
                                     >
                                         {generatingAI === comment.id ? (
                                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -485,7 +511,7 @@ export function PostCommentsDrawer({
                                         className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all duration-150"
                                         style={{ color: comment.is_hidden ? 'rgba(74,222,128,0.75)' : 'rgba(248,113,113,0.6)' }}
                                         onClick={() => handleSetCommentHidden(comment.platform_comment_id, !comment.is_hidden)}
-                                        disabled={commentActionsBlocked || hidingComment === comment.platform_comment_id}
+                                        disabled={roleActionsBlocked || commentActionsBlocked || hidingComment === comment.platform_comment_id}
                                     >
                                         {hidingComment === comment.platform_comment_id ? (
                                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -507,6 +533,7 @@ export function PostCommentsDrawer({
                                             placeholder="Write a reply…"
                                             rows={3}
                                             autoFocus
+                                            disabled={roleActionsBlocked}
                                             className="w-full rounded-lg px-3 py-2 text-sm resize-none outline-none transition-all duration-150"
                                             style={{
                                                 background: COMMENTS_THEME.panelAlt,
@@ -525,7 +552,7 @@ export function PostCommentsDrawer({
                                                     boxShadow: '0 2px 12px rgba(56,189,248,0.2)',
                                                 }}
                                                 onClick={() => handleSendReply(comment.platform_comment_id)}
-                                                disabled={commentActionsBlocked || sendingReply || !replyText.trim()}
+                                                disabled={roleActionsBlocked || commentActionsBlocked || sendingReply || !replyText.trim()}
                                             >
                                                 {sendingReply ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
                                                 Send

@@ -33,6 +33,8 @@ interface AnalyticsHeaderProps {
     onExport: () => void
     onSync?: () => void
     isSyncing?: boolean
+    syncDisabled?: boolean
+    syncDisabledReason?: string
 }
 
 export function AnalyticsHeader({
@@ -45,6 +47,8 @@ export function AnalyticsHeader({
     onExport,
     onSync,
     isSyncing = false,
+    syncDisabled = false,
+    syncDisabledReason,
 }: AnalyticsHeaderProps) {
     const granularityOptions: { value: Granularity; label: string }[] = [
         { value: 'daily', label: 'Daily' },
@@ -195,7 +199,8 @@ export function AnalyticsHeader({
                 {onSync && (
                     <button
                         onClick={onSync}
-                        disabled={isSyncing}
+                        disabled={isSyncing || syncDisabled}
+                        title={syncDisabledReason}
                         className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150 disabled:opacity-50"
                         style={{
                             background: ANALYTICS_THEME.panelAlt,
@@ -204,7 +209,7 @@ export function AnalyticsHeader({
                         }}
                     >
                         <RefreshCw className={cn("h-3.5 w-3.5", isSyncing && "animate-spin")} />
-                        {isSyncing ? 'Syncing…' : 'Sync'}
+                        {isSyncing ? 'Syncing…' : syncDisabled ? 'Sync (Admin)' : 'Sync'}
                     </button>
                 )}
 

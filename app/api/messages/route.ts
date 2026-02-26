@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { getWorkspacePermissionErrorStatus, hasWorkspacePermission, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 const META_GRAPH_URL = 'https://graph.facebook.com/v21.0';
 
@@ -20,6 +21,8 @@ export async function GET(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
+        const workspaceRole = await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'workspace:read');
+        const canMutateMessageState = hasWorkspacePermission(workspaceRole, 'content:write');
 
         // Parse query params
         const { searchParams } = new URL(request.url);
@@ -43,17 +46,19 @@ export async function GET(request: NextRequest) {
             }
 
             // Mark messages as read
-            await supabase
-                .from('messages')
-                .update({ is_read: true })
-                .eq('conversation_id', conversationId)
-                .eq('is_read', false);
+            if (canMutateMessageState) {
+                await supabase
+                    .from('messages')
+                    .update({ is_read: true })
+                    .eq('conversation_id', conversationId)
+                    .eq('is_read', false);
 
-            // Update conversation unread count
-            await supabase
-                .from('conversations')
-                .update({ unread_count: 0 })
-                .eq('id', conversationId);
+                // Update conversation unread count
+                await supabase
+                    .from('conversations')
+                    .update({ unread_count: 0 })
+                    .eq('id', conversationId);
+            }
 
             return NextResponse.json({
                 messages,
@@ -108,6 +113,13 @@ export async function GET(request: NextRequest) {
         }
 
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json(
+                { error: error.message || 'Forbidden' },
+                { status: permissionStatus }
+            );
+        }
         console.error('Get messages API error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to fetch messages' },
@@ -132,6 +144,7 @@ export async function POST(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write');
 
         const body = await request.json();
         const { conversationId, message } = body;
@@ -228,6 +241,13 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json(
+                { error: error.message || 'Forbidden' },
+                { status: permissionStatus }
+            );
+        }
         console.error('Send message API error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to send message' },

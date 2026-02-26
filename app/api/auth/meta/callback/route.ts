@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForToken } from '@/utils/meta-oauth';
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/utils/supabase/server';
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 // Initialize Supabase Admin Client for database operations
-const supabaseAdmin = createClient(
+const supabaseAdmin = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_KEY!
 );
@@ -59,6 +61,17 @@ export async function GET(request: NextRequest) {
     log(`WorkspaceId from state: ${workspaceId}`);
 
     try {
+        const supabase = await createServerClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            log('Unauthorized callback: no authenticated user session');
+            return NextResponse.redirect(
+                new URL('/dashboard/settings/brand?error=unauthorized', request.url)
+            );
+        }
+
+        await requireWorkspacePermission(supabase, user.id, workspaceId, 'integrations:write');
+
         // Use shared Meta app credentials from environment
         const appId = process.env.NEXT_PUBLIC_META_APP_ID!;
         const appSecret = process.env.META_APP_SECRET!;
@@ -255,6 +268,12 @@ export async function GET(request: NextRequest) {
         );
 
     } catch (error) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.redirect(
+                new URL('/dashboard/settings/brand?error=forbidden', request.url)
+            );
+        }
         log(`FATAL ERROR: ${error instanceof Error ? error.message : String(error)}`);
         console.error('[META_CALLBACK] Full error:', error);
         return NextResponse.redirect(

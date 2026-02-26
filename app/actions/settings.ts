@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { UpdateSettingsInput, WorkspaceSettings } from "@/types/settings"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { getDefaultModelForProvider } from "@/lib/ai-models"
+import { requireWorkspacePermission } from "@/lib/workspace-permissions"
 
 function normalizeSecret(value: string | undefined): string | null {
     if (typeof value !== 'string') return null
@@ -14,12 +15,20 @@ function normalizeSecret(value: string | undefined): string | null {
 
 export async function togglePageSelection(platform: string, pageId: string, selected: boolean) {
     const supabase = await createClient()
+    const activeWorkspace = await getActiveWorkspace()
+    if (!activeWorkspace) return
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error("Unauthorized")
+
+    await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, "integrations:write")
 
     // Get the account
     const { data: account } = await supabase
         .from('social_accounts')
         .select('*')
         .eq('platform', platform)
+        .eq('workspace_id', activeWorkspace.id)
         .single()
 
     if (!account || !account.metadata || !account.metadata.pages) return
@@ -124,6 +133,8 @@ export async function updateWorkspaceSettings(
     if (!membership) {
         throw new Error("No access to the selected workspace")
     }
+
+    await requireWorkspacePermission(supabase, user.id, workspaceId, "settings:write")
 
     const updatePayload = {
         workspace_id: workspaceId,

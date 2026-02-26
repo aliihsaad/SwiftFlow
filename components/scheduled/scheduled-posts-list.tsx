@@ -16,6 +16,7 @@ import { Pencil, CalendarDays, FileText, Trash2, Eye, Heart, MessageCircle, Shar
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
+import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 
 interface ScheduledPostsListProps {
     posts: any[]
@@ -47,13 +48,21 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
     const { toast } = useToast()
     const router = useRouter()
     const supabase = createClient()
+    const canWriteContent = useWorkspacePermission("content:write")
 
-    const handleEdit = (post: any) => { setEditingPost(post); setIsModalOpen(true) }
+    const handleEdit = (post: any) => {
+        if (!canWriteContent) return
+        setEditingPost(post)
+        setIsModalOpen(true)
+    }
     const handleModalClose = (open: boolean) => { setIsModalOpen(open); if (!open) setEditingPost(null) }
-    const handleDeleteClick = (postId: string) => setDeletePostId(postId)
+    const handleDeleteClick = (postId: string) => {
+        if (!canWriteContent) return
+        setDeletePostId(postId)
+    }
 
     const handleDeleteConfirm = async () => {
-        if (!deletePostId) return
+        if (!deletePostId || !canWriteContent) return
         setIsDeleting(true)
         try {
             const { error } = await supabase.from('posts').delete().eq('id', deletePostId)
@@ -106,6 +115,18 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
     /* ── Post grid ── */
     return (
         <>
+            {!canWriteContent && (
+                <div
+                    className="mb-4 rounded-xl px-4 py-3 text-sm"
+                    style={{
+                        background: 'rgba(245,158,11,0.06)',
+                        border: '1px solid rgba(245,158,11,0.18)',
+                        color: 'rgba(253,230,138,0.9)',
+                    }}
+                >
+                    Read-only role: you can view posts, but editing and deleting are disabled.
+                </div>
+            )}
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                 {posts.map((post) => {
                     const st = statusConfig[post.status as keyof typeof statusConfig] ?? statusConfig.draft
@@ -235,27 +256,35 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                                 )}
                             </div>
 
-                            {/* Action buttons — always visible, bottom right */}
+                            {/* Action buttons */}
                             <div
                                 className="flex items-center justify-end gap-2 px-4 py-3"
                                 style={{ borderTop: `1px solid ${SCHEDULED_THEME.borderSoft}` }}
                             >
-                                <button
-                                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150 hover:brightness-110"
-                                    style={{ background: 'rgba(56,189,248,0.10)', color: '#dff6ff', border: '1px solid rgba(56,189,248,0.2)' }}
-                                    onClick={() => handleEdit(post)}
-                                >
-                                    <Pencil className="h-3 w-3" />
-                                    Edit
-                                </button>
-                                <button
-                                    className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150 hover:brightness-110"
-                                    style={{ background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}
-                                    onClick={() => handleDeleteClick(post.id)}
-                                >
-                                    <Trash2 className="h-3 w-3" />
-                                    Delete
-                                </button>
+                                {canWriteContent ? (
+                                    <>
+                                        <button
+                                            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150 hover:brightness-110"
+                                            style={{ background: 'rgba(56,189,248,0.10)', color: '#dff6ff', border: '1px solid rgba(56,189,248,0.2)' }}
+                                            onClick={() => handleEdit(post)}
+                                        >
+                                            <Pencil className="h-3 w-3" />
+                                            Edit
+                                        </button>
+                                        <button
+                                            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150 hover:brightness-110"
+                                            style={{ background: 'rgba(248,113,113,0.1)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}
+                                            onClick={() => handleDeleteClick(post.id)}
+                                        >
+                                            <Trash2 className="h-3 w-3" />
+                                            Delete
+                                        </button>
+                                    </>
+                                ) : (
+                                    <span className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                                        View only
+                                    </span>
+                                )}
                             </div>
                         </div>
                     )
@@ -269,7 +298,7 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                 workspaceId={workspaceId}
             />
 
-            <AlertDialog open={!!deletePostId} onOpenChange={(open) => !open && setDeletePostId(null)}>
+            <AlertDialog open={canWriteContent && !!deletePostId} onOpenChange={(open) => !open && setDeletePostId(null)}>
                 <AlertDialogContent
                     className="border-0"
                     style={{

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 // GET - Get a single automation
 export async function GET(
@@ -22,6 +23,7 @@ export async function GET(
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'workspace:read');
 
         const { data: automation, error } = await supabase
             .from('automations')
@@ -40,6 +42,10 @@ export async function GET(
         return NextResponse.json({ automation });
 
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+        }
         console.error('Get automation API error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to fetch automation' },
@@ -68,6 +74,7 @@ export async function PUT(
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write');
 
         // Verify the automation belongs to this workspace
         const { data: existing, error: existingError } = await supabase
@@ -177,6 +184,10 @@ export async function PUT(
         });
 
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+        }
         console.error('Update automation API error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to update automation' },
@@ -205,6 +216,7 @@ export async function DELETE(
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write');
 
         // Verify the automation belongs to this workspace
         const { data: existing, error: existingError } = await supabase
@@ -235,6 +247,10 @@ export async function DELETE(
         });
 
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+        }
         console.error('Delete automation API error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to delete automation' },

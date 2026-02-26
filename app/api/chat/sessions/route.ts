@@ -1,6 +1,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
 
 export async function GET(request: NextRequest) {
     try {
@@ -15,6 +16,7 @@ export async function GET(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace' }, { status: 404 })
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'workspace:read')
 
         const { data: sessions, error } = await supabase
             .from('chat_sessions')
@@ -30,6 +32,13 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(sessions)
 
     } catch (error) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error)
+        if (permissionStatus) {
+            return NextResponse.json(
+                { error: error instanceof Error ? error.message : 'Forbidden' },
+                { status: permissionStatus }
+            )
+        }
         console.error('Error fetching chat sessions:', error)
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
     }
@@ -48,6 +57,7 @@ export async function POST(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace' }, { status: 404 })
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write')
 
         const body = await request.json()
         const { messages, title } = body
@@ -73,6 +83,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(session)
 
     } catch (error) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error)
+        if (permissionStatus) {
+            return NextResponse.json(
+                { error: error instanceof Error ? error.message : 'Forbidden' },
+                { status: permissionStatus }
+            )
+        }
         console.error('Error creating chat session:', error)
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
     }

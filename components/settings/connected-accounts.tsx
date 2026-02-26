@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Facebook, Instagram, AlertCircle, CheckCircle, Info, Settings, Loader2 } from "lucide-react"
 import { InstagramConnectDialog } from "./instagram-connect-dialog"
 import { redirectToMetaOAuth } from "@/utils/meta-oauth"
+import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 
 interface ConnectedAccountsProps {
     workspaceId: string;
@@ -39,6 +40,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     });
     const [loading, setLoading] = useState(true);
     const [isConnectingMeta, setIsConnectingMeta] = useState(false);
+    const canManageIntegrations = useWorkspacePermission("integrations:write");
 
     // URL params for feedback
     const error = searchParams.get('error');
@@ -68,6 +70,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     }, [workspaceId]);
 
     const handleConnectPages = () => {
+        if (!canManageIntegrations) return;
         if (isConnectingMeta) return;
         setIsConnectingMeta(true);
         redirectToMetaOAuth(workspaceId);
@@ -83,6 +86,17 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    {!canManageIntegrations && (
+                        <div className="rounded-xl border border-amber-300/20 bg-amber-400/8 p-4 text-amber-100/90">
+                            <div className="flex items-center gap-2 font-medium">
+                                <Info className="h-4 w-4" />
+                                Read-only access
+                            </div>
+                            <div className="mt-1 text-sm">
+                                Only admins and owners can connect or reconnect social accounts.
+                            </div>
+                        </div>
+                    )}
                     {/* Success: Pages Connected */}
                     {success === 'pages_connected' && (
                         <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/8 p-4 text-emerald-100/90">
@@ -111,7 +125,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                 Logged in with Facebook
                             </div>
                             <div className="mt-1 text-sm">
-                                Click "Connect Facebook Pages" below to grant access to your pages.
+                                Click &quot;Connect Facebook Pages&quot; below to grant access to your pages.
                             </div>
                         </div>
                     )}
@@ -205,7 +219,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                 <Button
                                     variant={status.facebook ? "outline" : "default"}
                                     onClick={handleConnectPages}
-                                    disabled={isConnectingMeta}
+                                    disabled={!canManageIntegrations || isConnectingMeta}
                                     className={status.facebook
                                         ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15"
                                         : "border-cyan-300/20 bg-linear-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"}
@@ -215,6 +229,8 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                             {status.facebook ? "Reconnecting..." : "Connecting..."}
                                         </>
+                                    ) : !canManageIntegrations ? (
+                                        "Admin Only"
                                     ) : (
                                         status.facebook ? "Reconnect Pages" : "Connect Facebook Pages"
                                     )}
@@ -241,7 +257,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                     trigger={
                                         <Button
                                             variant={status.instagram ? "outline" : "default"}
-                                            disabled={isConnectingMeta}
+                                            disabled={!canManageIntegrations || isConnectingMeta}
                                             className={status.instagram
                                                 ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15"
                                                 : "border-rose-300/20 bg-linear-to-r from-rose-400/20 via-rose-300/10 to-amber-300/15 text-white hover:from-rose-400/25 hover:to-amber-300/20"}
@@ -251,6 +267,8 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                                     {status.instagram ? "Reconnecting..." : "Connecting..."}
                                                 </>
+                                            ) : !canManageIntegrations ? (
+                                                "Admin Only"
                                             ) : (
                                                 status.instagram ? "Reconnect Instagram" : "Connect Instagram"
                                             )}

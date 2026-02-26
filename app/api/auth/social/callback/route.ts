@@ -1,6 +1,8 @@
 import { createClient } from "@/utils/supabase/server"
 import { redirect } from "next/navigation"
 import { NextResponse } from "next/server"
+import { getActiveWorkspace } from "@/lib/workspace-utils"
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
@@ -76,10 +78,19 @@ export async function GET(request: Request) {
         // 4. Save to Supabase
         const supabase = await createClient()
         const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+            return redirect(`/login?next=${encodeURIComponent('/dashboard/settings')}`)
+        }
+
+        const activeWorkspace = await getActiveWorkspace()
+        if (!activeWorkspace) {
+            return redirect(`/dashboard/onboarding`)
+        }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'integrations:write')
 
         // Ensure workspace exists (create default if not)
         // In real app, user should already have workspace. For now get first or create.
-        let { data: workspace } = await supabase.from('workspaces').select('id').maybeSingle()
+        let workspace: { id: string } | null = { id: activeWorkspace.id }
 
         if (!workspace && user) {
             const { data: newWs } = await supabase.from('workspaces').insert({
@@ -105,6 +116,10 @@ export async function GET(request: Request) {
         return redirect(`/dashboard/settings?success=connected_${platform}`)
 
     } catch (err: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(err)
+        if (permissionStatus) {
+            return redirect(`/dashboard/settings?error=forbidden`)
+        }
         console.error("OAuth Error:", err)
         return redirect(`/dashboard/settings?error=${encodeURIComponent(err.message)}`)
     }

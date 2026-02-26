@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 const META_GRAPH_URL = 'https://graph.facebook.com/v21.0';
 
@@ -19,6 +20,7 @@ export async function POST(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write');
 
         const body = await request.json();
         const { recipientId, message, platform } = body;
@@ -89,6 +91,13 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error: any) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json(
+                { error: error.message || 'Forbidden', errorCode: 'forbidden' },
+                { status: permissionStatus }
+            );
+        }
         console.error('Send message API error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to send message', errorCode: 'internal_error' },

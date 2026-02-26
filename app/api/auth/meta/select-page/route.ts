@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/utils/supabase/server';
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
-const supabaseAdmin = createClient(
+const supabaseAdmin = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_KEY!
 );
@@ -63,6 +65,13 @@ export async function POST(request: NextRequest) {
 
         const workspaceId = session.workspace_id;
         const pagesData = session.pages_data as PageData[];
+
+        const supabase = await createServerClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        await requireWorkspacePermission(supabase, user.id, workspaceId, 'integrations:write');
 
         // Step 2: Find the selected page
         const selectedPage = pagesData.find((p) => p.id === selectedPageId);
@@ -227,6 +236,13 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json(
+                { error: error instanceof Error ? error.message : 'Forbidden' },
+                { status: permissionStatus }
+            );
+        }
         console.error('[SELECT_PAGE] Error:', error);
         return NextResponse.json(
             { error: error instanceof Error ? error.message : 'Unknown error' },

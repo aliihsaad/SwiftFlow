@@ -6,6 +6,7 @@ import { acceptWorkspaceInvite, getWorkspaceInvitePreview } from "@/app/actions/
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { AcceptInviteSubmit } from "@/components/invite/accept-invite-submit"
 
 function formatDate(value: string) {
     return new Date(value).toLocaleString("en-US", {
@@ -153,12 +154,7 @@ export default async function WorkspaceInvitePage({
                         <div className="flex flex-col gap-2 sm:flex-row">
                             {isPendingAndValid && emailMatches ? (
                                 <form action={handleAcceptInvite} className="w-full sm:w-auto">
-                                    <Button
-                                        type="submit"
-                                        className="w-full border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
-                                    >
-                                        Accept Invite
-                                    </Button>
+                                    <AcceptInviteSubmit />
                                 </form>
                             ) : (
                                 <Button asChild className="border border-cyan-300/20 bg-white/5 text-white hover:bg-white/10">

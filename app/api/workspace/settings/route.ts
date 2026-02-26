@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase Admin Client
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
-);
+import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 /**
  * GET /api/workspace/settings
@@ -23,6 +19,14 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+        await requireWorkspacePermission(supabase, user.id, workspaceId, 'workspace:read');
+
+        const supabaseAdmin = createAdminClient();
         const { data, error } = await supabaseAdmin
             .from('workspace_settings')
             .select('*')
@@ -49,6 +53,13 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(data);
     } catch (error) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json(
+                { error: error instanceof Error ? error.message : 'Forbidden' },
+                { status: permissionStatus }
+            );
+        }
         console.error('[WORKSPACE_SETTINGS] Unexpected error:', error);
         return NextResponse.json(
             { error: 'Internal server error' },
@@ -63,6 +74,12 @@ export async function GET(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
     try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await request.json();
         const { workspaceId, ...settings } = body;
 
@@ -72,6 +89,10 @@ export async function PUT(request: NextRequest) {
                 { status: 400 }
             );
         }
+
+        await requireWorkspacePermission(supabase, user.id, workspaceId, 'settings:write');
+
+        const supabaseAdmin = createAdminClient();
 
         // Check if settings exist
         const { data: existing } = await supabaseAdmin
@@ -115,6 +136,13 @@ export async function PUT(request: NextRequest) {
 
         return NextResponse.json(result.data);
     } catch (error) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json(
+                { error: error instanceof Error ? error.message : 'Forbidden' },
+                { status: permissionStatus }
+            );
+        }
         console.error('[WORKSPACE_SETTINGS] Unexpected error:', error);
         return NextResponse.json(
             { error: 'Internal server error' },

@@ -21,13 +21,14 @@ import { InstagramPostPreview } from "./instagram-post-preview"
 import {
     X, Info, Plus, Instagram, Facebook, Monitor,
     RefreshCw, Smile, Bold, Italic, Link, BarChart2,
-    Wand2, Eye, Loader2,
+    Wand2, Eye, Loader2, Lock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 import EmojiPicker, { Theme } from "emoji-picker-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 
 interface CreatePostModalProps {
     open: boolean
@@ -520,9 +521,57 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
 }
 
 // ─── Exported component ───────────────────────────────────────────────────────
+function CreatePostLockedNotice({ onClose }: { onClose: () => void }) {
+    return (
+        <div className="flex h-full min-h-[280px] flex-col">
+            <div className="shrink-0 border-b border-white/10 bg-[#1b1d28]/75 px-5 pb-3 pt-2">
+                <div className="mx-auto mb-2 h-1 w-12 rounded-full bg-white/20 sm:hidden" />
+                <div className="flex items-center gap-2">
+                    <Lock className="h-4 w-4 text-amber-300" />
+                    <h2 className="text-base font-medium text-white/90">Create Post</h2>
+                    <div className="ml-auto">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={onClose}
+                            className="h-8 w-8 rounded-lg border border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                        >
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex flex-1 items-center justify-center p-6 sm:p-8">
+                <div className="w-full max-w-md rounded-2xl border border-amber-300/20 bg-amber-400/5 p-5 text-center">
+                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-amber-300/20 bg-amber-400/10">
+                        <Lock className="h-5 w-5 text-amber-300" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-white/90">Read-only role</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-white/55">
+                        Your current workspace role can view content but cannot create, schedule, or edit posts.
+                    </p>
+                    <div className="mt-4 flex justify-center">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onClose}
+                            className="border-white/10 bg-white/5 text-white/75 hover:bg-white/10 hover:text-white"
+                        >
+                            Close
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 export function CreatePostModal(props: CreatePostModalProps) {
     const { open, onOpenChange } = props
     const [isMobile, setIsMobile] = useState(false)
+    const canWriteContent = useWorkspacePermission("content:write")
 
     useEffect(() => {
         if (typeof window === 'undefined') return
@@ -533,7 +582,9 @@ export function CreatePostModal(props: CreatePostModalProps) {
         return () => mq.removeEventListener('change', update)
     }, [])
 
-    const inner = <PostCreatorInner {...props} onClose={() => onOpenChange(false)} />
+    const inner = canWriteContent
+        ? <PostCreatorInner {...props} onClose={() => onOpenChange(false)} />
+        : <CreatePostLockedNotice onClose={() => onOpenChange(false)} />
 
     // Mobile: slide-up bottom sheet via Radix Sheet (portal-based, real animation)
     if (isMobile) {

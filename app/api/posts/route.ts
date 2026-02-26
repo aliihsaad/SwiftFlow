@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { PostData } from '@/types/post'
 import { getActiveWorkspace } from '@/lib/workspace-utils'
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions'
 
 /**
  * Trigger the process-scheduled-posts edge function (fire-and-forget).
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 })
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write')
 
         const body = await request.json() as PostData
         const { platforms, captionByPlatform, mediaUrls, status, scheduledAt } = body
@@ -79,6 +81,13 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ...post, publishTriggered: shouldPublishNow })
 
     } catch (error) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error)
+        if (permissionStatus) {
+            return NextResponse.json(
+                { error: error instanceof Error ? error.message : 'Forbidden' },
+                { status: permissionStatus }
+            )
+        }
         console.error('Post Creation Error:', error)
         return NextResponse.json(
             { error: 'Failed to create post' },
@@ -100,6 +109,7 @@ export async function PUT(request: NextRequest) {
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 })
         }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write')
 
         const body = await request.json()
         const { id, platforms, captionByPlatform, mediaUrls, status, scheduledAt } = body
@@ -141,6 +151,13 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ ...post, publishTriggered: shouldPublishNow })
 
     } catch (error) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error)
+        if (permissionStatus) {
+            return NextResponse.json(
+                { error: error instanceof Error ? error.message : 'Forbidden' },
+                { status: permissionStatus }
+            )
+        }
         console.error('Post Update Error:', error)
         return NextResponse.json({ error: 'Failed to update post' }, { status: 500 })
     }
@@ -167,6 +184,13 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: 'Scheduled date is required' }, { status: 400 })
         }
 
+        const activeWorkspace = await getActiveWorkspace()
+        if (!activeWorkspace) {
+            return NextResponse.json({ error: 'No active workspace found' }, { status: 404 })
+        }
+
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write')
+
         // Only update the scheduled_for field - preserves all other data
         const { data: post, error } = await supabase
             .from('posts')
@@ -175,6 +199,7 @@ export async function PATCH(request: NextRequest) {
                 updated_at: new Date().toISOString()
             })
             .eq('id', id)
+            .eq('workspace_id', activeWorkspace.id)
             .select()
             .single()
 
@@ -186,6 +211,13 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json(post)
 
     } catch (error) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error)
+        if (permissionStatus) {
+            return NextResponse.json(
+                { error: error instanceof Error ? error.message : 'Forbidden' },
+                { status: permissionStatus }
+            )
+        }
         console.error('Post Patch Error:', error)
         return NextResponse.json({ error: 'Failed to update post schedule' }, { status: 500 })
     }

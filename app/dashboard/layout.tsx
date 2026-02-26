@@ -1,8 +1,9 @@
 import { Sidebar } from "@/components/layout/sidebar"
 import { MobileNav } from "@/components/layout/mobile-nav"
+import { WorkspaceRoleProvider } from "@/components/workspace/workspace-role-provider"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { createClient } from "@/utils/supabase/server"
-import { Workspace } from "@/types/workspace"
+import { Workspace, WorkspaceRole } from "@/types/workspace"
 
 export default async function DashboardLayout({
     children,
@@ -19,6 +20,7 @@ export default async function DashboardLayout({
     const { data: members } = await supabase
         .from('workspace_members')
         .select(`
+            role,
             workspace_id,
             workspaces (
                 id, name, slug, owner_id, created_at
@@ -30,11 +32,15 @@ export default async function DashboardLayout({
         const ws = m.workspaces
         return Array.isArray(ws) ? ws[0] : ws
     }).filter(Boolean) || []) as Workspace[]
+    const activeWorkspaceRole = activeWorkspace
+        ? ((members?.find((m) => m.workspace_id === activeWorkspace.id)?.role as WorkspaceRole | undefined) ?? null)
+        : null
 
     const userInitial = user.email?.charAt(0).toUpperCase() || 'U'
 
     return (
-        <div className="flex h-screen overflow-hidden" style={{ background: '#070710' }}>
+        <WorkspaceRoleProvider role={activeWorkspaceRole}>
+            <div className="flex h-screen overflow-hidden" style={{ background: '#070710' }}>
             {/* Sidebar — desktop only */}
             <div className="hidden sm:flex h-full">
                 <Sidebar
@@ -122,6 +128,7 @@ export default async function DashboardLayout({
                     </nav>
                 </footer>
             </div>
-        </div>
+            </div>
+        </WorkspaceRoleProvider>
     )
 }

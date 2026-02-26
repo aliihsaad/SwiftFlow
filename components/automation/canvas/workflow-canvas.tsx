@@ -7,12 +7,14 @@ import {
   Controls,
   Background,
   BackgroundVariant,
+  ConnectionMode,
   addEdge,
   useNodesState,
   useEdgesState,
   type Connection,
   type ReactFlowInstance,
   type Node,
+  type IsValidConnection,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 
@@ -54,6 +56,18 @@ interface WorkflowCanvasProps {
 let nodeIdCounter = 0
 function getNextNodeId() {
   return `node-${Date.now()}-${++nodeIdCounter}`
+}
+
+type ConnectionCheckResult = { ok: true } | { ok: false; reason: string }
+type ConnectionLike = {
+  source?: string | null
+  target?: string | null
+  sourceHandle?: string | null | undefined
+  targetHandle?: string | null | undefined
+}
+
+function normalizeHandleKey(handle: string | null | undefined): string {
+  return handle || '__default__'
 }
 
 export function WorkflowCanvas({
@@ -113,9 +127,150 @@ export function WorkflowCanvas({
     }
   }, [history, historyIndex, setNodes, setEdges])
 
+  const getNodeById = useCallback((nodeId: string | null | undefined) => {
+    if (!nodeId) return null
+    return nodes.find((node) => node.id === nodeId) || null
+  }, [nodes])
+
+  const checkConnection = useCallback((
+    params: ConnectionLike,
+    currentEdges: WorkflowEdge[],
+  ): ConnectionCheckResult => {
+    const sourceId = params.source || null
+    const targetId = params.target || null
+
+    if (!sourceId || !targetId) {
+      return { ok: false, reason: 'Connect a source node to a target node handle.' }
+    }
+
+    if (sourceId === targetId) {
+      return { ok: false, reason: 'A node cannot connect to itself.' }
+    }
+
+    const sourceNode = getNodeById(sourceId)
+    const targetNode = getNodeById(targetId)
+
+    if (!sourceNode || !targetNode) {
+      return { ok: false, reason: 'Connection references a missing node.' }
+    }
+
+    const sourceData = sourceNode.data as unknown as WorkflowNodeData
+    const targetData = targetNode.data as unknown as WorkflowNodeData
+    const sourceType = sourceData.type
+    const targetType = targetData.type
+    const sourceHandle = params.sourceHandle ?? null
+    const sourceHandleKey = normalizeHandleKey(sourceHandle)
+
+    if (isTriggerNode(targetType)) {
+      return { ok: false, reason: 'Trigger nodes cannot have incoming connections.' }
+    }
+
+    const exactDuplicate = currentEdges.some((edge) =>
+      edge.source === sourceId &&
+      edge.target === targetId &&
+      normalizeHandleKey(edge.sourceHandle) === sourceHandleKey &&
+      normalizeHandleKey(edge.targetHandle) === normalizeHandleKey(params.targetHandle),
+    )
+    if (exactDuplicate) {
+      return { ok: false, reason: 'That connection already exists.' }
+    }
+
+    const incomingToTarget = currentEdges.filter((edge) => edge.target === targetId)
+    if (incomingToTarget.length >= 1) {
+      return { ok: false, reason: 'Each action node can only have one incoming connection.' }
+    }
+
+    const outgoingFromSameHandle = currentEdges.filter((edge) =>
+      edge.source === sourceId && normalizeHandleKey(edge.sourceHandle) === sourceHandleKey,
+    )
+
+    const isConditionSource = sourceType === 'action_condition'
+    if (isConditionSource) {
+      if (!['true', 'false', 'error'].includes(sourceHandle || '')) {
+        return { ok: false, reason: 'Condition nodes must connect from True, False, or Error outputs.' }
+      }
+      if (outgoingFromSameHandle.length >= 1) {
+        return { ok: false, reason: `Condition "${sourceHandle}" output can only connect to one node.` }
+      }
+    } else {
+      if (sourceHandle === 'true' || sourceHandle === 'false') {
+        return { ok: false, reason: 'Only Condition nodes can use True/False outputs.' }
+      }
+      if (sourceHandle === 'error' && isTriggerNode(sourceType)) {
+        return { ok: false, reason: 'Trigger nodes do not have an Error output.' }
+      }
+      if (!isTriggerNode(sourceType) && outgoingFromSameHandle.length >= 1) {
+        const handleLabel = sourceHandle === 'error' ? 'Error' : 'Next'
+        return { ok: false, reason: `"${sourceData.label}" ${handleLabel} output can only connect to one node.` }
+      }
+    }
+
+    // Prevent cycles by checking whether target already reaches source
+    const adjacency = new Map<string, string[]>()
+    for (const node of nodes) {
+      adjacency.set(node.id, [])
+    }
+    for (const edge of currentEdges) {
+      const list = adjacency.get(edge.source) || []
+      list.push(edge.target)
+      adjacency.set(edge.source, list)
+    }
+    const candidateChildren = adjacency.get(sourceId) || []
+    candidateChildren.push(targetId)
+    adjacency.set(sourceId, candidateChildren)
+
+    const stack = [targetId]
+    const seen = new Set<string>()
+    while (stack.length > 0) {
+      const current = stack.pop()!
+      if (current === sourceId) {
+        return { ok: false, reason: 'This connection creates a cycle. Workflows must stay acyclic.' }
+      }
+      if (seen.has(current)) continue
+      seen.add(current)
+      for (const next of adjacency.get(current) || []) {
+        if (!seen.has(next)) stack.push(next)
+      }
+    }
+
+    return { ok: true }
+  }, [getNodeById, nodes])
+
+  const validateCurrentGraphConnections = useCallback((): string[] => {
+    const issues: string[] = []
+    const accepted: WorkflowEdge[] = []
+
+    for (const edge of edges) {
+      const result = checkConnection({
+        source: edge.source,
+        target: edge.target,
+        sourceHandle: edge.sourceHandle ?? null,
+        targetHandle: edge.targetHandle ?? null,
+      }, accepted)
+
+      if (!result.ok) {
+        issues.push(`Invalid connection (${edge.source} -> ${edge.target}): ${result.reason}`)
+      } else {
+        accepted.push(edge)
+      }
+    }
+
+    return issues
+  }, [edges, checkConnection])
+
   // Connection handler
   const onConnect = useCallback(
     (params: Connection) => {
+      const validation = checkConnection(params, edges)
+      if (!validation.ok) {
+        toast({
+          title: 'Connection blocked',
+          description: validation.reason,
+          variant: 'destructive',
+        })
+        return
+      }
+
       pushHistory()
       setEdges((eds) =>
         addEdge(
@@ -124,7 +279,12 @@ export function WorkflowCanvas({
         ),
       )
     },
-    [setEdges, pushHistory],
+    [setEdges, pushHistory, checkConnection, edges, toast],
+  )
+
+  const isValidConnection: IsValidConnection = useCallback(
+    (connection) => checkConnection(connection, edges).ok,
+    [checkConnection, edges],
   )
 
   const getCanvasCenterPosition = useCallback(() => {
@@ -296,6 +456,38 @@ export function WorkflowCanvas({
       return
     }
 
+    const connectionIssues = validateCurrentGraphConnections()
+    if (connectionIssues.length > 0) {
+      toast({
+        title: 'Invalid workflow connections',
+        description: connectionIssues[0],
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      const validateRes = await fetch('/api/automations/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workflow_graph: { nodes, edges } }),
+      })
+      if (validateRes.ok) {
+        const validation = await validateRes.json()
+        if (!validation.valid) {
+          const firstError = Array.isArray(validation.errors) ? validation.errors[0] : null
+          toast({
+            title: 'Validation Error',
+            description: firstError?.message || 'Workflow validation failed.',
+            variant: 'destructive',
+          })
+          return
+        }
+      }
+    } catch {
+      // Non-blocking: save endpoint will still validate required fields.
+    }
+
     setIsSaving(true)
     try {
       await onSave({ nodes, edges }, automationName, isActive)
@@ -305,7 +497,7 @@ export function WorkflowCanvas({
     } finally {
       setIsSaving(false)
     }
-  }, [nodes, edges, automationName, isActive, onSave, toast])
+  }, [nodes, edges, automationName, isActive, onSave, toast, validateCurrentGraphConnections])
 
   // Auto-layout (simple dagre-like top-down)
   const handleAutoLayout = useCallback(() => {
@@ -408,6 +600,7 @@ export function WorkflowCanvas({
             onNodesChange={handleNodesChange}
             onEdgesChange={handleEdgesChange}
             onConnect={onConnect}
+            isValidConnection={isValidConnection}
             onInit={setReactFlowInstance}
             onDrop={onDrop}
             onDragOver={onDragOver}
@@ -416,11 +609,23 @@ export function WorkflowCanvas({
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             defaultEdgeOptions={{ type: 'custom', animated: true }}
+            connectionMode={ConnectionMode.Strict}
             fitView
             deleteKeyCode={['Backspace', 'Delete']}
             className=""
             style={{ background: '#11131c' }}
           >
+            <div
+              className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-lg border px-3 py-2 text-xs"
+              style={{
+                background: 'rgba(21,22,32,0.92)',
+                borderColor: 'rgba(255,255,255,0.08)',
+                color: 'rgba(255,255,255,0.78)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
+              }}
+            >
+              Drag from a node&apos;s bottom dot (Next/Error/True/False) to another node&apos;s top dot to connect.
+            </div>
             <Controls
               className="shadow-md! automation-canvas-controls"
               style={{ background: '#151620', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.75)' }}

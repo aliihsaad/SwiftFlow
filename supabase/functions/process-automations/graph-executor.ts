@@ -82,6 +82,114 @@ interface ExecutionResult {
   nodeResults: Record<string, { success: boolean; output?: any; error?: string }>
 }
 
+function isTriggerNodeType(type: unknown): boolean {
+  return String(type || '').startsWith('trigger_');
+}
+
+function validateExecutableGraph(graph: WorkflowGraph): string[] {
+  const issues: string[] = [];
+  const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
+  const edges = Array.isArray(graph?.edges) ? graph.edges : [];
+  const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+
+  const triggerNodes = nodes.filter((node) => isTriggerNodeType(node?.data?.type));
+  if (triggerNodes.length !== 1) {
+    issues.push('Workflow must contain exactly one trigger node.');
+  }
+
+  const incomingByTarget = new Map<string, number>();
+  const outgoingHandleCounts = new Map<string, number>();
+
+  for (const edge of edges) {
+    if (!nodeMap.has(edge.source) || !nodeMap.has(edge.target)) {
+      issues.push(`Edge ${edge.id || `${edge.source}->${edge.target}`} references a missing node.`);
+      continue;
+    }
+    if (edge.source === edge.target) {
+      issues.push(`Node ${edge.source} cannot connect to itself.`);
+    }
+
+    const targetNode = nodeMap.get(edge.target);
+    const sourceNode = nodeMap.get(edge.source);
+    const sourceType = String(sourceNode?.data?.type || '');
+    const sourceHandle = String(edge.sourceHandle || '');
+    const handleKey = `${edge.source}:${sourceHandle || '__default__'}`;
+
+    if (isTriggerNodeType(targetNode?.data?.type)) {
+      issues.push(`Trigger node ${edge.target} cannot have incoming connections.`);
+    }
+
+    incomingByTarget.set(edge.target, (incomingByTarget.get(edge.target) || 0) + 1);
+
+    if (sourceType === 'action_condition') {
+      if (!['true', 'false', 'error'].includes(sourceHandle)) {
+        issues.push(`Condition node ${edge.source} uses an invalid output handle.`);
+      }
+      outgoingHandleCounts.set(handleKey, (outgoingHandleCounts.get(handleKey) || 0) + 1);
+    } else {
+      if (sourceHandle === 'true' || sourceHandle === 'false') {
+        issues.push(`Only Condition nodes can use True/False outputs (edge from ${edge.source}).`);
+      }
+      if (sourceHandle === 'error' && isTriggerNodeType(sourceType)) {
+        issues.push(`Trigger node ${edge.source} cannot use an Error output.`);
+      }
+      if (!isTriggerNodeType(sourceType)) {
+        outgoingHandleCounts.set(handleKey, (outgoingHandleCounts.get(handleKey) || 0) + 1);
+      }
+    }
+  }
+
+  for (const [targetId, count] of incomingByTarget) {
+    if (count > 1) {
+      issues.push(`Node ${targetId} has multiple incoming connections. Only one is allowed.`);
+    }
+  }
+
+  for (const [key, count] of outgoingHandleCounts) {
+    if (count > 1) {
+      issues.push(`Output handle ${key} has multiple connections. Only one per handle is allowed.`);
+    }
+  }
+
+  // DAG check
+  if (nodes.length > 0) {
+    const inDegree = new Map<string, number>();
+    const adjacency = new Map<string, string[]>();
+    for (const node of nodes) {
+      inDegree.set(node.id, 0);
+      adjacency.set(node.id, []);
+    }
+    for (const edge of edges) {
+      if (!adjacency.has(edge.source) || !inDegree.has(edge.target)) continue;
+      adjacency.get(edge.source)?.push(edge.target);
+      inDegree.set(edge.target, (inDegree.get(edge.target) || 0) + 1);
+    }
+
+    const queue: string[] = [];
+    for (const [nodeId, deg] of inDegree.entries()) {
+      if (deg === 0) queue.push(nodeId);
+    }
+
+    let visitedCount = 0;
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      visitedCount++;
+      for (const child of adjacency.get(current) || []) {
+        const nextDeg = (inDegree.get(child) || 0) - 1;
+        inDegree.set(child, nextDeg);
+        if (nextDeg === 0) queue.push(child);
+      }
+    }
+
+    if (visitedCount < nodes.length) {
+      issues.push('Workflow contains a cycle. Cycles are not allowed.');
+    }
+  }
+
+  // De-duplicate messages to avoid log spam
+  return [...new Set(issues)];
+}
+
 function getOutgoingEdges(
   adjacency: Map<string, { targetId: string; sourceHandle?: string }[]>,
   nodeId: string,
@@ -192,6 +300,16 @@ export async function executeWorkflowGraph(
   if (!graph?.nodes?.length) {
     console.error(`[GRAPH] Automation ${automation.id}: No graph nodes`);
     return result;
+  }
+
+  const graphIssues = validateExecutableGraph(graph);
+  if (graphIssues.length > 0) {
+    console.error(`[GRAPH] Automation ${automation.id}: Invalid workflow graph`, graphIssues);
+    return {
+      ...result,
+      errors: 1,
+      nodeResults: {},
+    };
   }
 
   // Find trigger node
@@ -353,6 +471,11 @@ export async function resumeFromDelay(
 
   const account = automation.social_accounts;
   const graph: WorkflowGraph = automation.workflow_graph;
+  const graphIssues = validateExecutableGraph(graph);
+  if (graphIssues.length > 0) {
+    console.error(`[GRAPH_RESUME] Automation ${automation_id} invalid workflow graph`, graphIssues);
+    return { processed: 0, dmsSent: 0, errors: 1, nodeResults: { } };
+  }
   const pageId = account.metadata?.connected_page_id || account.account_id;
 
   const result: ExecutionResult = {

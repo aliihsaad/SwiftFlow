@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { Suspense, useState } from "react"
 import Link from "next/link"
@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, KeyRound, UserPlus, ArrowRight, ChevronLeft, ChevronRight, Home } from "lucide-react"
+import { Loader2, KeyRound, UserPlus, ArrowRight, ChevronLeft } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
@@ -167,39 +167,22 @@ function LoginPageContent() {
 
             {/* Main container */}
             <div className="relative z-10 w-full max-w-[420px] mx-4 animate-in fade-in slide-in-from-bottom-6 duration-700 fill-mode-both">
-                {/* Breadcrumb / Back nav */}
-                <div
-                    className="mb-5 flex items-center justify-between rounded-xl px-3 py-2"
-                    style={{
-                        background: "rgba(21,22,32,0.72)",
-                        border: "1px solid rgba(255,255,255,0.07)",
-                        backdropFilter: "blur(14px)",
-                        WebkitBackdropFilter: "blur(14px)",
-                    }}
-                >
-                    <div className="flex min-w-0 items-center gap-1.5 text-xs">
-                        <Link
-                            href="/"
-                            className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 transition-colors hover:bg-white/5"
-                            style={{ color: "rgba(255,255,255,0.65)" }}
-                        >
-                            <Home className="h-3.5 w-3.5" />
-                            <span>Home</span>
-                        </Link>
-                        <ChevronRight className="h-3 w-3 shrink-0" style={{ color: "rgba(255,255,255,0.28)" }} />
-                        <span className="truncate px-1.5 py-1 font-medium" style={{ color: "rgba(255,255,255,0.88)" }}>
-                            Login
-                        </span>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => router.push("/")}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
-                        style={{ color: "rgba(255,255,255,0.72)" }}
+                {/* Back to home */}
+                <div className="mb-5">
+                    <Link
+                        href="/"
+                        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors hover:bg-white/5"
+                        style={{
+                            color: "rgba(255,255,255,0.5)",
+                            border: "1px solid rgba(255,255,255,0.07)",
+                            background: "rgba(21,22,32,0.72)",
+                            backdropFilter: "blur(14px)",
+                            WebkitBackdropFilter: "blur(14px)",
+                        }}
                     >
                         <ChevronLeft className="h-3.5 w-3.5" />
-                        Back
-                    </button>
+                        Back to SwiftFlow
+                    </Link>
                 </div>
 
                 {/* Brand */}

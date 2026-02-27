@@ -1,5 +1,7 @@
 "use client"
 
+import { useState } from "react"
+
 import { Bell } from "lucide-react"
 import {
     DropdownMenu,
@@ -17,11 +19,11 @@ export type RecentAction = {
 }
 
 const typeConfig: Record<RecentAction['type'], { icon: React.ElementType; color: string; bg: string }> = {
-    draft:        { icon: FileEdit,      color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-    published:    { icon: Send,          color: '#84cc16', bg: 'rgba(132,204,22,0.12)' },
-    scheduled:    { icon: CalendarClock, color: '#22d3ee', bg: 'rgba(34,211,238,0.1)' },
-    ai_generated: { icon: Sparkles,      color: '#fb7185', bg: 'rgba(251,113,133,0.1)' },
-    failed:       { icon: Ban,           color: '#fb7185', bg: 'rgba(251,113,133,0.1)' },
+    draft: { icon: FileEdit, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
+    published: { icon: Send, color: '#84cc16', bg: 'rgba(132,204,22,0.12)' },
+    scheduled: { icon: CalendarClock, color: '#22d3ee', bg: 'rgba(34,211,238,0.1)' },
+    ai_generated: { icon: Sparkles, color: '#fb7185', bg: 'rgba(251,113,133,0.1)' },
+    failed: { icon: Ban, color: '#fb7185', bg: 'rgba(251,113,133,0.1)' },
 }
 
 interface RecentActivityDropdownProps {
@@ -29,8 +31,20 @@ interface RecentActivityDropdownProps {
 }
 
 export function RecentActivityDropdown({ activities }: RecentActivityDropdownProps) {
+    const [isOpen, setIsOpen] = useState(false)
+    const [seenCount, setSeenCount] = useState(0)
+
+    const unreadCount = activities.length - seenCount
+
+    const handleOpenChange = (open: boolean) => {
+        setIsOpen(open)
+        if (open) {
+            setSeenCount(activities.length)
+        }
+    }
+
     return (
-        <DropdownMenu>
+        <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
             <DropdownMenuTrigger asChild>
                 <button
                     className="relative flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-150"
@@ -51,12 +65,12 @@ export function RecentActivityDropdown({ activities }: RecentActivityDropdownPro
                     }}
                 >
                     <Bell className="h-4 w-4" />
-                    {activities.length > 0 && (
+                    {unreadCount > 0 && !isOpen && (
                         <span
                             className="absolute -right-0.5 -top-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full text-[8px] font-bold text-white"
                             style={{ background: '#fb7185' }}
                         >
-                            {Math.min(activities.length, 9)}
+                            {Math.min(unreadCount, 9)}
                         </span>
                     )}
                 </button>

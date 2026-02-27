@@ -658,67 +658,54 @@ function Hero() {
 
 function FakeAIWorkspace() {
     return (
-        <div className="w-full h-full bg-[#0a0a0a] rounded-2xl border border-white/10 flex flex-col overflow-hidden shadow-2xl relative z-10 pointer-events-auto">
-            {/* Header */}
-            <div className="h-14 border-b border-white/10 flex items-center px-6 justify-between bg-white/2">
+        <div className="w-full h-full bg-[#0a0a0c] rounded-2xl border border-white/5 flex flex-col overflow-hidden shadow-2xl relative z-10 pointer-events-auto">
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-fuchsia-500/10 blur-[120px] rounded-full pointer-events-none" />
+            <div className="h-14 border-b border-white/5 flex items-center px-6 justify-between bg-white/1 backdrop-blur-xl relative z-20">
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-white/5 border border-white/10 text-white text-xs font-semibold shadow-sm">
-                        <Sparkles className="w-4 h-4 text-fuchsia-400" /> AI Assistant
+                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-fuchsia-500/20 to-purple-500/20 border border-fuchsia-500/30 flex items-center justify-center">
+                        <Sparkles className="w-3.5 h-3.5 text-fuchsia-400" />
                     </div>
+                    <span className="text-white/90 text-sm font-medium">AI Copilot</span>
                 </div>
-                <div className="flex gap-2">
-                    <div className="w-20 h-6 bg-white/5 rounded-md animate-pulse" />
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]" />
+                    <span className="text-white/50 text-xs">Connected</span>
                 </div>
             </div>
-
-            {/* Chat Area */}
-            <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-6 relative">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-fuchsia-500/10 blur-[80px] rounded-full pointer-events-none" />
-
-                {/* User Message */}
-                <div className="flex justify-end relative z-10 w-full">
-                    <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} className="max-w-[85%] sm:max-w-[75%] bg-white/10 border border-white/5 rounded-2xl rounded-tr-sm p-4 text-sm text-white/90 shadow-md">
-                        Generate 3 content ideas for Instagram about our new UI update.
+            <div className="flex-1 p-6 overflow-y-auto space-y-6 relative z-10">
+                <div className="flex justify-end w-full">
+                    <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} className="max-w-[85%] bg-white/5 border border-white/10 rounded-2xl rounded-tr-sm p-4 text-sm text-white/90 font-light shadow-lg backdrop-blur-sm">
+                        Suggest 3 new content angles.
                     </motion.div>
                 </div>
-
-                {/* AI Message */}
-                <div className="flex justify-start relative z-10 w-full">
-                    <div className="w-8 h-8 rounded-full bg-linear-to-br from-fuchsia-500 to-cyan-500 flex items-center justify-center mr-3 mt-1 shrink-0 shadow-[0_0_10px_rgba(217,70,239,0.5)]">
-                        <Sparkles className="w-4 h-4 text-white" />
+                <div className="flex justify-start w-full gap-4">
+                    <div className="w-8 h-8 rounded-full bg-white/10 border border-white/5 flex items-center justify-center shrink-0 mt-1 shadow-inner">
+                        <Sparkles className="w-3.5 h-3.5 text-white/80" />
                     </div>
-                    <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="max-w-[85%] sm:max-w-[75%] bg-[#111116] border border-white/10 rounded-2xl rounded-tl-sm p-4 text-sm text-white/80 leading-relaxed shadow-xl">
-                        <span className="text-white font-medium block mb-2">Here are 3 punchy content ideas for your Instagram:</span>
-
-                        <div className="space-y-3 mt-3">
-                            <div className="bg-white/5 border border-white/10 p-3 rounded-lg">
-                                <span className="text-cyan-400 font-bold block mb-1 text-xs">Idea 1: The "Before & After"</span>
-                                <span className="text-white/70 text-xs">Show a sleek comparison of the old UI vs. the new dark mode Apple Pro aesthetic.</span>
-                            </div>
-                            <div className="bg-white/5 border border-white/10 p-3 rounded-lg">
-                                <span className="text-fuchsia-400 font-bold block mb-1 text-xs">Idea 2: Feature Spotlight Reel</span>
-                                <span className="text-white/70 text-xs">A fast-paced screen recording highlighting the new sticky scroll showcase.</span>
-                            </div>
-                            <div className="bg-white/5 border border-white/10 p-3 rounded-lg">
-                                <span className="text-amber-400 font-bold block mb-1 text-xs">Idea 3: Design Deep Dive</span>
-                                <span className="text-white/70 text-xs">Go behind the scenes on why we rebuilt the dashboard for extreme high contrast.</span>
-                            </div>
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap gap-2 pt-3 border-t border-white/5">
-                            <button className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-md text-[11px] font-bold uppercase tracking-wider hover:bg-white/10 transition-colors text-white">Generate Image</button>
-                            <button className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-md text-[11px] font-bold uppercase tracking-wider hover:bg-white/10 transition-colors text-white">Draft Post</button>
+                    <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="max-w-[85%] flex-1 pt-1.5">
+                        <p className="text-white/80 text-sm leading-relaxed font-light mb-4 text-balance">
+                            Here are three high-converting content angles:
+                        </p>
+                        <div className="space-y-2.5">
+                            {[
+                                { title: "Behind the Scenes", desc: "Show your setup." },
+                                { title: "Value Breakdown", desc: "Step-by-step." },
+                                { title: "Transformation", desc: "Before & after." }
+                            ].map((idea, i) => (
+                                <div key={i} className="bg-white/5 border border-white/5 rounded-xl p-3 hover:bg-white/10 transition-colors group">
+                                    <div className="text-white/90 text-xs font-medium mb-1 group-hover:text-fuchsia-300 transition-colors">{idea.title}</div>
+                                    <div className="text-white/50 text-[11px] font-light">{idea.desc}</div>
+                                </div>
+                            ))}
                         </div>
                     </motion.div>
                 </div>
             </div>
-
-            {/* Input Placeholder */}
-            <div className="p-4 border-t border-white/10 bg-[#0a0a0a]">
-                <div className="min-h-[48px] w-full bg-[#151620] border border-white/10 rounded-xl flex items-center px-4 justify-between shadow-inner">
-                    <span className="text-white/30 text-sm">Ask the assistant anything...</span>
-                    <div className="w-7 h-7 rounded-lg bg-fuchsia-500/20 text-fuchsia-400 flex items-center justify-center border border-fuchsia-500/30">
-                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+            <div className="p-4 relative z-20">
+                <div className="h-12 w-full bg-white/5 border border-white/10 rounded-xl flex items-center px-4 justify-between backdrop-blur-md shadow-inner">
+                    <span className="text-white/30 text-sm font-light">Ask anything...</span>
+                    <div className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 transition-colors flex items-center justify-center cursor-pointer">
+                        <ArrowRight className="w-3.5 h-3.5 text-white/70" />
                     </div>
                 </div>
             </div>
@@ -728,52 +715,39 @@ function FakeAIWorkspace() {
 
 function FakePostsList() {
     return (
-        <div className="w-full h-full bg-[#0a0a0a] rounded-2xl border border-white/10 flex flex-col overflow-hidden shadow-2xl relative z-10 pointer-events-auto">
-            <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/5 blur-[100px] rounded-full pointer-events-none" />
-
-            {/* Header + Tabs */}
-            <div className="px-6 pt-6 pb-0 border-b border-white/10 bg-white/2 relative z-20 space-y-5">
+        <div className="w-full h-full bg-[#0a0a0c] rounded-2xl border border-white/5 flex flex-col overflow-hidden shadow-2xl relative z-10 pointer-events-auto">
+            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-cyan-500/10 blur-[100px] rounded-full pointer-events-none z-0" />
+            <div className="px-6 pt-6 pb-0 border-b border-white/5 bg-white/1 backdrop-blur-xl relative z-20 space-y-6">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                            <Calendar className="w-4 h-4 text-cyan-400" />
-                        </div>
-                        <span className="text-white font-bold text-sm">Scheduled Posts</span>
-                    </div>
-                    <button className="px-3 py-1.5 rounded-lg bg-cyan-500 text-black text-xs font-bold shadow-[0_0_15px_rgba(34,211,238,0.3)] hover:scale-105 transition-transform">Create Post</button>
+                    <h3 className="text-white/90 font-medium text-sm">Content Pipeline</h3>
+                    <button className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/10 text-white text-xs font-medium hover:bg-white/20 transition-all flex items-center gap-1.5 shadow-sm">
+                        <Plus className="w-3.5 h-3.5" /> Create
+                    </button>
                 </div>
-
-                <div className="flex gap-6 pb-3">
-                    <div className="relative text-white font-bold text-xs flex items-center gap-1.5">
+                <div className="flex gap-6 pb-4">
+                    <div className="relative text-white/90 font-medium text-xs flex items-center gap-2 cursor-pointer">
                         Scheduled
-                        <span className="bg-cyan-500/20 text-cyan-300 py-0.5 px-1.5 rounded-full text-[10px]">3</span>
-                        <div className="absolute -bottom-3 left-0 right-0 h-0.5 bg-cyan-400 rounded-t-full" />
+                        <span className="bg-white/10 text-white/80 py-0.5 px-1.5 rounded-md text-[10px]">3</span>
+                        <div className="absolute -bottom-4 left-0 right-0 h-[2px] bg-white rounded-t-full shadow-[0_-2px_8px_rgba(255,255,255,0.5)]" />
                     </div>
-                    <div className="text-white/40 font-bold text-xs flex items-center gap-1.5">Drafts</div>
-                    <div className="text-white/40 font-bold text-xs flex items-center gap-1.5">Posted</div>
+                    <div className="text-white/40 font-medium text-xs hover:text-white/60 transition-colors cursor-pointer">Drafts</div>
                 </div>
             </div>
-
-            {/* List */}
             <div className="flex-1 p-6 overflow-y-auto space-y-3 relative z-10">
                 {[
-                    { title: "Huge UI Overhaul Announcement", date: "Oct 24, 2026 - 10:00 AM", plat: "Instagram", icon: Instagram, color: "text-fuchsia-400" },
-                    { title: "Founders Q&A Video Clip", date: "Oct 26, 2026 - 02:30 PM", plat: "Facebook", icon: 'f', color: "text-blue-400" },
-                    { title: "Weekly Resource Roundup", date: "Oct 28, 2026 - 11:15 AM", plat: "Instagram", icon: Instagram, color: "text-fuchsia-400" },
+                    { title: "Weekly Resource Roundup", date: "Tomorrow, 10:00 AM", plat: "Instagram", icon: Instagram, color: "text-fuchsia-400" },
+                    { title: "Founders Q&A Highlights", date: "Friday, 02:30 PM", plat: "LinkedIn", icon: Activity, color: "text-blue-400" },
+                    { title: "UI Deep-Dive Carousel", date: "Monday, 11:15 AM", plat: "Instagram", icon: Instagram, color: "text-fuchsia-400" },
                 ].map((post, i) => (
-                    <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.1 }} key={i} className="bg-black/60 border border-white/5 rounded-xl p-4 flex items-center gap-4 hover:bg-white/5 transition-colors cursor-pointer group shadow-lg">
-                        <div className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center shrink-0 border border-white/5 group-hover:bg-white/10 transition-colors">
-                            {post.icon === 'f' ? (
-                                <div className="w-5 h-5 bg-blue-500 rounded-sm flex items-center justify-center text-white font-bold text-sm">f</div>
-                            ) : (
-                                <post.icon className={`w-5 h-5 ${post.color}`} />
-                            )}
+                    <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} key={i} className="bg-white/3 border border-white/5 rounded-xl p-4 flex items-center gap-4 hover:bg-white/6 transition-all cursor-pointer group shadow-sm">
+                        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center shrink-0 border border-white/10 shadow-inner group-hover:scale-105 transition-transform">
+                            <post.icon className={`w-4 h-4 ${post.color}`} />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <h4 className="text-white text-sm font-bold truncate group-hover:text-cyan-400 transition-colors">{post.title}</h4>
-                            <p className="text-white/40 text-[11px] mt-1 truncate">{post.date}</p>
+                            <h4 className="text-white/90 text-sm font-medium truncate group-hover:text-white transition-colors">{post.title}</h4>
+                            <p className="text-white/40 text-[11px] mt-0.5 font-light truncate">{post.date}</p>
                         </div>
-                        <div className="px-2.5 py-1 rounded-md border border-cyan-500/20 bg-cyan-500/10 text-cyan-400 text-[10px] font-bold uppercase tracking-wider hidden sm:block shadow-inner">
+                        <div className="px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-medium hidden sm:block">
                             Ready
                         </div>
                     </motion.div>
@@ -785,86 +759,72 @@ function FakePostsList() {
 
 function FakeAutomationFlow() {
     return (
-        <div className="w-full h-full bg-[#0a0a0a] rounded-2xl border border-white/10 relative overflow-hidden shadow-2xl pointer-events-auto">
-            {/* Grid Pattern Background */}
-            <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px)', backgroundSize: '32px 32px', backgroundPosition: 'center' }} />
-            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-linear-to-t from-fuchsia-500/5 to-transparent pointer-events-none" />
+        <div className="w-full h-full bg-[#0a0a0c] rounded-2xl border border-white/5 relative overflow-hidden shadow-2xl pointer-events-auto">
+            <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px)', backgroundSize: '24px 24px', backgroundPosition: 'center' }} />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-indigo-500/20 blur-[120px] rounded-full pointer-events-none" />
 
-            {/* Toolbar */}
-            <div className="absolute top-4 left-4 right-4 h-12 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl flex items-center px-4 justify-between z-20 shadow-lg">
+            <div className="absolute top-6 left-6 right-6 h-12 bg-white/2 backdrop-blur-xl border border-white/10 rounded-xl flex items-center px-4 justify-between z-20 shadow-lg">
                 <div className="flex items-center gap-3">
-                    <div className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse" />
-                    <span className="text-white text-sm font-bold truncate max-w-[120px] sm:max-w-none">IG Auto-Reply Flow</span>
+                    <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                        <Bot className="w-4 h-4" />
+                    </div>
+                    <span className="text-white/90 text-sm font-medium">Auto-DM Flow</span>
                 </div>
-                <div className="flex gap-2">
-                    <div className="hidden sm:block px-3 py-1.5 rounded-lg bg-white/10 text-white/70 text-xs font-bold cursor-pointer hover:bg-white/20">Canvas</div>
-                    <div className="px-3 py-1.5 rounded-lg bg-white text-black text-xs font-bold cursor-pointer">Live</div>
+                <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-md">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-emerald-400 text-[10px] font-medium">Live</span>
                 </div>
             </div>
 
-            {/* Canvas Area */}
-            <div className="absolute inset-0 flex flex-col justify-center items-center pt-12 group">
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-                    <defs>
-                        <linearGradient id="cyan-grad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#22d3ee" stopOpacity="0" />
-                            <stop offset="100%" stopColor="#22d3ee" stopOpacity="1" />
-                        </linearGradient>
-                        <linearGradient id="fuchsia-grad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#d946ef" stopOpacity="0" />
-                            <stop offset="100%" stopColor="#d946ef" stopOpacity="1" />
-                        </linearGradient>
-                    </defs>
+            <div className="absolute inset-0 flex flex-col justify-center items-center pt-16 group">
+                <svg className="absolute inset-0 w-full h-full pointer-events-none z-0 drop-shadow-[0_0_8px_rgba(255,255,255,0.1)]">
                     <motion.path
-                        initial={{ pathLength: 0, opacity: 0 }}
-                        whileInView={{ pathLength: 1, opacity: 0.8 }}
+                        initial={{ pathLength: 0 }}
+                        whileInView={{ pathLength: 1 }}
                         transition={{ duration: 1.5, ease: "easeInOut" }}
-                        d="M 50% 25% L 50% 50%" stroke="url(#cyan-grad)" strokeWidth="2.5" fill="none" strokeDasharray="6 6"
-                        className="drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]"
+                        d="M 50% 30% L 50% 50%" stroke="rgba(255,255,255,0.15)" strokeWidth="2" fill="none"
                     />
                     <motion.path
-                        initial={{ pathLength: 0, opacity: 0 }}
-                        whileInView={{ pathLength: 1, opacity: 0.8 }}
+                        initial={{ pathLength: 0 }}
+                        whileInView={{ pathLength: 1 }}
                         transition={{ duration: 1.5, delay: 0.5, ease: "easeInOut" }}
-                        d="M 50% 50% L 50% 75%" stroke="url(#fuchsia-grad)" strokeWidth="2.5" fill="none" strokeDasharray="6 6"
-                        className="drop-shadow-[0_0_5px_rgba(217,70,239,0.5)]"
+                        d="M 50% 50% L 50% 70%" stroke="rgba(255,255,255,0.15)" strokeWidth="2" fill="none"
                     />
                 </svg>
 
-                {/* Nodes */}
-                <div className="flex flex-col items-center justify-between h-[65%] w-full relative z-10">
-                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} className="w-64 sm:w-72 bg-[#1b1d28] border border-cyan-500/40 rounded-xl p-4 shadow-[0_15px_30px_rgba(34,211,238,0.15)]">
+                <div className="flex flex-col items-center justify-between h-[60%] w-full relative z-10">
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} className="w-64 bg-white/5 border border-white/10 rounded-xl p-4 backdrop-blur-xl shadow-lg hover:border-white/20 transition-colors cursor-pointer">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-400 border border-cyan-500/20">
-                                <Instagram className="h-5 w-5" />
+                            <div className="w-8 h-8 rounded-full bg-fuchsia-500/20 flex items-center justify-center border border-fuchsia-500/30">
+                                <Instagram className="w-4 h-4 text-fuchsia-400" />
                             </div>
                             <div>
-                                <div className="text-white text-sm font-bold">New Comment</div>
-                                <div className="text-cyan-400/80 text-[11px] font-semibold tracking-wide uppercase mt-0.5">Trigger</div>
+                                <div className="text-white/90 text-sm font-medium">New Comment</div>
+                                <div className="text-white/40 text-[10px] font-light mt-0.5">Contains word: "link"</div>
                             </div>
                         </div>
                     </motion.div>
 
-                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="w-64 sm:w-72 bg-[#1b1d28] border border-white/20 rounded-xl p-4 shadow-2xl">
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }} className="w-64 bg-white/5 border border-white/10 rounded-xl p-4 backdrop-blur-xl shadow-lg hover:border-white/20 transition-colors cursor-pointer">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center text-white border border-white/10">
-                                <Bot className="h-5 w-5" />
+                            <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center border border-yellow-500/30">
+                                <Activity className="w-4 h-4 text-yellow-400" />
                             </div>
                             <div>
-                                <div className="text-white text-sm font-bold">Auto-Reply</div>
-                                <div className="text-white/60 text-[11px] font-semibold tracking-wide uppercase mt-0.5">Condition</div>
+                                <div className="text-white/90 text-sm font-medium">Check Follow Status</div>
+                                <div className="text-white/40 text-[10px] font-light mt-0.5">Must be a follower</div>
                             </div>
                         </div>
                     </motion.div>
 
-                    <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="w-64 sm:w-72 bg-[#1b1d28] border border-fuchsia-500/40 rounded-xl p-4 shadow-[0_15px_30px_rgba(217,70,239,0.15)]">
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} whileInView={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="w-64 bg-white/10 border border-white/20 rounded-xl p-4 backdrop-blur-xl shadow-[0_0_30px_rgba(255,255,255,0.05)] hover:bg-white/15 transition-colors cursor-pointer">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-lg bg-fuchsia-500/20 flex items-center justify-center text-fuchsia-400 border border-fuchsia-500/20">
-                                <Send className="h-5 w-5" />
+                            <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/30">
+                                <Send className="w-4 h-4 text-blue-400" />
                             </div>
                             <div>
-                                <div className="text-white text-sm font-bold">Send DM</div>
-                                <div className="text-fuchsia-400/80 text-[11px] font-semibold tracking-wide uppercase mt-0.5">Action</div>
+                                <div className="text-white/90 text-sm font-medium">Send Direct Message</div>
+                                <div className="text-white/40 text-[10px] font-light mt-0.5">"Hey! Here is the link..."</div>
                             </div>
                         </div>
                     </motion.div>
@@ -876,97 +836,56 @@ function FakeAutomationFlow() {
 
 function FakeAnalyticsBoard() {
     return (
-        <div className="w-full h-full bg-[#0a0a0a] rounded-2xl border border-white/10 p-4 sm:p-6 flex flex-col relative overflow-hidden shadow-2xl pointer-events-auto">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/5 blur-[100px] rounded-full pointer-events-none" />
+        <div className="w-full h-full bg-[#0a0a0c] rounded-2xl border border-white/5 p-6 flex flex-col relative overflow-hidden shadow-2xl pointer-events-auto">
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/10 blur-[120px] rounded-full pointer-events-none z-0" />
 
-            {/* Header / Sync Status */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 relative z-10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 relative z-10">
                 <div>
-                    <h4 className="text-white font-semibold text-sm sm:text-base">Analytics Dashboard</h4>
-                    <p className="text-white/40 text-xs">Last updated just now</p>
+                    <h4 className="text-white/90 font-medium text-lg">Performance</h4>
+                    <p className="text-white/40 text-xs font-light mt-1">Last 30 days vs previous period</p>
                 </div>
-                <div className="flex gap-2">
-                    <div className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-green-500/10 border border-green-500/20 text-green-400 flex items-center gap-2">
-                        <Check className="w-3 h-3" /> Instagram OK
-                    </div>
-                </div>
+                <button className="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/80 text-xs font-medium hover:bg-white/10 transition-colors flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5" /> Oct 1 - Oct 31
+                </button>
             </div>
 
-            {/* 4 KPI Cards Grid */}
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6 relative z-10">
+            <div className="grid grid-cols-2 gap-4 mb-6 relative z-10">
                 {[
-                    { label: "Total Engagement", val: "142.5K", trend: "+12.4%", icon: Activity, color: "#fb7185", bg: "rgba(251,113,133,0.1)", border: "rgba(251,113,133,0.2)" },
-                    { label: "Total Views", val: "4.2M", trend: "+24.5%", icon: Eye, color: "#22d3ee", bg: "rgba(34,211,238,0.1)", border: "rgba(34,211,238,0.2)" },
-                    { label: "Total Followers", val: "84K", trend: "+8.2%", icon: Users, color: "#84cc16", bg: "rgba(132,204,22,0.1)", border: "rgba(132,204,22,0.2)" },
-                    { label: "Growth Rate", val: "5.4%", trend: "+1.2%", icon: BarChart3, color: "#f59e0b", bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.2)" },
+                    { label: "Total Reach", val: "2.4M", trend: "+14.2%", icon: Eye, positive: true },
+                    { label: "Total Engagement", val: "142K", trend: "+8.4%", icon: Activity, positive: true },
+                    { label: "Followers", val: "12.5K", trend: "+24.1%", icon: Users, positive: true },
+                    { label: "Avg. Daily", val: "4.8K", trend: "+3.1%", icon: BarChart3, positive: true },
                 ].map((stat, i) => {
                     const Icon = stat.icon
                     return (
-                        <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} key={stat.label} className="p-3 sm:p-4 rounded-xl relative overflow-hidden bg-[#151620]" style={{ border: `1px solid ${stat.border}` }}>
-                            <div className="absolute -right-4 -top-4 w-16 h-16 rounded-full blur-xl opacity-20 pointer-events-none" style={{ background: stat.color }} />
+                        <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} key={stat.label} className="p-4 rounded-xl bg-white/2 border border-white/5 hover:bg-white/4 transition-colors shadow-sm">
                             <div className="flex justify-between items-start mb-3">
-                                <div className="text-white/40 text-[10px] font-semibold uppercase tracking-wider">{stat.label}</div>
-                                <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: stat.bg }}>
-                                    <Icon className="w-3 h-3" style={{ color: stat.color }} />
-                                </div>
+                                <div className="text-white/50 text-xs font-medium">{stat.label}</div>
+                                <Icon className="w-4 h-4 text-white/30" />
                             </div>
-                            <div className="text-lg sm:text-2xl font-bold text-white mb-1 tabular-nums">{stat.val}</div>
-                            <div className="flex items-center gap-1.5 mt-2">
-                                <TrendingUp className="w-3 h-3 text-emerald-400" />
-                                <span className="text-[10px] font-semibold text-emerald-400">{stat.trend}</span>
-                                <span className="text-[10px] text-white/20">vs prev</span>
+                            <div className="text-2xl font-semibold text-white/90 mb-2 tabular-nums">{stat.val}</div>
+                            <div className="flex items-center gap-1.5">
+                                <TrendingUp className={`w-3.5 h-3.5 ${stat.positive ? 'text-emerald-400' : 'text-rose-400 rotate-180 scale-x-[-1]'}`} />
+                                <span className={`text-[11px] font-medium ${stat.positive ? 'text-emerald-400' : 'text-rose-400'}`}>{stat.trend}</span>
                             </div>
                         </motion.div>
                     )
                 })}
             </div>
 
-            {/* Follower Growth Chart Replica */}
-            <div className="flex-1 bg-[#151620] border border-white/5 rounded-xl relative overflow-hidden p-4 sm:p-5 flex flex-col z-10 group">
-                <div className="flex justify-between items-center mb-6">
-                    <div>
-                        <div className="text-white/80 text-sm font-semibold">Follower Growth</div>
-                        <div className="text-white/30 text-[10px] mt-0.5">Track audience growth across platforms</div>
-                    </div>
-                    <div className="flex items-center gap-3 text-[10px] text-white/40">
-                        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> Facebook</div>
-                        <div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-rose-400" /> Instagram</div>
-                    </div>
-                </div>
-
-                {/* Simulated tooltips */}
-                <div className="absolute top-1/2 left-1/3 w-px h-1/2 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                    <div className="absolute -top-6 -translate-x-1/2 bg-[#111118] border border-white/10 text-white text-[10px] px-2 py-1.5 rounded-md shadow-lg whitespace-nowrap z-20">
-                        <div className="flex items-center gap-2 mb-1"><span className="w-1.5 h-1.5 rounded-full bg-cyan-400" /> FB: 38,402</div>
-                        <div className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-rose-400" /> IG: 45,109</div>
-                    </div>
-                    <div className="w-2 h-2 rounded-full bg-rose-400 absolute top-4 -translate-x-1/2 shadow-[0_0_10px_rgba(251,113,133,0.8)]" />
-                    <div className="w-2 h-2 rounded-full bg-cyan-400 absolute top-12 -translate-x-1/2 shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
-                </div>
-
-                <div className="flex-1 relative">
-                    <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
+            <div className="bg-white/1 border border-white/5 rounded-xl p-5 relative z-10">
+                <div className="text-white/80 text-sm font-medium mb-3">Audience Growth</div>
+                <div className="relative h-[120px] w-full">
+                    <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
                         <defs>
-                            <linearGradient id="rose-grad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#fb7185" stopOpacity="0.2" />
-                                <stop offset="100%" stopColor="#fb7185" stopOpacity="0" />
-                            </linearGradient>
-                            <linearGradient id="cyan-grad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.2" />
-                                <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
+                            <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="rgba(59, 130, 246, 0.2)" />
+                                <stop offset="100%" stopColor="rgba(59, 130, 246, 0)" />
                             </linearGradient>
                         </defs>
-
-                        {/* Grid lines */}
-                        <path d="M 0 25 L 100 25 M 0 50 L 100 50 M 0 75 L 100 75" stroke="rgba(255,255,255,0.05)" strokeWidth="0.5" strokeDasharray="2 2" fill="none" />
-
-                        {/* FB Area & Line */}
-                        <motion.path initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 1.5 }} d="M 0 80 Q 15 75, 25 70 T 50 60 T 75 55 T 100 45 L 100 100 L 0 100 Z" fill="url(#cyan-grad)" stroke="none" />
-                        <motion.path initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} transition={{ duration: 1.5, ease: "easeInOut" }} d="M 0 80 Q 15 75, 25 70 T 50 60 T 75 55 T 100 45" fill="none" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-
-                        {/* IG Area & Line */}
-                        <motion.path initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} transition={{ duration: 1.5, delay: 0.2 }} d="M 0 70 Q 15 65, 30 50 T 60 40 T 80 20 T 100 10 L 100 100 L 0 100 Z" fill="url(#rose-grad)" stroke="none" />
-                        <motion.path initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} transition={{ duration: 1.5, ease: "easeInOut", delay: 0.2 }} d="M 0 70 Q 15 65, 30 50 T 60 40 T 80 20 T 100 10" fill="none" stroke="#fb7185" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M 0 25 L 100 25 M 0 50 L 100 50 M 0 75 L 100 75" stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="4 4" fill="none" vectorEffect="non-scaling-stroke" />
+                        <path d="M 0 80 Q 20 75, 40 50 T 70 30 T 100 10 L 100 100 L 0 100 Z" fill="url(#chart-grad)" stroke="none" />
+                        <motion.path initial={{ pathLength: 0 }} whileInView={{ pathLength: 1 }} transition={{ duration: 1.5, ease: "easeInOut" }} d="M 0 80 Q 20 75, 40 50 T 70 30 T 100 10" fill="none" stroke="rgba(59, 130, 246, 0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" className="drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
                     </svg>
                 </div>
             </div>
@@ -976,119 +895,80 @@ function FakeAnalyticsBoard() {
 
 function FakeBrandProfile() {
     return (
-        <div className="w-full h-full bg-[#0a0a0a] rounded-2xl border border-white/10 flex flex-col overflow-hidden shadow-2xl relative z-10 pointer-events-auto">
-            {/* Header */}
-            <div className="h-14 border-b border-white/10 flex items-center px-4 sm:px-6 justify-between bg-white/2 shrink-0">
+        <div className="w-full h-full bg-[#0a0a0c] rounded-2xl border border-white/5 flex flex-col overflow-hidden shadow-2xl relative z-10 pointer-events-auto">
+            <div className="h-14 border-b border-white/5 flex items-center px-6 justify-between bg-white/1 backdrop-blur-xl shrink-0 relative z-20">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-linear-to-br from-fuchsia-500 to-amber-500 flex items-center justify-center font-bold text-white text-xs shadow-[0_0_15px_rgba(217,70,239,0.3)]">
-                        SF
+                    <div className="w-8 h-8 rounded-lg bg-linear-to-br from-indigo-500 to-purple-500 p-px">
+                        <div className="w-full h-full bg-[#0a0a0c] rounded-[7px] flex items-center justify-center">
+                            <span className="text-white/90 text-[10px] font-bold">SF</span>
+                        </div>
                     </div>
-                    <span className="text-white font-semibold text-sm">SwiftFlow Brand Profile</span>
+                    <span className="text-white/90 font-medium text-sm">SwiftFlow Identity</span>
                 </div>
-                <div className="flex gap-2">
-                    <div className="px-3 py-1.5 bg-fuchsia-500 text-white rounded-md text-[11px] font-bold uppercase tracking-wider flex items-center gap-2">
-                        <Check className="w-3 h-3" /> Saved
-                    </div>
+                <div className="px-3 py-1.5 bg-white/10 rounded-lg text-white/80 text-xs font-medium flex items-center gap-1.5 shadow-sm">
+                    <Check className="w-3.5 h-3.5" /> Saved
                 </div>
             </div>
 
             <div className="flex flex-1 overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-fuchsia-500/10 blur-[80px] rounded-full pointer-events-none z-0" />
+                <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-purple-500/10 blur-[100px] rounded-full pointer-events-none z-0" />
 
-                {/* Sidebar */}
-                <div className="w-48 border-r border-white/10 p-4 space-y-2 bg-white/1 hidden md:block shrink-0 relative z-10">
-                    <div className="text-white/40 text-[10px] font-bold uppercase tracking-wider mb-3 px-3">Settings</div>
-                    {["Brand Profile", "Social Accounts", "Team Members", "Billing"].map((item, i) => (
-                        <div key={item} className={`px-3 py-2 rounded-lg text-xs font-medium cursor-pointer ${i === 0 ? 'bg-white/10 text-white' : 'text-white/40 hover:text-white/80 hover:bg-white/5'}`}>
-                            {item}
-                        </div>
-                    ))}
-                </div>
+                <div className="flex-1 p-6 space-y-6 overflow-y-auto relative z-10 max-w-2xl mx-auto w-full">
+                    <div className="bg-white/2 border border-white/5 rounded-xl p-6 shadow-sm">
+                        <h3 className="text-white/90 text-sm font-medium mb-1">Brand Guidelines</h3>
+                        <p className="text-white/40 text-xs font-light mb-6">Set the boundaries for how the AI should sound.</p>
 
-                {/* Main Content (Forms) */}
-                <div className="flex-1 p-4 sm:p-6 space-y-6 overflow-hidden relative z-10">
-
-                    {/* Core Identity */}
-                    <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="bg-[#151620] border border-white/10 rounded-xl overflow-hidden">
-                        <div className="px-5 py-4 border-b border-white/5 bg-white/2">
-                            <h3 className="text-white text-sm font-semibold">Core Identity</h3>
-                            <p className="text-white/40 text-xs mt-0.5">Define your brand's fundamental traits.</p>
-                        </div>
-                        <div className="p-5 space-y-5">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                                 <div className="space-y-2">
-                                    <label className="text-white/70 text-xs font-medium">Brand Voice</label>
-                                    <div className="h-9 bg-black/40 border border-white/10 rounded-md px-3 flex items-center justify-between">
-                                        <span className="text-white text-xs">Authoritative</span>
-                                        <ChevronDown className="w-4 h-4 text-white/30" />
+                                    <label className="text-white/60 text-xs font-medium">Primary Voice</label>
+                                    <div className="h-10 border border-white/10 bg-white/5 rounded-lg px-4 flex items-center justify-between text-white/80 text-sm font-light hover:border-white/20 transition-colors cursor-pointer">
+                                        Authoritative & Clean
+                                        <ChevronDown className="w-4 h-4 text-white/40" />
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-white/70 text-xs font-medium">Language</label>
-                                    <div className="h-9 bg-black/40 border border-white/10 rounded-md px-3 flex items-center justify-between">
-                                        <span className="text-white text-xs">English</span>
-                                        <ChevronDown className="w-4 h-4 text-white/30" />
+                                    <label className="text-white/60 text-xs font-medium">Language</label>
+                                    <div className="h-10 border border-white/10 bg-white/5 rounded-lg px-4 flex items-center justify-between text-white/80 text-sm font-light hover:border-white/20 transition-colors cursor-pointer">
+                                        English (US)
+                                        <ChevronDown className="w-4 h-4 text-white/40" />
                                     </div>
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-white/70 text-xs font-medium">Target Audience</label>
-                                <div className="min-h-[60px] bg-black/40 border border-white/10 rounded-md p-3 text-white text-xs leading-relaxed">
-                                    Creators and startup founders looking to scale their social media presence efficiently using AI automation.
+                                <label className="text-white/60 text-xs font-medium">Target Audience Persona</label>
+                                <div className="min-h-[80px] border border-white/10 bg-white/5 rounded-lg p-4 text-white/80 text-sm font-light leading-relaxed hover:border-white/20 transition-colors">
+                                    Creators and startup founders scaling social media via AI automation. They value aesthetics, speed, and premium experiences.
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
-
-                    {/* Services & USPs */}
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                        <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.1 }} className="bg-[#151620] border border-white/10 rounded-xl overflow-hidden">
-                            <div className="px-5 py-4 border-b border-white/5 bg-white/2">
-                                <h3 className="text-white text-sm font-semibold">Services & Offerings</h3>
-                                <p className="text-white/40 text-xs mt-0.5">What do you offer?</p>
-                            </div>
-                            <div className="p-5 space-y-4">
-                                <div className="flex gap-2">
-                                    <div className="flex-1 h-9 bg-black/40 border border-white/10 rounded-md px-3 flex items-center text-white/30 text-xs">Add a service...</div>
-                                    <div className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-md flex items-center justify-center text-white cursor-pointer transition-colors">
-                                        <Plus className="w-4 h-4" />
-                                    </div>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {["AI Content Generation", "Automated Scheduling", "Engagement Analytics"].map((service) => (
-                                        <div key={service} className="px-2.5 py-1.5 bg-white/5 border border-white/10 rounded-md flex items-center gap-2">
-                                            <span className="text-white text-xs">{service}</span>
-                                            <X className="w-3 h-3 text-white/40 hover:text-white cursor-pointer" />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </motion.div>
-
-                        <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="bg-[#151620] border border-white/10 rounded-xl overflow-hidden">
-                            <div className="px-5 py-4 border-b border-white/5 bg-white/2">
-                                <h3 className="text-white text-sm font-semibold">Unique Selling Points</h3>
-                                <p className="text-white/40 text-xs mt-0.5">What makes you different?</p>
-                            </div>
-                            <div className="p-5 space-y-4">
-                                <div className="flex gap-2">
-                                    <div className="flex-1 h-9 bg-black/40 border border-white/10 rounded-md px-3 flex items-center text-white/30 text-xs">Add a USP...</div>
-                                    <div className="w-9 h-9 bg-white/10 hover:bg-white/20 rounded-md flex items-center justify-center text-white cursor-pointer transition-colors">
-                                        <Plus className="w-4 h-4" />
-                                    </div>
-                                </div>
-                                <div className="flex flex-wrap gap-2">
-                                    {["Saves 10+ hours a week", "100% On-Brand AI", "Native Auto-replies"].map((usp) => (
-                                        <div key={usp} className="px-2.5 py-1.5 bg-cyan-500/10 border border-cyan-500/20 rounded-md flex items-center gap-2">
-                                            <span className="text-cyan-400 text-xs font-medium">{usp}</span>
-                                            <X className="w-3 h-3 text-cyan-400/60 hover:text-cyan-400 cursor-pointer" />
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </motion.div>
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-white/2 border border-white/5 rounded-xl p-6 shadow-sm">
+                            <h3 className="text-white/90 text-sm font-medium mb-4">Core Services</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {["Content Gen", "Scheduling", "Analytics"].map((service) => (
+                                    <div key={service} className="px-3 py-1.5 border border-white/10 bg-white/5 rounded-lg flex items-center gap-2 text-white/70 text-xs font-medium">
+                                        {service}
+                                        <X className="w-3 h-3 text-white/30 hover:text-white/80 cursor-pointer transition-colors" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="bg-white/2 border border-white/5 rounded-xl p-6 shadow-sm">
+                            <h3 className="text-white/90 text-sm font-medium mb-4">Key Value Props</h3>
+                            <div className="flex flex-wrap gap-2">
+                                {["Saves 10+ hrs", "On-Brand AI"].map((usp) => (
+                                    <div key={usp} className="px-3 py-1.5 border border-indigo-500/30 bg-indigo-500/10 rounded-lg flex items-center gap-2 text-indigo-300 text-xs font-medium">
+                                        {usp}
+                                        <X className="w-3 h-3 text-indigo-300/50 hover:text-indigo-300 cursor-pointer transition-colors" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1128,6 +1008,63 @@ const SHOWCASE_ITEMS = [
     }
 ]
 
+function FeaturePhase({
+    item,
+    idx,
+    total,
+    scrollYProgress
+}: {
+    item: any
+    idx: number
+    total: number
+    scrollYProgress: any
+}) {
+    const step = 1 / (total - 1)
+    const start = idx * step
+    const end = (idx + 1) * step
+
+    const isLast = idx === total - 1
+
+    const clipAnim = useTransform(
+        scrollYProgress,
+        isLast ? [0, 1] : [start, end],
+        isLast ? ["inset(0 0 0 0)", "inset(0 0 0 0)"] : ["inset(0% 0 0% 0)", "inset(0% 0 100% 0)"]
+    )
+
+    let scalePoints = []
+    let scaleValues = []
+
+    if (idx === 0) {
+        scalePoints = [0, end]
+        scaleValues = [1, 0.95]
+    } else if (isLast) {
+        scalePoints = [start - step, start]
+        scaleValues = [0.9, 1]
+    } else {
+        scalePoints = [start - step, start, end]
+        scaleValues = [0.9, 1, 0.95]
+    }
+
+    const scaleAnim = useTransform(scrollYProgress, scalePoints, scaleValues)
+
+    return (
+        <motion.div
+            className="absolute inset-0 flex items-center justify-center p-4 sm:p-8 lg:p-12 w-full h-full"
+            style={{
+                clipPath: isLast ? "inset(0 0 0 0)" : clipAnim,
+                zIndex: total - idx
+            }}
+        >
+            <motion.div
+                style={{ scale: scaleAnim }}
+                className="w-full h-full max-h-[600px] border border-white/10 rounded-2xl overflow-hidden shadow-2xl bg-[#0a0a0f] relative filter drop-shadow-2xl"
+            >
+                {item.ui}
+            </motion.div>
+        </motion.div>
+    )
+}
+
 function FeatureShowcase() {
     const containerRef = useRef<HTMLDivElement>(null)
     const { scrollYProgress } = useScroll({
@@ -1135,145 +1072,53 @@ function FeatureShowcase() {
         offset: ["start start", "end end"]
     })
 
-    const activeIndex = useTransform(scrollYProgress, [0, 0.25, 0.5, 0.75, 1], [0, 1, 2, 3, 4])
-
-    const [currentIdx, setCurrentIdx] = useState(0)
-
-    useEffect(() => {
-        const unsubscribe = activeIndex.on("change", (v) => {
-            setCurrentIdx(Math.round(v))
-        })
-        return () => unsubscribe()
-    }, [activeIndex])
-
     return (
-        <>
-            {/* Desktop: Sticky scroll-jacking version */}
-            <section id="phases" ref={containerRef} className="relative bg-[#000000] hidden md:block" style={{ height: "500vh" }}>
-                <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden">
-                    <div className="absolute inset-0 bg-[#000000] z-0" />
+        <section ref={containerRef} className="relative w-full bg-[#000000]">
 
-                    {/* Huge Background Typography */}
-                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none z-0 overflow-hidden opacity-30 mix-blend-screen">
-                        <h2 className="text-[10rem] md:text-[15rem] font-black text-transparent whitespace-nowrap" style={{ WebkitTextStroke: "2px rgba(255,255,255,0.1)", WebkitTextFillColor: "transparent" }}>
-                            {SHOWCASE_ITEMS[currentIdx]?.title.toUpperCase()}
-                        </h2>
-                    </div>
-
-                    <div className="max-w-7xl w-full mx-auto px-6 grid md:grid-cols-2 gap-16 relative z-10 h-full">
-
-                        {/* Left Side: Changing Visual */}
-                        <div className="h-full w-full flex flex-col justify-center order-2 md:order-1 perspective-1000">
-                            <div className="h-[50vh] md:h-[60vh] w-full rounded-2xl relative">
-                                {SHOWCASE_ITEMS.map((item, idx) => (
-                                    <div
-                                        key={item.id}
-                                        className="absolute inset-0 transition-all duration-700 pointer-events-none"
-                                        style={{
-                                            opacity: currentIdx === idx ? 1 : 0,
-                                            transform: `scale(${currentIdx === idx ? 1 : 0.95}) rotateY(${currentIdx === idx ? 0 : -5}deg)`,
-                                            zIndex: currentIdx === idx ? 10 : 0,
-                                            transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)"
-                                        }}
-                                    >
-                                        <div className="w-full h-full" style={{ pointerEvents: currentIdx === idx ? 'auto' : 'none' }}>
-                                            {item.ui}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Right Side: Text Scrubbing */}
-                        <div className="h-[50vh] md:h-full flex flex-col justify-center order-1 md:order-2">
-                            <div className="relative h-[40vh] md:h-[50vh] w-full overflow-hidden flex flex-col justify-center">
-                                {SHOWCASE_ITEMS.map((item, idx) => (
-                                    <div
-                                        key={item.id}
-                                        className="absolute inset-x-0 transition-all duration-700 flex flex-col justify-center max-w-md pointer-events-none"
-                                        style={{
-                                            top: "50%",
-                                            opacity: currentIdx === idx ? 1 : 0,
-                                            transform: `translateY(-50%) translateY(${(idx - currentIdx) * 80}px) scale(${currentIdx === idx ? 1 : 0.98})`,
-                                            transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)"
-                                        }}
-                                    >
-                                        <p className="text-sm font-bold uppercase tracking-[0.2em] mb-3 text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-fuchsia-500">
-                                            0{idx + 1} // Phase
-                                        </p>
-                                        <h3 className="text-4xl md:text-5xl font-black text-white mb-6 leading-tight">
-                                            {item.title}
-                                        </h3>
-                                        <p className="text-xl text-white/50 leading-relaxed font-medium">
-                                            {item.desc}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                    </div>
-                </div>
-            </section>
-
-            {/* Mobile: Simple stacked tab cards */}
-            <section id="phases" className="relative bg-black md:hidden py-20 px-5">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[300px] h-[300px] bg-cyan-500/10 blur-[100px] rounded-full pointer-events-none" />
-                <div className="text-center mb-10 relative z-10">
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold uppercase tracking-widest mb-5">
-                        <Sparkles className="w-3.5 h-3.5" /> Phases
-                    </div>
-                    <h2 className="text-3xl font-black text-white tracking-tight">Everything you need.<br /><span className="text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-fuchsia-500">Built in.</span></h2>
-                </div>
-
-                {/* Tab buttons */}
-                <div className="flex gap-2 overflow-x-auto scrollbar-none pb-3 mb-6 relative z-10">
+            {/* Visuals - Sticky across Desktop & Mobile */}
+            <div className="absolute inset-x-0 top-0 w-full md:w-1/2 h-full z-10 pointer-events-none">
+                <div className="sticky top-0 h-[45vh] md:h-screen w-full flex items-center justify-center overflow-hidden bg-linear-to-b from-black via-black to-transparent md:bg-transparent">
                     {SHOWCASE_ITEMS.map((item, idx) => (
-                        <button
+                        <FeaturePhase
                             key={item.id}
-                            type="button"
-                            onClick={() => setCurrentIdx(idx)}
-                            className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${currentIdx === idx
-                                ? 'bg-white text-black'
-                                : 'bg-white/5 border border-white/10 text-white/50'
-                                }`}
-                        >
-                            {item.title}
-                        </button>
+                            item={item}
+                            idx={idx}
+                            total={SHOWCASE_ITEMS.length}
+                            scrollYProgress={scrollYProgress}
+                        />
                     ))}
                 </div>
+            </div>
 
-                {/* Active card UI */}
-                <div className="relative z-10 h-[55vh] w-full rounded-2xl mb-6 overflow-hidden border border-white/10">
-                    {SHOWCASE_ITEMS.map((item, idx) => (
-                        <div
-                            key={item.id}
-                            className="absolute inset-0 transition-all duration-500"
-                            style={{
-                                opacity: currentIdx === idx ? 1 : 0,
-                                pointerEvents: currentIdx === idx ? 'auto' : 'none',
-                                transform: `scale(${currentIdx === idx ? 1 : 0.97})`,
-                            }}
-                        >
-                            {item.ui}
-                        </div>
-                    ))}
-                </div>
+            {/* Huge Background Typography - Static for style */}
+            <div className="absolute inset-0 hidden md:flex items-center justify-center pointer-events-none z-0 overflow-hidden opacity-10 mix-blend-screen">
+                <h2 className="text-[12rem] font-black text-transparent whitespace-nowrap" style={{ WebkitTextStroke: "2px rgba(255,255,255,0.2)", WebkitTextFillColor: "transparent" }}>
+                    SWIFTFLOW
+                </h2>
+            </div>
 
-                {/* Active description */}
+            {/* Text blocks */}
+            <div className="relative w-full z-0 px-0">
                 {SHOWCASE_ITEMS.map((item, idx) => (
-                    currentIdx === idx && (
-                        <div key={item.id} className="text-center relative z-10">
-                            <p className="text-xs font-bold uppercase tracking-[0.2em] mb-2 text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-fuchsia-500">
+                    <div
+                        key={item.id}
+                        className="h-screen w-full flex flex-col justify-end md:justify-center md:items-end pb-12 md:pb-0 px-6 sm:px-10 lg:px-20 pointer-events-auto"
+                    >
+                        <div className="w-full md:w-1/2 pl-0 md:pl-12 lg:pl-24">
+                            <p className="text-sm font-bold uppercase tracking-[0.2em] mb-4 text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-fuchsia-500">
                                 0{idx + 1} // Phase
                             </p>
-                            <h3 className="text-2xl font-black text-white mb-3">{item.title}</h3>
-                            <p className="text-sm text-white/50 leading-relaxed font-medium max-w-sm mx-auto">{item.desc}</p>
+                            <h3 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-6 leading-[1.1] tracking-tight drop-shadow-lg">
+                                {item.title}
+                            </h3>
+                            <p className="text-base md:text-xl text-white/50 leading-relaxed font-medium max-w-md drop-shadow">
+                                {item.desc}
+                            </p>
                         </div>
-                    )
+                    </div>
                 ))}
-            </section>
-        </>
+            </div>
+        </section>
     )
 }
 

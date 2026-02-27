@@ -19,6 +19,7 @@ import {
     MessageCircle,
     Inbox,
     Zap,
+    CreditCard,
 } from "lucide-react"
 import {
     Tooltip,
@@ -42,6 +43,7 @@ const primaryNav = [
 
 const secondaryNav = [
     { icon: Sparkles, label: "Brand Profile", href: "/dashboard/settings/brand" },
+    { icon: CreditCard, label: "Subscription", href: "/dashboard/subscription" },
     { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ]
 

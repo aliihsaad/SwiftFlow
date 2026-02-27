@@ -22,7 +22,7 @@ serve(async (req) => {
     if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
     try {
-        const { messages, workspaceId, prompt, style } = await req.json()
+        const { messages, workspaceId, prompt, style, referenceImages, referenceMode, brandImageMode, transformAction } = await req.json()
         const lastMsg = messages ? messages[messages.length - 1] : { content: prompt || "Generate an image" }
 
         if (!workspaceId) {
@@ -101,6 +101,50 @@ serve(async (req) => {
             'gemini-2.0-flash-preview-image-generation',
         ]
 
+        // Build multimodal content parts for Gemini
+        function buildContentParts(
+            textPrompt: string,
+            refImages?: { base64: string; mimeType: string }[],
+            refMode?: string,
+            imgMode?: string,
+            txAction?: string,
+        ): any[] {
+            const parts: any[] = []
+
+            // Add reference images as inline data if provided
+            if (Array.isArray(refImages) && refImages.length > 0) {
+                for (const img of refImages) {
+                    parts.push({ inlineData: { mimeType: img.mimeType || 'image/jpeg', data: img.base64 } })
+                }
+
+                // Add contextual instruction based on mode
+                let refInstruction = ''
+                if (imgMode === 'transform' && txAction) {
+                    const transformInstructions: Record<string, string> = {
+                        'restyle': 'Restyle the uploaded image(s) while keeping the subject and composition. Apply the described style.',
+                        'add-brand-colors': 'Modify the uploaded image(s) to incorporate the brand colors while maintaining the original composition.',
+                        'modernize': 'Modernize the uploaded image(s) with a contemporary, clean aesthetic while preserving the core subject.',
+                        'simplify': 'Simplify the uploaded image(s) by reducing visual complexity while keeping the key elements recognizable.',
+                    }
+                    refInstruction = transformInstructions[txAction] || 'Transform the uploaded image(s) as described.'
+                } else if (refMode) {
+                    const refInstructions: Record<string, string> = {
+                        'match-style': 'Generate a new image that matches the visual style, textures, and artistic approach of the reference images.',
+                        'match-colors': 'Generate a new image using the color palette from the reference images.',
+                        'use-as-template': 'Generate a new image using the reference images as compositional templates for layout and structure.',
+                        'inspired-by': 'Generate a new image inspired by the mood, feel, and aesthetic of the reference images.',
+                    }
+                    refInstruction = refInstructions[refMode] || 'Use the reference images as guidance for the new image.'
+                }
+
+                parts.push({ text: `${refInstruction} ${textPrompt}` })
+            } else {
+                parts.push({ text: textPrompt })
+            }
+
+            return parts
+        }
+
         let data: any = null
         let usedModel = ''
         let lastError = ''
@@ -117,7 +161,7 @@ serve(async (req) => {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{
-                            parts: [{ text: enhancedPrompt }]
+                            parts: buildContentParts(enhancedPrompt, referenceImages, referenceMode, brandImageMode, transformAction)
                         }],
                         generationConfig: {
                             imageConfig: {

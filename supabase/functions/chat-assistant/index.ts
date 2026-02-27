@@ -15,6 +15,7 @@ function normalizeApiKey(value: unknown): string {
 interface Message {
     role: 'user' | 'assistant'
     content: string
+    images?: { base64: string; mimeType: string }[]
 }
 
 serve(async (req) => {
@@ -143,11 +144,22 @@ Guidelines:
             .filter((m: Message, index: number) => !(index === 0 && m.role === 'assistant'))
             .map((m: Message) => ({
                 role: m.role === 'user' ? 'user' : 'model',
-                parts: [{ text: m.content }]
+                parts: [
+                    { text: m.content },
+                    ...(m.images || []).map(img => ({
+                        inlineData: { mimeType: img.mimeType, data: img.base64 }
+                    }))
+                ]
             }))
 
         const chatSession = model.startChat({ history })
-        const result = await chatSession.sendMessage(lastMsg.content)
+        const lastParts: any[] = [
+            { text: lastMsg.content },
+            ...(lastMsg.images || []).map((img: { mimeType: string; base64: string }) => ({
+                inlineData: { mimeType: img.mimeType, data: img.base64 }
+            }))
+        ]
+        const result = await chatSession.sendMessage(lastParts)
         const responseText = result.response.text()
 
         return new Response(JSON.stringify({ response: responseText }), {

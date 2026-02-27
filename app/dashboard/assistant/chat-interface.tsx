@@ -13,13 +13,16 @@ import {
     Images,
     Link as LinkIcon,
     Image as ImageIcon,
+    Paintbrush,
     CalendarDays,
     BarChart3,
     ArrowUp,
     Copy,
     RefreshCw,
     History,
-    Trash2
+    Trash2,
+    Paperclip,
+    X
 } from "lucide-react"
 import {
     Dialog,
@@ -49,13 +52,21 @@ import { CarouselStyleSelector } from "./components/carousel-style-selector"
 import { IdeaOptionsSelector } from "./components/idea-options-selector"
 import { ImageSourceSelector } from "./components/image-source-selector"
 import { UnsplashResults } from "./components/unsplash-results"
+import { BrandImageModeSelector, BrandImageOptions } from "./components/brand-image-options"
 import { CreatePostModal } from "@/components/create/create-post-modal"
+
+interface MessageImage {
+    base64: string
+    mimeType: string
+    name: string
+}
 
 interface Message {
     role: 'user' | 'assistant'
     content: string
-    type?: 'text' | 'content_cards' | 'carousel_slides' | 'image' | 'style_selector' | 'carousel_style_selector' | 'idea_options_selector' | 'image_source_selector' | 'unsplash_results'
+    type?: 'text' | 'content_cards' | 'carousel_slides' | 'image' | 'style_selector' | 'carousel_style_selector' | 'idea_options_selector' | 'image_source_selector' | 'unsplash_results' | 'brand_image_mode_selector' | 'brand_image_options'
     data?: any
+    images?: MessageImage[]
 }
 
 interface ChatInterfaceProps {
@@ -83,6 +94,13 @@ const ACTION_CARDS = [
         description: "Generate AI images for posts",
         prompt: "Create a realistic image of...",
         functionName: "generate-image"
+    },
+    {
+        icon: Paintbrush,
+        title: "Brand images",
+        description: "Generate or transform images for your brand",
+        prompt: "",
+        functionName: "brand-images"
     }
 ]
 
@@ -112,6 +130,10 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
     const [sessionId, setSessionId] = useState<string | null>(null)
     const [loadingSessions, setLoadingSessions] = useState(false)
 
+    // Image attachment state
+    const [pendingImages, setPendingImages] = useState<MessageImage[]>([])
+    const fileInputRef = useRef<HTMLInputElement>(null)
+
     const { toast } = useToast()
     const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -138,6 +160,46 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }
 
         return payload?.data
+    }
+
+    // Image compression — resize to max 800px wide, 70% JPEG quality
+    const compressImage = (file: File, maxWidth = 800, quality = 0.7): Promise<MessageImage> => {
+        return new Promise((resolve, reject) => {
+            const img = new window.Image()
+            img.onload = () => {
+                const canvas = document.createElement('canvas')
+                const ratio = Math.min(maxWidth / img.width, 1)
+                canvas.width = img.width * ratio
+                canvas.height = img.height * ratio
+                const ctx = canvas.getContext('2d')
+                if (!ctx) { reject(new Error('Canvas not supported')); return }
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+                const base64 = canvas.toDataURL('image/jpeg', quality).split(',')[1]
+                URL.revokeObjectURL(img.src)
+                resolve({ base64, mimeType: 'image/jpeg', name: file.name })
+            }
+            img.onerror = () => { URL.revokeObjectURL(img.src); reject(new Error('Failed to load image')) }
+            img.src = URL.createObjectURL(file)
+        })
+    }
+
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files
+        if (!files) return
+        const remaining = 3 - pendingImages.length
+        if (remaining <= 0) {
+            toast({ title: "Max 3 images", description: "Remove an image before adding more.", variant: "destructive" })
+            return
+        }
+        const selected = Array.from(files).slice(0, remaining)
+        try {
+            const compressed = await Promise.all(selected.map(f => compressImage(f)))
+            setPendingImages(prev => [...prev, ...compressed])
+        } catch (err: any) {
+            toast({ title: "Image error", description: err.message, variant: "destructive" })
+        }
+        // Reset so the same file can be re-selected
+        e.target.value = ''
     }
 
     // Load Sessions
@@ -189,13 +251,18 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }
     }, [messages, isLoading])
 
-    const [flowState, setFlowState] = useState<'idle' | 'awaiting_description' | 'awaiting_image_source' | 'awaiting_style' | 'awaiting_unsplash_query' | 'awaiting_carousel_topic' | 'awaiting_carousel_style' | 'awaiting_idea_options'>('idle')
+    const [flowState, setFlowState] = useState<'idle' | 'awaiting_description' | 'awaiting_image_source' | 'awaiting_style' | 'awaiting_unsplash_query' | 'awaiting_carousel_topic' | 'awaiting_carousel_style' | 'awaiting_idea_options' | 'awaiting_brand_image_mode' | 'awaiting_brand_image_upload' | 'awaiting_brand_image_options'>('idle')
     const [tempImagePrompt, setTempImagePrompt] = useState("")
     const [tempCarouselTopic, setTempCarouselTopic] = useState("")
     const [generatingSlide, setGeneratingSlide] = useState<number | null>(null)
     const [selectedImageSource, setSelectedImageSource] = useState<'ai' | 'unsplash' | null>(null)
     const [unsplashResults, setUnsplashResults] = useState<any[]>([])
     const [selectedUnsplashId, setSelectedUnsplashId] = useState<string | null>(null)
+
+    // Brand Image flow state
+    const [tempBrandImageMode, setTempBrandImageMode] = useState<'generate' | 'transform' | null>(null)
+    const [tempBrandImagePrompt, setTempBrandImagePrompt] = useState("")
+    const [tempBrandImageRefs, setTempBrandImageRefs] = useState<MessageImage[]>([])
 
     // Create Post Modal State
     const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false)
@@ -261,6 +328,35 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             return
         }
 
+        // HANDLE BRAND IMAGE FLOW STATE: Awaiting Upload + Description
+        if (flowState === 'awaiting_brand_image_upload' && !overrideFunction) {
+            setInput("")
+            const refs = pendingImages.length > 0 ? [...pendingImages] : []
+            setTempBrandImageRefs(refs)
+            setTempBrandImagePrompt(messageText)
+            setPendingImages([])
+
+            const newMessages: Message[] = [
+                ...messages,
+                { role: 'user', content: messageText, images: refs.length > 0 ? refs : undefined },
+                {
+                    role: 'assistant',
+                    content: `Configure your brand image ${tempBrandImageMode === 'transform' ? 'transformation' : 'generation'}:`,
+                    type: 'brand_image_options',
+                    data: {
+                        mode: tempBrandImageMode,
+                        prompt: messageText,
+                        hasReferenceImages: refs.length > 0,
+                        referenceCount: refs.length,
+                    }
+                }
+            ]
+            setMessages(newMessages)
+            setFlowState('awaiting_brand_image_options')
+            await saveSession(newMessages, sessionId)
+            return
+        }
+
         if (!workspaceId) {
             setMessages(prev => [...prev, {
                 role: 'assistant',
@@ -269,9 +365,14 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             return
         }
 
-        const newMessages: Message[] = [...messages, { role: 'user', content: messageText }]
+        const newMessages: Message[] = [...messages, {
+            role: 'user',
+            content: messageText,
+            images: pendingImages.length > 0 ? pendingImages : undefined
+        }]
         setMessages(newMessages)
         setInput("")
+        setPendingImages([])
         setIsLoading(true)
 
         // 1. Save user message immediately & get Session ID
@@ -351,11 +452,14 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
             const method = currentId ? 'PATCH' : 'POST'
 
+            // Strip images from messages before persisting — no DB storage
+            const messagesForStorage = currentMessages.map(({ images, ...rest }) => rest)
+
             const res = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    messages: currentMessages,
+                    messages: messagesForStorage,
                     title: currentMessages[0]?.content?.slice(0, 40)
                 })
             })
@@ -394,6 +498,16 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             setMessages(prev => [...prev, {
                 role: 'assistant',
                 content: "What topic do you want the carousel to be about? Feel free to share any specific tips or points you'd like to include, or I can generate them for you!"
+            }])
+            return
+        }
+
+        if (card.functionName === 'brand-images') {
+            setFlowState('awaiting_brand_image_mode')
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: "What would you like to do with brand images?",
+                type: 'brand_image_mode_selector'
             }])
             return
         }
@@ -498,6 +612,116 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }])
 
         handleSend(prompt, "generate-ideas")
+    }
+
+    const handleBrandImageModeSelect = (mode: 'generate' | 'transform') => {
+        setTempBrandImageMode(mode)
+        setFlowState('awaiting_brand_image_upload')
+        setMessages(prev => [...prev, {
+            role: 'user',
+            content: mode === 'generate' ? 'Generate New' : 'Transform Existing'
+        }, {
+            role: 'assistant',
+            content: mode === 'generate'
+                ? "Describe the image you want to create. You can attach reference images for style guidance!"
+                : "Upload the image(s) you want to transform and describe the desired result."
+        }])
+    }
+
+    const handleBrandImageGenerate = async (options: {
+        imageCount: number
+        style: string
+        referenceMode: string | null
+        transformAction: string | null
+        enhance: boolean
+    }) => {
+        setFlowState('idle')
+
+        let finalPrompt = tempBrandImagePrompt
+
+        // Magic wand enhancement
+        if (options.enhance) {
+            setIsLoading(true)
+            setMessages(prev => [...prev, {
+                role: 'user',
+                content: `Generate ${options.imageCount} ${options.style} brand image${options.imageCount > 1 ? 's' : ''}: ${tempBrandImagePrompt} (with Magic Wand)`
+            }])
+
+            try {
+                const data = await invokeEdge('chat-assistant', {
+                    messages: [{ role: 'user', content: `Rewrite this image description to be highly detailed and optimized for AI image generation. Keep it under 2 sentences. Enclose the final prompt in <prompt> tags. Provide ONLY the tagged prompt. Description: "${tempBrandImagePrompt}"` }],
+                    workspaceId
+                }) as any
+
+                if (data?.response) {
+                    const match = data.response.match(/<prompt>([\s\S]*?)<\/prompt>/)
+                    if (match && match[1]) {
+                        finalPrompt = match[1].trim()
+                    } else {
+                        finalPrompt = data.response.replace(/^["']|["']$/g, '').trim()
+                    }
+                }
+            } catch (e) {
+                console.error("Enhancement failed, using original prompt", e)
+            }
+            setIsLoading(false)
+        } else {
+            setMessages(prev => [...prev, {
+                role: 'user',
+                content: `Generate ${options.imageCount} ${options.style} brand image${options.imageCount > 1 ? 's' : ''}: ${tempBrandImagePrompt}`
+            }])
+        }
+
+        // Build reference images payload (base64 array)
+        const referenceImages = tempBrandImageRefs.map(img => ({
+            base64: img.base64,
+            mimeType: img.mimeType,
+        }))
+
+        setIsLoading(true)
+
+        try {
+            for (let i = 0; i < options.imageCount; i++) {
+                const data = await invokeEdge('generate-image', {
+                    messages: [{ role: 'user', content: finalPrompt }],
+                    workspaceId,
+                    prompt: finalPrompt,
+                    style: options.style,
+                    referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
+                    referenceMode: options.referenceMode || undefined,
+                    brandImageMode: tempBrandImageMode || undefined,
+                    transformAction: options.transformAction || undefined,
+                }) as any
+
+                if (data?.error) throw new Error(data.error)
+
+                const imageUrl = data?.result?.imageUrl
+                if (imageUrl) {
+                    setMessages(prev => [...prev, {
+                        role: 'assistant',
+                        content: options.imageCount > 1 ? `Image ${i + 1} of ${options.imageCount}` : 'Here is your brand image:',
+                        type: 'image',
+                        data: {
+                            id: data.result.id || `brand_img_${Date.now()}_${i}`,
+                            imageUrl,
+                            prompt_used: finalPrompt,
+                        }
+                    }])
+                }
+            }
+        } catch (e: any) {
+            console.error('Brand image generation failed:', e)
+            setMessages(prev => [...prev, {
+                role: 'assistant',
+                content: `Error generating brand image: ${e.message}`
+            }])
+        } finally {
+            setIsLoading(false)
+            // Clean up temp state
+            setTempBrandImageMode(null)
+            setTempBrandImagePrompt("")
+            setTempBrandImageRefs([])
+        }
     }
 
     const handleGenerateSlideImage = async (slideNumber: number, prompt: string) => {
@@ -863,7 +1087,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-3xl">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full max-w-3xl">
                                     {ACTION_CARDS.map((card, i) => (
                                         <button
                                             key={i}
@@ -946,6 +1170,20 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                             </div>
                                         )}
 
+                                        {/* Attached images in user messages */}
+                                        {msg.role === 'user' && msg.images && msg.images.length > 0 && (
+                                            <div className="flex gap-2 mt-1">
+                                                {msg.images.map((img, j) => (
+                                                    <img
+                                                        key={j}
+                                                        src={`data:${img.mimeType};base64,${img.base64}`}
+                                                        alt={img.name}
+                                                        className="w-20 h-20 object-cover rounded-lg border border-white/10"
+                                                    />
+                                                ))}
+                                            </div>
+                                        )}
+
                                         {/* Content cards */}
                                         {msg.type === 'content_cards' && msg.data?.data && (
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
@@ -1003,6 +1241,27 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                 <UnsplashResults results={msg.data.results} query={msg.data.query} onSelect={handleUnsplashImageSelect} selectedId={selectedUnsplashId || undefined} />
                                             </div>
                                         )}
+
+                                        {/* Brand image mode selector */}
+                                        {msg.type === 'brand_image_mode_selector' && (
+                                            <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                                <BrandImageModeSelector onSelect={handleBrandImageModeSelect} />
+                                            </div>
+                                        )}
+
+                                        {/* Brand image options */}
+                                        {msg.type === 'brand_image_options' && msg.data && (
+                                            <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                                <BrandImageOptions
+                                                    mode={msg.data.mode}
+                                                    prompt={msg.data.prompt}
+                                                    hasReferenceImages={msg.data.hasReferenceImages}
+                                                    referenceCount={msg.data.referenceCount}
+                                                    onGenerate={handleBrandImageGenerate}
+                                                    isGenerating={isLoading}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* User avatar */}
@@ -1042,18 +1301,56 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             </div>
 
             {/* ── INPUT ── */}
+            {/* ── INPUT ── */}
             <div
                 className="flex-none p-4"
                 style={{ borderTop: `1px solid ${ASSIST_THEME.borderSoft}`, background: 'rgba(21,22,32,0.86)' }}
             >
                 <div className="max-w-3xl mx-auto">
+                    {/* Pending image preview strip */}
+                    {pendingImages.length > 0 && (
+                        <div className="flex gap-2 mb-2 px-1">
+                            {pendingImages.map((img, i) => (
+                                <div key={i} className="relative group">
+                                    <img
+                                        src={`data:${img.mimeType};base64,${img.base64}`}
+                                        alt={img.name}
+                                        className="w-16 h-16 object-cover rounded-lg border border-white/10"
+                                    />
+                                    <button
+                                        onClick={() => setPendingImages(prev => prev.filter((_, idx) => idx !== i))}
+                                        className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500/90 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     <div className="relative flex items-center">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={handleFileSelect}
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isLoading || pendingImages.length >= 3}
+                            className="absolute left-2 flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150 disabled:opacity-30 hover:bg-white/10"
+                            style={{ color: 'rgba(255,255,255,0.4)' }}
+                            title="Attach image"
+                        >
+                            <Paperclip className="h-4 w-4" />
+                        </button>
                         <input
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
                             placeholder={activeFunction !== 'chat-assistant' ? `Using ${activeFunction}…` : "Ask me anything…"}
-                            className="w-full rounded-xl py-3.5 pl-4 pr-14 text-sm outline-none transition-all"
+                            className="w-full rounded-xl py-3.5 pl-11 pr-14 text-sm outline-none transition-all"
                             style={{
                                 background: ASSIST_THEME.shellAlt,
                                 border: `1px solid ${ASSIST_THEME.border}`,
@@ -1064,7 +1361,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                         />
                         <button
                             onClick={() => handleSend()}
-                            disabled={isLoading || !input.trim()}
+                            disabled={isLoading || (!input.trim() && pendingImages.length === 0)}
                             className="absolute right-2 flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-150 disabled:opacity-30 hover:opacity-85 active:scale-95"
                             style={{ background: 'linear-gradient(135deg, #38bdf8, #fb7185)' }}
                         >

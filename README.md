@@ -81,6 +81,8 @@ A powerful, AI-driven social media management platform built with Next.js, Supab
 - **Workspace Isolation**: Separate data for different brands/clients
 - **Team Members & Invites**: Owner-managed team members with invite links and automatic invite emails
 - **Role-Based Access Control (RBAC)**: `owner`, `admin`, `editor`, `viewer` with server-enforced permissions and matching UI restrictions
+- **Encrypted Secrets at Rest**: Workspace AI keys and external service credentials are encrypted in the database (`enc:v1:*` format)
+- **Secure Credential APIs**: External service credentials are managed via server routes (no direct browser DB writes for secrets)
 - **Email-Bound Invite Acceptance**: Invited users must sign up/sign in with the same invited email address to accept
 - **Invite History**: Pending invites + invite history tracking (accepted/revoked/expired), including "accepted then left workspace" visibility
 - **Workspace Switching**: Easy navigation between workspaces
@@ -163,6 +165,9 @@ RESEND_API_KEY=your_resend_api_key
 INVITE_EMAIL_FROM=Your App <noreply@yourdomain.com>
 INVITE_EMAIL_REPLY_TO=support@yourdomain.com
 
+# Secret Encryption (must be identical in Vercel + Supabase Edge Functions)
+APP_SECRETS_ENCRYPTION_KEY=your_long_random_secret
+
 # Instagram Webhooks
 INSTAGRAM_APP_SECRET=your_instagram_app_secret
 META_WEBHOOK_VERIFY_TOKEN=your_random_verify_token
@@ -191,6 +196,7 @@ The database schema includes:
 - `workspace_members` - User-workspace relationships
 - `workspace_invites` - Team invitation links and invite history
 - `workspace_settings` - AI configuration per workspace
+- `external_services` - Stored third-party service credentials/subscriptions (sensitive fields encrypted at rest)
 - `workspace_brand_profiles` - Brand identity and voice
 - `posts` - Content scheduling and drafts
 - `published_posts` - Posts published to social platforms
@@ -246,7 +252,12 @@ supabase functions deploy automation-worker-send-email --no-verify-jwt
 #### Set Function Secrets
 ```bash
 supabase secrets set GEMINI_API_KEY=your_gemini_api_key
+supabase secrets set APP_SECRETS_ENCRYPTION_KEY=your_long_random_secret
 ```
+
+> [!IMPORTANT]
+> `APP_SECRETS_ENCRYPTION_KEY` must use the **same value** in Vercel env vars and Supabase function secrets.
+> Rotating this key without migration will make previously encrypted values unreadable.
 
 ### 6. Run Development Server
 ```bash
@@ -275,6 +286,7 @@ Social-Media-Manager-AI-Tool/
 │   │   │   └── process/         # Trigger automation processing
 │   │   ├── webhooks/
 │   │   │   └── instagram/       # Instagram webhook endpoint (comments & messages)
+│   │   ├── external-services/   # Secure external credential CRUD (server-side)
 │   │   ├── posts-media/         # Live media polling from Meta
 │   │   ├── live-messages/       # Live messages polling from Meta
 │   │   ├── sync-analytics/      # Analytics sync trigger
@@ -399,7 +411,7 @@ Configure your preferred Gemini model in Settings > AI Provider:
 
 ### Workspace Settings
 Each workspace can have:
-- Custom Gemini API key
+- Custom Gemini/OpenAI API keys (encrypted at rest)
 - Preferred AI model
 - Brand profile
 - Connected social accounts
@@ -500,6 +512,7 @@ NEXT_PUBLIC_APP_URL
 RESEND_API_KEY
 INVITE_EMAIL_FROM
 INVITE_EMAIL_REPLY_TO
+APP_SECRETS_ENCRYPTION_KEY
 ```
 
 ### Supabase Edge Functions
@@ -548,6 +561,7 @@ For issues or questions:
 ### ✅ Recently Completed
 - [x] **Team Members & Invites** - Owner-managed member list, invite links, invite acceptance page, and automatic invite emails (Resend)
 - [x] **Workspace RBAC Enforcement** - `owner/admin/editor/viewer` roles enforced across posts, messages, comments, automations, settings, integrations, and analytics sync
+- [x] **Secret Encryption at Rest** - `workspace_settings` AI keys and `external_services` credentials encrypted in DB, with secure server-side credential APIs and edge-function decryption support
 - [x] **Meta OAuth Integration** - Connect Facebook Pages and Instagram Business accounts
 - [x] **Multi-Workspace OAuth Fix** - Resolved empty `/me/accounts` issue with debug_token fallback
 - [x] **Smart Page Selector** - Implemented page selection flow to enforce 1-to-1 workspace-to-page mapping and prevent token mixing

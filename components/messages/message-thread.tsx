@@ -8,7 +8,6 @@ import { Send, Image, Loader2, MessageSquare, Sparkles, Paperclip, ExternalLink 
 import { format } from "date-fns"
 import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
-import { invokeWithSessionRetry } from "@/utils/supabase/invoke-with-session-retry"
 
 const THREAD_THEME = {
     panelAlt: '#1b1d28',
@@ -161,23 +160,29 @@ export function MessageThread({
 
         setIsGeneratingAI(true)
         try {
-            const supabase = createClient()
             const recentMessages = messages.slice(-10).map(m => ({
                 message: m.message,
                 is_from_page: m.is_from_page
             }))
 
-            const { data, error } = await invokeWithSessionRetry<GeneratedReplyResponse>(supabase, 'generate-message-reply', {
-                body: {
-                    message: lastCustomerMessage.message,
-                    participantUsername: conversation.participant_username,
-                    conversationHistory: recentMessages,
-                    platform,
-                    workspaceId
-                }
+            const response = await fetch('/api/assistant/invoke', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    functionName: 'generate-message-reply',
+                    body: {
+                        message: lastCustomerMessage.message,
+                        participantUsername: conversation.participant_username,
+                        conversationHistory: recentMessages,
+                        platform,
+                        workspaceId,
+                    },
+                }),
             })
 
-            if (error) throw error
+            const result = await response.json()
+            if (!response.ok) throw new Error(result?.error || 'Failed to generate AI reply')
+            const data = result?.data as GeneratedReplyResponse | undefined
             if (data?.error) throw new Error(data.error)
             if (!data?.reply) throw new Error('AI returned an empty reply')
             setInputValue(data.reply)

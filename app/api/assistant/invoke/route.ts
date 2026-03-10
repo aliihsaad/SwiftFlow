@@ -7,6 +7,8 @@ const ALLOWED_FUNCTIONS = new Set([
     'generate-image',
     'generate-ideas',
     'generate-carousel',
+    'generate-reply',
+    'generate-message-reply',
     'search-unsplash',
     'select-unsplash-image',
 ])
@@ -80,7 +82,7 @@ export async function POST(request: NextRequest) {
         })
 
         const rawText = await edgeResponse.text()
-        let parsed: any = null
+        let parsed: { error?: string } | null = null
         try {
             parsed = rawText ? JSON.parse(rawText) : null
         } catch {
@@ -97,8 +99,11 @@ export async function POST(request: NextRequest) {
         }
 
         return NextResponse.json({ data: parsed }, { status: 200 })
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('[assistant/invoke] unexpected error:', error)
-        return NextResponse.json({ error: error?.message || 'Internal server error' }, { status: 500 })
+        return NextResponse.json(
+            { error: error instanceof Error ? error.message : 'Internal server error' },
+            { status: 500 }
+        )
     }
 }

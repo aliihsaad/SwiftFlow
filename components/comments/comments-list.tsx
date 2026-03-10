@@ -18,10 +18,8 @@ import {
     Loader2
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
-import { createClient } from "@/utils/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { toast } from "sonner"
-import { invokeWithSessionRetry } from "@/utils/supabase/invoke-with-session-retry"
 
 interface PostInfo {
     published_post_id: string
@@ -97,18 +95,24 @@ export function CommentsList({
         setReplyingTo(comment.id)
 
         try {
-            const supabase = createClient()
-            const { data, error } = await invokeWithSessionRetry<GeneratedReplyResponse>(supabase, 'generate-reply', {
-                body: {
-                    comment: comment.message,
-                    authorUsername: comment.author_username,
-                    postContent: comment.post?.content || null,
-                    platform: comment.social_accounts?.platform || 'instagram',
-                    workspaceId
-                }
+            const response = await fetch('/api/assistant/invoke', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    functionName: 'generate-reply',
+                    body: {
+                        comment: comment.message,
+                        authorUsername: comment.author_username,
+                        postContent: comment.post?.content || null,
+                        platform: comment.social_accounts?.platform || 'instagram',
+                        workspaceId,
+                    },
+                }),
             })
 
-            if (error) throw error
+            const result = await response.json()
+            if (!response.ok) throw new Error(result?.error || 'Failed to generate AI reply')
+            const data = result?.data as GeneratedReplyResponse | undefined
             if (data?.error) throw new Error(data.error)
             if (!data?.reply) throw new Error('AI returned an empty reply')
             setReplyText(data.reply)

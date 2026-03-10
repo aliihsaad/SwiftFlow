@@ -20,10 +20,8 @@ import {
     User
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
-import { createClient } from "@/utils/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
-import { invokeWithSessionRetry } from "@/utils/supabase/invoke-with-session-retry"
 
 interface PostData {
     id: string
@@ -156,18 +154,24 @@ export function PostCommentsDrawer({
         setReplyingTo(comment.id)
 
         try {
-            const supabase = createClient()
-            const { data: aiData, error: aiError } = await invokeWithSessionRetry<GeneratedReplyResponse>(supabase, 'generate-reply', {
-                body: {
-                    comment: comment.message,
-                    authorUsername: comment.author_username,
-                    postContent: post?.caption || null,
-                    platform,
-                    workspaceId,
-                }
+            const response = await fetch('/api/assistant/invoke', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    functionName: 'generate-reply',
+                    body: {
+                        comment: comment.message,
+                        authorUsername: comment.author_username,
+                        postContent: post?.caption || null,
+                        platform,
+                        workspaceId,
+                    },
+                }),
             })
 
-            if (aiError) throw aiError
+            const result = await response.json()
+            if (!response.ok) throw new Error(result?.error || 'Failed to generate AI reply')
+            const aiData = result?.data as GeneratedReplyResponse | undefined
             if (aiData?.error) throw new Error(aiData.error)
             if (!aiData?.reply) throw new Error('AI returned an empty reply')
             setReplyText(aiData.reply)

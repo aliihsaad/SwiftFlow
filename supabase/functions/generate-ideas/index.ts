@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
+import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -20,7 +21,7 @@ serve(async (req) => {
     }
 
     try {
-        const { messages, workspaceId } = await req.json()
+        const { messages, workspaceId, research, researchQuery } = await req.json()
 
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
             throw new Error('Messages array is required')
@@ -111,12 +112,31 @@ Use this brand context to generate highly relevant, on-brand content ideas.
 `
         }
 
+        // --- Research Phase (optional) ---
+        let researchContext = ''
+        if (research) {
+            console.log('Research mode enabled, calling research-topic...')
+            const researchResult = await invokeEdgeFunction('research-topic', {
+                query: researchQuery || brandProfile?.industry || lastMsg.content,
+                workspaceId,
+                context: brandProfile?.business_name ? `For ${brandProfile.business_name} in ${brandProfile.industry || 'their industry'}` : undefined,
+            })
+
+            if (researchResult.ok && researchResult.data?.research) {
+                researchContext = `\nRESEARCH FINDINGS (from real-time Google Search):\n${researchResult.data.research}\n\nUse these research findings to inform your content ideas. Reference specific trends, news, or data points from the research.\n`
+                console.log('Research completed, findings length:', researchResult.data.research.length)
+            } else {
+                console.warn('Research failed or returned empty:', researchResult.error)
+            }
+        }
+
         const genAI = new GoogleGenerativeAI(apiKey)
         const model = genAI.getGenerativeModel({
             model: modelName,
             systemInstruction: `You are a Social Media Content Strategist.
 
             ${brandContext}
+            ${researchContext}
 
             Your goal is to generate high-quality, engaging content ideas based on the user's input.
 
@@ -140,7 +160,8 @@ Use this brand context to generate highly relevant, on-brand content ideas.
             2. Body should be actionable and align with the brand voice (in ${languageName}).
             3. Provide the number of ideas requested by the user (default to 5 if not specified).
             4. Tailor content to the target audience and industry.
-            5. ALL text content MUST be in ${languageName}.`,
+            5. ALL text content MUST be in ${languageName}.
+            ${research ? '6. IMPORTANT: Base your ideas on the RESEARCH FINDINGS above. Reference current trends, real events, and data points.' : ''}`,
             generationConfig: {
                 temperature: 0.8,
                 responseMimeType: "application/json"

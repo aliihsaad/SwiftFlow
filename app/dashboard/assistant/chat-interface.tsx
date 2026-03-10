@@ -275,7 +275,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         handleSend(`Generate an image for this post: "${text.substring(0, 100)}..."`, "generate-image")
     }
 
-    const handleSend = async (text?: string, overrideFunction?: string) => {
+    const handleSend = async (text?: string, overrideFunction?: string, extraPayload?: Record<string, unknown>) => {
         const messageText = text || input
         if (!messageText.trim()) return
 
@@ -395,7 +395,8 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             const data = await invokeEdge(targetFunction, {
                 messages: newMessages,
                 workspaceId,
-                prompt: messageText
+                prompt: messageText,
+                ...extraPayload
             }) as any
             if (data?.error) throw new Error(data.error)
 
@@ -592,26 +593,37 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         )
     }
 
-    const handleIdeaGenerate = async (type: 'auto' | 'custom', count: number, topic?: string) => {
+    const handleIdeaGenerate = async (type: 'auto' | 'custom', count: number, topic?: string, research?: boolean) => {
         setFlowState('idle')
 
         let prompt = ""
         let userMessage = ""
 
         if (type === 'custom' && topic) {
-            userMessage = `Generate ${count} ideas about "${topic}"`
+            userMessage = `Generate ${count} ideas about "${topic}"${research ? ' (with research)' : ''}`
             prompt = `Generate ${count} unique social media content ideas about "${topic}". For each idea, provide a catchy title and a brief description.`
         } else {
-            userMessage = `Generate ${count} ideas based on my brand/context`
+            userMessage = `Generate ${count} ideas based on my brand/context${research ? ' (with research)' : ''}`
             prompt = `Generate ${count} unique social media content ideas based on the brand's industry, voice, and recent activity. For each idea, provide a catchy title and a brief description.`
         }
 
-        setMessages(prev => [...prev, {
-            role: 'user',
-            content: userMessage
-        }])
+        // Show research message if enabled
+        if (research) {
+            setMessages(prev => [...prev, {
+                role: 'user',
+                content: userMessage
+            }, {
+                role: 'assistant',
+                content: '🔍 Researching current trends and news before generating ideas...'
+            }])
+        } else {
+            setMessages(prev => [...prev, {
+                role: 'user',
+                content: userMessage
+            }])
+        }
 
-        handleSend(prompt, "generate-ideas")
+        handleSend(prompt, "generate-ideas", research ? { research: true, researchQuery: topic || undefined } : undefined)
     }
 
     const handleBrandImageModeSelect = (mode: 'generate' | 'transform') => {

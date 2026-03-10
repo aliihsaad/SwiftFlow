@@ -8,6 +8,8 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const GEMINI_REPLY_MODEL = 'gemini-2.0-flash'
+
 serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders })
@@ -35,6 +37,7 @@ serve(async (req) => {
 
         // Resolve AI config via shared helper
         const aiConfig = await resolveAIConfig({ supabase, workspaceId })
+        const modelName = aiConfig.provider === 'gemini' ? GEMINI_REPLY_MODEL : aiConfig.modelName
 
         // Fetch brand profile for context
         const { data: brandProfile } = await supabase
@@ -56,7 +59,7 @@ serve(async (req) => {
         const responseText = await generateText({
             provider: aiConfig.provider,
             apiKey: aiConfig.apiKey,
-            modelName: aiConfig.modelName,
+            modelName,
             prompt,
             temperature: aiConfig.temperature,
             maxTokens: Math.min(aiConfig.maxTokens, 512),

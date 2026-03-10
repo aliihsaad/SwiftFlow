@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
+import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -29,19 +29,8 @@ serve(async (req) => {
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
         const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
 
-        const { data: settings } = await supabase
-            .from('workspace_settings')
-            .select('*')
-            .eq('workspace_id', workspaceId)
-            .maybeSingle()
-
-        const apiKey = (await decryptSecretIfNeeded(settings?.gemini_api_key)) || Deno.env.get('GEMINI_API_KEY')
-        if (!apiKey) throw new Error('API Key missing')
-
-        let modelName = settings?.ai_model_name || 'gemini-2.0-flash'
-        if (modelName === 'gemini-pro' || modelName === 'gemini-1.5-flash' || modelName === 'gemini-1.5-flash-latest') {
-            modelName = 'gemini-2.0-flash'
-        }
+        // Resolve AI config via shared helper
+        const aiConfig = await resolveAIConfig({ supabase, workspaceId })
         // --- Research Phase (optional) ---
         let researchContext = ''
         if (research) {
@@ -59,10 +48,10 @@ serve(async (req) => {
             }
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey)
+        const genAI = new GoogleGenerativeAI(aiConfig.apiKey)
 
         const model = genAI.getGenerativeModel({
-            model: modelName,
+            model: aiConfig.modelName,
             systemInstruction: `You are a Social Media Content Creator specializing in educational carousels.
             ${researchContext}
             Your goal is to create a structured slide-by-slide breakdown for a carousel post.
@@ -128,7 +117,7 @@ serve(async (req) => {
 
     } catch (error: any) {
         console.error('Generate Carousel Error:', error)
-        return new Response(JSON.stringify({ error: error.message || 'Unknown error occurred' }), {
+        return new Response(JSON.stringify({ error: toUserFriendlyError(error) }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,
         })

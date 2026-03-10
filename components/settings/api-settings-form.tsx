@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Eye, EyeOff, Save } from "lucide-react"
+import { Loader2, Eye, EyeOff, Save, CheckCircle2, XCircle } from "lucide-react"
 import { WorkspaceSettings } from "@/types/settings"
 import { updateCurrentWorkspaceSettings } from "@/app/actions/settings"
 import { toast } from "sonner"
@@ -27,6 +27,8 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
     const [isLoading, setIsLoading] = useState(false)
     const [showGeminiKey, setShowGeminiKey] = useState(false)
     const [showOpenAIKey, setShowOpenAIKey] = useState(false)
+    const [isTesting, setIsTesting] = useState(false)
+    const [testResult, setTestResult] = useState<{ valid: boolean; error?: string } | null>(null)
     const canEditSettings = useWorkspacePermission("settings:write")
 
     const initialProvider: AIProvider = isAIProvider(settings?.ai_provider || '')
@@ -75,8 +77,32 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
         })
     }, [formData.ai_provider, modelsData?.models])
 
+    const handleTestKey = async () => {
+        const key = formData.ai_provider === 'openai' ? formData.openai_api_key : formData.gemini_api_key
+        if (!key.trim()) {
+            setTestResult({ valid: false, error: 'Enter an API key first.' })
+            return
+        }
+        setIsTesting(true)
+        setTestResult(null)
+        try {
+            const res = await fetch('/api/ai/validate-key', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ provider: formData.ai_provider, apiKey: key }),
+            })
+            const data = await res.json()
+            setTestResult(data)
+        } catch {
+            setTestResult({ valid: false, error: 'Network error. Could not reach validation endpoint.' })
+        } finally {
+            setIsTesting(false)
+        }
+    }
+
     const handleProviderChange = (value: string) => {
         const provider: AIProvider = value === 'openai' ? 'openai' : 'gemini'
+        setTestResult(null)
         setFormData((prev) => ({
             ...prev,
             ai_provider: provider,
@@ -177,17 +203,38 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     {showGeminiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                 </Button>
                             </div>
-                            <p className={helperClass}>
-                                Get your API key from{" "}
-                                <a
-                                    href="https://makersuite.google.com/app/apikey"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-cyan-300 hover:text-cyan-200 hover:underline"
+                            <div className="flex items-center gap-2">
+                                <p className={helperClass}>
+                                    Get your API key from{" "}
+                                    <a
+                                        href="https://makersuite.google.com/app/apikey"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-cyan-300 hover:text-cyan-200 hover:underline"
+                                    >
+                                        Google AI Studio
+                                    </a>
+                                </p>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs text-cyan-300 hover:text-cyan-200 hover:bg-white/5"
+                                    onClick={handleTestKey}
+                                    disabled={isTesting}
                                 >
-                                    Google AI Studio
-                                </a>
-                            </p>
+                                    {isTesting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                                    Test Key
+                                </Button>
+                            </div>
+                            {testResult && formData.ai_provider === 'gemini' && (
+                                <div className={`flex items-center gap-1.5 text-xs mt-1 ${testResult.valid ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {testResult.valid
+                                        ? <><CheckCircle2 className="h-3.5 w-3.5" /> API key is valid</>
+                                        : <><XCircle className="h-3.5 w-3.5" /> {testResult.error}</>
+                                    }
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -218,17 +265,38 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     {showOpenAIKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                                 </Button>
                             </div>
-                            <p className={helperClass}>
-                                Get your API key from{" "}
-                                <a
-                                    href="https://platform.openai.com/api-keys"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-cyan-300 hover:text-cyan-200 hover:underline"
+                            <div className="flex items-center gap-2">
+                                <p className={helperClass}>
+                                    Get your API key from{" "}
+                                    <a
+                                        href="https://platform.openai.com/api-keys"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-cyan-300 hover:text-cyan-200 hover:underline"
+                                    >
+                                        OpenAI Platform
+                                    </a>
+                                </p>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs text-cyan-300 hover:text-cyan-200 hover:bg-white/5"
+                                    onClick={handleTestKey}
+                                    disabled={isTesting}
                                 >
-                                    OpenAI Platform
-                                </a>
-                            </p>
+                                    {isTesting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                                    Test Key
+                                </Button>
+                            </div>
+                            {testResult && formData.ai_provider === 'openai' && (
+                                <div className={`flex items-center gap-1.5 text-xs mt-1 ${testResult.valid ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {testResult.valid
+                                        ? <><CheckCircle2 className="h-3.5 w-3.5" /> API key is valid</>
+                                        : <><XCircle className="h-3.5 w-3.5" /> {testResult.error}</>
+                                    }
+                                </div>
+                            )}
                         </div>
                     )}
 

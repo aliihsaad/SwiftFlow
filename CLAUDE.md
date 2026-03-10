@@ -43,9 +43,20 @@ All data is scoped to `workspace_id`. The active workspace is tracked via a cook
 ### Edge Functions
 23 Deno-based Supabase Edge Functions in `supabase/functions/`. They handle AI generation (`generate-ideas`, `generate-caption`, `generate-image`, `generate-carousel`, `chat-assistant`), sync operations (`sync-analytics`, `sync-comments`, `sync-messages`), automation (`process-automations`, `automation-orchestrator`, plus 7 `automation-worker-*` functions), and scheduling (`process-scheduled-posts`, `scheduler-tick`). API routes fire-and-forget trigger these functions.
 
+### AI Integration Architecture
+All AI calls (Gemini/OpenAI) go through a centralized config resolver:
+- **Edge functions** use `supabase/functions/_shared/ai-config.ts` → `resolveAIConfig()` for key resolution, model validation, and error handling.
+- **Next.js server** uses `lib/gemini.ts` which reads from `getWorkspaceSettings()`.
+- **Error sanitization**: `toUserFriendlyError()` (edge) and `toUserFriendlyAIError()` (server) strip raw SDK errors into actionable messages.
+- **Key validation**: `POST /api/ai/validate-key` tests keys before saving (used by settings form "Test Key" button).
+- **Model defaults**: `gemini-2.0-flash` everywhere. Deprecated models (`gemini-pro`, `gemini-1.5-flash-latest`) are auto-upgraded.
+- **Key resolution order**: workspace_settings (decrypted) → env fallback → clear error.
+
 ### Key Libraries
 - `lib/meta-api-client.ts` — Typed Meta Graph API client
 - `lib/gemini.ts` — Gemini AI integration (supports per-workspace API keys)
+- `lib/ai-models.ts` — AI provider/model constants and defaults
+- `supabase/functions/_shared/ai-config.ts` — Centralized AI config for all edge functions
 - `utils/supabase/server.ts` — Server-side Supabase client
 - `utils/supabase/client.ts` — Browser-side Supabase client
 

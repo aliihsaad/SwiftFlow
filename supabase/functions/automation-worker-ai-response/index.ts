@@ -2,22 +2,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { buildAutomationAiPrompt } from "../_shared/automation-context.ts"
-import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
+import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-function normalizeModel(provider: string, modelName?: string): string {
-  const model = String(modelName || '').trim();
-  if (!model) {
-    return provider === 'openai' ? 'gpt-4o-mini' : 'gemini-1.5-flash';
-  }
-
-  if (provider === 'openai' && model.startsWith('gemini')) return 'gpt-4o-mini';
-  if (provider === 'gemini' && model.startsWith('gpt-')) return 'gemini-1.5-flash';
-  return model;
 }
 
 async function generateWithGemini(apiKey: string, modelName: string, prompt: string, temperature: number, maxTokens: number) {
@@ -83,45 +72,25 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    const { data: settings } = await supabase
-      .from('workspace_settings')
-      .select('ai_provider, gemini_api_key, openai_api_key, ai_model_name, ai_temperature, ai_max_tokens')
-      .eq('workspace_id', workspaceId)
-      .maybeSingle();
-
     const useGlobal = config.use_global_settings !== false;
-    const provider = String((useGlobal ? settings?.ai_provider : (config.provider || settings?.ai_provider)) || 'gemini');
-    const modelName = normalizeModel(provider, useGlobal ? settings?.ai_model_name : (config.model || settings?.ai_model_name));
-    const temperature = Number(settings?.ai_temperature ?? 0.7);
-    const maxTokens = Number(config.max_tokens || settings?.ai_max_tokens || 500);
+    const aiConfig = await resolveAIConfig({
+      supabase,
+      workspaceId,
+      modelOverride: config.model,
+      maxTokensOverride: config.max_tokens,
+      useGlobalSettings: useGlobal,
+    });
 
     let responseText = '';
 
-    if (provider === 'openai') {
-      const openaiKey = (await decryptSecretIfNeeded(settings?.openai_api_key)) || Deno.env.get('OPENAI_API_KEY');
-      if (!openaiKey) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'OpenAI API key not configured. Add it in Settings > AI Provider.',
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      responseText = await generateWithOpenAI(openaiKey, modelName, prompt, temperature, maxTokens);
+    if (aiConfig.provider === 'openai') {
+      responseText = await generateWithOpenAI(aiConfig.apiKey, aiConfig.modelName, prompt, aiConfig.temperature, aiConfig.maxTokens);
     } else {
-      const geminiKey = (await decryptSecretIfNeeded(settings?.gemini_api_key)) || Deno.env.get('GEMINI_API_KEY');
-      if (!geminiKey) {
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Gemini API key not configured. Add it in Settings > AI Provider.',
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      responseText = await generateWithGemini(geminiKey, modelName, prompt, temperature, maxTokens);
+      responseText = await generateWithGemini(aiConfig.apiKey, aiConfig.modelName, prompt, aiConfig.temperature, aiConfig.maxTokens);
     }
+
+    const provider = aiConfig.provider;
+    const modelName = aiConfig.modelName;
 
     const includeCta = config.include_cta === true;
     const ctaMode = config.cta_mode === 'text' ? 'text' : 'button';
@@ -145,7 +114,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ success: false, error: err?.message || 'AI generation failed' }), {
+    return new Response(JSON.stringify({ success: false, error: toUserFriendlyError(err) }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

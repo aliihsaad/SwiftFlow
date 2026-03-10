@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
+import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -30,48 +30,15 @@ serve(async (req) => {
         }
 
         const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-        const { data: settingsRows, error: settingsError } = await supabase
-            .from('workspace_settings')
-            .select('workspace_id, gemini_api_key, updated_at')
-            .eq('workspace_id', workspaceId)
-            .order('updated_at', { ascending: false })
-            .limit(20)
 
-        if (settingsError) {
-            console.error('workspace_settings lookup failed:', settingsError)
-        }
+        // Resolve AI config via shared helper (validates key format, normalizes, etc.)
+        const aiConfig = await resolveAIConfig({ supabase, workspaceId })
+        const primaryKey = aiConfig.apiKey
+        const keySource = aiConfig.keySource
 
-        const rows = await Promise.all((settingsRows || []).map(async (row: any) => ({
-            ...row,
-            normalizedKey: normalizeApiKey(await decryptSecretIfNeeded(row?.gemini_api_key)),
-        })))
-        const hasWorkspaceSettings = rows.length > 0
-        const latestRow = rows[0] || null
-        const rowWithKey = rows.find((row: any) => !!row.normalizedKey) || null
-        const effectiveSettingsRow = rowWithKey || latestRow
-        const dbKey = normalizeApiKey(effectiveSettingsRow?.normalizedKey)
+        // For image generation, also try env key as fallback if different
         const envKey = normalizeApiKey(Deno.env.get('GEMINI_API_KEY'))
-        let primaryKey = ''
-        let fallbackKey: string | null = null
-        let keySource = ''
-
-        if (dbKey) {
-            primaryKey = dbKey
-            keySource = 'workspace_settings'
-            fallbackKey = envKey && envKey !== dbKey ? envKey : null
-        } else if (!hasWorkspaceSettings && envKey) {
-            primaryKey = envKey
-            keySource = 'edge_secret'
-        } else if (hasWorkspaceSettings) {
-            throw new Error(`Gemini API key is not configured for this workspace (${workspaceId}). Update Settings > AI Provider.`)
-        }
-
-        if (!primaryKey) {
-            throw new Error('Gemini API key is missing. Add a valid key in Settings > AI Provider.')
-        }
-        if (!primaryKey.startsWith('AIza')) {
-            throw new Error('Gemini API key format looks invalid. Please paste a valid Google AI Studio key.')
-        }
+        const fallbackKey = (keySource === 'workspace_settings' && envKey && envKey !== primaryKey) ? envKey : null
 
         // Fetch brand profile for color context
         const { data: brandProfile } = await supabase
@@ -212,7 +179,7 @@ serve(async (req) => {
 
         if (!success || !data) {
             throw new Error(
-                `${lastError || 'Gemini image generation failed.'} (keySource=${keySource}${fallbackKey ? ', fallback=env' : ''})`
+                toUserFriendlyError(new Error(lastError || 'Gemini image generation failed.'))
             )
         }
 

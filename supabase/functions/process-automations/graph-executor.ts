@@ -9,7 +9,7 @@
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
 import { buildAutomationAiPrompt, interpolateTemplate } from "../_shared/automation-context.ts"
 import { sendResendEmail, textToSimpleHtml } from "../_shared/resend-email.ts"
-import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
+import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 
 const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
 
@@ -1030,35 +1030,24 @@ async function executeAiResponse(
   const prompt = buildAutomationAiPrompt(config, ctx);
 
   try {
-    // Fetch workspace settings for Gemini API key + model
-    const { data: settings } = await supabase
-      .from('workspace_settings')
-      .select('gemini_api_key, ai_model_name, ai_temperature, ai_max_tokens')
-      .eq('workspace_id', workspaceId)
-      .maybeSingle();
-
-    const apiKey = (await decryptSecretIfNeeded(settings?.gemini_api_key)) || Deno.env.get('GEMINI_API_KEY');
-    if (!apiKey) {
-      return { success: false, error: 'Gemini API key not configured. Add it in Settings > AI Provider.' };
-    }
-
-    // use_global_settings: true → workspace defaults, false → node-specific model
     const useGlobal = config.use_global_settings !== false;
-    const modelName = useGlobal
-      ? (settings?.ai_model_name || 'gemini-1.5-flash')
-      : (config.model || settings?.ai_model_name || 'gemini-1.5-flash');
-    const temperature = settings?.ai_temperature || 0.7;
-    const maxTokens = config.max_tokens || settings?.ai_max_tokens || 500;
+    const aiConfig = await resolveAIConfig({
+      supabase,
+      workspaceId,
+      modelOverride: config.model,
+      maxTokensOverride: config.max_tokens,
+      useGlobalSettings: useGlobal,
+    });
 
     // Import and initialize Gemini
     const { GoogleGenerativeAI } = await import("npm:@google/generative-ai");
-    const genAI = new GoogleGenerativeAI(apiKey);
+    const genAI = new GoogleGenerativeAI(aiConfig.apiKey);
     const model = genAI.getGenerativeModel({
-      model: modelName,
-      generationConfig: { temperature, maxOutputTokens: maxTokens },
+      model: aiConfig.modelName,
+      generationConfig: { temperature: aiConfig.temperature, maxOutputTokens: aiConfig.maxTokens },
     });
 
-    console.log(`[GRAPH] AI response: model=${modelName}, prompt="${prompt.substring(0, 100)}..."`);
+    console.log(`[GRAPH] AI response: model=${aiConfig.modelName}, prompt="${prompt.substring(0, 100)}..."`);
 
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
@@ -1075,7 +1064,7 @@ async function executeAiResponse(
       success: true,
       output: {
         response: responseText,
-        model: modelName,
+        model: aiConfig.modelName,
         cta_mode: includeCta ? ctaMode : undefined,
         cta_button_text: includeCta ? ctaButtonText : undefined,
         cta_link_url: includeCta ? ctaLinkUrl : undefined,
@@ -1084,7 +1073,7 @@ async function executeAiResponse(
     };
   } catch (err) {
     console.error('[GRAPH] AI response error:', err);
-    return { success: false, error: err.message || 'AI generation failed' };
+    return { success: false, error: toUserFriendlyError(err) };
   }
 }
 

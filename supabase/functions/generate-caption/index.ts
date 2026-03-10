@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
+import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -21,7 +21,6 @@ serve(async (req) => {
             throw new Error('workspaceId is required')
         }
 
-        // Create Supabase client (simplified - no RLS)
         const supabaseUrl = Deno.env.get('SUPABASE_URL')
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
@@ -31,28 +30,12 @@ serve(async (req) => {
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-        // Fetch workspace settings
-        const { data: settings, error: settingsError } = await supabase
-            .from('workspace_settings')
-            .select('*')
-            .eq('workspace_id', workspaceId)
-            .maybeSingle()
+        // Resolve AI config (key + model) via shared helper
+        const aiConfig = await resolveAIConfig({ supabase, workspaceId })
 
-        if (settingsError) {
-            console.error('Settings error:', settingsError)
-        }
-
-        // Get API key from settings (fallback to env if not set in DB)
-        const apiKey = (await decryptSecretIfNeeded(settings?.gemini_api_key)) || Deno.env.get('GEMINI_API_KEY')
-        if (!apiKey) {
-            throw new Error('Gemini API key not configured. Please add it in Settings > AI Provider')
-        }
-
-        const modelName = settings?.ai_model_name || 'gemini-1.5-flash'
-
-        const genAI = new GoogleGenerativeAI(apiKey)
+        const genAI = new GoogleGenerativeAI(aiConfig.apiKey)
         const model = genAI.getGenerativeModel({
-            model: modelName,
+            model: aiConfig.modelName,
             systemInstruction: "You are an expert Social Media Manager AI Assistant. Be concise, professional, and creative. Return strict JSON arrays."
         })
 
@@ -134,10 +117,10 @@ Return ONLY the captions (in ${languageName}) as a JSON array of strings. No mar
         })
 
     } catch (error: any) {
-        console.error('API Error:', error)
-        return new Response(JSON.stringify({ error: error.message }), {
+        console.error('Generate Caption Error:', error)
+        return new Response(JSON.stringify({ error: toUserFriendlyError(error) }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200, // Return 200 so client doesn't throw automatically
+            status: 200,
         })
     }
 })

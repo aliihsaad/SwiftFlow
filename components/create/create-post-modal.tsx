@@ -48,6 +48,21 @@ const PLATFORMS = [
 
 const SUGGESTED_HASHTAGS = ['#OpenSourceLife', '#CodingCommunity', '#SkilledDeveloper', '#CareerGrowth']
 
+/** Strip raw SDK error prefixes and JSON blobs from AI error messages. */
+function sanitizeAIError(msg: string): string {
+    if (/API_KEY_INVALID|api key not valid/i.test(msg)) {
+        return "Your AI API key is invalid or expired. Update it in Settings → AI Provider."
+    }
+    if (/RESOURCE_EXHAUSTED|quota/i.test(msg)) {
+        return "AI API quota exceeded. Wait a moment or upgrade your API plan."
+    }
+    return msg
+        .replace(/\[GoogleGenerativeAI Error\]:\s*/i, "")
+        .replace(/Error fetching from https:\/\/[^\s:]+:\s*/i, "")
+        .replace(/\[\{[\s\S]*?\}\]/g, "")
+        .trim() || "An unexpected AI error occurred."
+}
+
 // ─── Shared inner UI ─────────────────────────────────────────────────────────
 interface InnerProps extends CreatePostModalProps {
     onClose: () => void
@@ -125,7 +140,7 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
             if (data?.error) throw new Error(data.error)
             if (data?.result?.imageUrl) setGlobalMedia(p => [...p, data.result.imageUrl])
         } catch (e) {
-            setInlineError(e instanceof Error ? e.message : 'Failed to generate image.')
+            setInlineError(sanitizeAIError(e instanceof Error ? e.message : 'Failed to generate image.'))
         } finally {
             setIsGeneratingAI(false)
         }
@@ -148,9 +163,9 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
             })
             const data = await res.json().catch(() => ({}))
             if (data?.suggestions?.length > 0) setGlobalCaption(data.suggestions[0])
-            else if (data?.error) setInlineError(data.error)
+            else if (data?.error) setInlineError(sanitizeAIError(data.error))
         } catch (e) {
-            setInlineError(e instanceof Error ? e.message : 'Failed to generate caption.')
+            setInlineError(sanitizeAIError(e instanceof Error ? e.message : 'Failed to generate caption.'))
         } finally {
             setIsGeneratingAI(false)
         }
@@ -171,7 +186,7 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
                 if (tags.length > 0) setSuggestedHashtags(Array.from(new Set(tags)).slice(0, 8) as string[])
             }
         } catch (e) {
-            setInlineError(e instanceof Error ? e.message : 'Failed to refresh hashtags.')
+            setInlineError(sanitizeAIError(e instanceof Error ? e.message : 'Failed to refresh hashtags.'))
         } finally {
             setIsRefreshingHashtags(false)
         }

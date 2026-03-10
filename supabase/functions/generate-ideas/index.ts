@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
+import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -67,20 +67,8 @@ serve(async (req) => {
             console.error('Brand profile error:', brandError)
         }
 
-        const dbKey = await decryptSecretIfNeeded(settings?.gemini_api_key)
-        const envKey = Deno.env.get('GEMINI_API_KEY')
-        const apiKey = dbKey || envKey
-
-        if (!apiKey) {
-            throw new Error('Gemini API key not configured.')
-        }
-
-        // Fix for 404: Force gemini-pro if flash is requested or no model set
-        let modelName = settings?.ai_model_name || 'gemini-2.0-flash'
-        // Prioritize Flash as Pro is deprecated on some channels
-        if (modelName === 'gemini-pro' || modelName === 'gemini-1.5-flash' || modelName === 'gemini-1.5-flash-latest') {
-            modelName = 'gemini-2.0-flash'
-        }
+        // Resolve AI config via shared helper
+        const aiConfig = await resolveAIConfig({ supabase, workspaceId })
 
         // Language names mapping
         const LANGUAGE_NAMES: Record<string, string> = {
@@ -130,9 +118,9 @@ Use this brand context to generate highly relevant, on-brand content ideas.
             }
         }
 
-        const genAI = new GoogleGenerativeAI(apiKey)
+        const genAI = new GoogleGenerativeAI(aiConfig.apiKey)
         const model = genAI.getGenerativeModel({
-            model: modelName,
+            model: aiConfig.modelName,
             systemInstruction: `You are a Social Media Content Strategist.
 
             ${brandContext}
@@ -203,8 +191,7 @@ Use this brand context to generate highly relevant, on-brand content ideas.
 
     } catch (error: any) {
         console.error('Generate Ideas Error:', error)
-        // Return 200 to pass the error message to the client
-        return new Response(JSON.stringify({ error: error.message || 'Unknown error occurred' }), {
+        return new Response(JSON.stringify({ error: toUserFriendlyError(error) }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,
         })

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
+import { generateText, requireGeneratedText } from "../_shared/generate-text.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -52,25 +52,18 @@ serve(async (req) => {
             brandProfile
         })
 
-        const genAI = new GoogleGenerativeAI(aiConfig.apiKey)
-        const model = genAI.getGenerativeModel({
-            model: aiConfig.modelName,
-            generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 300,
-            }
-        })
-
         console.log('[generate-message-reply] Calling AI model...')
-        const result = await model.generateContent(prompt)
-        const responseText = result.response.text()
+        const responseText = await generateText({
+            provider: aiConfig.provider,
+            apiKey: aiConfig.apiKey,
+            modelName: aiConfig.modelName,
+            prompt,
+            temperature: aiConfig.temperature,
+            maxTokens: Math.min(aiConfig.maxTokens, 300),
+        })
         console.log('[generate-message-reply] AI response length:', responseText.length)
 
-        // Clean up the reply
-        const reply = responseText
-            .replace(/^["']|["']$/g, '')
-            .replace(/^Reply:\s*/i, '')
-            .trim()
+        const reply = requireGeneratedText(responseText)
 
         console.log('[generate-message-reply] Reply:', reply.substring(0, 100))
         return new Response(JSON.stringify({ reply }), {

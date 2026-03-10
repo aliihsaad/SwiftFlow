@@ -20,6 +20,8 @@ import {
 import { formatDistanceToNow } from "date-fns"
 import { createClient } from "@/utils/supabase/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { toast } from "sonner"
+import { invokeWithSessionRetry } from "@/utils/supabase/invoke-with-session-retry"
 
 interface PostInfo {
     published_post_id: string
@@ -44,6 +46,11 @@ interface Comment {
     } | null
     replies: Comment[]
     post: PostInfo | null
+}
+
+interface GeneratedReplyResponse {
+    reply?: string
+    error?: string
 }
 
 interface CommentsListProps {
@@ -91,7 +98,7 @@ export function CommentsList({
 
         try {
             const supabase = createClient()
-            const { data, error } = await supabase.functions.invoke('generate-reply', {
+            const { data, error } = await invokeWithSessionRetry<GeneratedReplyResponse>(supabase, 'generate-reply', {
                 body: {
                     comment: comment.message,
                     authorUsername: comment.author_username,
@@ -107,6 +114,7 @@ export function CommentsList({
             setReplyText(data.reply)
         } catch (error) {
             console.error('AI reply generation failed:', error)
+            toast.error(error instanceof Error ? error.message : 'Could not generate an AI reply. Please try again.')
         } finally {
             setGeneratingAI(null)
         }
@@ -119,12 +127,7 @@ export function CommentsList({
 
     const getFirstMediaUrl = (mediaUrls: string[]): string | null => {
         if (!mediaUrls || mediaUrls.length === 0) return null
-        const first = mediaUrls[0]
-        if (typeof first === 'string') return first
-        if (typeof first === 'object' && first !== null) {
-            return (first as any).url || (first as any).publicUrl || null
-        }
-        return null
+        return mediaUrls[0] || null
     }
 
     return (

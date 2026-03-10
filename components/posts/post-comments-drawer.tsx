@@ -9,7 +9,6 @@ import {
     SheetTitle,
 } from "@/components/ui/sheet"
 import {
-    X,
     Send,
     Sparkles,
     Eye,
@@ -24,6 +23,7 @@ import { formatDistanceToNow } from "date-fns"
 import { createClient } from "@/utils/supabase/client"
 import { useToast } from "@/components/ui/use-toast"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
+import { invokeWithSessionRetry } from "@/utils/supabase/invoke-with-session-retry"
 
 interface PostData {
     id: string
@@ -45,6 +45,15 @@ interface CommentData {
     timestamp: string
     is_hidden?: boolean
     replies: CommentData[]
+}
+
+interface GeneratedReplyResponse {
+    reply?: string
+    error?: string
+}
+
+interface CommentsResponseData {
+    comments?: CommentData[]
 }
 
 interface PostCommentsDrawerProps {
@@ -148,7 +157,7 @@ export function PostCommentsDrawer({
 
         try {
             const supabase = createClient()
-            const { data: aiData, error: aiError } = await supabase.functions.invoke('generate-reply', {
+            const { data: aiData, error: aiError } = await invokeWithSessionRetry<GeneratedReplyResponse>(supabase, 'generate-reply', {
                 body: {
                     comment: comment.message,
                     authorUsername: comment.author_username,
@@ -207,11 +216,11 @@ export function PostCommentsDrawer({
             setReplyingTo(null)
             setReplyText("")
             mutate()
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Reply error:', err)
             toast({
                 title: "Reply failed",
-                description: err.message || "Failed to send reply.",
+                description: err instanceof Error ? err.message : "Failed to send reply.",
                 variant: "destructive",
             })
         } finally {
@@ -265,18 +274,18 @@ export function PostCommentsDrawer({
                 title: hidden ? "Comment hidden" : "Comment unhidden",
                 description: hidden ? "The comment has been hidden." : "The comment is visible again.",
             })
-            mutate((current: any) => {
+            mutate((current?: CommentsResponseData) => {
                 if (!current || !Array.isArray(current.comments)) return current
                 return {
                     ...current,
-                    comments: updateCommentHiddenInCache(current.comments as CommentData[], commentId, hidden),
+                    comments: updateCommentHiddenInCache(current.comments, commentId, hidden),
                 }
             }, { revalidate: false })
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Comment moderation error:', err)
             toast({
                 title: hidden ? "Hide failed" : "Unhide failed",
-                description: err.message || `Failed to ${hidden ? 'hide' : 'unhide'} comment.`,
+                description: err instanceof Error ? err.message : `Failed to ${hidden ? 'hide' : 'unhide'} comment.`,
                 variant: "destructive",
             })
         } finally {

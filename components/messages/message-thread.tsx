@@ -7,6 +7,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Send, Image, Loader2, MessageSquare, Sparkles, Paperclip, ExternalLink } from "lucide-react"
 import { format } from "date-fns"
 import { createClient } from "@/utils/supabase/client"
+import { toast } from "sonner"
+import { invokeWithSessionRetry } from "@/utils/supabase/invoke-with-session-retry"
 
 const THREAD_THEME = {
     panelAlt: '#1b1d28',
@@ -38,6 +40,26 @@ interface Conversation {
     participant_id: string
     participant_username: string | null
     participant_profile_picture: string | null
+}
+
+interface GeneratedReplyResponse {
+    reply?: string
+    error?: string
+}
+
+interface MessageAttachment {
+    image_data?: {
+        url?: string
+    }
+    file_url?: string
+    payload?: {
+        title?: string
+        description?: string
+        url?: string
+    }
+    url?: string
+    mime_type?: string
+    name?: string
 }
 
 interface MessageThreadProps {
@@ -118,7 +140,7 @@ export function MessageThread({
         try {
             await onSendMessage(inputValue.trim())
             setInputValue("")
-        } catch (error) {
+        } catch {
             // Error handled by parent
         } finally {
             setIsSending(false)
@@ -145,7 +167,7 @@ export function MessageThread({
                 is_from_page: m.is_from_page
             }))
 
-            const { data, error } = await supabase.functions.invoke('generate-message-reply', {
+            const { data, error } = await invokeWithSessionRetry<GeneratedReplyResponse>(supabase, 'generate-message-reply', {
                 body: {
                     message: lastCustomerMessage.message,
                     participantUsername: conversation.participant_username,
@@ -161,12 +183,13 @@ export function MessageThread({
             setInputValue(data.reply)
         } catch (error) {
             console.error('AI message reply generation failed:', error)
+            toast.error(error instanceof Error ? error.message : 'Could not generate an AI reply. Please try again.')
         } finally {
             setIsGeneratingAI(false)
         }
     }
 
-    const parseAttachments = (attachmentsStr: string) => {
+    const parseAttachments = (attachmentsStr: string): MessageAttachment[] => {
         try { return JSON.parse(attachmentsStr) } catch { return [] }
     }
 
@@ -175,7 +198,7 @@ export function MessageThread({
         return normalized === '[attachment]' || normalized === 'attachment'
     }
 
-    const getAttachmentUrl = (att: any): string | null => {
+    const getAttachmentUrl = (att: MessageAttachment): string | null => {
         const candidates = [
             att?.image_data?.url,
             att?.file_url,
@@ -186,7 +209,7 @@ export function MessageThread({
         return found || null
     }
 
-    const isImageAttachment = (att: any): boolean => {
+    const isImageAttachment = (att: MessageAttachment): boolean => {
         const mime = String(att?.mime_type || '').toLowerCase()
         const url = getAttachmentUrl(att) || ''
         return mime.startsWith('image/') ||
@@ -194,7 +217,7 @@ export function MessageThread({
             /\.(png|jpe?g|gif|webp|heic|heif)(\?|$)/i.test(url)
     }
 
-    const getAttachmentLabel = (att: any): string => {
+    const getAttachmentLabel = (att: MessageAttachment): string => {
         const payload = att?.payload || {}
         if (typeof payload?.title === 'string' && payload.title.trim()) return payload.title
         if (typeof payload?.description === 'string' && payload.description.trim()) return payload.description
@@ -388,7 +411,7 @@ export function MessageThread({
 
                                             {attachments.length > 0 && (
                                                 <div className="space-y-1">
-                                                    {attachments.map((att: any, i: number) => (
+                                                    {attachments.map((att, i: number) => (
                                                         <div key={i} className="space-y-1.5">
                                                             {(() => {
                                                                 const attachmentUrl = getAttachmentUrl(att)

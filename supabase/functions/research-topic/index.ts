@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
+import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -33,13 +33,6 @@ serve(async (req) => {
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-        // Fetch workspace settings for API key
-        const { data: settings } = await supabase
-            .from('workspace_settings')
-            .select('*')
-            .eq('workspace_id', workspaceId)
-            .maybeSingle()
-
         // Fetch brand profile for industry/business context
         const { data: brandProfile } = await supabase
             .from('workspace_brand_profiles')
@@ -47,10 +40,8 @@ serve(async (req) => {
             .eq('workspace_id', workspaceId)
             .maybeSingle()
 
-        const apiKey = (await decryptSecretIfNeeded(settings?.gemini_api_key)) || Deno.env.get('GEMINI_API_KEY')
-        if (!apiKey) {
-            throw new Error('Gemini API key not configured.')
-        }
+        // Resolve AI config via shared helper
+        const aiConfig = await resolveAIConfig({ supabase, workspaceId })
 
         // Language names mapping
         const LANGUAGE_NAMES: Record<string, string> = {
@@ -73,15 +64,9 @@ serve(async (req) => {
             ].filter(Boolean).join('\n')
         }
 
-        // Use Gemini 2.0 Flash with Google Search Grounding
-        let modelName = settings?.ai_model_name || 'gemini-2.0-flash'
-        if (modelName === 'gemini-pro' || modelName === 'gemini-1.5-flash' || modelName === 'gemini-1.5-flash-latest') {
-            modelName = 'gemini-2.0-flash'
-        }
-
-        const genAI = new GoogleGenerativeAI(apiKey)
+        const genAI = new GoogleGenerativeAI(aiConfig.apiKey)
         const model = genAI.getGenerativeModel({
-            model: modelName,
+            model: aiConfig.modelName,
             systemInstruction: `You are a social media research analyst. Your job is to research current trends, news, and popular content topics using Google Search.
 
 ${industryContext ? `BUSINESS CONTEXT:\n${industryContext}\n` : ''}
@@ -135,7 +120,7 @@ Format your response as a clear, concise research brief that can be used to info
     } catch (error: any) {
         console.error('Research Topic Error:', error)
         return new Response(JSON.stringify({
-            error: error.message || 'Research failed',
+            error: toUserFriendlyError(error),
         }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,

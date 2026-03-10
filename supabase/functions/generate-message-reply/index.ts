@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
+import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -24,7 +24,6 @@ serve(async (req) => {
             throw new Error('message is required')
         }
 
-        // Create Supabase client
         const supabaseUrl = Deno.env.get('SUPABASE_URL')
         const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
@@ -34,20 +33,8 @@ serve(async (req) => {
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-        // Fetch workspace settings
-        const { data: settings } = await supabase
-            .from('workspace_settings')
-            .select('*')
-            .eq('workspace_id', workspaceId)
-            .maybeSingle()
-
-        // Get API key
-        const apiKey = (await decryptSecretIfNeeded(settings?.gemini_api_key)) || Deno.env.get('GEMINI_API_KEY')
-        if (!apiKey) {
-            throw new Error('Gemini API key not configured. Please add it in Settings > AI Provider')
-        }
-
-        const modelName = settings?.ai_model_name || 'gemini-1.5-flash'
+        // Resolve AI config via shared helper
+        const aiConfig = await resolveAIConfig({ supabase, workspaceId })
 
         // Fetch brand profile for context
         const { data: brandProfile } = await supabase
@@ -65,9 +52,9 @@ serve(async (req) => {
             brandProfile
         })
 
-        const genAI = new GoogleGenerativeAI(apiKey)
+        const genAI = new GoogleGenerativeAI(aiConfig.apiKey)
         const model = genAI.getGenerativeModel({
-            model: modelName,
+            model: aiConfig.modelName,
             generationConfig: {
                 temperature: 0.7,
                 maxOutputTokens: 300,
@@ -89,7 +76,7 @@ serve(async (req) => {
 
     } catch (error: any) {
         console.error('Generate message reply error:', error)
-        return new Response(JSON.stringify({ error: error.message }), {
+        return new Response(JSON.stringify({ error: toUserFriendlyError(error) }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,
         })

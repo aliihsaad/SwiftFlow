@@ -8,7 +8,7 @@ function isUnauthorizedFunctionsError(error: unknown): error is FunctionsHttpErr
 export async function invokeWithSessionRetry<TData, TBody = unknown>(
     supabase: SupabaseClient,
     functionName: string,
-    options?: FunctionInvokeOptions<TBody>
+    options?: FunctionInvokeOptions
 ) {
     const firstAttempt = await supabase.functions.invoke<TData>(functionName, options)
     if (!isUnauthorizedFunctionsError(firstAttempt.error)) {

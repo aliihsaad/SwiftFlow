@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
+import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -19,7 +20,7 @@ serve(async (req) => {
     }
 
     try {
-        const { messages, workspaceId } = await req.json()
+        const { messages, workspaceId, research, researchQuery } = await req.json()
 
         if (!messages || !Array.isArray(messages) || messages.length === 0) throw new Error('Messages required')
         const lastMsg = messages[messages.length - 1]
@@ -41,12 +42,29 @@ serve(async (req) => {
         if (modelName === 'gemini-pro' || modelName === 'gemini-1.5-flash' || modelName === 'gemini-1.5-flash-latest') {
             modelName = 'gemini-2.0-flash'
         }
+        // --- Research Phase (optional) ---
+        let researchContext = ''
+        if (research) {
+            console.log('Research mode enabled for carousel, calling research-topic...')
+            const researchResult = await invokeEdgeFunction('research-topic', {
+                query: researchQuery || lastMsg.content,
+                workspaceId,
+            })
+
+            if (researchResult.ok && researchResult.data?.research) {
+                researchContext = `\nRESEARCH FINDINGS (from real-time Google Search):\n${researchResult.data.research}\n\nUse these research findings to create factually accurate, trend-aware slide content.\n`
+                console.log('Research completed for carousel, findings length:', researchResult.data.research.length)
+            } else {
+                console.warn('Research failed or returned empty:', researchResult.error)
+            }
+        }
+
         const genAI = new GoogleGenerativeAI(apiKey)
 
         const model = genAI.getGenerativeModel({
             model: modelName,
             systemInstruction: `You are a Social Media Content Creator specializing in educational carousels.
-            
+            ${researchContext}
             Your goal is to create a structured slide-by-slide breakdown for a carousel post.
             
             RETURN JSON ONLY. The response must match this schema:
@@ -70,7 +88,8 @@ serve(async (req) => {
                - Example: "A minimal infographic slide. In the center, large bold text reads: '5 Coding Tips'. Dark background with code syntax highlights."
             3. Slide 1 is always the Hook/Cover.
             4. Last slide is always a CTA.
-            5. Keep text concise (under 20 words per slide for better visibility).`,
+            5. Keep text concise (under 20 words per slide for better visibility).
+            ${research ? '6. IMPORTANT: Base slide content on the RESEARCH FINDINGS above. Include real facts, stats, and current trends.' : ''}`,
             generationConfig: {
                 temperature: 0.7,
                 responseMimeType: "application/json"

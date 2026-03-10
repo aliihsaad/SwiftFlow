@@ -2,12 +2,12 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Wand2, Camera, Palette, Smile, Sparkles, BarChart3, Mountain, Loader2 } from "lucide-react"
+import { Wand2, Camera, Palette, Smile, Sparkles, BarChart3, Mountain, Loader2, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface CarouselStyleSelectorProps {
     topic: string
-    onGenerate: (slideCount: number, style: string) => void
+    onGenerate: (slideCount: number, style: string, research?: boolean) => void
     isGenerating?: boolean
 }
 
@@ -25,10 +25,11 @@ const STYLES = [
 export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false }: CarouselStyleSelectorProps) {
     const [selectedCount, setSelectedCount] = useState(2)
     const [selectedStyle, setSelectedStyle] = useState<string | null>(null)
+    const [research, setResearch] = useState(false)
 
     const handleGenerate = () => {
         if (selectedStyle) {
-            onGenerate(selectedCount, selectedStyle)
+            onGenerate(selectedCount, selectedStyle, research)
         }
     }
 
@@ -90,29 +91,66 @@ export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false 
                 </div>
             </div>
 
+            {/* Research First Toggle */}
+            <button
+                onClick={() => setResearch(!research)}
+                disabled={isGenerating}
+                className={cn(
+                    "flex w-full items-center gap-3 p-3 rounded-lg border-2 transition-all",
+                    research
+                        ? "border-amber-300/25 bg-amber-400/10 text-amber-200"
+                        : "border-white/10 bg-[#151620] text-white/70 hover:border-amber-300/15 hover:bg-white/5"
+                )}
+            >
+                <div className={cn(
+                    "flex items-center justify-center w-8 h-8 rounded-md transition-colors",
+                    research ? "bg-amber-400/20" : "bg-white/5"
+                )}>
+                    <Search className="w-4 h-4" />
+                </div>
+                <div className="flex-1 text-left">
+                    <span className="text-sm font-medium block">Research First 🔍</span>
+                    <span className={cn(
+                        "text-xs transition-colors",
+                        research ? "text-amber-200/70" : "text-white/40"
+                    )}>
+                        Research real facts & trends for slide content
+                    </span>
+                </div>
+                <div className={cn(
+                    "w-9 h-5 rounded-full transition-colors relative",
+                    research ? "bg-amber-400/40" : "bg-white/10"
+                )}>
+                    <div className={cn(
+                        "absolute top-0.5 w-4 h-4 rounded-full transition-all",
+                        research ? "left-[18px] bg-amber-300" : "left-0.5 bg-white/40"
+                    )} />
+                </div>
+            </button>
+
             {/* Generate Button */}
             <Button
                 onClick={handleGenerate}
                 disabled={!selectedStyle || isGenerating}
-                className="w-full border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
+                className="w-full border border-cyan-300/20 bg-linear-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
                 size="lg"
             >
                 {isGenerating ? (
                     <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Generating {selectedCount} slides...
+                        {research ? 'Researching & Generating...' : `Generating ${selectedCount} slides...`}
                     </>
                 ) : (
                     <>
-                        <Wand2 className="w-4 h-4 mr-2" />
-                        Generate {selectedCount} Carousel
+                        {research ? <Search className="w-4 h-4 mr-2" /> : <Wand2 className="w-4 h-4 mr-2" />}
+                        {research ? `Research & Generate ${selectedCount} Carousel` : `Generate ${selectedCount} Carousel`}
                     </>
                 )}
             </Button>
 
             {isGenerating && (
                 <p className="text-xs text-center text-white/45">
-                    This may take 1-2 minutes for 2+ images
+                    {research ? 'Researching trends then generating slides — this may take 2-3 minutes' : 'This may take 1-2 minutes for 2+ images'}
                 </p>
             )}
         </div>

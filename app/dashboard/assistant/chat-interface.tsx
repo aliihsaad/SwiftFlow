@@ -578,18 +578,31 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         handleSend(`Generate a ${style} style image of: ${finalPrompt}`, "generate-image")
     }
 
-    const handleCarouselGenerate = async (slideCount: number, style: string) => {
+    const handleCarouselGenerate = async (slideCount: number, style: string, research?: boolean) => {
         setFlowState('idle')
 
-        setMessages(prev => [...prev, {
-            role: 'user',
-            content: `Generate a Instagram carousel with ${slideCount} slides about "${tempCarouselTopic}" in ${style} style`
-        }])
+        const userMsg = `Generate a Instagram carousel with ${slideCount} slides about "${tempCarouselTopic}" in ${style} style${research ? ' (with research)' : ''}`
+
+        if (research) {
+            setMessages(prev => [...prev, {
+                role: 'user',
+                content: userMsg
+            }, {
+                role: 'assistant',
+                content: '🔍 Researching facts and trends for your carousel content...'
+            }])
+        } else {
+            setMessages(prev => [...prev, {
+                role: 'user',
+                content: userMsg
+            }])
+        }
 
         // Trigger carousel generation
         handleSend(
             `Create a ${slideCount}-slide Instagram carousel about "${tempCarouselTopic}" in ${style} visual style. Generate engaging content for each slide with captions.`,
-            "generate-carousel"
+            "generate-carousel",
+            research ? { research: true, researchQuery: tempCarouselTopic } : undefined
         )
     }
 

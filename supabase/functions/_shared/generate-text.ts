@@ -33,32 +33,45 @@ function normalizeGeneratedText(value: string): string {
 async function generateWithGemini(params: GenerateTextParams): Promise<string> {
     const { GoogleGenerativeAI } = await import("npm:@google/generative-ai")
     const genAI = new GoogleGenerativeAI(params.apiKey)
-    const model = genAI.getGenerativeModel({
-        model: params.modelName,
-        ...(params.systemInstruction ? { systemInstruction: params.systemInstruction } : {}),
-        generationConfig: {
-            temperature: params.temperature ?? 0.7,
-            maxOutputTokens: params.maxTokens ?? 1024,
-        },
-    })
+    const requestedMaxTokens = Math.max(params.maxTokens ?? 1024, 256)
 
-    const result = await model.generateContent(params.prompt)
-    const response = result.response
-    const text = response.text?.() || ""
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+        const maxOutputTokens = attempt === 0
+            ? requestedMaxTokens
+            : Math.min(requestedMaxTokens * 2, 2048)
 
-    if (text.trim()) return text
+        const model = genAI.getGenerativeModel({
+            model: params.modelName,
+            ...(params.systemInstruction ? { systemInstruction: params.systemInstruction } : {}),
+            generationConfig: {
+                temperature: params.temperature ?? 0.7,
+                maxOutputTokens,
+            },
+        })
 
-    const finishReasons = Array.isArray(response?.candidates)
-        ? response.candidates.map((candidate: { finishReason?: string }) => candidate?.finishReason).filter(Boolean)
-        : []
-    const blockReason = response?.promptFeedback?.blockReason
+        const result = await model.generateContent(params.prompt)
+        const response = result.response
+        const text = response.text?.() || ""
 
-    if (blockReason) {
-        throw new Error(`The AI returned no text (${blockReason}). Try rephrasing the prompt.`)
-    }
+        if (text.trim()) return text
 
-    if (finishReasons.length > 0) {
-        throw new Error(`The AI returned no text (${finishReasons.join(", ")}). Try again.`)
+        const finishReasons = Array.isArray(response?.candidates)
+            ? response.candidates.map((candidate: { finishReason?: string }) => candidate?.finishReason).filter(Boolean)
+            : []
+        const blockReason = response?.promptFeedback?.blockReason
+
+        if (blockReason) {
+            throw new Error(`The AI returned no text (${blockReason}). Try rephrasing the prompt.`)
+        }
+
+        const hitMaxTokens = finishReasons.includes("MAX_TOKENS")
+        if (hitMaxTokens && attempt === 0 && maxOutputTokens < 2048) {
+            continue
+        }
+
+        if (finishReasons.length > 0) {
+            throw new Error(`The AI returned no text (${finishReasons.join(", ")}). Try again.`)
+        }
     }
 
     return ""

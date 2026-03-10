@@ -59,7 +59,7 @@ serve(async (req) => {
             modelName: aiConfig.modelName,
             prompt,
             temperature: aiConfig.temperature,
-            maxTokens: Math.min(aiConfig.maxTokens, 256),
+            maxTokens: Math.min(aiConfig.maxTokens, 512),
         })
         console.log('[generate-reply] AI response length:', responseText.length)
 

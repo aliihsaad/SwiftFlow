@@ -159,12 +159,14 @@ export function PostCommentsDrawer({
             })
 
             if (aiError) throw aiError
-            setReplyText(aiData?.reply || '')
+            if (aiData?.error) throw new Error(aiData.error)
+            if (!aiData?.reply) throw new Error('AI returned an empty reply')
+            setReplyText(aiData.reply)
         } catch (err) {
             console.error('AI reply generation failed:', err)
             toast({
                 title: "AI reply failed",
-                description: "Could not generate an AI reply. Please try again.",
+                description: err instanceof Error ? err.message : "Could not generate an AI reply. Please try again.",
                 variant: "destructive",
             })
         } finally {

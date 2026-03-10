@@ -61,8 +61,10 @@ serve(async (req) => {
             }
         })
 
+        console.log('[generate-reply] Calling AI model...')
         const result = await model.generateContent(prompt)
         const responseText = result.response.text()
+        console.log('[generate-reply] AI response length:', responseText.length)
 
         // Clean up the reply
         const reply = responseText
@@ -70,12 +72,13 @@ serve(async (req) => {
             .replace(/^Reply:\s*/i, '')
             .trim()
 
+        console.log('[generate-reply] Reply:', reply.substring(0, 100))
         return new Response(JSON.stringify({ reply }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
 
     } catch (error: any) {
-        console.error('Generate reply error:', error)
+        console.error('[generate-reply] Error:', error?.message || error)
         return new Response(JSON.stringify({ error: toUserFriendlyError(error) }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,

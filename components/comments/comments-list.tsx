@@ -102,7 +102,9 @@ export function CommentsList({
             })
 
             if (error) throw error
-            setReplyText(data?.reply || '')
+            if (data?.error) throw new Error(data.error)
+            if (!data?.reply) throw new Error('AI returned an empty reply')
+            setReplyText(data.reply)
         } catch (error) {
             console.error('AI reply generation failed:', error)
         } finally {

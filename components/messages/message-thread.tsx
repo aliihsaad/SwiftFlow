@@ -156,7 +156,9 @@ export function MessageThread({
             })
 
             if (error) throw error
-            if (data?.reply) setInputValue(data.reply)
+            if (data?.error) throw new Error(data.error)
+            if (!data?.reply) throw new Error('AI returned an empty reply')
+            setInputValue(data.reply)
         } catch (error) {
             console.error('AI message reply generation failed:', error)
         } finally {

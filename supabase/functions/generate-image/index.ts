@@ -131,6 +131,7 @@ serve(async (req) => {
                             parts: buildContentParts(enhancedPrompt, referenceImages, referenceMode, brandImageMode, transformAction)
                         }],
                         generationConfig: {
+                            responseModalities: ["Text", "Image"],
                             imageConfig: {
                                 aspectRatio: "1:1",
                                 imageSize: "1K"

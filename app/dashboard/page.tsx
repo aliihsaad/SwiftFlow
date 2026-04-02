@@ -5,9 +5,25 @@ import { QuickActions } from "@/components/dashboard/quick-actions"
 import { RecentActivityDropdown, RecentAction } from "@/components/dashboard/recent-activity-dropdown"
 import { createClient } from "@/utils/supabase/server"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
+import { isReviewPhase1Release } from "@/lib/release-channel"
 import { formatDistanceToNow } from "date-fns"
 
 import { redirect } from "next/navigation"
+
+type DashboardPostSummary = {
+    id?: string
+    created_at: string
+    status: string
+    scheduled_for: string | null
+    published_at: string | null
+    content: string | null
+    platforms: unknown
+    media_urls?: unknown
+}
+
+type MediaUrlObject = {
+    url?: string
+}
 
 export default async function DashboardPage() {
     const supabase = await createClient()
@@ -16,6 +32,7 @@ export default async function DashboardPage() {
     if (!activeWorkspace) {
         redirect('/dashboard/onboarding')
     }
+    const reviewPhase1Release = isReviewPhase1Release()
 
     // 1. Fetch Counts
     const { count: scheduledCount } = await supabase
@@ -94,11 +111,12 @@ export default async function DashboardPage() {
         .order('scheduled_for', { ascending: true })
         .limit(50)
 
-    const calendarPosts = scheduledPosts?.map(p => {
+    const calendarPosts = ((scheduledPosts as DashboardPostSummary[] | null) || []).map((p) => {
         // Extract first image if available
         let mediaUrl = null
         if (Array.isArray(p.media_urls) && p.media_urls.length > 0) {
-            mediaUrl = typeof p.media_urls[0] === 'string' ? p.media_urls[0] : (p.media_urls[0] as any)?.url
+            const firstMedia = p.media_urls[0]
+            mediaUrl = typeof firstMedia === 'string' ? firstMedia : (firstMedia as MediaUrlObject | null)?.url ?? null
         }
 
         return {
@@ -108,31 +126,32 @@ export default async function DashboardPage() {
             content: p.content,
             mediaUrl
         }
-    }) || []
+    })
 
     // 4. Fetch Recent Activity (Posts + AI Generation)
     // We'll simulate fetching AI assets for now or try if table exists intypes
     // For now, let's derive activity from 'posts' and simulate AI
     const recentActivities: RecentAction[] = []
 
-    posts?.slice(0, 5).forEach((post: any) => {
+    ;((posts as DashboardPostSummary[] | null) || []).slice(0, 5).forEach((post, index) => {
+        const activityId = `activity-${post.created_at}-${post.status}-${index}`
         if (post.status === 'draft') {
             recentActivities.push({
-                id: Math.random().toString(),
+                id: activityId,
                 type: 'draft',
                 description: 'Draft saved',
                 timestamp: formatDistanceToNow(new Date(post.created_at), { addSuffix: true })
             })
         } else if (post.status === 'published') {
             recentActivities.push({
-                id: Math.random().toString(),
+                id: activityId,
                 type: 'published',
                 description: 'Post published to ' + (Array.isArray(post.platforms) ? post.platforms.join(', ') : 'Socials'),
                 timestamp: formatDistanceToNow(new Date(post.created_at), { addSuffix: true })
             })
         } else if (post.status === 'scheduled') {
             recentActivities.push({
-                id: Math.random().toString(),
+                id: activityId,
                 type: 'scheduled',
                 description: 'Post scheduled',
                 timestamp: formatDistanceToNow(new Date(post.created_at), { addSuffix: true })
@@ -181,7 +200,7 @@ export default async function DashboardPage() {
                 workspaceId={activeWorkspace.id}
             />
 
-            <QuickActions workspaceId={activeWorkspace.id} />
+            <QuickActions workspaceId={activeWorkspace.id} isReviewPhase1Release={reviewPhase1Release} />
 
             {/* Dashboard Content - Always Visible */}
             <div className="space-y-6">

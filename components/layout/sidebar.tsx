@@ -50,11 +50,18 @@ const secondaryNav = [
 interface SidebarProps {
     workspaces: Workspace[]
     activeWorkspace: Workspace | null
+    isReviewPhase1Release: boolean
 }
 
-export function Sidebar({ workspaces, activeWorkspace }: SidebarProps) {
+export function Sidebar({ workspaces, activeWorkspace, isReviewPhase1Release }: SidebarProps) {
     const pathname = usePathname()
     const [isCollapsed, setIsCollapsed] = useState(false)
+    const visiblePrimaryNav = isReviewPhase1Release
+        ? primaryNav.filter((item) => !["/dashboard/analytics", "/dashboard/comments", "/dashboard/messages", "/dashboard/automation"].includes(item.href))
+        : primaryNav
+    const visibleSecondaryNav = isReviewPhase1Release
+        ? secondaryNav.filter((item) => item.href !== "/dashboard/subscription")
+        : secondaryNav
 
     const renderNavItem = (item: { icon: React.ElementType; label: string; href: string }, index: number) => {
         const isActive = pathname === item.href
@@ -193,7 +200,7 @@ export function Sidebar({ workspaces, activeWorkspace }: SidebarProps) {
 
                     {/* Primary nav */}
                     <div className="space-y-px">
-                        {primaryNav.map((item, i) => renderNavItem(item, i))}
+                        {visiblePrimaryNav.map((item, i) => renderNavItem(item, i))}
                     </div>
 
                     {/* Divider */}
@@ -204,7 +211,7 @@ export function Sidebar({ workspaces, activeWorkspace }: SidebarProps) {
 
                     {/* Secondary nav */}
                     <div className="space-y-px">
-                        {secondaryNav.map((item, i) => renderNavItem(item, i + primaryNav.length))}
+                        {visibleSecondaryNav.map((item, i) => renderNavItem(item, i + visiblePrimaryNav.length))}
                     </div>
                 </div>
 

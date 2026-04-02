@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -42,15 +42,25 @@ const secondaryNav = [
 interface MobileNavProps {
     activeWorkspace: Workspace | null
     workspaces: Workspace[]
+    isReviewPhase1Release: boolean
 }
 
-export function MobileNav({ activeWorkspace, workspaces }: MobileNavProps) {
+export function MobileNav({ activeWorkspace, workspaces, isReviewPhase1Release }: MobileNavProps) {
     const pathname = usePathname()
     const [open, setOpen] = useState(false)
     const [mounted, setMounted] = useState(false)
+    const visiblePrimaryNav = isReviewPhase1Release
+        ? primaryNav.filter((item) => !["/dashboard/analytics", "/dashboard/comments", "/dashboard/messages", "/dashboard/automation"].includes(item.href))
+        : primaryNav
+    const visibleSecondaryNav = isReviewPhase1Release
+        ? secondaryNav.filter((item) => item.href !== "/dashboard/subscription")
+        : secondaryNav
 
-    // Only render portal on client
-    useEffect(() => { setMounted(true) }, [])
+    // Delay portal mounting until after the first paint to avoid hydration issues.
+    useEffect(() => {
+        const frameId = window.requestAnimationFrame(() => setMounted(true))
+        return () => window.cancelAnimationFrame(frameId)
+    }, [])
 
     const NavLink = ({ item }: { item: { icon: React.ElementType; label: string; href: string } }) => {
         const isActive = pathname === item.href
@@ -143,7 +153,7 @@ export function MobileNav({ activeWorkspace, workspaces }: MobileNavProps) {
 
                     {/* Primary nav */}
                     <div className="space-y-px">
-                        {primaryNav.map((item, i) => (
+                        {visiblePrimaryNav.map((item, i) => (
                             <NavLink key={i} item={item} />
                         ))}
                     </div>
@@ -153,7 +163,7 @@ export function MobileNav({ activeWorkspace, workspaces }: MobileNavProps) {
 
                     {/* Secondary nav */}
                     <div className="space-y-px">
-                        {secondaryNav.map((item, i) => (
+                        {visibleSecondaryNav.map((item, i) => (
                             <NavLink key={i} item={item} />
                         ))}
                     </div>

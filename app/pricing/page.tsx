@@ -4,14 +4,13 @@ import { ArrowLeft, ArrowRight, Check, Sparkles, Zap, ChevronRight } from "lucid
 export const metadata = {
   title: "Pricing | SwiftFlow",
   description:
-    "Simple pricing for SwiftFlow. Start free and upgrade to Pro (coming soon) for advanced automation, analytics, and team features.",
+    "Pricing direction for SwiftFlow. Billing is not live yet; this page explains the planned workspace-based subscription model.",
 }
 
 const freePlan = [
   "Instagram + Facebook account connection",
   "Post creation and scheduling",
-  "Unified inbox (IG + FB messages)",
-  "Automation canvas + templates",
+  "AI-assisted workflows with your own provider key",
   "Brand profile and AI-assisted workflows",
 ]
 
@@ -19,7 +18,7 @@ const proPlan = [
   "Higher automation volume limits",
   "Advanced analytics and reporting exports",
   "Team roles / collaboration improvements",
-  "More AI usage and premium presets",
+  "Workspace-level usage enforcement",
   "Priority support and faster issue turnaround",
 ]
 
@@ -64,7 +63,7 @@ export default function PricingPage() {
             <span className="text-transparent bg-clip-text bg-linear-to-r from-white/40 to-white/10">Pro expansion soon.</span>
           </h1>
           <p className="text-lg md:text-xl leading-relaxed text-white/50 font-medium max-w-2xl">
-            Start with the free workspace to connect accounts, publish, manage messages and build automations. Pro will add higher limits, deeper analytics, and team-focused features.
+            Billing is not live yet. The current product can be used without checkout, and paid plans will only launch after workspace entitlements and usage enforcement are implemented.
           </p>
         </div>
 
@@ -83,7 +82,7 @@ export default function PricingPage() {
                   </p>
                   <h2 className="text-4xl font-black text-white mb-3">Start Free</h2>
                   <p className="text-sm leading-relaxed text-white/40 font-medium max-w-[250px]">
-                    Best for solo creators and early testing while you set up your workflow.
+                    Best for solo creators and early testing while the billing system is still being built.
                   </p>
                 </div>
                 <div className="rounded-3xl px-6 py-4 bg-white/5 border border-white/10 text-right backdrop-blur-md">
@@ -137,7 +136,7 @@ export default function PricingPage() {
                   </p>
                   <h2 className="text-4xl font-black text-white mb-3">Pro Plan</h2>
                   <p className="text-sm leading-relaxed text-white/40 font-medium max-w-[250px]">
-                    For teams that need higher limits, deeper analytics and more operational controls.
+                    Planned for teams that need higher limits, deeper analytics, and stronger operational controls.
                   </p>
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold tracking-widest uppercase bg-amber-500/10 border border-amber-500/20 text-amber-400 h-fit">
@@ -161,10 +160,10 @@ export default function PricingPage() {
 
               <div className="mt-auto rounded-2xl p-5 bg-white/5 border border-white/10 backdrop-blur-md">
                 <p className="text-sm font-bold text-white mb-2">
-                  Pricing details pending data tuning.
+                  Billing is not live yet.
                 </p>
                 <p className="text-xs leading-relaxed text-white/40 font-medium">
-                  We are validating automation and analytics usage patterns first so the Pro plan matches real workload needs.
+                  We are validating workspace limits, automation enforcement, analytics retention, and team entitlements before publishing final pricing.
                 </p>
               </div>
             </div>
@@ -182,12 +181,12 @@ export default function PricingPage() {
                 Architecture Notes
               </p>
               <p className="text-sm leading-relaxed text-white/50 font-medium">
-                Platform permissions and analytics coverage can vary by Meta endpoint and media type. The dashboard shows partial-data warnings when metrics are unavailable so teams can operate with clear expectations.
+                Pricing will be tied to enforceable workspace limits such as connected accounts, scheduled post volume, automation volume, exports, and team seats. AI costs remain separate under a BYOK model.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2 lg:justify-end">
-              {["Instagram + Facebook", "Automation Templates", "Brand Profile", "AI Workflows"].map((tag) => (
+              {["Workspace Billing", "Usage Limits", "AI BYOK", "Team Seats"].map((tag) => (
                 <span
                   key={tag}
                   className="rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest bg-white/5 border border-white/10 text-white/40"

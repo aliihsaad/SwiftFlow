@@ -2,6 +2,7 @@ import { Sidebar } from "@/components/layout/sidebar"
 import { MobileNav } from "@/components/layout/mobile-nav"
 import { WorkspaceRoleProvider } from "@/components/workspace/workspace-role-provider"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
+import { isReviewPhase1Release } from "@/lib/release-channel"
 import { createClient } from "@/utils/supabase/server"
 import { Workspace, WorkspaceRole } from "@/types/workspace"
 
@@ -35,6 +36,7 @@ export default async function DashboardLayout({
     const activeWorkspaceRole = activeWorkspace
         ? ((members?.find((m) => m.workspace_id === activeWorkspace.id)?.role as WorkspaceRole | undefined) ?? null)
         : null
+    const reviewPhase1Release = isReviewPhase1Release()
 
     const userInitial = user.email?.charAt(0).toUpperCase() || 'U'
 
@@ -46,6 +48,7 @@ export default async function DashboardLayout({
                 <Sidebar
                     workspaces={workspaceList}
                     activeWorkspace={activeWorkspace}
+                    isReviewPhase1Release={reviewPhase1Release}
                 />
             </div>
 
@@ -62,7 +65,7 @@ export default async function DashboardLayout({
                 >
                     {/* Mobile hamburger — hidden on desktop */}
                     <div className="sm:hidden">
-                        <MobileNav activeWorkspace={activeWorkspace} workspaces={workspaceList} />
+                        <MobileNav activeWorkspace={activeWorkspace} workspaces={workspaceList} isReviewPhase1Release={reviewPhase1Release} />
                     </div>
 
                     {/* Workspace indicator */}

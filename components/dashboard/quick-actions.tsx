@@ -7,6 +7,7 @@ import { CreatePostModal } from "@/components/create/create-post-modal"
 
 interface QuickActionsProps {
     workspaceId?: string
+    isReviewPhase1Release?: boolean
 }
 
 const actions = [
@@ -44,13 +45,16 @@ const actions = [
     },
 ]
 
-export function QuickActions({ workspaceId }: QuickActionsProps) {
+export function QuickActions({ workspaceId, isReviewPhase1Release = false }: QuickActionsProps) {
     const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false)
+    const visibleActions = isReviewPhase1Release
+        ? actions.filter((action) => action.href !== "/dashboard/analytics")
+        : actions
 
     return (
         <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {actions.map((action) => {
+                {visibleActions.map((action) => {
                     const Icon = action.icon
                     const inner = (
                         <button

@@ -1,6 +1,12 @@
 # Social Media Manager AI Tool 🚀
 
-A powerful, AI-driven social media management platform built with Next.js, Supabase, and Google's Gemini AI. Streamline your content creation, scheduling, and analytics with intelligent automation and brand-aware AI assistance.
+An AI-driven social media management platform built with Next.js and Supabase. It combines content creation, scheduling, Meta integrations, analytics, and automation in a multi-workspace product that is currently being hardened for Meta App Review.
+
+## Documentation
+
+- Active docs index: [docs/README.md](docs/README.md)
+- Meta review execution workspace: [docs/app-review/README.md](docs/app-review/README.md)
+- Historical and superseded docs: [docs/archive/README.md](docs/archive/README.md)
 
 ## ✨ Features
 

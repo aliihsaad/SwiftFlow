@@ -11,7 +11,7 @@ import { formatDistanceToNow } from "date-fns"
 import { redirect } from "next/navigation"
 
 type DashboardPostSummary = {
-    id?: string
+    id: string
     created_at: string
     status: string
     scheduled_for: string | null
@@ -112,7 +112,7 @@ export default async function DashboardPage() {
         .limit(50)
 
     const calendarPosts = ((scheduledPosts as DashboardPostSummary[] | null) || [])
-        .filter((p) => Boolean(p.scheduled_for))
+        .filter((p) => Boolean(p.id) && Boolean(p.scheduled_for))
         .map((p) => {
             // Extract first image if available
             let mediaUrl = null

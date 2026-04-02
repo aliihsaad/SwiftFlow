@@ -111,22 +111,24 @@ export default async function DashboardPage() {
         .order('scheduled_for', { ascending: true })
         .limit(50)
 
-    const calendarPosts = ((scheduledPosts as DashboardPostSummary[] | null) || []).map((p) => {
-        // Extract first image if available
-        let mediaUrl = null
-        if (Array.isArray(p.media_urls) && p.media_urls.length > 0) {
-            const firstMedia = p.media_urls[0]
-            mediaUrl = typeof firstMedia === 'string' ? firstMedia : (firstMedia as MediaUrlObject | null)?.url ?? null
-        }
+    const calendarPosts = ((scheduledPosts as DashboardPostSummary[] | null) || [])
+        .filter((p) => Boolean(p.scheduled_for))
+        .map((p) => {
+            // Extract first image if available
+            let mediaUrl = null
+            if (Array.isArray(p.media_urls) && p.media_urls.length > 0) {
+                const firstMedia = p.media_urls[0]
+                mediaUrl = typeof firstMedia === 'string' ? firstMedia : (firstMedia as MediaUrlObject | null)?.url ?? null
+            }
 
-        return {
-            id: p.id,
-            date: new Date(p.scheduled_for),
-            platforms: Array.isArray(p.platforms) ? p.platforms : [],
-            content: p.content,
-            mediaUrl
-        }
-    })
+            return {
+                id: p.id,
+                date: new Date(p.scheduled_for as string),
+                platforms: Array.isArray(p.platforms) ? p.platforms : [],
+                content: p.content,
+                mediaUrl
+            }
+        })
 
     // 4. Fetch Recent Activity (Posts + AI Generation)
     // We'll simulate fetching AI assets for now or try if table exists intypes

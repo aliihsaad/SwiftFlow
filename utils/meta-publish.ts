@@ -6,8 +6,10 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { canPublishWithMetaAccount, decryptMetaAccountRow, MetaAccountMetadata } from '@/lib/meta-account';
+import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 
-const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
+const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.avi', '.wmv', '.flv', '.webm', '.mkv', '.m4v'];
 
@@ -36,10 +38,7 @@ export interface SocialAccount {
     account_name: string;
     account_id: string;
     access_token: string;
-    metadata?: {
-        instagram_business_account_id?: string;
-        connected_page_id?: string;
-    };
+    metadata?: MetaAccountMetadata;
 }
 
 /**
@@ -48,7 +47,7 @@ export interface SocialAccount {
 export async function getConnectedAccounts(workspaceId: string): Promise<SocialAccount[]> {
     const { data, error } = await supabaseAdmin
         .from('social_accounts')
-        .select('*')
+        .select('id, platform, account_name, account_id, access_token, metadata')
         .eq('workspace_id', workspaceId);
 
     if (error) {
@@ -56,7 +55,17 @@ export async function getConnectedAccounts(workspaceId: string): Promise<SocialA
         return [];
     }
 
-    return data || [];
+    return (data || []).map((row) => {
+        const decrypted = decryptMetaAccountRow(row);
+        return {
+            id: decrypted.id,
+            platform: decrypted.platform,
+            account_name: decrypted.account_name,
+            account_id: decrypted.account_id,
+            access_token: decrypted.access_token || '',
+            metadata: decrypted.metadata,
+        };
+    });
 }
 
 /**
@@ -639,6 +648,22 @@ export async function publishPost(
                 success: false,
                 platform: platform as 'facebook' | 'instagram',
                 error: `No ${platform} account connected`
+            });
+            continue;
+        }
+        if (!account.access_token) {
+            results.push({
+                success: false,
+                platform: platform as 'facebook' | 'instagram',
+                error: `No ${platform} access token available`
+            });
+            continue;
+        }
+        if (!canPublishWithMetaAccount(account.metadata, platform as 'facebook' | 'instagram')) {
+            results.push({
+                success: false,
+                platform: platform as 'facebook' | 'instagram',
+                error: `${platform} publishing capability is not granted for this connected account`
             });
             continue;
         }

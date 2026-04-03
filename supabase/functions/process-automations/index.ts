@@ -3,7 +3,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { executeWorkflowGraph } from "./graph-executor.ts"
 
-const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
+import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
+
+const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',

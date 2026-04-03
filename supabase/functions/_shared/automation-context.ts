@@ -1,6 +1,8 @@
 // @ts-nocheck - Shared Deno runtime helpers
 
-export const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
+import { META_GRAPH_API_BASE_URL } from "./meta-graph.ts";
+
+export const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 export interface TriggerContext {
   comment_id?: string

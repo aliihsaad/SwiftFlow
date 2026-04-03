@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForToken } from '@/utils/meta-oauth';
+import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
+import { encryptMetaToken } from '@/lib/meta-account';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
@@ -10,7 +12,7 @@ const supabaseAdmin = createSupabaseClient(
     process.env.SUPABASE_SERVICE_KEY!
 );
 
-const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
+const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 /**
  * Meta OAuth Callback Route
@@ -57,7 +59,6 @@ export async function GET(request: NextRequest) {
         );
     }
 
-    log(`Code: ${code.substring(0, 20)}...`);
     log(`WorkspaceId from state: ${workspaceId}`);
 
     try {
@@ -103,7 +104,7 @@ export async function GET(request: NextRequest) {
         log('Step 1b: Debugging token...');
         const debugResponse = await fetch(`${META_GRAPH_URL}/debug_token?input_token=${userAccessToken}&access_token=${appId}|${appSecret}`, { cache: 'no-store' });
         const debugText = await debugResponse.text();
-        log(`Step 1b debug_token response (${debugResponse.status}): ${debugText.substring(0, 500)}`);
+        log(`Step 1b debug_token status: ${debugResponse.status}`);
         let parsedDebugToken: any = null;
         let grantedScopes: string[] = [];
         let grantedGranularScopes: Array<{ scope: string; target_ids?: string[] }> = [];
@@ -230,7 +231,7 @@ export async function GET(request: NextRequest) {
                 id: page.id,
                 name: page.name,
                 category: page.category || '',
-                access_token: page.access_token,
+                access_token: encryptMetaToken(page.access_token),
                 ig_account_id: igAccountId,
                 ig_username: igUsername,
                 granted_scopes: grantedScopes,
@@ -248,7 +249,7 @@ export async function GET(request: NextRequest) {
             .insert({
                 id: sessionId,
                 workspace_id: workspaceId,
-                user_access_token: userAccessToken,
+                user_access_token: encryptMetaToken(userAccessToken),
                 pages_data: pagesWithIg,
                 expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 min expiry
             });

@@ -1,3 +1,5 @@
+import { META_GRAPH_API_BASE_URL, META_GRAPH_API_VERSION, META_OAUTH_DIALOG_BASE_URL } from "@/lib/meta-graph-version"
+
 /**
  * Meta/Facebook OAuth Utilities
  * Uses shared Meta app credentials from environment variables.
@@ -6,9 +8,9 @@
  * Use scope profiles to keep App Review submissions narrow and deterministic.
  */
 
-export const META_OAUTH_VERSION = 'v24.0';
-export const META_OAUTH_URL = `https://www.facebook.com/${META_OAUTH_VERSION}/dialog/oauth`;
-const META_TOKEN_URL = `https://graph.facebook.com/${META_OAUTH_VERSION}/oauth/access_token`;
+export const META_OAUTH_VERSION = META_GRAPH_API_VERSION;
+export const META_OAUTH_URL = META_OAUTH_DIALOG_BASE_URL;
+const META_TOKEN_URL = `${META_GRAPH_API_BASE_URL}/oauth/access_token`;
 
 export type MetaOAuthScopeProfile = 'full' | 'review_phase_1';
 export type MetaOAuthPlatform = 'all' | 'facebook' | 'instagram';

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/utils/supabase/server';
+import { buildMetaAccountMetadata, decryptMetaToken, encryptMetaToken } from '@/lib/meta-account';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 const supabaseAdmin = createSupabaseClient(
@@ -93,6 +94,19 @@ export async function POST(request: NextRequest) {
                     target_ids: Array.isArray(s?.target_ids) ? s.target_ids.filter((id: any) => typeof id === 'string') : undefined,
                 }))
             : [];
+        const decryptedPageAccessToken = decryptMetaToken(selectedPage.access_token);
+        const encryptedPageAccessToken = encryptMetaToken(decryptedPageAccessToken);
+        const decryptedUserAccessToken = decryptMetaToken(typeof session.user_access_token === 'string' ? session.user_access_token : null);
+        const encryptedUserAccessToken = encryptMetaToken(decryptedUserAccessToken);
+        const scopeSyncedAt = new Date().toISOString();
+        const tokenStatus = decryptedPageAccessToken ? 'available' : 'missing';
+
+        if (!decryptedPageAccessToken || !encryptedPageAccessToken) {
+            return NextResponse.json(
+                { error: 'Selected page does not have a usable access token. Please reconnect.' },
+                { status: 400 }
+            );
+        }
 
         console.log(`[SELECT_PAGE] User selected page "${selectedPage.name}" (${selectedPage.id}) for workspace ${workspaceId}`);
 
@@ -153,16 +167,17 @@ export async function POST(request: NextRequest) {
             platform: 'facebook',
             account_name: selectedPage.name,
             account_id: selectedPage.id,
-            access_token: selectedPage.access_token,
+            access_token: encryptedPageAccessToken,
             token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // ~60 days
-            metadata: {
-                category: selectedPage.category,
-                user_access_token: session.user_access_token,
-                instagram_business_account_id: selectedPage.ig_account_id,
-                granted_scopes: grantedScopes,
-                granted_granular_scopes: grantedGranularScopes,
-                scopes_checked_at: new Date().toISOString(),
-            },
+            metadata: buildMetaAccountMetadata({
+                existingMetadata: { category: selectedPage.category },
+                userAccessToken: encryptedUserAccessToken,
+                instagramBusinessAccountId: selectedPage.ig_account_id,
+                grantedScopes,
+                grantedGranularScopes,
+                tokenStatus,
+                syncedAt: scopeSyncedAt,
+            }),
         };
 
         const { error: fbInsertError } = await supabaseAdmin
@@ -189,16 +204,17 @@ export async function POST(request: NextRequest) {
                     ? `@${selectedPage.ig_username}`
                     : `${selectedPage.name} (Instagram)`,
                 account_id: selectedPage.ig_account_id,
-                access_token: selectedPage.access_token, // IG uses the parent page's token
+                access_token: encryptedPageAccessToken, // IG uses the parent page's token
                 token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
-                metadata: {
-                    connected_page_id: selectedPage.id,
-                    ig_username: selectedPage.ig_username,
-                    user_access_token: session.user_access_token,
-                    granted_scopes: grantedScopes,
-                    granted_granular_scopes: grantedGranularScopes,
-                    scopes_checked_at: new Date().toISOString(),
-                },
+                metadata: buildMetaAccountMetadata({
+                    connectedPageId: selectedPage.id,
+                    igUsername: selectedPage.ig_username,
+                    userAccessToken: encryptedUserAccessToken,
+                    grantedScopes,
+                    grantedGranularScopes,
+                    tokenStatus,
+                    syncedAt: scopeSyncedAt,
+                }),
             };
 
             const { error: igInsertError } = await supabaseAdmin

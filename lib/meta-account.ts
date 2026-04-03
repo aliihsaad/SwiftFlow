@@ -1,0 +1,162 @@
+import { decryptSecretIfNeeded, encryptSecretIfNeeded } from "@/lib/secret-crypto"
+
+export type MetaPlatform = "facebook" | "instagram"
+
+export interface MetaGrantedGranularScope {
+  scope: string
+  target_ids?: string[]
+}
+
+export interface MetaCapabilityMap {
+  facebook_page_selection: boolean
+  facebook_publish: boolean
+  instagram_basic: boolean
+  instagram_publish: boolean
+  analytics_read: boolean
+  comments_manage: boolean
+  messages_manage: boolean
+  pages_messaging: boolean
+}
+
+export interface MetaAccountMetadata extends Record<string, unknown> {
+  granted_scopes?: string[]
+  granted_granular_scopes?: MetaGrantedGranularScope[]
+  capabilities?: MetaCapabilityMap
+  last_scope_sync_at?: string
+  scopes_checked_at?: string
+  token_status?: "available" | "missing"
+  user_access_token?: string | null
+  instagram_business_account_id?: string | null
+  connected_page_id?: string | null
+  ig_username?: string | null
+}
+
+export interface MetaAccountRow {
+  access_token?: string | null
+  metadata?: MetaAccountMetadata | null
+}
+
+function sanitizeScopes(scopes: unknown): string[] {
+  if (!Array.isArray(scopes)) return []
+  return scopes.filter((scope): scope is string => typeof scope === "string")
+}
+
+function sanitizeGranularScopes(scopes: unknown): MetaGrantedGranularScope[] {
+  if (!Array.isArray(scopes)) return []
+
+  return scopes
+    .filter((scope): scope is { scope: string; target_ids?: unknown } => typeof scope?.scope === "string")
+    .map((scope) => ({
+      scope: scope.scope,
+      target_ids: Array.isArray(scope.target_ids)
+        ? scope.target_ids.filter((targetId): targetId is string => typeof targetId === "string")
+        : undefined,
+    }))
+}
+
+export function deriveMetaCapabilities(scopes: readonly string[]): MetaCapabilityMap {
+  const granted = new Set(scopes)
+
+  return {
+    facebook_page_selection: granted.has("pages_show_list"),
+    facebook_publish: granted.has("pages_manage_posts"),
+    instagram_basic: granted.has("instagram_basic"),
+    instagram_publish: granted.has("instagram_content_publish"),
+    analytics_read: granted.has("pages_read_engagement") || granted.has("instagram_manage_insights"),
+    comments_manage: granted.has("instagram_manage_comments"),
+    messages_manage: granted.has("instagram_manage_messages"),
+    pages_messaging: granted.has("pages_messaging"),
+  }
+}
+
+export function buildMetaAccountMetadata(input: {
+  existingMetadata?: MetaAccountMetadata | null
+  grantedScopes?: unknown
+  grantedGranularScopes?: unknown
+  userAccessToken?: string | null
+  instagramBusinessAccountId?: string | null
+  connectedPageId?: string | null
+  igUsername?: string | null
+  tokenStatus: "available" | "missing"
+  syncedAt?: string
+}): MetaAccountMetadata {
+  const grantedScopes = sanitizeScopes(input.grantedScopes)
+  const grantedGranularScopes = sanitizeGranularScopes(input.grantedGranularScopes)
+  const existingMetadata = input.existingMetadata && typeof input.existingMetadata === "object"
+    ? input.existingMetadata
+    : {}
+  const syncedAt = input.syncedAt || new Date().toISOString()
+
+  return {
+    ...existingMetadata,
+    instagram_business_account_id: input.instagramBusinessAccountId ?? existingMetadata.instagram_business_account_id ?? null,
+    connected_page_id: input.connectedPageId ?? existingMetadata.connected_page_id ?? null,
+    ig_username: input.igUsername ?? existingMetadata.ig_username ?? null,
+    user_access_token: input.userAccessToken ?? (typeof existingMetadata.user_access_token === "string" ? existingMetadata.user_access_token : null),
+    granted_scopes: grantedScopes,
+    granted_granular_scopes: grantedGranularScopes,
+    capabilities: deriveMetaCapabilities(grantedScopes),
+    last_scope_sync_at: syncedAt,
+    scopes_checked_at: syncedAt,
+    token_status: input.tokenStatus,
+  }
+}
+
+export function encryptMetaToken(value: string | null | undefined): string | null {
+  return encryptSecretIfNeeded(value)
+}
+
+export function decryptMetaToken(value: string | null | undefined): string | null {
+  return decryptSecretIfNeeded(value)
+}
+
+export function decryptMetaAccountRow<T extends MetaAccountRow>(row: T): T & {
+  access_token: string | null
+  metadata: MetaAccountMetadata
+} {
+  const metadata = row.metadata && typeof row.metadata === "object" ? { ...row.metadata } : {}
+  const decryptedUserAccessToken = typeof metadata.user_access_token === "string"
+    ? decryptMetaToken(metadata.user_access_token)
+    : null
+
+  return {
+    ...row,
+    access_token: decryptMetaToken(row.access_token ?? null),
+    metadata: {
+      ...metadata,
+      user_access_token: decryptedUserAccessToken,
+    },
+  }
+}
+
+export function sanitizeMetaAccountMetadataForClient(
+  metadata: MetaAccountMetadata | null | undefined,
+): MetaAccountMetadata {
+  if (!metadata || typeof metadata !== "object") return {}
+
+  const sanitized: MetaAccountMetadata = {
+    instagram_business_account_id: metadata.instagram_business_account_id ?? null,
+    connected_page_id: metadata.connected_page_id ?? null,
+    ig_username: metadata.ig_username ?? null,
+    capabilities: metadata.capabilities,
+    last_scope_sync_at: metadata.last_scope_sync_at,
+    scopes_checked_at: metadata.scopes_checked_at,
+    token_status: metadata.token_status,
+  }
+
+  return Object.fromEntries(
+    Object.entries(sanitized).filter(([, value]) => value !== undefined),
+  ) as MetaAccountMetadata
+}
+
+export function canPublishWithMetaAccount(
+  metadata: MetaAccountMetadata | null | undefined,
+  platform: MetaPlatform,
+): boolean {
+  const capabilities = metadata?.capabilities
+  if (!capabilities) return true
+
+  return platform === "facebook"
+    ? capabilities.facebook_publish
+    : capabilities.instagram_publish
+}

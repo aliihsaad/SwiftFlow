@@ -11,7 +11,9 @@ import { buildAutomationAiPrompt, interpolateTemplate } from "../_shared/automat
 import { sendResendEmail, textToSimpleHtml } from "../_shared/resend-email.ts"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 
-const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
+import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
+
+const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 const DM_FALLBACK_CODES = new Set([
   '551',

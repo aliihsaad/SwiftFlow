@@ -165,6 +165,8 @@ GEMINI_API_KEY=your_gemini_api_key
 NEXT_PUBLIC_META_APP_ID=your_meta_app_id
 META_APP_SECRET=your_meta_app_secret
 NEXT_PUBLIC_APP_URL=https://yourdomain.com
+APP_RELEASE_CHANNEL=production_full
+META_OAUTH_SCOPE_PROFILE=full
 
 # Invite Emails (Resend)
 RESEND_API_KEY=your_resend_api_key
@@ -181,6 +183,15 @@ META_WEBHOOK_VERIFY_TOKEN=your_random_verify_token
 # Optional: Custom AI Model
 # AI_MODEL_NAME=gemini-2.0-flash
 ```
+
+For the Meta review deployment, set:
+
+```env
+APP_RELEASE_CHANNEL=review_phase_1
+META_OAUTH_SCOPE_PROFILE=review_phase_1
+```
+
+This activates the reviewer-safe route and navigation gating and narrows the Meta OAuth dialog to the Phase 1 review scope.
 
 ### 4. Database Setup
 

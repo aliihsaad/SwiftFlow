@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
+import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 
 // GET - List all automations for the workspace
 export async function GET(request: NextRequest) {
@@ -197,7 +198,7 @@ export async function POST(request: NextRequest) {
         // For canvas mode, skip post accessibility check (handled at trigger node level)
         if (!isCanvasMode) {
             // Verify the post is accessible (can fetch comments)
-            const testUrl = `https://graph.facebook.com/v21.0/${platform_post_id}/comments?fields=id&limit=1&access_token=${account!.access_token}`;
+            const testUrl = `${META_GRAPH_API_BASE_URL}/${platform_post_id}/comments?fields=id&limit=1&access_token=${account!.access_token}`;
             const testResponse = await fetch(testUrl);
             const testResult = await testResponse.json();
 

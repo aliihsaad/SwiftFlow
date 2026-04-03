@@ -2,7 +2,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
+import { canPublishWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts";
+import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
+
+const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.avi', '.wmv', '.flv', '.webm', '.mkv', '.m4v'];
 
@@ -415,17 +418,34 @@ serve(async (req) => {
             // Get social accounts for this workspace
             const { data: accounts } = await supabase
                 .from('social_accounts')
-                .select('*')
+                .select('id, platform, account_id, access_token, metadata')
                 .eq('workspace_id', post.workspace_id);
+            const decryptedAccounts = await Promise.all((accounts || []).map((account) => decryptMetaAccountRow(account)));
 
             for (const platform of platforms) {
-                const account = accounts?.find(a => a.platform === platform);
+                const account = decryptedAccounts.find((candidate) => candidate.platform === platform);
 
                 if (!account) {
                     postResults.push({
                         success: false,
                         platform,
                         error: `No ${platform} account connected`
+                    });
+                    continue;
+                }
+                if (!account.access_token) {
+                    postResults.push({
+                        success: false,
+                        platform,
+                        error: `No ${platform} access token available`
+                    });
+                    continue;
+                }
+                if ((platform === 'facebook' || platform === 'instagram') && !canPublishWithMetaAccount(account.metadata, platform)) {
+                    postResults.push({
+                        success: false,
+                        platform,
+                        error: `${platform} publishing capability is not granted for this connected account`
                     });
                     continue;
                 }

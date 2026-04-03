@@ -1,6 +1,8 @@
 import { InstagramInsight, FacebookInsight, InstagramMedia, FacebookPost } from '@/types/analytics'
 
-const GRAPH_API_BASE = 'https://graph.facebook.com/v18.0'
+import { META_GRAPH_API_BASE_URL } from "@/lib/meta-graph-version"
+
+const GRAPH_API_BASE = META_GRAPH_API_BASE_URL
 
 interface MetaAPIConfig {
     facebookPageId?: string

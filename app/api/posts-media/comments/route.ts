@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
-const META_GRAPH_URL = 'https://graph.facebook.com/v21.0';
+const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 function metaErrorResponse(
     graphError: any,

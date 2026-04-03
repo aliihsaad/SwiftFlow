@@ -1,6 +1,6 @@
 # Stage 3: Meta Integration Consolidation
 
-Status: `not_started`
+Status: `done`
 
 Depends on: `Stage 2`
 
@@ -21,6 +21,15 @@ Make Meta integration deterministic and maintainable.
 4. Migrate all active code paths to one verified Graph API version family
 5. Persist granted scopes and granular scopes from `debug_token`
 
+## Progress
+
+- Legacy `/api/auth/social/connect/[platform]` is hard-disabled
+- Legacy `/api/auth/social/callback` is hard-disabled
+- Shared Meta Graph version constants added for Next.js/server and edge runtimes
+- Active `v24.0`, `v19.0`, and `v18.0` usages were removed from active code paths in favor of `v21.0`
+- Reviewer package and env examples were aligned to the canonical Phase 1 Meta flow
+- Reviewer-facing submission materials now live under `docs/app-review/`
+
 ## Primary Files
 
 - `utils/meta-oauth.ts`
@@ -35,6 +44,7 @@ Make Meta integration deterministic and maintainable.
 - One canonical scope builder
 - One verified Graph API version policy
 - No expired Graph version remains in active code
+- Reviewer docs match the active canonical flow
 
 ## Locked Output
 

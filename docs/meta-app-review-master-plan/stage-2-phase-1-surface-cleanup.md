@@ -1,6 +1,6 @@
 # Stage 2: Phase 1 Surface Cleanup
 
-Status: `in_progress`
+Status: `done`
 
 Depends on: `Stage 1`
 
@@ -28,6 +28,7 @@ Remove or hide product surfaces that would confuse reviewers or expose unsupport
 - Hid blocked routes from desktop and mobile navigation
 - Hid blocked dashboard quick actions
 - Replaced fake billing/subscription UI with roadmap-only copy
+- Hard-disabled the legacy reviewer-visible Meta OAuth path
 
 ## Primary Files
 

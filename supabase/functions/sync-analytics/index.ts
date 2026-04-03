@@ -1,10 +1,11 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 
 // Use v21.0 to maintain compatibility with older metric names
 // v22.0+ removed 'impressions' metric for Instagram media
-const META_GRAPH_URL = 'https://graph.facebook.com/v21.0';
+const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',

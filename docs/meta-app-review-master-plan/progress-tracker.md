@@ -13,9 +13,9 @@ Status legend:
 |---|---|---|---|
 | Stage 0: Documentation foundation | `done` | none | active docs structure, archive structure, app-review workspace |
 | Stage 1: Product scope freeze | `in_progress` | Stage 0 | reviewer scope definition, excluded features list, release-channel decisions |
-| Stage 2: Phase 1 surface cleanup | `in_progress` | Stage 1 | no legacy reviewer-visible surfaces, no fake billing/review-confusing UI |
-| Stage 3: Meta integration consolidation | `not_started` | Stage 2 | one OAuth flow, one scope registry, one verified Graph version policy |
-| Stage 4: Security and capability layer | `not_started` | Stage 3 | encrypted token handling, persisted scopes/capabilities, normalized secret/env loading |
+| Stage 2: Phase 1 surface cleanup | `done` | Stage 1 | no legacy reviewer-visible surfaces, no fake billing/review-confusing UI |
+| Stage 3: Meta integration consolidation | `done` | Stage 2 | one OAuth flow, one scope registry, one verified Graph version policy |
+| Stage 4: Security and capability layer | `in_progress` | Stage 3 | encrypted token handling, persisted scopes/capabilities, normalized secret/env loading |
 | Stage 5: OpenRouter-first AI migration | `not_started` | Stage 2 | one shared AI adapter for migrated text flows, truthful provider model |
 | Stage 6: Reviewer-safe UX and compliance | `not_started` | Stage 3, Stage 4 | reviewer path, public compliance pages, aligned reviewer docs |
 | Stage 7: Reliability hardening | `not_started` | Stage 4, Stage 5, Stage 6 | stable publish/schedule behavior, health/status surfaces, deploy checks |
@@ -40,9 +40,20 @@ Status legend:
 
 - Stage 0 is complete.
 - Stage 1 is still open until the release-channel env and Phase 1 scope are locked in deployed configuration.
-- Stage 2 is in progress:
+- Stage 2 is complete:
   - release-channel gating utility added
   - blocked dashboard routes are redirected in `proxy.ts`
   - desktop/mobile navigation hides review-excluded surfaces
   - dashboard quick actions no longer expose blocked routes
   - subscription and pricing surfaces no longer present fake live billing behavior
+  - legacy reviewer-visible Meta OAuth path is hard-disabled
+- Stage 3 is complete:
+  - legacy `/api/auth/social/*` routes now hard-redirect to the canonical Meta flow entry surface instead of executing legacy OAuth logic
+  - shared Meta Graph version policy introduced for Next.js/server and edge runtimes
+  - active `v24.0`, `v19.0`, and `v18.0` usages were removed from active code paths in favor of `v21.0`
+  - env examples and review ops docs are aligned with the canonical Meta flow, `APP_RELEASE_CHANNEL`, and `META_OAUTH_SCOPE_PROFILE`
+  - reviewer-facing submission assets were moved into `docs/app-review/`
+- Stage 4 is in progress:
+  - canonical Meta connect flow now stores encrypted page tokens and encrypted user tokens at the application layer
+  - granted scopes and derived capabilities are now persisted on connected social accounts
+  - review-critical publish paths now decrypt tokens through a shared accessor layer

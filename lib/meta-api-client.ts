@@ -3,7 +3,9 @@
  * Fetches insights from Facebook Pages and Instagram Business Accounts
  */
 
-const META_GRAPH_URL = 'https://graph.facebook.com/v24.0';
+import { META_GRAPH_API_BASE_URL } from "@/lib/meta-graph-version";
+
+const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 export interface InstagramInsights {
     impressions: number;

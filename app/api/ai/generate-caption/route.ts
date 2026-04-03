@@ -1,23 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { FunctionsHttpError } from '@supabase/functions-js'
 import { AICaptionRequest, AICaptionResponse } from '@/types/post'
 import { createClient } from '@/utils/supabase/server'
-import { invokeWithSessionRetry } from '@/utils/supabase/invoke-with-session-retry'
 
 export const runtime = 'edge'
 
-async function getFunctionErrorMessage(error: unknown): Promise<string> {
-    if (!(error instanceof FunctionsHttpError)) {
-        return error instanceof Error ? error.message : 'Failed to invoke AI function'
-    }
-
-    try {
-        const response = error.context
-        const payload = await response.json().catch(() => null) as { error?: string; message?: string } | null
-        return payload?.error || payload?.message || error.message || 'Failed to invoke AI function'
-    } catch {
-        return error.message || 'Failed to invoke AI function'
-    }
+function looksLikeJwt(value: string | null | undefined): boolean {
+    const normalized = String(value || '').trim()
+    return normalized.startsWith('eyJ') && normalized.split('.').length === 3
 }
 
 export async function POST(request: NextRequest) {
@@ -74,17 +63,47 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Invoke Supabase Edge Function
-        const { data, error } = await invokeWithSessionRetry<AICaptionResponse>(supabase, 'generate-caption', {
-            body: { description, platforms, tone, language, workspaceId: effectiveWorkspaceId }
-        })
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || null
 
-        if (error) {
-            console.error('Edge Function Error:', error)
-            throw new Error(await getFunctionErrorMessage(error))
+        if (!supabaseUrl || !serviceKey) {
+            throw new Error('Server config missing Supabase URL or service key')
         }
 
-        return NextResponse.json(data as AICaptionResponse)
+        const authJwt = looksLikeJwt(serviceKey)
+            ? serviceKey
+            : (looksLikeJwt(anonKey) ? anonKey : null)
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            apikey: serviceKey,
+        }
+
+        if (authJwt) {
+            headers.Authorization = `Bearer ${authJwt}`
+        }
+
+        const edgeResponse = await fetch(`${supabaseUrl}/functions/v1/generate-caption`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ description, platforms, tone, language, workspaceId: effectiveWorkspaceId }),
+        })
+
+        const rawText = await edgeResponse.text()
+        let payload: (AICaptionResponse & { error?: string }) | null = null
+        try {
+            payload = rawText ? JSON.parse(rawText) as AICaptionResponse & { error?: string } : null
+        } catch {
+            payload = null
+        }
+
+        if (!edgeResponse.ok) {
+            const details = payload?.error || rawText || 'Failed to invoke AI function'
+            console.error('Edge Function Error:', edgeResponse.status, details)
+            throw new Error(details)
+        }
+
+        return NextResponse.json(payload as AICaptionResponse)
 
     } catch (error: unknown) {
         console.error('AI Caption Generation Error:', error)

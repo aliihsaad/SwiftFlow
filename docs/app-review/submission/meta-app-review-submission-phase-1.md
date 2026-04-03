@@ -10,6 +10,8 @@ Swift Digital Sol Social is a social media management platform for businesses. I
 
 This submission is intentionally limited to the review-safe Phase 1 release. The reviewer deployment does not expose messaging, comment management, analytics, automation, or subscription surfaces.
 
+When the reviewer opens the dashboard, the deployment also shows a visible `Review Mode` indicator and a short Phase 1 explanation card describing the allowed flow: connect account, create post, publish or schedule.
+
 ## Declared Use Cases
 
 ### Use Case 1: Connect a Facebook Page and linked Instagram Business account
@@ -95,6 +97,14 @@ Legacy `/api/auth/social/*` routes are disabled and are not part of the active r
 9. Click `Post Now` and confirm the post succeeds.
 10. Create another post, choose `Schedule`, and set a future date/time.
 11. Confirm the scheduled post appears in the scheduler/calendar view and later publishes successfully.
+
+## Public Compliance URLs
+
+- Privacy Policy: `/privacy`
+- Terms of Service: `/terms`
+- Data Deletion Instructions: `/data-deletion`
+
+These pages describe the actual stored data categories, encrypted token handling, AI/session storage, and the deletion request path used by the current product.
 
 ## What the Reviewer Will Not See in Phase 1
 

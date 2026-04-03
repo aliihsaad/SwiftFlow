@@ -8,6 +8,8 @@ Target duration: `2:00` to `2:30`
 
 Swift Digital Sol Social is a business social media publishing platform. This review video covers the Phase 1 Meta submission flow: connecting a Facebook Page and linked Instagram Business account, publishing content, and scheduling content.
 
+When the dashboard loads, the reviewer deployment shows a `Review Mode` label and a short Phase 1 banner explaining that this release is limited to connection and publishing flows.
+
 ## Connect Flow
 
 I open `Settings -> Brand Profile -> Connected Accounts` and click `Connect Facebook Pages`.

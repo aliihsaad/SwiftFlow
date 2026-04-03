@@ -7,6 +7,7 @@ import { createClient } from "@/utils/supabase/server"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { isReviewPhase1Release } from "@/lib/release-channel"
 import { formatDistanceToNow } from "date-fns"
+import Link from "next/link"
 
 import { redirect } from "next/navigation"
 
@@ -194,6 +195,55 @@ export default async function DashboardPage() {
                 </div>
                 <RecentActivityDropdown activities={recentActivities} />
             </div>
+
+            {reviewPhase1Release && (
+                <div
+                    className="rounded-2xl border p-4 sm:p-5"
+                    style={{
+                        background: "linear-gradient(135deg, rgba(34,211,238,0.08), rgba(245,158,11,0.08))",
+                        borderColor: "rgba(255,255,255,0.08)",
+                    }}
+                >
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="space-y-2">
+                            <div
+                                className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em]"
+                                style={{
+                                    background: "rgba(245,158,11,0.12)",
+                                    border: "1px solid rgba(245,158,11,0.22)",
+                                    color: "rgba(255,244,214,0.9)",
+                                }}
+                            >
+                                Meta Review Path
+                            </div>
+                            <h3 className="text-lg font-semibold text-white/90">Reviewer-safe Phase 1 release</h3>
+                            <p className="max-w-2xl text-sm text-white/65">
+                                This deployment only demonstrates connection, post creation, immediate publishing, and scheduled publishing.
+                                Messaging, comments, analytics, automation, and subscription flows stay hidden in this release.
+                            </p>
+                            <div className="grid gap-2 text-sm text-white/72 sm:grid-cols-3">
+                                <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">1. Connect Facebook Page and linked Instagram account</div>
+                                <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">2. Create a post from the quick actions below</div>
+                                <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">3. Publish now or schedule for later</div>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <Link
+                                href="/dashboard/settings/brand"
+                                className="inline-flex items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/15"
+                            >
+                                Open Brand Profile
+                            </Link>
+                            <Link
+                                href="/privacy"
+                                className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/75 transition hover:bg-white/10"
+                            >
+                                Privacy Policy
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <MetricsCards
                 draftCount={draftCount || 0}

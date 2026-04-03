@@ -1,6 +1,6 @@
 # Stage 6: Reviewer-Safe UX and Compliance
 
-Status: `not_started`
+Status: `done`
 
 Depends on: `Stage 3`, `Stage 4`
 
@@ -44,3 +44,9 @@ Align the visible product, legal pages, and reviewer docs with the actual implem
 ## Locked Output
 
 Later stages must not create reviewer-visible functionality that the compliance pages and docs do not describe.
+
+## Progress Notes
+
+- public compliance pages now describe actual storage, retention, AI usage, and Meta-connected data behavior
+- reviewer mode is now surfaced directly inside the dashboard so the review deployment explains its narrowed scope
+- reviewer-facing submission and screencast docs now match the current Phase 1 UI and route flow

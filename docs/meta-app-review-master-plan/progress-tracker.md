@@ -17,7 +17,7 @@ Status legend:
 | Stage 3: Meta integration consolidation | `done` | Stage 2 | one OAuth flow, one scope registry, one verified Graph version policy |
 | Stage 4: Security and capability layer | `done` | Stage 3 | encrypted token handling, persisted scopes/capabilities, normalized secret/env loading |
 | Stage 5: OpenRouter-first AI migration | `done` | Stage 2 | one shared AI adapter for migrated text flows, truthful provider model |
-| Stage 6: Reviewer-safe UX and compliance | `not_started` | Stage 3, Stage 4 | reviewer path, public compliance pages, aligned reviewer docs |
+| Stage 6: Reviewer-safe UX and compliance | `done` | Stage 3, Stage 4 | reviewer path, public compliance pages, aligned reviewer docs |
 | Stage 7: Reliability hardening | `not_started` | Stage 4, Stage 5, Stage 6 | stable publish/schedule behavior, health/status surfaces, deploy checks |
 | Stage 8: Submission package finalization | `not_started` | Stage 7 | final reviewer assets, test credentials, screencast package |
 | Stage 9: Post-approval expansion | `not_started` | Stage 8 | comments, analytics, messaging, billing added without regressing review-safe core |
@@ -74,3 +74,7 @@ Status legend:
   - migrated text-generation flows now resolve through the shared provider runtime instead of per-function Gemini/OpenAI branching
   - `research-topic` is now an explicit Gemini-grounded exception until OpenRouter web search is proven stable enough for review-safe use
   - Stage 5 schema migrations have been applied to Supabase and the updated AI edge functions have been deployed
+- Stage 6 is complete:
+  - `/privacy`, `/data-deletion`, and `/terms` are being rewritten to describe the real product data flows and deletion path
+  - reviewer mode is now being surfaced in the dashboard header and dashboard landing experience
+  - app-review submission, screencast, and ops docs now match the reviewer-safe Phase 1 UI and route flow

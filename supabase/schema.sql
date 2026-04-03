@@ -120,6 +120,10 @@ CREATE TABLE IF NOT EXISTS posts (
     scheduled_for TIMESTAMPTZ,
     published_at TIMESTAMPTZ,
     status TEXT NOT NULL DEFAULT 'draft', -- draft, scheduled, published, failed
+    last_publish_error_code TEXT,
+    last_publish_error_message TEXT,
+    last_publish_attempted_at TIMESTAMPTZ,
+    last_publish_results JSONB DEFAULT '[]',
     metrics JSONB DEFAULT '{"likes": 0, "views": 0, "shares": 0, "comments": 0}',
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()

@@ -1,6 +1,6 @@
 # Stage 7: Reliability Hardening
 
-Status: `not_started`
+Status: `in_progress`
 
 Depends on: `Stage 4`, `Stage 5`, `Stage 6`
 
@@ -33,3 +33,13 @@ Turn the review-safe release into a stable release candidate.
 ## Locked Output
 
 Stage 8 must package this exact release candidate, not continue changing core behavior.
+
+## Progress Notes
+
+- build-time environment validation is being added for `review_phase_1`
+- reviewer-facing integration health/status UI is being added so publish readiness is visible before testing
+- failed posts now persist normalized publish attempt metadata instead of collapsing to a bare `failed` status
+- scheduled/failed post UI is being updated to show readable platform-specific failure summaries
+- a production review verification checklist now lives in `docs/app-review/ops/review-publish-verification-checklist.md`
+- the Stage 7 post-failure migration has been applied to Supabase and `process-scheduled-posts` has been redeployed
+- live publish-now and scheduled-publish verification on the production review environment is still pending before this stage can close

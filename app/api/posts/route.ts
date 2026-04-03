@@ -62,7 +62,11 @@ export async function POST(request: NextRequest) {
                 platforms: platforms,
                 status: shouldPublishNow ? 'scheduled' : status,
                 scheduled_for: shouldPublishNow ? new Date().toISOString() : (scheduledAt || new Date().toISOString()),
-                published_at: null
+                published_at: null,
+                last_publish_error_code: null,
+                last_publish_error_message: null,
+                last_publish_attempted_at: null,
+                last_publish_results: [],
             })
             .select()
             .single()
@@ -131,6 +135,10 @@ export async function PUT(request: NextRequest) {
                 status: shouldPublishNow ? 'scheduled' : status,
                 scheduled_for: shouldPublishNow ? new Date().toISOString() : (status === 'scheduled' ? scheduledAt : null),
                 published_at: null,
+                last_publish_error_code: null,
+                last_publish_error_message: null,
+                last_publish_attempted_at: null,
+                last_publish_results: [],
                 updated_at: new Date().toISOString()
             })
             .eq('id', id)

@@ -13,6 +13,14 @@ interface ConnectedAccountsProps {
     workspaceId: string;
 }
 
+type ConnectedAccountStatus = {
+    platform: string
+    account_name: string
+    metadata?: {
+        instagram_business_account_id?: string | null
+    } | null
+}
+
 function ConnectedAccountSkeleton({ accent }: { accent: "blue" | "pink" }) {
     const iconBg = accent === "blue" ? "bg-cyan-400/10 border border-cyan-300/15" : "bg-rose-400/10 border border-rose-300/15"
     return (
@@ -33,9 +41,19 @@ function ConnectedAccountSkeleton({ accent }: { accent: "blue" | "pink" }) {
 
 export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     const searchParams = useSearchParams();
-    const [status, setStatus] = useState<{ facebook: boolean, instagram: boolean, accounts: any[] }>({
+    const [status, setStatus] = useState<{
+        facebook: boolean
+        instagram: boolean
+        facebookPublishReady: boolean
+        instagramPublishReady: boolean
+        publishReady: boolean
+        accounts: ConnectedAccountStatus[]
+    }>({
         facebook: false,
         instagram: false,
+        facebookPublishReady: false,
+        instagramPublishReady: false,
+        publishReady: false,
         accounts: []
     });
     const [loading, setLoading] = useState(true);
@@ -201,6 +219,18 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                         </>
                     ) : (
                         <>
+                            {!status.publishReady && (status.facebook || status.instagram) && (
+                                <div className="rounded-xl border border-amber-300/20 bg-amber-400/8 p-4 text-amber-100/90">
+                                    <div className="flex items-center gap-2 font-medium">
+                                        <AlertCircle className="h-4 w-4" />
+                                        Reconnect for publish access
+                                    </div>
+                                    <div className="mt-1 text-sm">
+                                        At least one connected account is missing publish permissions. Reconnect the affected account before reviewer testing.
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Facebook Connection */}
                             <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#1b1d28] p-4">
                                 <div className="flex items-center gap-4">
@@ -211,7 +241,9 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                         <h4 className="font-semibold text-white/85">Facebook Pages</h4>
                                         <p className="text-sm text-white/50">
                                             {status.facebook
-                                                ? `${status.accounts.filter(a => a.platform === 'facebook').length} page(s) connected`
+                                                ? status.facebookPublishReady
+                                                    ? `${status.accounts.filter(a => a.platform === 'facebook').length} page(s) connected and publish-ready`
+                                                    : `${status.accounts.filter(a => a.platform === 'facebook').length} page(s) connected but needs publish re-auth`
                                                 : "Not connected"}
                                         </p>
                                     </div>
@@ -246,7 +278,11 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                     <div>
                                         <h4 className="font-semibold text-white/85">Instagram</h4>
                                         <p className="text-sm text-white/50">
-                                            {status.instagram ? "Connected via Facebook" : "Not connected"}
+                                            {status.instagram
+                                                ? status.instagramPublishReady
+                                                    ? "Connected via Facebook and publish-ready"
+                                                    : "Connected via Facebook but needs publish re-auth"
+                                                : "Not connected"}
                                         </p>
                                     </div>
                                 </div>

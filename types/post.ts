@@ -1,5 +1,5 @@
 export type Platform = 'instagram' | 'facebook'
-export type PostStatus = 'draft' | 'scheduled' | 'published'
+export type PostStatus = 'draft' | 'scheduled' | 'publishing' | 'published' | 'failed'
 
 export interface PostData {
     platforms: Platform[]
@@ -10,6 +10,14 @@ export interface PostData {
     mediaUrls: string[]
     status: PostStatus
     scheduledAt?: string
+}
+
+export interface PostPublishResult {
+    platform: Platform | string
+    success: boolean
+    platformPostId?: string
+    error?: string
+    errorCode?: string
 }
 
 export interface AICaptionRequest {

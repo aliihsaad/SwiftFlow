@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 import { canPublishWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts";
+import { normalizeMetaGraphError } from "../_shared/meta-graph-errors.ts";
 import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
@@ -24,6 +25,70 @@ interface PublishResult {
     platform: string;
     platformPostId?: string;
     error?: string;
+    errorCode?: string;
+}
+
+function buildMetaPublishFailure(
+    platform: "facebook" | "instagram",
+    graphError: Record<string, unknown> | null | undefined,
+    fallbackMessage: string,
+): PublishResult {
+    const normalized = normalizeMetaGraphError(graphError, {
+        feature: "publishing",
+        platform,
+        operation: "publish_post",
+    });
+
+    return {
+        success: false,
+        platform,
+        error: normalized.message || fallbackMessage,
+        errorCode: normalized.code,
+    };
+}
+
+function buildPublishFailure(
+    platform: string,
+    error: string,
+    errorCode: string,
+): PublishResult {
+    return {
+        success: false,
+        platform,
+        error,
+        errorCode,
+    };
+}
+
+function summarizePublishResults(results: PublishResult[]): {
+    errorCode: string | null;
+    errorMessage: string | null;
+} {
+    const failures = results.filter((result) => !result.success);
+    if (failures.length === 0) {
+        return {
+            errorCode: null,
+            errorMessage: null,
+        };
+    }
+
+    const successes = results.filter((result) => result.success);
+    const successPlatforms = successes.map((result) => result.platform);
+    const failureSummary = failures
+        .map((result) => {
+            const detail = result.error || "Publishing failed";
+            return `${result.platform}: ${detail}`;
+        })
+        .join(" | ");
+
+    const prefix = successPlatforms.length > 0
+        ? `Published to ${successPlatforms.join(", ")} but failed on ${failures.map((result) => result.platform).join(", ")}. `
+        : "";
+
+    return {
+        errorCode: failures[0]?.errorCode || "publish_failed",
+        errorMessage: `${prefix}${failureSummary}`.trim(),
+    };
 }
 
 function summarizeMetaGraphPayload(payload: any): string {
@@ -72,7 +137,7 @@ async function publishToFacebook(
         const data = await response.json();
 
         if (!response.ok) {
-            return { success: false, platform: 'facebook', error: data.error?.message };
+            return buildMetaPublishFailure('facebook', data?.error, 'Failed to publish to Facebook');
         }
 
         return { success: true, platform: 'facebook', platformPostId: data.id || data.post_id };
@@ -104,7 +169,7 @@ async function publishToInstagram(
 
         const containerData = await containerRes.json();
         if (!containerRes.ok) {
-            return { success: false, platform: 'instagram', error: containerData.error?.message };
+            return buildMetaPublishFailure('instagram', containerData?.error, 'Failed to create Instagram media container');
         }
 
         // Wait for processing
@@ -122,7 +187,7 @@ async function publishToInstagram(
 
         const publishData = await publishRes.json();
         if (!publishRes.ok) {
-            return { success: false, platform: 'instagram', error: publishData.error?.message };
+            return buildMetaPublishFailure('instagram', publishData?.error, 'Failed to publish to Instagram');
         }
 
         return { success: true, platform: 'instagram', platformPostId: publishData.id };
@@ -160,7 +225,7 @@ async function publishToInstagramVideo(
         console.log('Instagram video container response received');
         if (!containerRes.ok) {
             console.error(`Instagram video container FAILED: ${summarizeMetaGraphPayload(containerData)}`);
-            return { success: false, platform: 'instagram', error: containerData.error?.message || 'Failed to create video container' };
+            return buildMetaPublishFailure('instagram', containerData?.error, 'Failed to create Instagram video container');
         }
 
         const containerId = containerData.id;
@@ -185,7 +250,7 @@ async function publishToInstagramVideo(
 
         if (status !== 'FINISHED') {
             console.error('Instagram video processing did not finish. Final status:', status);
-            return { success: false, platform: 'instagram', error: `Video processing failed with status: ${status}` };
+            return buildPublishFailure('instagram', `Video processing failed with status: ${status}`, 'media_processing_failed');
         }
 
         // Step 3: Publish
@@ -202,7 +267,7 @@ async function publishToInstagramVideo(
         console.log('Instagram video publish response received');
         if (!publishRes.ok) {
             console.error(`Instagram video publish FAILED: ${summarizeMetaGraphPayload(publishData)}`);
-            return { success: false, platform: 'instagram', error: publishData.error?.message || 'Failed to publish video' };
+            return buildMetaPublishFailure('instagram', publishData?.error, 'Failed to publish Instagram video');
         }
 
         console.log('Instagram Reel published:', publishData.id);
@@ -239,7 +304,7 @@ async function publishToFacebookVideo(
         console.log('Facebook video publish response received');
         if (!res.ok) {
             console.error(`Facebook video FAILED: ${summarizeMetaGraphPayload(data)}`);
-            return { success: false, platform: 'facebook', error: data.error?.message || 'Failed to publish video' };
+            return buildMetaPublishFailure('facebook', data?.error, 'Failed to publish Facebook video');
         }
 
         console.log('Facebook video published:', data.id);
@@ -280,7 +345,7 @@ async function publishToInstagramCarousel(
 
             const data = await res.json();
             if (!res.ok) {
-                return { success: false, platform: 'instagram', error: data.error?.message || 'Failed to create carousel item' };
+                return buildMetaPublishFailure('instagram', data?.error, 'Failed to create Instagram carousel item');
             }
             childIds.push(data.id);
         }
@@ -302,7 +367,7 @@ async function publishToInstagramCarousel(
 
         const carouselData = await carouselRes.json();
         if (!carouselRes.ok) {
-            return { success: false, platform: 'instagram', error: carouselData.error?.message || 'Failed to create carousel' };
+            return buildMetaPublishFailure('instagram', carouselData?.error, 'Failed to create Instagram carousel');
         }
 
         // Wait for carousel to be ready
@@ -320,7 +385,7 @@ async function publishToInstagramCarousel(
 
         const publishData = await publishRes.json();
         if (!publishRes.ok) {
-            return { success: false, platform: 'instagram', error: publishData.error?.message || 'Failed to publish carousel' };
+            return buildMetaPublishFailure('instagram', publishData?.error, 'Failed to publish Instagram carousel');
         }
 
         return { success: true, platform: 'instagram', platformPostId: publishData.id };
@@ -358,7 +423,7 @@ async function publishToFacebookMultiPhoto(
 
             const data = await res.json();
             if (!res.ok) {
-                return { success: false, platform: 'facebook', error: data.error?.message || 'Failed to upload photo' };
+                return buildMetaPublishFailure('facebook', data?.error, 'Failed to upload Facebook photo');
             }
             console.log(`Facebook unpublished photo uploaded: ${data.id}`);
             photoIds.push(data.id);
@@ -381,7 +446,7 @@ async function publishToFacebookMultiPhoto(
         const feedData = await feedRes.json();
         if (!feedRes.ok) {
             console.error('Facebook multi-photo feed error:', feedData);
-            return { success: false, platform: 'facebook', error: feedData.error?.message || 'Failed to create multi-photo post' };
+            return buildMetaPublishFailure('facebook', feedData?.error, 'Failed to create Facebook multi-photo post');
         }
 
         return { success: true, platform: 'facebook', platformPostId: feedData.id };
@@ -444,27 +509,29 @@ serve(async (req) => {
                 const account = decryptedAccounts.find((candidate) => candidate.platform === platform);
 
                 if (!account) {
-                    postResults.push({
-                        success: false,
+                    postResults.push(buildPublishFailure(
                         platform,
-                        error: `No ${platform} account connected`
-                    });
+                        `No ${platform} account connected`,
+                        'no_connected_account',
+                    ));
                     continue;
                 }
                 if (!account.access_token) {
-                    postResults.push({
-                        success: false,
+                    postResults.push(buildPublishFailure(
                         platform,
-                        error: `No ${platform} access token available`
-                    });
+                        `No ${platform} access token available`,
+                        'missing_access_token',
+                    ));
                     continue;
                 }
                 if ((platform === 'facebook' || platform === 'instagram') && !canPublishWithMetaAccount(account.metadata, platform)) {
-                    postResults.push({
-                        success: false,
+                    postResults.push(buildPublishFailure(
                         platform,
-                        error: `${platform} publishing capability is not granted for this connected account`
-                    });
+                        platform === 'facebook'
+                            ? 'Publishing is not enabled for this Facebook Page. Reconnect with pages_manage_posts.'
+                            : 'Publishing is not enabled for this Instagram account. Reconnect with instagram_content_publish.',
+                        'meta_missing_permission',
+                    ));
                     continue;
                 }
 
@@ -496,7 +563,7 @@ serve(async (req) => {
                     }
                 } else if (platform === 'instagram') {
                     if (!mediaUrls[0]) {
-                        result = { success: false, platform: 'instagram', error: 'Media required' };
+                        result = buildPublishFailure('instagram', 'Instagram publishing requires at least one media item.', 'media_required');
                     } else if (hasVideo) {
                         result = await publishToInstagramVideo(
                             account.account_id,
@@ -520,7 +587,7 @@ serve(async (req) => {
                         );
                     }
                 } else {
-                    result = { success: false, platform, error: 'Unsupported platform' };
+                    result = buildPublishFailure(platform, 'Unsupported platform', 'unsupported_platform');
                 }
 
                 console.log(`Platform ${platform} result:`, JSON.stringify(result));
@@ -555,11 +622,16 @@ serve(async (req) => {
             // Update post status
             console.log(`Post ${post.id} results:`, JSON.stringify(postResults));
             const allSucceeded = postResults.every(r => r.success);
+            const failureSummary = summarizePublishResults(postResults);
             await supabase
                 .from('posts')
                 .update({
                     status: allSucceeded ? 'published' : 'failed',
                     published_at: allSucceeded ? new Date().toISOString() : null,
+                    last_publish_attempted_at: new Date().toISOString(),
+                    last_publish_error_code: allSucceeded ? null : failureSummary.errorCode,
+                    last_publish_error_message: allSucceeded ? null : failureSummary.errorMessage,
+                    last_publish_results: postResults,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', post.id);

@@ -17,11 +17,41 @@ import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
+import type { PostPublishResult } from "@/types/post"
 
 interface ScheduledPostsListProps {
-    posts: any[]
+    posts: ScheduledPostCard[]
     workspaceId: string
     status?: 'scheduled' | 'draft' | 'published' | 'failed'
+}
+
+type FailedPostShape = {
+    last_publish_error_message?: string | null
+    last_publish_results?: PostPublishResult[] | null
+}
+
+type PublishedPostAnalytics = {
+    views?: number
+    likes?: number
+    comments?: number
+    shares?: number
+}
+
+type PublishedPostRow = {
+    id: string
+    platform: string
+    post_analytics?: PublishedPostAnalytics[] | null
+}
+
+type ScheduledPostCard = FailedPostShape & {
+    id: string
+    status: 'scheduled' | 'draft' | 'published' | 'failed' | string
+    content?: string | null
+    platforms?: string[] | { selection?: string[] } | null
+    media_urls?: string[] | null
+    scheduled_for?: string | null
+    published_at?: string | null
+    published_posts?: PublishedPostRow[] | null
 }
 
 const statusConfig = {
@@ -40,8 +70,12 @@ const SCHEDULED_THEME = {
     textMuted: 'rgba(255,255,255,0.55)',
 }
 
+function getPublishResults(post: FailedPostShape): PostPublishResult[] {
+    return Array.isArray(post.last_publish_results) ? post.last_publish_results : []
+}
+
 export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }: ScheduledPostsListProps) {
-    const [editingPost, setEditingPost] = useState<any>(null)
+    const [editingPost, setEditingPost] = useState<ScheduledPostCard | null>(null)
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [deletePostId, setDeletePostId] = useState<string | null>(null)
     const [isDeleting, setIsDeleting] = useState(false)
@@ -50,7 +84,7 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
     const supabase = createClient()
     const canWriteContent = useWorkspacePermission("content:write")
 
-    const handleEdit = (post: any) => {
+    const handleEdit = (post: ScheduledPostCard) => {
         if (!canWriteContent) return
         setEditingPost(post)
         setIsModalOpen(true)
@@ -69,8 +103,9 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
             if (error) throw error
             toast({ title: "Post deleted", description: "The post has been permanently deleted." })
             router.refresh()
-        } catch (error: any) {
-            toast({ title: "Error", description: error.message || "Failed to delete post", variant: "destructive" })
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Failed to delete post"
+            toast({ title: "Error", description: message, variant: "destructive" })
         } finally {
             setIsDeleting(false)
             setDeletePostId(null)
@@ -133,6 +168,10 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                     const platforms: string[] = Array.isArray(post.platforms)
                         ? post.platforms
                         : post.platforms?.selection || []
+                    const publishResults = getPublishResults(post)
+                    const successfulPlatforms = publishResults.filter((result) => result.success).map((result) => result.platform)
+                    const failedResults = publishResults.filter((result) => !result.success)
+                    const publishedPosts = post.published_posts ?? []
 
                     const dateStr = post.scheduled_for
                         ? new Date(post.scheduled_for).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -203,6 +242,45 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                                     {post.content}
                                 </p>
 
+                                {status === 'failed' && (
+                                    <div
+                                        className="rounded-xl border p-3"
+                                        style={{
+                                            background: 'rgba(248,113,113,0.08)',
+                                            borderColor: 'rgba(248,113,113,0.16)',
+                                        }}
+                                    >
+                                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-red-200/85">
+                                            Publish Failure
+                                        </div>
+                                        <p className="mt-2 text-sm leading-relaxed text-red-100/85">
+                                            {post.last_publish_error_message || 'Publishing failed. Open the post and try again after reconnecting the affected account.'}
+                                        </p>
+                                        {successfulPlatforms.length > 0 && (
+                                            <p className="mt-2 text-xs text-emerald-200/80">
+                                                Already published to: {successfulPlatforms.join(', ')}
+                                            </p>
+                                        )}
+                                        {failedResults.length > 0 && (
+                                            <div className="mt-3 space-y-2">
+                                                {failedResults.map((result) => (
+                                                    <div
+                                                        key={`${post.id}-${result.platform}-${result.errorCode || 'error'}`}
+                                                        className="rounded-lg border border-white/8 bg-black/10 px-3 py-2"
+                                                    >
+                                                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/55">
+                                                            {result.platform}
+                                                        </div>
+                                                        <div className="mt-1 text-xs leading-relaxed text-white/72">
+                                                            {result.error || 'Publishing failed.'}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Platform tags */}
                                 {platforms.length > 0 && (
                                     <div className="flex flex-wrap gap-1.5">
@@ -223,23 +301,24 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                                 )}
 
                                 {/* Analytics for published posts */}
-                                {status === 'published' && post.published_posts?.length > 0 && (
+                                {status === 'published' && publishedPosts.length > 0 && (
                                     <div className="mt-1 rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                                        {post.published_posts.map((pp: any) => {
+                                        {publishedPosts.map((pp) => {
                                             const analytics = pp.post_analytics?.[0]
                                             if (!analytics) return null
+                                            const metrics = [
+                                                { icon: Eye, val: analytics.views ?? 0, label: 'Views' },
+                                                { icon: Heart, val: analytics.likes ?? 0, label: 'Likes' },
+                                                { icon: MessageCircle, val: analytics.comments ?? 0, label: 'Comments' },
+                                                { icon: Share2, val: analytics.shares ?? 0, label: 'Shares' },
+                                            ].filter((metric) => metric.val > 0)
                                             return (
                                                 <div key={pp.id} className="space-y-2">
                                                     <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.3)' }}>
                                                         {pp.platform} insights
                                                     </span>
                                                     <div className="grid grid-cols-2 gap-2">
-                                                        {[
-                                                            { icon: Eye, val: analytics.views, label: 'Views' },
-                                                            { icon: Heart, val: analytics.likes, label: 'Likes' },
-                                                            { icon: MessageCircle, val: analytics.comments, label: 'Comments' },
-                                                            { icon: Share2, val: analytics.shares, label: 'Shares' },
-                                                        ].filter(m => m.val > 0).map(({ icon: MIcon, val, label }) => (
+                                                        {metrics.map(({ icon: MIcon, val, label }) => (
                                                             <div key={label} className="flex items-center gap-1.5">
                                                                 <MIcon className="h-3.5 w-3.5" style={{ color: label === 'Views' ? '#38bdf8' : label === 'Likes' ? '#fb7185' : label === 'Comments' ? '#fbbf24' : '#4ade80' }} />
                                                                 <span className="text-xs font-semibold" style={{ color: 'rgba(255,255,255,0.7)' }}>

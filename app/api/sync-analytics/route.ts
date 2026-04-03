@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
         const { data: socialAccounts } = await supabase
             .from('social_accounts')
-            .select('id, platform')
+            .select('id, platform, metadata')
             .eq('workspace_id', activeWorkspace.id);
         const socialAccountsList = socialAccounts || [];
         const platforms = Array.from(new Set(socialAccountsList.map((a: any) => a.platform).filter(Boolean)));

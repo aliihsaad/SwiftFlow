@@ -724,7 +724,7 @@ export async function GET(request: NextRequest) {
         // Fetch social accounts for this workspace
         const { data: socialAccounts } = await supabaseAdmin
             .from('social_accounts')
-            .select('*')
+            .select('id, platform, metadata')
             .eq('workspace_id', activeWorkspace.id)
         const socialAccountsList = socialAccounts || []
         const selectedSocialAccounts = platformFilter === 'all'

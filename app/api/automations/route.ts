@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { decryptMetaAccountRow } from '@/lib/meta-account';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
+
+function summarizeError(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+        return (error as { message: string }).message;
+    }
+    return String(error);
+}
 
 // GET - List all automations for the workspace
 export async function GET(request: NextRequest) {
@@ -90,7 +99,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
         }
         console.error('Get automations API error:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
+        console.error(`Get automations API details: ${summarizeError(error)}`);
         return NextResponse.json(
             {
                 error: error.message || 'Failed to fetch automations',
@@ -172,7 +181,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify the social account belongs to this workspace
-        let account: { id: string; access_token: string } | null = null;
+        let account: { id: string; access_token: string | null } | null = null;
         if (resolvedAccountId) {
             const { data: acc, error: accountError } = await supabase
                 .from('social_accounts')
@@ -187,7 +196,7 @@ export async function POST(request: NextRequest) {
                     { status: 400 }
                 );
             }
-            account = acc;
+            account = decryptMetaAccountRow(acc);
         } else if (!isCanvasMode) {
             return NextResponse.json(
                 { error: 'Missing social account' },
@@ -203,7 +212,7 @@ export async function POST(request: NextRequest) {
             const testResult = await testResponse.json();
 
             if (!testResponse.ok || testResult.error) {
-                console.error('Post accessibility check failed:', testResult.error);
+                console.error(`Post accessibility check failed: ${summarizeError(testResult?.error)}`);
                 return NextResponse.json(
                     {
                         error: 'This post is not accessible. It may have been posted before your account was connected, or it has been deleted. Please select a more recent post.',
@@ -301,7 +310,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
         }
         console.error('Create automation API error:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
+        console.error(`Create automation API details: ${summarizeError(error)}`);
         return NextResponse.json(
             {
                 error: error.message || 'Failed to create automation',

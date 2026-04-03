@@ -1,6 +1,7 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
 import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
@@ -49,6 +50,7 @@ async function syncComments(supabase: any, workspaceId: string) {
         console.log(`[CommentSync] No social accounts found`);
         return { synced: 0, message: 'No social accounts found' };
     }
+    const decryptedAccounts = await Promise.all(accounts.map((account: any) => decryptMetaAccountRow(account)));
 
     // Get published posts from the last 30 days, scoped to THIS workspace only
     const thirtyDaysAgo = new Date();
@@ -106,7 +108,7 @@ async function syncComments(supabase: any, workspaceId: string) {
 
     let syncedCount = 0;
 
-    for (const account of accounts) {
+    for (const account of decryptedAccounts) {
         if (!account.access_token) {
             console.log(`[CommentSync] Account ${account.id} has no access token, skipping`);
             continue;
@@ -229,7 +231,7 @@ async function syncComments(supabase: any, workspaceId: string) {
 
         for (const automation of activeAutomations) {
             // Find the account for this automation
-            const account = accounts.find(a => a.id === automation.social_account_id);
+            const account = decryptedAccounts.find(a => a.id === automation.social_account_id);
             if (!account?.access_token) {
                 console.log(`[CommentSync] No account/token for automation post ${automation.platform_post_id}`);
                 continue;

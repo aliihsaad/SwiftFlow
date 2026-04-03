@@ -10,6 +10,7 @@ import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
 import { buildAutomationAiPrompt, interpolateTemplate } from "../_shared/automation-context.ts"
 import { sendResendEmail, textToSimpleHtml } from "../_shared/resend-email.ts"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
+import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
 
 import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 
@@ -478,7 +479,11 @@ export async function resumeFromDelay(
     return { processed: 0, dmsSent: 0, errors: 0, nodeResults: {} };
   }
 
-  const account = automation.social_accounts;
+  const account = automation.social_accounts ? await decryptMetaAccountRow(automation.social_accounts) : null;
+  if (!account?.access_token) {
+    console.error(`[GRAPH_RESUME] Automation ${automation_id} has no access token`);
+    return { processed: 0, dmsSent: 0, errors: 1, nodeResults: {} };
+  }
   const graph: WorkflowGraph = automation.workflow_graph;
   const graphIssues = validateExecutableGraph(graph);
   if (graphIssues.length > 0) {

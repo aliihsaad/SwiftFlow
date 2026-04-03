@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { executeWorkflowGraph } from "../process-automations/graph-executor.ts"
+import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
 import {
   getAutomationFailureAlertRecipients,
   sendResendEmail,
@@ -209,7 +210,7 @@ serve(async (req) => {
       });
     }
 
-    const account = automation.social_accounts;
+    const account = automation.social_accounts ? await decryptMetaAccountRow(automation.social_accounts) : null;
     if (!account?.access_token) {
       throw new Error('Missing social account access token for automation');
     }

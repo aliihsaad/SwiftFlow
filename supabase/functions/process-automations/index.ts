@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { executeWorkflowGraph } from "./graph-executor.ts"
+import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
 
 import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 
@@ -313,7 +314,7 @@ async function processAutomation(
     automation: AutomationRow
 ): Promise<{ processed: number; dmsSent: number; errors: number }> {
     const stats = { processed: 0, dmsSent: 0, errors: 0 };
-    const account = automation.social_accounts;
+    const account = automation.social_accounts ? await decryptMetaAccountRow(automation.social_accounts) : null;
 
     if (!account?.access_token) {
         console.error(`Automation ${automation.id}: No access token available`);
@@ -581,7 +582,7 @@ async function processWebhookComment(
 
     for (const automation of automations) {
         const auto = automation as AutomationRow;
-        const account = auto.social_accounts;
+        const account = auto.social_accounts ? await decryptMetaAccountRow(auto.social_accounts) : null;
 
         if (!account?.access_token) {
             console.error(`[WEBHOOK_FAST] Automation ${auto.id}: No access token`);

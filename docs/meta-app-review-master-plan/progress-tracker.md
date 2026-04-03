@@ -12,7 +12,7 @@ Status legend:
 | Stage | Status | Depends on | Locked output that later stages must preserve |
 |---|---|---|---|
 | Stage 0: Documentation foundation | `done` | none | active docs structure, archive structure, app-review workspace |
-| Stage 1: Product scope freeze | `in_progress` | Stage 0 | reviewer scope definition, excluded features list, release-channel decisions |
+| Stage 1: Product scope freeze | `done` | Stage 0 | reviewer scope definition, excluded features list, release-channel decisions |
 | Stage 2: Phase 1 surface cleanup | `done` | Stage 1 | no legacy reviewer-visible surfaces, no fake billing/review-confusing UI |
 | Stage 3: Meta integration consolidation | `done` | Stage 2 | one OAuth flow, one scope registry, one verified Graph version policy |
 | Stage 4: Security and capability layer | `in_progress` | Stage 3 | encrypted token handling, persisted scopes/capabilities, normalized secret/env loading |
@@ -39,7 +39,11 @@ Status legend:
 ## Current Notes
 
 - Stage 0 is complete.
-- Stage 1 is still open until the release-channel env and Phase 1 scope are locked in deployed configuration.
+- Stage 1 is complete:
+  - Phase 1 reviewer scope is frozen
+  - requested Meta permissions are narrowed to the Phase 1 publish-only set
+  - review deployment env decisions are locked around `APP_RELEASE_CHANNEL=review_phase_1` and `META_OAUTH_SCOPE_PROFILE=review_phase_1`
+  - excluded reviewer features explicitly include webhook-driven automations
 - Stage 2 is complete:
   - release-channel gating utility added
   - blocked dashboard routes are redirected in `proxy.ts`
@@ -57,3 +61,6 @@ Status legend:
   - canonical Meta connect flow now stores encrypted page tokens and encrypted user tokens at the application layer
   - granted scopes and derived capabilities are now persisted on connected social accounts
   - review-critical publish paths now decrypt tokens through a shared accessor layer
+  - active message, comment, webhook, automation, and analytics sync loaders now hydrate Meta accounts through shared decrypt helpers instead of assuming raw DB tokens
+  - read-only analytics routes now only read social-account metadata they actually need, and `sync-analytics` logs now summarize Meta failures instead of dumping raw provider payloads
+  - review-phase webhook deliveries are now acknowledged without executing webhook-driven side effects

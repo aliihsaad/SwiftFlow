@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { decryptMetaAccountRow } from '@/lib/meta-account';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
@@ -172,7 +173,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const account = conversation.social_accounts;
+        const account = conversation.social_accounts ? decryptMetaAccountRow(conversation.social_accounts) : null;
         if (!account?.access_token) {
             return NextResponse.json(
                 { error: 'No access token available for this account' },

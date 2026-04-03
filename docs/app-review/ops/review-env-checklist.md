@@ -33,6 +33,7 @@ Track the environment configuration required for the Meta review deployment.
 
 - Review deployment hides messages, comments, posts, analytics, automation, and subscription surfaces
 - Review deployment redirects blocked dashboard routes back to `/dashboard`
+- Review deployment acknowledges Meta webhook deliveries but does not execute webhook-driven side effects for messages, comments, or automations
 - Connect flow uses `/api/auth/meta/login`
 - Callback uses `/api/auth/meta/callback`
 - OAuth dialog requests only: `public_profile`, `pages_show_list`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`

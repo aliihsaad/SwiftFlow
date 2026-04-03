@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { decryptMetaAccountRow } from '@/lib/meta-account'
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version'
 import { createClient } from '@/utils/supabase/server'
 import { getActiveWorkspace } from '@/lib/workspace-utils'
@@ -55,8 +56,9 @@ export async function GET(request: NextRequest) {
     if (accountError || !account) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })
     }
+    const decryptedAccount = decryptMetaAccountRow(account)
 
-    if (!account.access_token) {
+    if (!decryptedAccount.access_token) {
       return NextResponse.json(
         { error: 'No access token available for this account' },
         { status: 400 },
@@ -67,9 +69,9 @@ export async function GET(request: NextRequest) {
 
     if (platform === 'instagram') {
       const mediaUrl =
-        `${META_GRAPH_URL}/${account.account_id}/media` +
+        `${META_GRAPH_URL}/${decryptedAccount.account_id}/media` +
         `?fields=id,media_type,media_url,thumbnail_url,caption,timestamp,permalink` +
-        `&limit=${limit}&access_token=${account.access_token}`
+        `&limit=${limit}&access_token=${decryptedAccount.access_token}`
 
       const response = await fetch(mediaUrl, { cache: 'no-store' })
       const result = await response.json()
@@ -92,9 +94,9 @@ export async function GET(request: NextRequest) {
     }
 
     const postsUrl =
-      `${META_GRAPH_URL}/${account.account_id}/posts` +
+      `${META_GRAPH_URL}/${decryptedAccount.account_id}/posts` +
       `?fields=id,message,full_picture,created_time,permalink_url,attachments{media_type,media,url,subattachments}` +
-      `&limit=${limit}&access_token=${account.access_token}`
+      `&limit=${limit}&access_token=${decryptedAccount.access_token}`
 
     const response = await fetch(postsUrl, { cache: 'no-store' })
     const result = await response.json()

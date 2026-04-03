@@ -41,7 +41,11 @@ Make permissions, token handling, and feature availability explicit and safe.
 - Granted scopes, granular scopes, derived capabilities, token status, and scope sync timestamps are now written into `social_accounts.metadata`
 - Shared Meta account helpers were added for Next.js and Supabase edge runtimes
 - Active publish paths now decrypt tokens through the shared accessor layer instead of reading raw database values directly
-- Remaining Stage 4 work is expanding the accessor layer and token redaction rules across non-review surfaces and legacy active readers
+- Active message, comment, automation, webhook, and analytics sync loaders now hydrate Meta accounts through the shared decrypt/accessor layer
+- Read-only analytics routes now avoid unnecessary `social_accounts.access_token` reads when they only need metadata and platform state
+- `sync-analytics` runtime logs now summarize Meta failures instead of dumping raw provider payloads
+- `review_phase_1` webhook deliveries are now acknowledged without executing message/comment/automation side effects
+- Remaining Stage 4 work is expanding the accessor layer and token redaction rules across the last legacy holdouts and normalizing secret handling outside the Meta path
 
 ## Exit Gate
 

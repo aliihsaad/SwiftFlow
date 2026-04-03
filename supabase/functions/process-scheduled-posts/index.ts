@@ -26,6 +26,24 @@ interface PublishResult {
     error?: string;
 }
 
+function summarizeMetaGraphPayload(payload: any): string {
+    const error = payload?.error;
+    if (error && typeof error === 'object') {
+        const code = error.code ?? 'unknown';
+        const subcode = error.error_subcode ?? 'unknown';
+        const type = error.type ?? 'unknown';
+        const message = typeof error.message === 'string' ? error.message : 'unknown';
+        return `error_type=${type} error_code=${code} error_subcode=${subcode} message=${message}`;
+    }
+
+    if (payload && typeof payload === 'object') {
+        const keys = Object.keys(payload).slice(0, 6);
+        return keys.length > 0 ? `keys=${keys.join(',')}` : 'empty_object';
+    }
+
+    return typeof payload === 'string' && payload.length > 0 ? payload : 'no_details';
+}
+
 /**
  * Publish to Facebook Page
  */
@@ -139,9 +157,9 @@ async function publishToInstagramVideo(
         });
 
         const containerData = await containerRes.json();
-        console.log('Instagram video container response:', JSON.stringify(containerData));
+        console.log('Instagram video container response received');
         if (!containerRes.ok) {
-            console.error('Instagram video container FAILED:', containerData);
+            console.error(`Instagram video container FAILED: ${summarizeMetaGraphPayload(containerData)}`);
             return { success: false, platform: 'instagram', error: containerData.error?.message || 'Failed to create video container' };
         }
 
@@ -181,9 +199,9 @@ async function publishToInstagramVideo(
         });
 
         const publishData = await publishRes.json();
-        console.log('Instagram video publish response:', JSON.stringify(publishData));
+        console.log('Instagram video publish response received');
         if (!publishRes.ok) {
-            console.error('Instagram video publish FAILED:', publishData);
+            console.error(`Instagram video publish FAILED: ${summarizeMetaGraphPayload(publishData)}`);
             return { success: false, platform: 'instagram', error: publishData.error?.message || 'Failed to publish video' };
         }
 
@@ -218,9 +236,9 @@ async function publishToFacebookVideo(
         });
 
         const data = await res.json();
-        console.log('Facebook video response:', JSON.stringify(data));
+        console.log('Facebook video publish response received');
         if (!res.ok) {
-            console.error('Facebook video FAILED:', data);
+            console.error(`Facebook video FAILED: ${summarizeMetaGraphPayload(data)}`);
             return { success: false, platform: 'facebook', error: data.error?.message || 'Failed to publish video' };
         }
 

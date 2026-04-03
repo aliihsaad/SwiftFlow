@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { decryptMetaAccountRow } from '@/lib/meta-account';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
@@ -68,8 +69,9 @@ export async function GET(request: NextRequest) {
                 { status: 404 }
             );
         }
+        const decryptedAccount = decryptMetaAccountRow(account);
 
-        if (!account.access_token) {
+        if (!decryptedAccount.access_token) {
             return NextResponse.json(
                 { error: 'No access token available' },
                 { status: 400 }
@@ -80,7 +82,7 @@ export async function GET(request: NextRequest) {
 
         if (platform === 'instagram') {
             // Instagram: GET /{media-id}/comments
-            const url = `${META_GRAPH_URL}/${postId}/comments?fields=id,text,timestamp,username,from{id,username},replies{id,text,timestamp,username,from{id,username}}&access_token=${account.access_token}`;
+            const url = `${META_GRAPH_URL}/${postId}/comments?fields=id,text,timestamp,username,from{id,username},replies{id,text,timestamp,username,from{id,username}}&access_token=${decryptedAccount.access_token}`;
 
             console.log(`[PostComments] Fetching Instagram comments for ${postId}`);
             const response = await fetch(url);
@@ -110,7 +112,7 @@ export async function GET(request: NextRequest) {
 
         } else if (platform === 'facebook') {
             // Facebook: GET /{post-id}/comments
-            const url = `${META_GRAPH_URL}/${postId}/comments?fields=id,message,created_time,is_hidden,from{id,name},comments{id,message,created_time,is_hidden,from{id,name}}&access_token=${account.access_token}`;
+            const url = `${META_GRAPH_URL}/${postId}/comments?fields=id,message,created_time,is_hidden,from{id,name},comments{id,message,created_time,is_hidden,from{id,name}}&access_token=${decryptedAccount.access_token}`;
 
             console.log(`[PostComments] Fetching Facebook comments for ${postId}`);
             const response = await fetch(url);
@@ -144,9 +146,9 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
             comments,
             account: {
-                id: account.id,
-                account_name: account.account_name,
-                platform: account.platform,
+                id: decryptedAccount.id,
+                account_name: decryptedAccount.account_name,
+                platform: decryptedAccount.platform,
             },
             workspaceId: activeWorkspace.id,
         });
@@ -193,8 +195,9 @@ export async function POST(request: NextRequest) {
             .eq('workspace_id', activeWorkspace.id)
             .eq('platform', platform)
             .single();
+        const decryptedAccount = account ? decryptMetaAccountRow(account) : null;
 
-        if (accountError || !account?.access_token) {
+        if (accountError || !decryptedAccount?.access_token) {
             return NextResponse.json(
                 { error: 'No account or token available' },
                 { status: 400 }
@@ -214,7 +217,7 @@ export async function POST(request: NextRequest) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message,
-                access_token: account.access_token,
+                access_token: decryptedAccount.access_token,
             }),
         });
 
@@ -274,8 +277,9 @@ export async function DELETE(request: NextRequest) {
             .eq('workspace_id', activeWorkspace.id)
             .eq('platform', platform)
             .single();
+        const decryptedAccount = account ? decryptMetaAccountRow(account) : null;
 
-        if (!account?.access_token) {
+        if (!decryptedAccount?.access_token) {
             return NextResponse.json(
                 { error: 'No account or token available' },
                 { status: 400 }
@@ -284,7 +288,7 @@ export async function DELETE(request: NextRequest) {
 
         // Hide comment via Meta API (FB uses is_hidden, IG uses hide)
         const hideParam = platform === 'facebook' ? 'is_hidden=true' : 'hide=true';
-        const hideUrl = `${META_GRAPH_URL}/${commentId}?${hideParam}&access_token=${account.access_token}`;
+        const hideUrl = `${META_GRAPH_URL}/${commentId}?${hideParam}&access_token=${decryptedAccount.access_token}`;
         const response = await fetch(hideUrl, { method: 'POST' });
         const result = await response.json();
 
@@ -339,8 +343,9 @@ export async function PATCH(request: NextRequest) {
             .eq('workspace_id', activeWorkspace.id)
             .eq('platform', platform)
             .single();
+        const decryptedAccount = account ? decryptMetaAccountRow(account) : null;
 
-        if (!account?.access_token) {
+        if (!decryptedAccount?.access_token) {
             return NextResponse.json(
                 { error: 'No account or token available' },
                 { status: 400 }
@@ -351,7 +356,7 @@ export async function PATCH(request: NextRequest) {
             ? `is_hidden=${hidden ? 'true' : 'false'}`
             : `hide=${hidden ? 'true' : 'false'}`;
 
-        const moderationUrl = `${META_GRAPH_URL}/${commentId}?${visibilityParam}&access_token=${account.access_token}`;
+        const moderationUrl = `${META_GRAPH_URL}/${commentId}?${visibilityParam}&access_token=${decryptedAccount.access_token}`;
         const response = await fetch(moderationUrl, { method: 'POST' });
         const result = await response.json();
 

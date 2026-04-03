@@ -1,6 +1,6 @@
 # Stage 1: Product Scope Freeze
 
-Status: `in_progress`
+Status: `done`
 
 Depends on: `Stage 0`
 

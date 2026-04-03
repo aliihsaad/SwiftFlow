@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
+import { decryptMetaAccountRow } from '@/lib/meta-account';
+import { isReviewPhase1Release } from '@/lib/release-channel';
 
 /** Build a deterministic key from a payload object, falling back to a hash when no stable ID exists */
 function stableEventKey(prefix: string, value: Record<string, unknown> | undefined): string {
@@ -168,9 +170,23 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
     }
 
-    console.log('[WEBHOOK] Event received:', JSON.stringify(body).substring(0, 1000));
-    console.log('[WEBHOOK] Object type:', body.object);
-    console.log('[WEBHOOK] Entries:', (body.entry as unknown[])?.length || 0);
+    console.log('[WEBHOOK] Event received:', {
+        object: body.object,
+        entries: (body.entry as unknown[])?.length || 0,
+        payloadShape: summarizeWebhookPayloadShape(body),
+    });
+
+    if (isReviewPhase1Release()) {
+        console.log('[WEBHOOK] review_phase_1 active; acknowledging event without processing side effects');
+        return NextResponse.json(
+            {
+                received: true,
+                skipped: true,
+                reason: 'review_phase_1_webhook_processing_disabled',
+            },
+            { status: 200 }
+        );
+    }
 
     // Process events synchronously — Vercel serverless terminates after response,
     // so we MUST await processing before returning.
@@ -284,13 +300,14 @@ async function resolveAccount(entryId: string): Promise<ResolvedAccount | null> 
         .maybeSingle();
 
     if (account) {
+        const decryptedAccount = decryptMetaAccountRow(account);
         return {
-            workspace_id: account.workspace_id,
-            social_account_id: account.id,
-            account_id: account.account_id,
-            platform: account.platform,
-            access_token: account.access_token,
-            metadata: account.metadata,
+            workspace_id: decryptedAccount.workspace_id,
+            social_account_id: decryptedAccount.id,
+            account_id: decryptedAccount.account_id,
+            platform: decryptedAccount.platform,
+            access_token: decryptedAccount.access_token || '',
+            metadata: decryptedAccount.metadata,
         };
     }
 
@@ -303,13 +320,14 @@ async function resolveAccount(entryId: string): Promise<ResolvedAccount | null> 
     if (accounts) {
         for (const acc of accounts) {
             if (acc.metadata?.connected_page_id === entryId) {
+                const decryptedAccount = decryptMetaAccountRow(acc);
                 return {
-                    workspace_id: acc.workspace_id,
-                    social_account_id: acc.id,
-                    account_id: acc.account_id,
-                    platform: acc.platform,
-                    access_token: acc.access_token,
-                    metadata: acc.metadata,
+                    workspace_id: decryptedAccount.workspace_id,
+                    social_account_id: decryptedAccount.id,
+                    account_id: decryptedAccount.account_id,
+                    platform: decryptedAccount.platform,
+                    access_token: decryptedAccount.access_token || '',
+                    metadata: decryptedAccount.metadata,
                 };
             }
         }

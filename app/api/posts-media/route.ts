@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { decryptMetaAccountRow } from '@/lib/meta-account';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
@@ -43,8 +44,9 @@ export async function GET(request: NextRequest) {
                 { status: 200 }
             );
         }
+        const decryptedAccount = decryptMetaAccountRow(account);
 
-        if (!account.access_token) {
+        if (!decryptedAccount.access_token) {
             return NextResponse.json(
                 { error: 'No access token available for this account' },
                 { status: 400 }
@@ -56,12 +58,12 @@ export async function GET(request: NextRequest) {
 
         if (platform === 'instagram') {
             // Instagram: GET /{ig-user-id}/media
-            let mediaUrl = `${META_GRAPH_URL}/${account.account_id}/media?fields=id,media_type,media_url,thumbnail_url,caption,timestamp,permalink,comments_count,like_count&limit=${limit}&access_token=${account.access_token}`;
+            let mediaUrl = `${META_GRAPH_URL}/${decryptedAccount.account_id}/media?fields=id,media_type,media_url,thumbnail_url,caption,timestamp,permalink,comments_count,like_count&limit=${limit}&access_token=${decryptedAccount.access_token}`;
             if (after) {
                 mediaUrl += `&after=${after}`;
             }
 
-            console.log(`[PostsMedia] Fetching Instagram media for account ${account.account_id}`);
+            console.log(`[PostsMedia] Fetching Instagram media for account ${decryptedAccount.account_id}`);
             const response = await fetch(mediaUrl, { cache: 'no-store' });
             const result = await response.json();
 
@@ -86,12 +88,12 @@ export async function GET(request: NextRequest) {
 
         } else if (platform === 'facebook') {
             // Facebook: GET /{page-id}/posts
-            let postsUrl = `${META_GRAPH_URL}/${account.account_id}/posts?fields=id,message,full_picture,created_time,permalink_url,attachments{media_type,media,url},comments.summary(true),likes.summary(true)&limit=${limit}&access_token=${account.access_token}`;
+            let postsUrl = `${META_GRAPH_URL}/${decryptedAccount.account_id}/posts?fields=id,message,full_picture,created_time,permalink_url,attachments{media_type,media,url},comments.summary(true),likes.summary(true)&limit=${limit}&access_token=${decryptedAccount.access_token}`;
             if (after) {
                 postsUrl += `&after=${after}`;
             }
 
-            console.log(`[PostsMedia] Fetching Facebook posts for page ${account.account_id}`);
+            console.log(`[PostsMedia] Fetching Facebook posts for page ${decryptedAccount.account_id}`);
             const response = await fetch(postsUrl, { cache: 'no-store' });
             const result = await response.json();
 
@@ -122,10 +124,10 @@ export async function GET(request: NextRequest) {
                 has_next: !!paging.next,
             } : null,
             account: {
-                id: account.id,
-                account_id: account.account_id,
-                account_name: account.account_name,
-                platform: account.platform,
+                id: decryptedAccount.id,
+                account_id: decryptedAccount.account_id,
+                account_name: decryptedAccount.account_name,
+                platform: decryptedAccount.platform,
             }
         });
 

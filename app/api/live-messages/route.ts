@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { decryptMetaAccountRow } from '@/lib/meta-account';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
@@ -121,8 +122,9 @@ export async function GET(request: NextRequest) {
                 { status: 200 }
             );
         }
+        const decryptedAccount = decryptMetaAccountRow(account);
 
-        if (!account.access_token) {
+        if (!decryptedAccount.access_token) {
             return NextResponse.json(
                 { error: 'No access token available' },
                 { status: 400 }
@@ -131,15 +133,15 @@ export async function GET(request: NextRequest) {
 
         // For Instagram, we need the connected Page ID (messaging goes through Pages API)
         const pageId = platform === 'instagram'
-            ? (account.metadata?.connected_page_id || account.account_id)
-            : account.account_id;
+            ? (decryptedAccount.metadata?.connected_page_id || decryptedAccount.account_id)
+            : decryptedAccount.account_id;
 
         if (conversationId) {
             // ──────────────────────────────────────────────
             // MODE: Fetch messages for a specific conversation
             // ──────────────────────────────────────────────
             // Request rich attachment fields so the UI can render image/file/post-share attachments.
-            const messagesUrl = `${META_GRAPH_URL}/${conversationId}/messages?fields=id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}&limit=50&access_token=${account.access_token}`;
+            const messagesUrl = `${META_GRAPH_URL}/${conversationId}/messages?fields=id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}&limit=50&access_token=${decryptedAccount.access_token}`;
 
             console.log(`[LiveMessages] Fetching messages for conversation ${conversationId}`);
             const response = await fetch(messagesUrl);
@@ -172,7 +174,7 @@ export async function GET(request: NextRequest) {
                 platform_message_id: msg.id,
                 sender_id: msg.from?.id || '',
                 sender_name: msg.from?.username || msg.from?.name || msg.from?.id || 'Unknown',
-                is_from_page: msg.from?.id === pageId || msg.from?.id === account.account_id,
+                is_from_page: msg.from?.id === pageId || msg.from?.id === decryptedAccount.account_id,
                 message: msg.message || null,
                 attachments: serializeMetaAttachments(msg.attachments),
                 platform_created_at: msg.created_time,
@@ -229,7 +231,7 @@ export async function GET(request: NextRequest) {
             // ──────────────────────────────────────────────
             // MODE: List all conversations
             // ──────────────────────────────────────────────
-            let conversationsUrl = `${META_GRAPH_URL}/${pageId}/conversations?fields=id,participants,messages.limit(1){id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}},updated_time&limit=25&access_token=${account.access_token}`;
+            let conversationsUrl = `${META_GRAPH_URL}/${pageId}/conversations?fields=id,participants,messages.limit(1){id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}},updated_time&limit=25&access_token=${decryptedAccount.access_token}`;
 
             // For Instagram, add platform filter
             if (platform === 'instagram') {
@@ -255,7 +257,7 @@ export async function GET(request: NextRequest) {
                         errorCode: normalized.code,
                         missingPermissions: normalized.missingPermissions,
                         requiresReconnect: normalized.requiresReconnect,
-                        account: { id: account.id, account_name: account.account_name, platform },
+                        account: { id: decryptedAccount.id, account_name: decryptedAccount.account_name, platform },
                         workspaceId: activeWorkspace.id,
                         pageId,
                         messagingCapabilities: messagingCapabilitiesFromError(normalized.code, normalized.missingPermissions),
@@ -267,7 +269,7 @@ export async function GET(request: NextRequest) {
                         error: normalized.message,
                         errorCode: normalized.code,
                         conversations: [],
-                        account: { id: account.id, account_name: account.account_name, platform },
+                        account: { id: decryptedAccount.id, account_name: decryptedAccount.account_name, platform },
                         workspaceId: activeWorkspace.id,
                         pageId,
                         messagingCapabilities: messagingCapabilitiesFromError(null),
@@ -280,7 +282,7 @@ export async function GET(request: NextRequest) {
             const conversations = await Promise.all((data.data || []).map(async (conv: any) => {
                 // Find the other participant (not the page)
                 const participant = conv.participants?.data?.find(
-                    (p: any) => p.id !== pageId && p.id !== account.account_id
+                    (p: any) => p.id !== pageId && p.id !== decryptedAccount.account_id
                 );
 
                 let lastMsg = conv.messages?.data?.[0];
@@ -290,7 +292,7 @@ export async function GET(request: NextRequest) {
                 // Hydrate the latest message directly so the UI can render a better preview label.
                 if (lastMsg?.id && isAttachmentPlaceholderMessage(lastMsg?.message) && lastMsgAttachments.length === 0) {
                     try {
-                        const previewMessageUrl = `${META_GRAPH_URL}/${conv.id}/messages?fields=id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}&limit=1&access_token=${account.access_token}`;
+                        const previewMessageUrl = `${META_GRAPH_URL}/${conv.id}/messages?fields=id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}&limit=1&access_token=${decryptedAccount.access_token}`;
                         const previewRes = await fetch(previewMessageUrl);
                         const previewData = await previewRes.json();
                         if (previewRes.ok && Array.isArray(previewData?.data) && previewData.data.length > 0) {
@@ -312,13 +314,13 @@ export async function GET(request: NextRequest) {
                     unread_count: 0, // Meta doesn't easily expose unread counts via graph API
                     social_accounts: {
                         platform,
-                        account_name: account.account_name,
+                        account_name: decryptedAccount.account_name,
                     },
                     lastMessage: lastMsg ? {
                         id: lastMsg.id,
                         platform_message_id: lastMsg.id,
                         sender_id: lastMsg.from?.id || '',
-                        is_from_page: lastMsg.from?.id === pageId || lastMsg.from?.id === account.account_id,
+                        is_from_page: lastMsg.from?.id === pageId || lastMsg.from?.id === decryptedAccount.account_id,
                         message: lastMsg.message || null,
                         attachments: serializeMetaAttachments(lastMsgAttachments),
                         is_read: true,
@@ -338,7 +340,7 @@ export async function GET(request: NextRequest) {
                         .from('conversations')
                         .select('id, platform_conversation_id')
                         .eq('workspace_id', activeWorkspace.id)
-                        .eq('social_account_id', account.id)
+                        .eq('social_account_id', decryptedAccount.id)
                         .in('platform_conversation_id', platformConversationIds);
 
                     if (localConvError) {
@@ -409,9 +411,9 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({
                 conversations,
                 account: {
-                    id: account.id,
-                    account_id: account.account_id,
-                    account_name: account.account_name,
+                    id: decryptedAccount.id,
+                    account_id: decryptedAccount.account_id,
+                    account_name: decryptedAccount.account_name,
                     platform,
                 },
                 workspaceId: activeWorkspace.id,

@@ -1,6 +1,7 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
 import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 
 // Use v21.0 to maintain compatibility with older metric names
@@ -26,6 +27,38 @@ function extractInstagramInsightMetricValue(metric: any): number {
     return 0;
 }
 
+function summarizeMetaGraphPayload(payload: any): string {
+    const error = payload?.error;
+    if (error && typeof error === 'object') {
+        const code = error.code ?? 'unknown';
+        const subcode = error.error_subcode ?? 'unknown';
+        const type = error.type ?? 'unknown';
+        const message = typeof error.message === 'string' ? error.message : 'unknown';
+        return `error_type=${type} error_code=${code} error_subcode=${subcode} message=${message}`;
+    }
+
+    if (Array.isArray(payload?.data)) {
+        return `items=${payload.data.length}`;
+    }
+
+    if (payload && typeof payload === 'object') {
+        const keys = Object.keys(payload).slice(0, 6);
+        return keys.length > 0 ? `keys=${keys.join(',')}` : 'empty_object';
+    }
+
+    return typeof payload === 'string' && payload.length > 0 ? payload : 'no_details';
+}
+
+function logMetaGraphWarning(context: string, payload: any) {
+    console.warn(`${context}: ${summarizeMetaGraphPayload(payload)}`);
+}
+
+function summarizeError(error: any): string {
+    if (error instanceof Error) return error.message;
+    if (typeof error?.message === 'string') return error.message;
+    return String(error);
+}
+
 async function fetchInstagramMediaInsightsBestEffort(mediaId: string, accessToken: string, mediaType?: string) {
     const metrics: Record<string, number> = {
         reach: 0,
@@ -42,7 +75,7 @@ async function fetchInstagramMediaInsightsBestEffort(mediaId: string, accessToke
         const data = await res.json();
 
         if (!res.ok) {
-            console.log(`[Sync] Instagram insights unavailable for ${mediaId} metrics=[${metricNames.join(',')}]: ${JSON.stringify(data)}`);
+            logMetaGraphWarning(`[Sync] Instagram insights unavailable for ${mediaId} metrics=[${metricNames.join(',')}]`, data);
             return false;
         }
 
@@ -96,7 +129,7 @@ async function fetchFacebookPostInsightsBestEffort(postId: string, accessToken: 
         const data = await res.json();
 
         if (!res.ok) {
-            console.log(`[Sync] Facebook insights unavailable for ${postId} metrics=[${metricNames.join(',')}]: ${JSON.stringify(data)}`);
+            logMetaGraphWarning(`[Sync] Facebook insights unavailable for ${postId} metrics=[${metricNames.join(',')}]`, data);
             return false;
         }
 
@@ -215,9 +248,10 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
     if (!accounts || accounts.length === 0) {
         return { synced: 0, error: 'No social accounts found' };
     }
+    const decryptedAccounts = await Promise.all(accounts.map((account: any) => decryptMetaAccountRow(account)));
 
     // Log which accounts have tokens
-    accounts.forEach(acc => {
+    decryptedAccounts.forEach(acc => {
         console.log(`[Sync] Account ${acc.platform} (${acc.id}): ${acc.access_token ? 'Has token' : 'No token'}`);
     });
 
@@ -290,7 +324,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
         for (const publishedPost of post.published_posts) {
             console.log(`[Sync] Processing published post ${publishedPost.id} (${publishedPost.platform})`);
 
-            const account = accounts.find((a: any) => a.platform === publishedPost.platform);
+            const account = decryptedAccounts.find((a: any) => a.platform === publishedPost.platform);
             if (!account || !account.access_token) {
                 console.log(`[Sync] No account with token found for platform ${publishedPost.platform}`);
                 continue;
@@ -308,7 +342,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                     const basicData = await basicResponse.json();
 
                     if (basicResponse.ok) {
-                        console.log(`[Sync] Instagram basic response:`, JSON.stringify(basicData));
+                        console.log(`[Sync] Instagram basic info fetched for ${publishedPost.platform_post_id}`);
                         insights = {
                             likes: basicData.like_count || 0,
                             comments: basicData.comments_count || 0,
@@ -329,13 +363,13 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                                 insightsData.data.forEach((metric: any) => {
                                     insights[metric.name] = metric.values?.[0]?.value || 0;
                                 });
-                                console.log(`[Sync] Instagram insights added:`, JSON.stringify(insights));
+                                console.log(`[Sync] Instagram insights added for ${publishedPost.platform_post_id}`);
                             }
                         } catch (insightsError) {
                             console.log(`[Sync] Could not fetch additional insights, using basic data only`);
                         }
                     } else {
-                        console.error(`[Sync] Instagram API error:`, JSON.stringify(basicData));
+                        logMetaGraphWarning(`[Sync] Instagram basic info request failed for ${publishedPost.platform_post_id}`, basicData);
                     }
                 } else if (publishedPost.platform === 'facebook') {
                     // Facebook post insights require pages_read_engagement which needs Meta App Review
@@ -356,7 +390,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                         synced_at: new Date().toISOString()
                     };
 
-                    console.log(`[Sync] Upserting analytics for post ${publishedPost.id}:`, analyticsData);
+                    console.log(`[Sync] Upserting analytics for post ${publishedPost.id}`);
 
                     const { data: upsertResult, error: upsertError } = await supabase
                         .from('post_analytics')
@@ -375,13 +409,13 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                     console.log(`[Sync] No insights returned for post ${publishedPost.id}`);
                 }
             } catch (error) {
-                console.error(`Error syncing insights for post ${publishedPost.id}:`, error);
+                console.error(`Error syncing insights for post ${publishedPost.id}: ${summarizeError(error)}`);
             }
         }
     }
 
     // Also sync direct/native platform posts (not created in app) so analytics stays source-agnostic.
-    for (const account of accounts) {
+    for (const account of decryptedAccounts) {
         if (!account.access_token) continue;
 
         try {
@@ -399,7 +433,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
 
                 if (!listRes.ok) {
                     directErrorCount++;
-                    console.error('[Sync] Instagram media list error:', JSON.stringify(listData));
+                    logMetaGraphWarning('[Sync] Instagram media list request failed', listData);
                     continue;
                 }
 
@@ -431,10 +465,10 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                                 caption = detailData.caption || caption;
                                 mediaType = detailData.media_type || mediaType;
                             } else {
-                                console.log(`[Sync] Instagram media details unavailable for ${media.id}: ${JSON.stringify(detailData)}`);
+                                logMetaGraphWarning(`[Sync] Instagram media details unavailable for ${media.id}`, detailData);
                             }
                         } catch (detailError) {
-                            console.log(`[Sync] Instagram media details fetch failed for ${media.id}:`, detailError);
+                            console.log(`[Sync] Instagram media details fetch failed for ${media.id}: ${summarizeError(detailError)}`);
                         }
 
                         try {
@@ -443,7 +477,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                             saves = igInsights.saved || 0;
                             shares = igInsights.shares || 0;
                         } catch (insightsError) {
-                            console.log(`[Sync] Instagram media insights fetch failed for ${media.id}:`, insightsError);
+                            console.log(`[Sync] Instagram media insights fetch failed for ${media.id}: ${summarizeError(insightsError)}`);
                         }
 
                         const published = await upsertPublishedPost({
@@ -468,13 +502,13 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                             directMetricsCount++;
                         } catch (analyticsError) {
                             directErrorCount++;
-                            console.error(`[Sync] Failed upserting IG analytics for ${media.id}:`, analyticsError);
+                            console.error(`[Sync] Failed upserting IG analytics for ${media.id}: ${summarizeError(analyticsError)}`);
                         }
 
                         syncedCount++;
                     } catch (itemError) {
                         directErrorCount++;
-                        console.error('[Sync] Failed syncing Instagram media item:', itemError);
+                        console.error(`[Sync] Failed syncing Instagram media item: ${summarizeError(itemError)}`);
                     }
                 }
             } else if (account.platform === 'facebook') {
@@ -491,7 +525,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
 
                 if (!listRes.ok) {
                     directErrorCount++;
-                    console.error('[Sync] Facebook posts list error:', JSON.stringify(listData));
+                    logMetaGraphWarning('[Sync] Facebook posts list request failed', listData);
                     continue;
                 }
 
@@ -515,17 +549,17 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                                 comments = metricsData?.comments?.summary?.total_count || 0;
                                 shares = metricsData?.shares?.count || 0;
                             } else {
-                                console.log(`[Sync] Facebook metrics unavailable for ${fbPost.id}: ${JSON.stringify(metricsData)}`);
+                                logMetaGraphWarning(`[Sync] Facebook metrics unavailable for ${fbPost.id}`, metricsData);
                             }
                         } catch (metricsError) {
-                            console.log(`[Sync] Facebook metrics fetch failed for ${fbPost.id}:`, metricsError);
+                            console.log(`[Sync] Facebook metrics fetch failed for ${fbPost.id}: ${summarizeError(metricsError)}`);
                         }
 
                         try {
                             const fbInsights = await fetchFacebookPostInsightsBestEffort(fbPost.id, account.access_token);
                             views = fbInsights.views || 0;
                         } catch (insightsError) {
-                            console.log(`[Sync] Facebook insights fetch failed for ${fbPost.id}:`, insightsError);
+                            console.log(`[Sync] Facebook insights fetch failed for ${fbPost.id}: ${summarizeError(insightsError)}`);
                         }
 
                         const published = await upsertPublishedPost({
@@ -550,19 +584,19 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                             directMetricsCount++;
                         } catch (analyticsError) {
                             directErrorCount++;
-                            console.error(`[Sync] Failed upserting FB analytics for ${fbPost.id}:`, analyticsError);
+                            console.error(`[Sync] Failed upserting FB analytics for ${fbPost.id}: ${summarizeError(analyticsError)}`);
                         }
 
                         syncedCount++;
                     } catch (itemError) {
                         directErrorCount++;
-                        console.error('[Sync] Failed syncing Facebook post item:', itemError);
+                        console.error(`[Sync] Failed syncing Facebook post item: ${summarizeError(itemError)}`);
                     }
                 }
             }
         } catch (accountError) {
             directErrorCount++;
-            console.error(`[Sync] Direct sync failed for account ${account.id}:`, accountError);
+            console.error(`[Sync] Direct sync failed for account ${account.id}: ${summarizeError(accountError)}`);
         }
     }
 
@@ -600,13 +634,14 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
         console.log(`[AccountSync] No social accounts found`);
         return { synced: 0, message: 'No social accounts found' };
     }
+    const decryptedAccounts = await Promise.all(accounts.map((account: any) => decryptMetaAccountRow(account)));
 
-    console.log(`[AccountSync] Found ${accounts.length} social accounts`);
+    console.log(`[AccountSync] Found ${decryptedAccounts.length} social accounts`);
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
     let syncedCount = 0;
 
-    for (const account of accounts) {
+    for (const account of decryptedAccounts) {
         if (!account.access_token) {
             console.log(`[AccountSync] Account ${account.id} (${account.platform}) has no access token, skipping`);
             continue;
@@ -626,14 +661,14 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
                 const data = await response.json();
 
                 if (response.ok) {
-                    console.log(`[AccountSync] Instagram account data:`, JSON.stringify(data));
+                    console.log(`[AccountSync] Instagram account data fetched for ${igUserId}`);
                     accountData = {
                         followers: data.followers_count || 0,
                         following: data.follows_count || 0,
                         posts_count: data.media_count || 0
                     };
                 } else {
-                    console.error(`[AccountSync] Instagram API error:`, JSON.stringify(data));
+                    logMetaGraphWarning(`[AccountSync] Instagram account request failed for ${igUserId}`, data);
                 }
             } else if (account.platform === 'facebook') {
                 // Facebook: GET /{page-id}?fields=fan_count,followers_count
@@ -646,14 +681,14 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
                 const data = await response.json();
 
                 if (response.ok) {
-                    console.log(`[AccountSync] Facebook page data:`, JSON.stringify(data));
+                    console.log(`[AccountSync] Facebook page data fetched for ${pageId}`);
                     accountData = {
                         followers: data.followers_count || data.fan_count || 0,
                         following: 0, // Pages don't follow other pages
                         posts_count: 0 // Would need separate API call
                     };
                 } else {
-                    console.error(`[AccountSync] Facebook API error:`, JSON.stringify(data));
+                    logMetaGraphWarning(`[AccountSync] Facebook page request failed for ${pageId}`, data);
                 }
             }
 
@@ -668,7 +703,7 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
                     avg_engagement_rate: 0
                 };
 
-                console.log(`[AccountSync] Upserting account analytics:`, analyticsRecord);
+                console.log(`[AccountSync] Upserting account analytics for ${account.id}`);
 
                 const { error: upsertError } = await supabase
                     .from('account_analytics')
@@ -677,14 +712,14 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
                     });
 
                 if (upsertError) {
-                    console.error(`[AccountSync] Failed to upsert account analytics:`, upsertError);
+                    console.error(`[AccountSync] Failed to upsert account analytics for ${account.id}: ${summarizeError(upsertError)}`);
                 } else {
                     console.log(`[AccountSync] Successfully synced account ${account.id}`);
                     syncedCount++;
                 }
             }
         } catch (error) {
-            console.error(`[AccountSync] Error syncing account ${account.id}:`, error);
+            console.error(`[AccountSync] Error syncing account ${account.id}: ${summarizeError(error)}`);
         }
     }
 

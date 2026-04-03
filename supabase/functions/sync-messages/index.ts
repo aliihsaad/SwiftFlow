@@ -1,6 +1,7 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
 import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
@@ -69,11 +70,12 @@ async function syncMessages(supabase: any, workspaceId: string) {
         console.log(`[MessageSync] No Instagram accounts found`);
         return { conversations: 0, messages: 0, message: 'No Instagram accounts found' };
     }
+    const decryptedAccounts = await Promise.all(accounts.map((account: any) => decryptMetaAccountRow(account)));
 
     let conversationCount = 0;
     let messageCount = 0;
 
-    for (const account of accounts) {
+    for (const account of decryptedAccounts) {
         if (!account.access_token) {
             console.log(`[MessageSync] Account ${account.id} has no access token, skipping`);
             continue;

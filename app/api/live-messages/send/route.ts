@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { decryptMetaAccountRow } from '@/lib/meta-account';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
@@ -40,8 +41,9 @@ export async function POST(request: NextRequest) {
             .eq('workspace_id', activeWorkspace.id)
             .eq('platform', platform)
             .single();
+        const decryptedAccount = account ? decryptMetaAccountRow(account) : null;
 
-        if (accountError || !account?.access_token) {
+        if (accountError || !decryptedAccount?.access_token) {
             return NextResponse.json(
                 { error: 'No account or token available' },
                 { status: 400 }
@@ -50,8 +52,8 @@ export async function POST(request: NextRequest) {
 
         // For Instagram, use the Page ID for sending messages
         const pageId = platform === 'instagram'
-            ? (account.metadata?.connected_page_id || account.account_id)
-            : account.account_id;
+            ? (decryptedAccount.metadata?.connected_page_id || decryptedAccount.account_id)
+            : decryptedAccount.account_id;
 
         const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
 
@@ -62,7 +64,7 @@ export async function POST(request: NextRequest) {
                 recipient: { id: recipientId },
                 ...(platform === 'facebook' ? { messaging_type: 'RESPONSE' } : {}),
                 message: { text: message },
-                access_token: account.access_token,
+                access_token: decryptedAccount.access_token,
             }),
         });
 

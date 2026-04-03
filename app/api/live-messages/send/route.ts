@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { decryptMetaAccountRow } from '@/lib/meta-account';
+import { canManageMessagesWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
@@ -7,6 +7,10 @@ import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
+
+function requiredMessagingPermissions(platform: string): string[] {
+    return platform === 'facebook' ? ['pages_messaging'] : ['instagram_manage_messages'];
+}
 
 // POST - Send a message reply via Meta API
 export async function POST(request: NextRequest) {
@@ -47,6 +51,21 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 { error: 'No account or token available' },
                 { status: 400 }
+            );
+        }
+
+        if (!canManageMessagesWithMetaAccount(
+            decryptedAccount.metadata,
+            platform === 'facebook' ? 'facebook' : 'instagram',
+        )) {
+            return NextResponse.json(
+                {
+                    error: 'Messaging is not available for this connected account',
+                    errorCode: 'meta_missing_permission',
+                    missingPermissions: requiredMessagingPermissions(platform),
+                    requiresReconnect: false,
+                },
+                { status: 403 }
             );
         }
 

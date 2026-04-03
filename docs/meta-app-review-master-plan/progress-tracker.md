@@ -15,7 +15,7 @@ Status legend:
 | Stage 1: Product scope freeze | `done` | Stage 0 | reviewer scope definition, excluded features list, release-channel decisions |
 | Stage 2: Phase 1 surface cleanup | `done` | Stage 1 | no legacy reviewer-visible surfaces, no fake billing/review-confusing UI |
 | Stage 3: Meta integration consolidation | `done` | Stage 2 | one OAuth flow, one scope registry, one verified Graph version policy |
-| Stage 4: Security and capability layer | `in_progress` | Stage 3 | encrypted token handling, persisted scopes/capabilities, normalized secret/env loading |
+| Stage 4: Security and capability layer | `done` | Stage 3 | encrypted token handling, persisted scopes/capabilities, normalized secret/env loading |
 | Stage 5: OpenRouter-first AI migration | `not_started` | Stage 2 | one shared AI adapter for migrated text flows, truthful provider model |
 | Stage 6: Reviewer-safe UX and compliance | `not_started` | Stage 3, Stage 4 | reviewer path, public compliance pages, aligned reviewer docs |
 | Stage 7: Reliability hardening | `not_started` | Stage 4, Stage 5, Stage 6 | stable publish/schedule behavior, health/status surfaces, deploy checks |
@@ -57,10 +57,11 @@ Status legend:
   - active `v24.0`, `v19.0`, and `v18.0` usages were removed from active code paths in favor of `v21.0`
   - env examples and review ops docs are aligned with the canonical Meta flow, `APP_RELEASE_CHANNEL`, and `META_OAUTH_SCOPE_PROFILE`
   - reviewer-facing submission assets were moved into `docs/app-review/`
-- Stage 4 is in progress:
+- Stage 4 is complete:
   - canonical Meta connect flow now stores encrypted page tokens and encrypted user tokens at the application layer
   - granted scopes and derived capabilities are now persisted on connected social accounts
   - review-critical publish paths now decrypt tokens through a shared accessor layer
   - active message, comment, webhook, automation, and analytics sync loaders now hydrate Meta accounts through shared decrypt helpers instead of assuming raw DB tokens
   - read-only analytics routes now only read social-account metadata they actually need, and `sync-analytics` logs now summarize Meta failures instead of dumping raw provider payloads
   - review-phase webhook deliveries are now acknowledged without executing webhook-driven side effects
+  - active message send/read, comment moderation, analytics sync, media readers, automation creation, background syncs, legacy automation polling, and canvas graph execution now enforce derived Meta capabilities instead of relying on token presence alone

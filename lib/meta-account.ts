@@ -13,6 +13,8 @@ export interface MetaCapabilityMap {
   instagram_basic: boolean
   instagram_publish: boolean
   analytics_read: boolean
+  facebook_comments_read: boolean
+  facebook_comments_manage: boolean
   comments_manage: boolean
   messages_manage: boolean
   pages_messaging: boolean
@@ -63,10 +65,22 @@ export function deriveMetaCapabilities(scopes: readonly string[]): MetaCapabilit
     instagram_basic: granted.has("instagram_basic"),
     instagram_publish: granted.has("instagram_content_publish"),
     analytics_read: granted.has("pages_read_engagement") || granted.has("instagram_manage_insights"),
+    facebook_comments_read: granted.has("pages_read_engagement") || granted.has("pages_manage_engagement"),
+    facebook_comments_manage: granted.has("pages_manage_engagement"),
     comments_manage: granted.has("instagram_manage_comments"),
     messages_manage: granted.has("instagram_manage_messages"),
     pages_messaging: granted.has("pages_messaging"),
   }
+}
+
+function getMetaCapabilities(
+  metadata: MetaAccountMetadata | null | undefined,
+): MetaCapabilityMap | null {
+  if (!metadata || typeof metadata !== "object") return null
+  if (metadata.capabilities) return metadata.capabilities
+
+  const grantedScopes = sanitizeScopes(metadata.granted_scopes)
+  return grantedScopes.length > 0 ? deriveMetaCapabilities(grantedScopes) : null
 }
 
 export function buildMetaAccountMetadata(input: {
@@ -153,10 +167,66 @@ export function canPublishWithMetaAccount(
   metadata: MetaAccountMetadata | null | undefined,
   platform: MetaPlatform,
 ): boolean {
-  const capabilities = metadata?.capabilities
+  const capabilities = getMetaCapabilities(metadata)
   if (!capabilities) return true
 
   return platform === "facebook"
     ? capabilities.facebook_publish
     : capabilities.instagram_publish
+}
+
+export function canReadAnalyticsWithMetaAccount(
+  metadata: MetaAccountMetadata | null | undefined,
+): boolean {
+  const capabilities = getMetaCapabilities(metadata)
+  if (!capabilities) return true
+  return capabilities.analytics_read
+}
+
+export function canManageCommentsWithMetaAccount(
+  metadata: MetaAccountMetadata | null | undefined,
+  platform: MetaPlatform,
+): boolean {
+  const capabilities = getMetaCapabilities(metadata)
+  if (!capabilities) return true
+
+  return platform === "facebook"
+    ? capabilities.facebook_comments_manage
+    : capabilities.comments_manage
+}
+
+export function canReadCommentsWithMetaAccount(
+  metadata: MetaAccountMetadata | null | undefined,
+  platform: MetaPlatform,
+): boolean {
+  const capabilities = getMetaCapabilities(metadata)
+  if (!capabilities) return true
+
+  return platform === "facebook"
+    ? capabilities.facebook_comments_read || capabilities.facebook_comments_manage
+    : capabilities.comments_manage
+}
+
+export function canManageMessagesWithMetaAccount(
+  metadata: MetaAccountMetadata | null | undefined,
+  platform: MetaPlatform,
+): boolean {
+  const capabilities = getMetaCapabilities(metadata)
+  if (!capabilities) return true
+
+  return platform === "facebook"
+    ? capabilities.pages_messaging
+    : capabilities.messages_manage
+}
+
+export function canReadConnectedMediaWithMetaAccount(
+  metadata: MetaAccountMetadata | null | undefined,
+  platform: MetaPlatform,
+): boolean {
+  const capabilities = getMetaCapabilities(metadata)
+  if (!capabilities) return true
+
+  return platform === "facebook"
+    ? capabilities.facebook_publish || capabilities.facebook_page_selection
+    : capabilities.instagram_basic || capabilities.instagram_publish
 }

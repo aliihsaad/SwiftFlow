@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { decryptMetaAccountRow } from '@/lib/meta-account';
+import { canManageMessagesWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
@@ -75,6 +75,16 @@ function messagingCapabilitiesFromError(errorCode: string | null, missingPermiss
     };
 }
 
+function requiredMessagingPermissions(platform: string): string[] {
+    return platform === 'facebook' ? ['pages_messaging'] : ['instagram_manage_messages'];
+}
+
+function messagingCapabilitiesFromAccount(platform: string, canManageMessages: boolean) {
+    return canManageMessages
+        ? messagingCapabilitiesFromError(null)
+        : messagingCapabilitiesFromError('meta_missing_permission', requiredMessagingPermissions(platform));
+}
+
 // GET - List conversations or fetch messages for a specific conversation, live from Meta API
 export async function GET(request: NextRequest) {
     try {
@@ -123,12 +133,48 @@ export async function GET(request: NextRequest) {
             );
         }
         const decryptedAccount = decryptMetaAccountRow(account);
+        const canManageMessages = canManageMessagesWithMetaAccount(
+            decryptedAccount.metadata,
+            platform === 'facebook' ? 'facebook' : 'instagram',
+        );
 
         if (!decryptedAccount.access_token) {
             return NextResponse.json(
                 { error: 'No access token available' },
                 { status: 400 }
             );
+        }
+
+        if (!canManageMessages) {
+            const messagingCapabilities = messagingCapabilitiesFromAccount(platform, false);
+
+            if (conversationId) {
+                return NextResponse.json({
+                    messages: [],
+                    pageId: platform === 'instagram'
+                        ? (decryptedAccount.metadata?.connected_page_id || decryptedAccount.account_id)
+                        : decryptedAccount.account_id,
+                    error: 'Messaging is not available for this connected account',
+                    errorCode: 'meta_missing_permission',
+                    missingPermissions: messagingCapabilities.missingPermissions,
+                    requiresReconnect: false,
+                    messagingCapabilities,
+                });
+            }
+
+            return NextResponse.json({
+                conversations: [],
+                error: 'Messaging is not available for this connected account',
+                errorCode: 'meta_missing_permission',
+                missingPermissions: messagingCapabilities.missingPermissions,
+                requiresReconnect: false,
+                account: { id: decryptedAccount.id, account_name: decryptedAccount.account_name, platform },
+                workspaceId: activeWorkspace.id,
+                pageId: platform === 'instagram'
+                    ? (decryptedAccount.metadata?.connected_page_id || decryptedAccount.account_id)
+                    : decryptedAccount.account_id,
+                messagingCapabilities,
+            });
         }
 
         // For Instagram, we need the connected Page ID (messaging goes through Pages API)
@@ -224,7 +270,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({
                 messages,
                 pageId,
-                messagingCapabilities: messagingCapabilitiesFromError(null),
+                messagingCapabilities: messagingCapabilitiesFromAccount(platform, canManageMessages),
             });
 
         } else {
@@ -272,7 +318,7 @@ export async function GET(request: NextRequest) {
                         account: { id: decryptedAccount.id, account_name: decryptedAccount.account_name, platform },
                         workspaceId: activeWorkspace.id,
                         pageId,
-                        messagingCapabilities: messagingCapabilitiesFromError(null),
+                        messagingCapabilities: messagingCapabilitiesFromAccount(platform, canManageMessages),
                         metaError: normalized.meta,
                     },
                     { status: normalized.httpStatus }
@@ -418,7 +464,7 @@ export async function GET(request: NextRequest) {
                 },
                 workspaceId: activeWorkspace.id,
                 pageId,
-                messagingCapabilities: messagingCapabilitiesFromError(null),
+                messagingCapabilities: messagingCapabilitiesFromAccount(platform, canManageMessages),
             });
         }
 

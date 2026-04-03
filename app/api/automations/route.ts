@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { decryptMetaAccountRow } from '@/lib/meta-account';
+import { canManageMessagesWithMetaAccount, canReadCommentsWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
@@ -181,11 +181,11 @@ export async function POST(request: NextRequest) {
         }
 
         // Verify the social account belongs to this workspace
-        let account: { id: string; access_token: string | null } | null = null;
+        let account: { id: string; access_token: string | null; platform?: string; metadata?: Record<string, unknown> | null } | null = null;
         if (resolvedAccountId) {
             const { data: acc, error: accountError } = await supabase
                 .from('social_accounts')
-                .select('id, access_token')
+                .select('id, access_token, platform, metadata')
                 .eq('id', resolvedAccountId)
                 .eq('workspace_id', activeWorkspace.id)
                 .single();
@@ -202,6 +202,38 @@ export async function POST(request: NextRequest) {
                 { error: 'Missing social account' },
                 { status: 400 }
             );
+        }
+
+        if (account && !isCanvasMode) {
+            const accountPlatform = account.platform === 'facebook' ? 'facebook' : 'instagram';
+
+            if (!canReadCommentsWithMetaAccount(account.metadata, accountPlatform)) {
+                return NextResponse.json(
+                    {
+                        error: 'Comment-trigger automation is not available for this connected account',
+                        errorCode: 'meta_missing_permission',
+                        missingPermissions: accountPlatform === 'facebook'
+                            ? ['pages_read_engagement']
+                            : ['instagram_manage_comments'],
+                        requiresReconnect: false,
+                    },
+                    { status: 403 }
+                );
+            }
+
+            if (!canManageMessagesWithMetaAccount(account.metadata, accountPlatform)) {
+                return NextResponse.json(
+                    {
+                        error: 'DM automation is not available for this connected account',
+                        errorCode: 'meta_missing_permission',
+                        missingPermissions: accountPlatform === 'facebook'
+                            ? ['pages_messaging']
+                            : ['instagram_manage_messages'],
+                        requiresReconnect: false,
+                    },
+                    { status: 403 }
+                );
+            }
         }
 
         // For canvas mode, skip post accessibility check (handled at trigger node level)

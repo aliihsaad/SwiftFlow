@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { canReadAnalyticsWithMetaAccount } from '@/lib/meta-account';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
@@ -37,6 +38,9 @@ export async function POST(request: NextRequest) {
             .eq('workspace_id', activeWorkspace.id);
         const socialAccountsList = socialAccounts || [];
         const platforms = Array.from(new Set(socialAccountsList.map((a: any) => a.platform).filter(Boolean)));
+        const analyticsCapableAccounts = socialAccountsList.filter((account: any) =>
+            canReadAnalyticsWithMetaAccount(account?.metadata),
+        );
         const platformGrantedScopes = new Map<string, Set<string>>();
         const platformExactScopesKnown = new Map<string, boolean>();
         for (const account of socialAccountsList as any[]) {
@@ -64,6 +68,24 @@ export async function POST(request: NextRequest) {
                 suspectedMissingPermissions.add(scope);
             }
         };
+
+        const suspectedMissingPermissions = new Set<string>();
+
+        if (socialAccountsList.length > 0 && analyticsCapableAccounts.length === 0) {
+            if (platforms.includes('instagram')) maybeAddPermissionHint('instagram', 'instagram_manage_insights');
+            if (platforms.includes('facebook')) maybeAddPermissionHint('facebook', 'pages_read_engagement');
+
+            return NextResponse.json(
+                {
+                    error: 'Analytics sync is not available for the connected accounts in this workspace',
+                    errorCode: 'meta_missing_permission',
+                    missingPermissions: Array.from(suspectedMissingPermissions),
+                    requiresReconnect: false,
+                    meta: null,
+                },
+                { status: 403 }
+            );
+        }
 
         // Call the sync-analytics Edge Function
         const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/sync-analytics`;
@@ -110,7 +132,6 @@ export async function POST(request: NextRequest) {
         const directErrors = Number(result?.posts?.direct?.errors || 0);
 
         const warnings: string[] = [];
-        const suspectedMissingPermissions = new Set<string>();
 
         if (socialAccountsList.length === 0) {
             warnings.push('No connected social accounts were found for this workspace.');

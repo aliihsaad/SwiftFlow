@@ -10,7 +10,12 @@ import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
 import { buildAutomationAiPrompt, interpolateTemplate } from "../_shared/automation-context.ts"
 import { sendResendEmail, textToSimpleHtml } from "../_shared/resend-email.ts"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
-import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
+import {
+  canManageCommentsWithMetaAccount,
+  canManageMessagesWithMetaAccount,
+  canReadCommentsWithMetaAccount,
+  decryptMetaAccountRow,
+} from "../_shared/meta-account.ts"
 
 import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 
@@ -258,6 +263,33 @@ const NODE_WORKER_MAP: Record<string, string> = {
   action_send_email: 'automation-worker-send-email',
 };
 
+function getGraphCapabilityIssues(
+  graph: WorkflowGraph,
+  account: { platform?: string; metadata?: Record<string, any> | null },
+): string[] {
+  const issues: string[] = [];
+  const platform = account?.platform === 'facebook' ? 'facebook' : 'instagram';
+  const nodeTypes = new Set((graph?.nodes || []).map((node) => node?.data?.type).filter(Boolean));
+  const triggerType = (graph?.nodes || []).find((node) => String(node?.data?.type || '').startsWith('trigger_'))?.data?.type;
+
+  if ((triggerType === 'trigger_new_comment' || nodeTypes.has('action_reply_comment')) &&
+      !canReadCommentsWithMetaAccount(account?.metadata, platform)) {
+    issues.push('Missing comment-read capability');
+  }
+
+  if (nodeTypes.has('action_reply_comment') &&
+      !canManageCommentsWithMetaAccount(account?.metadata, platform)) {
+    issues.push('Missing comment-management capability');
+  }
+
+  if ((nodeTypes.has('action_send_dm') || nodeTypes.has('action_private_reply')) &&
+      !canManageMessagesWithMetaAccount(account?.metadata, platform)) {
+    issues.push('Missing messaging capability');
+  }
+
+  return issues;
+}
+
 function normalizeCommentReply(text: string, maxLength = 220): string {
   const normalized = String(text || '').replace(/\r/g, '').trim();
   if (!normalized) return '';
@@ -302,7 +334,7 @@ export async function executeWorkflowGraph(
   supabase: any,
   automation: any,
   triggerContext: TriggerContext,
-  account: { account_id: string; access_token: string; metadata?: Record<string, any> },
+  account: { account_id: string; access_token: string; metadata?: Record<string, any>; platform?: string },
 ): Promise<ExecutionResult> {
   const graph: WorkflowGraph = automation.workflow_graph;
   const result: ExecutionResult = { processed: 0, dmsSent: 0, errors: 0, nodeResults: {} };
@@ -319,6 +351,22 @@ export async function executeWorkflowGraph(
       ...result,
       errors: 1,
       nodeResults: {},
+    };
+  }
+
+  const capabilityIssues = getGraphCapabilityIssues(graph, account);
+  if (capabilityIssues.length > 0) {
+    console.error(`[GRAPH] Automation ${automation.id}: Capability check failed`, capabilityIssues);
+    return {
+      ...result,
+      errors: capabilityIssues.length,
+      nodeResults: {
+        capability_guard: {
+          success: false,
+          error: capabilityIssues.join('; '),
+          output: { capabilityIssues },
+        },
+      },
     };
   }
 

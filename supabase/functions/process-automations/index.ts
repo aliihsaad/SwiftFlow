@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { executeWorkflowGraph } from "./graph-executor.ts"
-import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
+import { canManageMessagesWithMetaAccount, canReadCommentsWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
 
 import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 
@@ -321,6 +321,22 @@ async function processAutomation(
         return stats;
     }
 
+    if (!canReadCommentsWithMetaAccount(
+        account.metadata,
+        account.platform === 'facebook' ? 'facebook' : 'instagram',
+    )) {
+        console.error(`Automation ${automation.id}: Missing comment-read capability`);
+        return stats;
+    }
+
+    if (!canManageMessagesWithMetaAccount(
+        account.metadata,
+        account.platform === 'facebook' ? 'facebook' : 'instagram',
+    )) {
+        console.error(`Automation ${automation.id}: Missing messaging capability`);
+        return stats;
+    }
+
     // 1. Fetch comments from Meta Graph API
     const comments = await fetchPostComments(
         automation.platform_post_id,
@@ -586,6 +602,24 @@ async function processWebhookComment(
 
         if (!account?.access_token) {
             console.error(`[WEBHOOK_FAST] Automation ${auto.id}: No access token`);
+            totalStats.errors++;
+            continue;
+        }
+
+        if (!canReadCommentsWithMetaAccount(
+            account.metadata,
+            account.platform === 'facebook' ? 'facebook' : 'instagram',
+        )) {
+            console.error(`[WEBHOOK_FAST] Automation ${auto.id}: Missing comment-read capability`);
+            totalStats.errors++;
+            continue;
+        }
+
+        if (!canManageMessagesWithMetaAccount(
+            account.metadata,
+            account.platform === 'facebook' ? 'facebook' : 'instagram',
+        )) {
+            console.error(`[WEBHOOK_FAST] Automation ${auto.id}: Missing messaging capability`);
             totalStats.errors++;
             continue;
         }

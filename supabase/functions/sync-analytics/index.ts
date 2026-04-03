@@ -1,7 +1,7 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
+import { canReadAnalyticsWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
 import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 
 // Use v21.0 to maintain compatibility with older metric names
@@ -252,7 +252,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
 
     // Log which accounts have tokens
     decryptedAccounts.forEach(acc => {
-        console.log(`[Sync] Account ${acc.platform} (${acc.id}): ${acc.access_token ? 'Has token' : 'No token'}`);
+        console.log(`[Sync] Account ${acc.platform} (${acc.id}): token=${acc.access_token ? 'yes' : 'no'} analytics=${canReadAnalyticsWithMetaAccount(acc.metadata) ? 'yes' : 'no'}`);
     });
 
     let syncedCount = 0;
@@ -327,6 +327,11 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
             const account = decryptedAccounts.find((a: any) => a.platform === publishedPost.platform);
             if (!account || !account.access_token) {
                 console.log(`[Sync] No account with token found for platform ${publishedPost.platform}`);
+                continue;
+            }
+
+            if (!canReadAnalyticsWithMetaAccount(account.metadata)) {
+                console.log(`[Sync] Account ${account.id} lacks analytics capability for platform ${publishedPost.platform}, skipping`);
                 continue;
             }
 
@@ -417,6 +422,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
     // Also sync direct/native platform posts (not created in app) so analytics stays source-agnostic.
     for (const account of decryptedAccounts) {
         if (!account.access_token) continue;
+        if (!canReadAnalyticsWithMetaAccount(account.metadata)) continue;
 
         try {
             if (account.platform === 'instagram') {
@@ -644,6 +650,11 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
     for (const account of decryptedAccounts) {
         if (!account.access_token) {
             console.log(`[AccountSync] Account ${account.id} (${account.platform}) has no access token, skipping`);
+            continue;
+        }
+
+        if (!canReadAnalyticsWithMetaAccount(account.metadata)) {
+            console.log(`[AccountSync] Account ${account.id} (${account.platform}) lacks analytics capability, skipping`);
             continue;
         }
 

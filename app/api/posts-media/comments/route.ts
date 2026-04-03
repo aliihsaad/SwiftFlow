@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { decryptMetaAccountRow } from '@/lib/meta-account';
+import { canManageCommentsWithMetaAccount, canReadCommentsWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
@@ -7,6 +7,14 @@ import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
+
+function requiredCommentPermissions(platform: string, mode: 'read' | 'manage'): string[] {
+    if (platform === 'facebook') {
+        return [mode === 'manage' ? 'pages_manage_engagement' : 'pages_read_engagement'];
+    }
+
+    return ['instagram_manage_comments'];
+}
 
 function metaErrorResponse(
     graphError: any,
@@ -27,6 +35,21 @@ function metaErrorResponse(
             meta: normalized.meta,
         },
         { status: normalized.httpStatus }
+    );
+}
+
+function commentCapabilityErrorResponse(platform: string, mode: 'read' | 'manage') {
+    return NextResponse.json(
+        {
+            error: mode === 'read'
+                ? 'Comment access is not available for this connected account'
+                : 'Comment management is not available for this connected account',
+            errorCode: 'meta_missing_permission',
+            missingPermissions: requiredCommentPermissions(platform, mode),
+            requiresReconnect: false,
+            meta: null,
+        },
+        { status: 403 }
     );
 }
 
@@ -76,6 +99,13 @@ export async function GET(request: NextRequest) {
                 { error: 'No access token available' },
                 { status: 400 }
             );
+        }
+
+        if (!canReadCommentsWithMetaAccount(
+            decryptedAccount.metadata,
+            platform === 'facebook' ? 'facebook' : 'instagram',
+        )) {
+            return commentCapabilityErrorResponse(platform, 'read');
         }
 
         let comments: any[] = [];
@@ -204,6 +234,13 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        if (!canManageCommentsWithMetaAccount(
+            decryptedAccount.metadata,
+            platform === 'facebook' ? 'facebook' : 'instagram',
+        )) {
+            return commentCapabilityErrorResponse(platform, 'manage');
+        }
+
         // Post reply via Meta API
         let replyUrl: string;
         if (platform === 'instagram') {
@@ -286,6 +323,13 @@ export async function DELETE(request: NextRequest) {
             );
         }
 
+        if (!canManageCommentsWithMetaAccount(
+            decryptedAccount.metadata,
+            platform === 'facebook' ? 'facebook' : 'instagram',
+        )) {
+            return commentCapabilityErrorResponse(platform, 'manage');
+        }
+
         // Hide comment via Meta API (FB uses is_hidden, IG uses hide)
         const hideParam = platform === 'facebook' ? 'is_hidden=true' : 'hide=true';
         const hideUrl = `${META_GRAPH_URL}/${commentId}?${hideParam}&access_token=${decryptedAccount.access_token}`;
@@ -350,6 +394,13 @@ export async function PATCH(request: NextRequest) {
                 { error: 'No account or token available' },
                 { status: 400 }
             );
+        }
+
+        if (!canManageCommentsWithMetaAccount(
+            decryptedAccount.metadata,
+            platform === 'facebook' ? 'facebook' : 'instagram',
+        )) {
+            return commentCapabilityErrorResponse(platform, 'manage');
         }
 
         const visibilityParam = platform === 'facebook'

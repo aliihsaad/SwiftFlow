@@ -1,7 +1,7 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
+import { canReadCommentsWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
 import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
@@ -111,6 +111,14 @@ async function syncComments(supabase: any, workspaceId: string) {
     for (const account of decryptedAccounts) {
         if (!account.access_token) {
             console.log(`[CommentSync] Account ${account.id} has no access token, skipping`);
+            continue;
+        }
+
+        if (!canReadCommentsWithMetaAccount(
+            account.metadata,
+            account.platform === 'facebook' ? 'facebook' : 'instagram',
+        )) {
+            console.log(`[CommentSync] Account ${account.id} lacks comment-read capability, skipping`);
             continue;
         }
 
@@ -234,6 +242,14 @@ async function syncComments(supabase: any, workspaceId: string) {
             const account = decryptedAccounts.find(a => a.id === automation.social_account_id);
             if (!account?.access_token) {
                 console.log(`[CommentSync] No account/token for automation post ${automation.platform_post_id}`);
+                continue;
+            }
+
+            if (!canReadCommentsWithMetaAccount(
+                account.metadata,
+                account.platform === 'facebook' ? 'facebook' : 'instagram',
+            )) {
+                console.log(`[CommentSync] Account ${account.id} lacks comment-read capability for automation post ${automation.platform_post_id}`);
                 continue;
             }
 

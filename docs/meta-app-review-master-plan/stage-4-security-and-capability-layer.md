@@ -1,6 +1,6 @@
 # Stage 4: Security and Capability Layer
 
-Status: `in_progress`
+Status: `done`
 
 Depends on: `Stage 3`
 
@@ -45,7 +45,9 @@ Make permissions, token handling, and feature availability explicit and safe.
 - Read-only analytics routes now avoid unnecessary `social_accounts.access_token` reads when they only need metadata and platform state
 - `sync-analytics` runtime logs now summarize Meta failures instead of dumping raw provider payloads
 - `review_phase_1` webhook deliveries are now acknowledged without executing message/comment/automation side effects
-- Remaining Stage 4 work is expanding the accessor layer and token redaction rules across the last legacy holdouts and normalizing secret handling outside the Meta path
+- Active message send/read, comment moderation, and analytics sync app routes now gate behavior on derived Meta capabilities instead of only checking for token presence
+- Background message sync, comment sync, analytics sync, legacy automation polling, and canvas graph execution now also short-circuit on missing derived capabilities
+- Stage 4 exit gate is satisfied: token encryption, shared accessors, persisted scopes/capabilities, capability-aware active flows, and normalized secret/env handling are all in place
 
 ## Exit Gate
 

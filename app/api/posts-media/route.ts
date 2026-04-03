@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { decryptMetaAccountRow } from '@/lib/meta-account';
+import { canReadConnectedMediaWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
@@ -50,6 +50,24 @@ export async function GET(request: NextRequest) {
             return NextResponse.json(
                 { error: 'No access token available for this account' },
                 { status: 400 }
+            );
+        }
+
+        if (!canReadConnectedMediaWithMetaAccount(
+            decryptedAccount.metadata,
+            platform === 'facebook' ? 'facebook' : 'instagram',
+        )) {
+            return NextResponse.json(
+                {
+                    error: 'Media access is not available for this connected account',
+                    errorCode: 'meta_missing_permission',
+                    missingPermissions: platform === 'facebook'
+                        ? ['pages_manage_posts']
+                        : ['instagram_basic'],
+                    requiresReconnect: false,
+                    media: [],
+                },
+                { status: 403 }
             );
         }
 

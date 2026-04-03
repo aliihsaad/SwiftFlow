@@ -481,7 +481,9 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                             </SelectContent>
                         </Select>
                         <p className={helperClass}>
-                            Curated per provider so teams can choose a lower-cost default or a higher-quality image model without changing text generation.
+                            {imageModelsData?.source === 'live'
+                                ? 'Loaded from provider API using exact image-capable model IDs.'
+                                : 'Using curated image-model fallbacks. Save API key first to load account-aware image models where available.'}
                         </p>
                         {renderModelTips(curatedImageModels)}
                     </div>

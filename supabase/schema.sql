@@ -361,6 +361,9 @@ ALTER TABLE workspace_brand_profiles DISABLE ROW LEVEL SECURITY;
 GRANT ALL ON TABLE chat_sessions TO anon, authenticated, service_role;
 ALTER TABLE chat_sessions DISABLE ROW LEVEL SECURITY;
 
+GRANT ALL ON TABLE generated_assets TO service_role;
+GRANT SELECT, INSERT, UPDATE ON TABLE generated_assets TO authenticated;
+
 -- =============================================================================
 -- EXTERNAL SERVICES
 -- =============================================================================

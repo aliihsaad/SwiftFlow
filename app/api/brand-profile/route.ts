@@ -45,7 +45,12 @@ export async function GET(request: NextRequest) {
                 services: [],
                 unique_selling_points: [],
                 logo_url: '',
-                brand_colors: {},
+                brand_colors: {
+                    enabled: true,
+                    primary: '#000000',
+                    secondary: '#666666',
+                    accent: '#0066CC',
+                },
                 reference_image_urls: [],
                 instagram_handle: '',
                 facebook_page: '',

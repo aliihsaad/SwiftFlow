@@ -13,6 +13,13 @@ import { useToast } from "@/components/ui/use-toast"
 import { X, Plus, Upload, Loader2, Info } from "lucide-react"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 
+const DEFAULT_BRAND_COLORS = {
+    enabled: true,
+    primary: "#000000",
+    secondary: "#666666",
+    accent: "#0066CC",
+}
+
 interface BrandProfileFormProps {
     workspaceId: string
 }
@@ -191,6 +198,18 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
         const images = [...(profile.reference_image_urls || [])]
         images.splice(index, 1)
         updateField('reference_image_urls', images)
+    }
+
+    const getBrandColors = () => ({
+        ...DEFAULT_BRAND_COLORS,
+        ...(profile?.brand_colors || {}),
+    })
+
+    const updateBrandColors = (next: Partial<typeof DEFAULT_BRAND_COLORS>) => {
+        updateField('brand_colors', {
+            ...getBrandColors(),
+            ...next,
+        })
     }
 
     const panelClass = "border-white/10 bg-[#151620] text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]"
@@ -513,25 +532,49 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
             <Card className={panelClass}>
                 <CardHeader>
                     <CardTitle>Brand Colors</CardTitle>
-                    <CardDescription>Define your brand color palette for AI-generated content</CardDescription>
+                    <CardDescription>Define your palette and control whether AI image generation should use it as prompt context</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <div className="flex items-start justify-between gap-4 rounded-xl border border-white/10 bg-[#1b1d28] p-4">
+                        <div className="space-y-1">
+                            <Label className={labelClass}>Use colors in AI context</Label>
+                            <p className="text-sm text-white/45">
+                                When enabled, AI image generation will include these colors in the prompt context.
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={getBrandColors().enabled}
+                            onClick={() => updateBrandColors({ enabled: !getBrandColors().enabled })}
+                            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors ${
+                                getBrandColors().enabled
+                                    ? "border-cyan-300/30 bg-cyan-400/20"
+                                    : "border-white/10 bg-white/10"
+                            }`}
+                        >
+                            <span
+                                className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                                    getBrandColors().enabled ? "translate-x-6" : "translate-x-1"
+                                }`}
+                            />
+                        </button>
+                    </div>
+
                     <div className="space-y-3">
                         {/* Primary Color */}
                         <div className="flex items-center gap-4">
                             <Label className={`w-24 ${labelClass}`}>Primary</Label>
                             <div className="flex items-center gap-2 flex-1">
-                                <div
-                                    className="h-10 w-10 shrink-0 rounded border-2 border-white/20"
-                                    style={{ backgroundColor: profile?.brand_colors?.primary || '#000000' }}
+                                <Input
+                                    type="color"
+                                    value={getBrandColors().primary}
+                                    onChange={(e) => updateBrandColors({ primary: e.target.value })}
+                                    className="h-10 w-14 shrink-0 cursor-pointer rounded border border-white/10 bg-[#1b1d28] p-1"
                                 />
                                 <Input
-                                    value={profile?.brand_colors?.primary || '#000000'}
-                                    onChange={(e) => updateField('brand_colors', {
-                                        primary: e.target.value,
-                                        secondary: profile?.brand_colors?.secondary || '#666666',
-                                        accent: profile?.brand_colors?.accent || '#0066CC'
-                                    })}
+                                    value={getBrandColors().primary}
+                                    onChange={(e) => updateBrandColors({ primary: e.target.value })}
                                     placeholder="#000000"
                                     className={`${inputClass} w-32 font-mono text-sm`}
                                 />
@@ -542,17 +585,15 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                         <div className="flex items-center gap-4">
                             <Label className={`w-24 ${labelClass}`}>Secondary</Label>
                             <div className="flex items-center gap-2 flex-1">
-                                <div
-                                    className="h-10 w-10 shrink-0 rounded border-2 border-white/20"
-                                    style={{ backgroundColor: profile?.brand_colors?.secondary || '#666666' }}
+                                <Input
+                                    type="color"
+                                    value={getBrandColors().secondary}
+                                    onChange={(e) => updateBrandColors({ secondary: e.target.value })}
+                                    className="h-10 w-14 shrink-0 cursor-pointer rounded border border-white/10 bg-[#1b1d28] p-1"
                                 />
                                 <Input
-                                    value={profile?.brand_colors?.secondary || '#666666'}
-                                    onChange={(e) => updateField('brand_colors', {
-                                        primary: profile?.brand_colors?.primary || '#000000',
-                                        secondary: e.target.value,
-                                        accent: profile?.brand_colors?.accent || '#0066CC'
-                                    })}
+                                    value={getBrandColors().secondary}
+                                    onChange={(e) => updateBrandColors({ secondary: e.target.value })}
                                     placeholder="#666666"
                                     className={`${inputClass} w-32 font-mono text-sm`}
                                 />
@@ -563,17 +604,15 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                         <div className="flex items-center gap-4">
                             <Label className={`w-24 ${labelClass}`}>Accent</Label>
                             <div className="flex items-center gap-2 flex-1">
-                                <div
-                                    className="h-10 w-10 shrink-0 rounded border-2 border-white/20"
-                                    style={{ backgroundColor: profile?.brand_colors?.accent || '#0066CC' }}
+                                <Input
+                                    type="color"
+                                    value={getBrandColors().accent}
+                                    onChange={(e) => updateBrandColors({ accent: e.target.value })}
+                                    className="h-10 w-14 shrink-0 cursor-pointer rounded border border-white/10 bg-[#1b1d28] p-1"
                                 />
                                 <Input
-                                    value={profile?.brand_colors?.accent || '#0066CC'}
-                                    onChange={(e) => updateField('brand_colors', {
-                                        primary: profile?.brand_colors?.primary || '#000000',
-                                        secondary: profile?.brand_colors?.secondary || '#666666',
-                                        accent: e.target.value
-                                    })}
+                                    value={getBrandColors().accent}
+                                    onChange={(e) => updateBrandColors({ accent: e.target.value })}
                                     placeholder="#0066CC"
                                     className={`${inputClass} w-32 font-mono text-sm`}
                                 />
@@ -587,15 +626,15 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                         <div className="flex gap-2">
                             <div
                                 className="h-16 flex-1 rounded-lg border-2 border-white/15 shadow-sm"
-                                style={{ backgroundColor: profile?.brand_colors?.primary || '#000000' }}
+                                style={{ backgroundColor: getBrandColors().primary }}
                             />
                             <div
                                 className="h-16 flex-1 rounded-lg border-2 border-white/15 shadow-sm"
-                                style={{ backgroundColor: profile?.brand_colors?.secondary || '#666666' }}
+                                style={{ backgroundColor: getBrandColors().secondary }}
                             />
                             <div
                                 className="h-16 flex-1 rounded-lg border-2 border-white/15 shadow-sm"
-                                style={{ backgroundColor: profile?.brand_colors?.accent || '#0066CC' }}
+                                style={{ backgroundColor: getBrandColors().accent }}
                             />
                         </div>
                     </div>

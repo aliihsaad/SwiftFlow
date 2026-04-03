@@ -13,6 +13,7 @@ interface ReferenceImage {
 }
 
 interface BrandColors {
+    enabled?: boolean
     primary?: string
     secondary?: string
     accent?: string
@@ -392,7 +393,10 @@ serve(async (req) => {
             .maybeSingle<BrandProfileRow>()
 
         const colors = brandProfile?.brand_colors || null
-        const colorList = [colors?.primary, colors?.secondary, colors?.accent].filter((value): value is string => typeof value === "string" && value.length > 0)
+        const shouldUseBrandColors = colors?.enabled !== false
+        const colorList = shouldUseBrandColors
+            ? [colors?.primary, colors?.secondary, colors?.accent].filter((value): value is string => typeof value === "string" && value.length > 0)
+            : []
         const colorContext = colorList.length > 0 ? ` Use these brand colors: ${colorList.join(", ")}.` : ""
         const promptUsed = String(lastMsg?.content || prompt || "Generate an image")
         const enhancedPrompt = `${promptUsed}. Style: ${style || "Photorealistic, cinematic lighting"}.${colorContext}`

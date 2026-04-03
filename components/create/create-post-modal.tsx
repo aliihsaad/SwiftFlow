@@ -20,7 +20,7 @@ import { SchedulingControls } from "./scheduling-controls"
 import { InstagramPostPreview } from "./instagram-post-preview"
 import {
     X, Info, Plus, Instagram, Facebook, Monitor,
-    RefreshCw, Smile, Bold, Italic, Link, BarChart2,
+    RefreshCw, Smile,
     Wand2, Eye, Loader2, Lock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -402,10 +402,6 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
                                     />
                                 </PopoverContent>
                             </Popover>
-                            <button className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md"><Bold className="h-4 w-4 text-muted-foreground" /></button>
-                            <button className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md"><Italic className="h-4 w-4 text-muted-foreground" /></button>
-                            <button className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md hidden sm:block"><Link className="h-4 w-4 text-muted-foreground" /></button>
-                            <button className="p-1.5 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-md hidden sm:block"><BarChart2 className="h-4 w-4 text-muted-foreground" /></button>
                             <button
                                 onClick={handleGenerateCaption}
                                 disabled={isGeneratingAI}

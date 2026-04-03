@@ -1,13 +1,24 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Facebook, Instagram, AlertCircle, CheckCircle, Info, Settings, Loader2 } from "lucide-react"
 import { InstagramConnectDialog } from "./instagram-connect-dialog"
 import { redirectToMetaOAuth } from "@/utils/meta-oauth"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
+import { useToast } from "@/components/ui/use-toast"
 
 interface ConnectedAccountsProps {
     workspaceId: string;
@@ -41,6 +52,7 @@ function ConnectedAccountSkeleton({ accent }: { accent: "blue" | "pink" }) {
 
 export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     const searchParams = useSearchParams();
+    const { toast } = useToast()
     const [status, setStatus] = useState<{
         facebook: boolean
         instagram: boolean
@@ -58,6 +70,8 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     });
     const [loading, setLoading] = useState(true);
     const [isConnectingMeta, setIsConnectingMeta] = useState(false);
+    const [disconnectTarget, setDisconnectTarget] = useState<"facebook" | "instagram" | null>(null)
+    const [isDisconnecting, setIsDisconnecting] = useState(false)
     const canManageIntegrations = useWorkspacePermission("integrations:write");
 
     // URL params for feedback
@@ -68,24 +82,23 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     const errorDetails = searchParams.get('details');
     const callbackWorkspace = searchParams.get('workspace');
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                // Fetch social status
-                const statusRes = await fetch(`/api/brand/social-status?workspaceId=${workspaceId}`);
-                if (statusRes.ok) {
-                    const data = await statusRes.json();
-                    setStatus(data);
-                }
-            } catch (error) {
-                console.error("Failed to fetch data:", error);
-            } finally {
-                setLoading(false);
+    const fetchStatus = useCallback(async () => {
+        try {
+            const statusRes = await fetch(`/api/brand/social-status?workspaceId=${workspaceId}`);
+            if (statusRes.ok) {
+                const data = await statusRes.json();
+                setStatus(data);
             }
-        };
+        } catch (error) {
+            console.error("Failed to fetch data:", error);
+        } finally {
+            setLoading(false);
+        }
+    }, [workspaceId])
 
-        fetchData();
-    }, [workspaceId]);
+    useEffect(() => {
+        fetchStatus();
+    }, [fetchStatus]);
 
     const handleConnectPages = () => {
         if (!canManageIntegrations) return;
@@ -93,6 +106,40 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
         setIsConnectingMeta(true);
         redirectToMetaOAuth(workspaceId);
     };
+
+    const handleDisconnectConfirm = async () => {
+        if (!disconnectTarget || !canManageIntegrations) return
+
+        setIsDisconnecting(true)
+        try {
+            const response = await fetch(`/api/brand/social-accounts?workspaceId=${workspaceId}&platform=${disconnectTarget}`, {
+                method: 'DELETE',
+            })
+            const payload = await response.json().catch(() => ({}))
+
+            if (!response.ok) {
+                throw new Error(payload?.error || 'Failed to disconnect account')
+            }
+
+            await fetchStatus()
+            setDisconnectTarget(null)
+            toast({
+                title: disconnectTarget === 'facebook' ? 'Meta accounts disconnected' : 'Instagram disconnected',
+                description: disconnectTarget === 'facebook'
+                    ? 'Facebook and any linked Instagram account were removed from this workspace.'
+                    : 'Instagram was removed from this workspace.',
+            })
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Failed to disconnect account'
+            toast({
+                title: 'Disconnect failed',
+                description: message,
+                variant: 'destructive',
+            })
+        } finally {
+            setIsDisconnecting(false)
+        }
+    }
 
     return (
         <>
@@ -268,6 +315,18 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                     )}
                                 </Button>
                             </div>
+                            {status.facebook && canManageIntegrations && (
+                                <div className="-mt-2 flex justify-end">
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => setDisconnectTarget("facebook")}
+                                        disabled={isConnectingMeta || isDisconnecting}
+                                        className="h-8 rounded-lg px-3 text-xs text-red-300/90 hover:bg-red-500/10 hover:text-red-200"
+                                    >
+                                        Disconnect Facebook
+                                    </Button>
+                                </div>
+                            )}
 
                             {/* Instagram Connection */}
                             <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#1b1d28] p-4">
@@ -312,6 +371,18 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                     }
                                 />
                             </div>
+                            {status.instagram && canManageIntegrations && (
+                                <div className="-mt-2 flex justify-end">
+                                    <Button
+                                        variant="ghost"
+                                        onClick={() => setDisconnectTarget("instagram")}
+                                        disabled={isConnectingMeta || isDisconnecting}
+                                        className="h-8 rounded-lg px-3 text-xs text-red-300/90 hover:bg-red-500/10 hover:text-red-200"
+                                    >
+                                        Disconnect Instagram
+                                    </Button>
+                                </div>
+                            )}
                         </>
                     )}
 
@@ -327,6 +398,43 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                     </div>
                 </CardContent>
             </Card>
+
+            <AlertDialog open={!!disconnectTarget} onOpenChange={(open) => !open && !isDisconnecting && setDisconnectTarget(null)}>
+                <AlertDialogContent
+                    className="border-0"
+                    style={{
+                        background: "#1b1d28",
+                        color: "rgba(255,255,255,0.88)",
+                        boxShadow: "0 24px 80px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.08) inset",
+                    }}
+                >
+                    <AlertDialogHeader>
+                        <AlertDialogTitle style={{ color: "rgba(255,255,255,0.92)" }}>
+                            {disconnectTarget === "facebook" ? "Disconnect Facebook and linked Instagram?" : "Disconnect Instagram?"}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription style={{ color: "rgba(255,255,255,0.58)" }}>
+                            {disconnectTarget === "facebook"
+                                ? "This removes the connected Facebook Page from the workspace and also removes any linked Instagram business account connected through that Meta flow."
+                                : "This removes the Instagram account from the workspace. You can reconnect it later from Brand Settings."}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel
+                            disabled={isDisconnecting}
+                            className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                        >
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDisconnectConfirm}
+                            disabled={isDisconnecting}
+                            className="border border-red-500/20 bg-red-500/15 text-red-200 hover:bg-red-500/20"
+                        >
+                            {isDisconnecting ? "Disconnecting…" : "Disconnect"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     )
 }

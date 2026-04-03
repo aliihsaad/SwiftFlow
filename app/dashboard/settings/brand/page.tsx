@@ -4,7 +4,6 @@ import { redirect } from "next/navigation"
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ConnectedAccounts } from "@/components/settings/connected-accounts"
-import { ExternalServicesList } from "./components/external-services-list"
 
 export default async function BrandSettingsPage() {
     const activeWorkspace = await getActiveWorkspace()
@@ -26,10 +25,9 @@ export default async function BrandSettingsPage() {
             </div>
 
             <Tabs defaultValue="details" className="space-y-6">
-                <TabsList className="grid h-auto w-full grid-cols-3 rounded-xl border border-white/10 bg-[#1b1d28] p-1 sm:inline-flex sm:w-fit sm:grid-cols-none">
+                <TabsList className="grid h-auto w-full grid-cols-2 rounded-xl border border-white/10 bg-[#1b1d28] p-1 sm:inline-flex sm:w-fit sm:grid-cols-none">
                     <TabsTrigger value="details" className="min-w-0 rounded-lg px-2 py-2 text-xs font-medium text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white sm:px-4 sm:py-2.5 sm:text-sm">Brand Details</TabsTrigger>
                     <TabsTrigger value="social" className="min-w-0 rounded-lg px-2 py-2 text-xs font-medium text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white sm:px-4 sm:py-2.5 sm:text-sm">Connected Accounts</TabsTrigger>
-                    <TabsTrigger value="services" className="min-w-0 rounded-lg px-2 py-2 text-xs font-medium text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white sm:px-4 sm:py-2.5 sm:text-sm">External Services</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="details">
@@ -38,10 +36,6 @@ export default async function BrandSettingsPage() {
 
                 <TabsContent value="social">
                     <ConnectedAccounts workspaceId={activeWorkspace.id} />
-                </TabsContent>
-
-                <TabsContent value="services">
-                    <ExternalServicesList workspaceId={activeWorkspace.id} />
                 </TabsContent>
             </Tabs>
         </div>

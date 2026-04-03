@@ -16,7 +16,7 @@ Status legend:
 | Stage 2: Phase 1 surface cleanup | `done` | Stage 1 | no legacy reviewer-visible surfaces, no fake billing/review-confusing UI |
 | Stage 3: Meta integration consolidation | `done` | Stage 2 | one OAuth flow, one scope registry, one verified Graph version policy |
 | Stage 4: Security and capability layer | `done` | Stage 3 | encrypted token handling, persisted scopes/capabilities, normalized secret/env loading |
-| Stage 5: OpenRouter-first AI migration | `in_progress` | Stage 2 | one shared AI adapter for migrated text flows, truthful provider model |
+| Stage 5: OpenRouter-first AI migration | `done` | Stage 2 | one shared AI adapter for migrated text flows, truthful provider model |
 | Stage 6: Reviewer-safe UX and compliance | `not_started` | Stage 3, Stage 4 | reviewer path, public compliance pages, aligned reviewer docs |
 | Stage 7: Reliability hardening | `not_started` | Stage 4, Stage 5, Stage 6 | stable publish/schedule behavior, health/status surfaces, deploy checks |
 | Stage 8: Submission package finalization | `not_started` | Stage 7 | final reviewer assets, test credentials, screencast package |
@@ -65,7 +65,7 @@ Status legend:
   - read-only analytics routes now only read social-account metadata they actually need, and `sync-analytics` logs now summarize Meta failures instead of dumping raw provider payloads
   - review-phase webhook deliveries are now acknowledged without executing webhook-driven side effects
   - active message send/read, comment moderation, analytics sync, media readers, automation creation, background syncs, legacy automation polling, and canvas graph execution now enforce derived Meta capabilities instead of relying on token presence alone
-- Stage 5 is in progress:
+- Stage 5 is complete:
   - `openrouter` is now being introduced as a first-class provider in workspace settings, schema, and runtime defaults
   - new workspace settings will default to `openrouter` instead of Gemini
   - model listing and API-key validation are being expanded to include OpenRouter's official `/api/v1/models` and `/api/v1/key` endpoints
@@ -73,3 +73,4 @@ Status legend:
   - the settings UI now shows provider-aware model guidance for lower-cost, balanced, and higher-quality choices instead of a single raw model dropdown
   - migrated text-generation flows now resolve through the shared provider runtime instead of per-function Gemini/OpenAI branching
   - `research-topic` is now an explicit Gemini-grounded exception until OpenRouter web search is proven stable enough for review-safe use
+  - Stage 5 schema migrations have been applied to Supabase and the updated AI edge functions have been deployed

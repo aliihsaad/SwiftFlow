@@ -1,6 +1,6 @@
 # Stage 5: OpenRouter-First AI Migration
 
-Status: `in_progress`
+Status: `done`
 
 Depends on: `Stage 2`
 
@@ -55,6 +55,7 @@ Instead:
 - the settings UI is being upgraded with provider-aware recommendations instead of a single generic model selector
 - migrated text-generation flows are now being routed through the shared provider runtime
 - `research-topic` remains a deliberate Gemini-grounded exception for now, with explicit messaging instead of silent provider mismatch
+- Stage 5 migrations have been applied and the AI-related Supabase edge functions have been deployed
 
 ## Exit Gate
 

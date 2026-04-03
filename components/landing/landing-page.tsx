@@ -270,6 +270,10 @@ const reviewFaqItems = [
         q: "Where can I verify privacy and data handling details?",
         a: "Use the public Privacy Policy, Terms of Service, and Data Deletion pages linked in the site footer and reviewer flow.",
     },
+    {
+        q: "How does AI billing work in this release?",
+        a: "AI usage follows a BYOK model. Workspace owners connect their own provider key, and provider usage charges stay with that provider account rather than being bundled into the app.",
+    },
 ]
 
 /* ─────────────────────────────────
@@ -1483,6 +1487,12 @@ function CTABanner({ reviewPhase1Release = false }: { reviewPhase1Release?: bool
                                 ? "SwiftFlow centralizes Meta account connection, AI-assisted content creation, immediate publishing, and scheduled publishing for this submission."
                                 : "SwiftFlow centralizes content creation, scheduling, and Inbox automations. Spend less time copying and pasting across apps, and more time growing."}
                         </p>
+
+                        {reviewPhase1Release && (
+                            <div className="mb-8 rounded-2xl border border-cyan-300/20 bg-cyan-400/8 px-4 py-3 text-sm text-cyan-100/90">
+                                <span className="font-medium">AI is BYOK:</span> teams connect their own OpenRouter, OpenAI, or Gemini key, and provider usage remains on that provider account.
+                            </div>
+                        )}
 
                         <div className="grid sm:grid-cols-2 gap-6">
                             {(reviewPhase1Release

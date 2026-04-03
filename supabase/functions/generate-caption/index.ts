@@ -1,11 +1,22 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
+import { generateText, requireGeneratedText } from "../_shared/generate-text.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+interface BrandProfile {
+    business_name: string | null
+    industry: string | null
+    brand_voice: string | null
+    target_audience: string | null
+    language: string | null
+    services?: Array<{ name?: string }>
+    unique_selling_points?: string[]
+    content_themes?: string[]
 }
 
 serve(async (req) => {
@@ -33,12 +44,6 @@ serve(async (req) => {
         // Resolve AI config (key + model) via shared helper
         const aiConfig = await resolveAIConfig({ supabase, workspaceId })
 
-        const genAI = new GoogleGenerativeAI(aiConfig.apiKey)
-        const model = genAI.getGenerativeModel({
-            model: aiConfig.modelName,
-            systemInstruction: "You are an expert Social Media Manager AI Assistant. Be concise, professional, and creative. Return strict JSON arrays."
-        })
-
         const platformNames = platforms?.map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' and ') || 'Social Media'
 
         // Fetch brand profile for context
@@ -46,7 +51,7 @@ serve(async (req) => {
             .from('workspace_brand_profiles')
             .select('*')
             .eq('workspace_id', workspaceId)
-            .maybeSingle()
+            .maybeSingle<BrandProfile>()
 
         // Language names mapping
         const LANGUAGE_NAMES: Record<string, string> = {
@@ -62,7 +67,7 @@ serve(async (req) => {
         // Build brand context
         let brandContext = ''
         if (brandProfile) {
-            const services = brandProfile.services?.map((s: any) => s.name).join(', ') || ''
+            const services = brandProfile.services?.map((s) => s.name).filter(Boolean).join(', ') || ''
             const usps = brandProfile.unique_selling_points?.join(', ') || ''
             const themes = brandProfile.content_themes?.join(', ') || ''
 
@@ -99,15 +104,22 @@ ${brandProfile?.business_name ? `- Subtly reflect ${brandProfile.business_name}'
 Return ONLY the captions (in ${languageName}) as a JSON array of strings. No markdown formatting.
     `
 
-        const result = await model.generateContent(prompt)
-        const responseText = result.response.text()
+        const responseText = requireGeneratedText(await generateText({
+            provider: aiConfig.provider,
+            apiKey: aiConfig.apiKey,
+            modelName: aiConfig.modelName,
+            prompt,
+            systemInstruction: "You are an expert Social Media Manager AI Assistant. Be concise, professional, and creative. Return strict JSON arrays.",
+            temperature: aiConfig.temperature,
+            maxTokens: Math.min(aiConfig.maxTokens, 1400),
+        }), "Caption suggestions")
 
         // Clean JSON
         let suggestions = []
         try {
             const cleanResponse = responseText.replace(/```json/g, '').replace(/```/g, '').trim()
             suggestions = JSON.parse(cleanResponse)
-        } catch (e) {
+        } catch {
             // Fallback split
             suggestions = responseText.split('\n').filter(s => s.trim().length > 0).slice(0, 5)
         }
@@ -116,7 +128,7 @@ Return ONLY the captions (in ${languageName}) as a JSON array of strings. No mar
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Generate Caption Error:', error)
         return new Response(JSON.stringify({ error: toUserFriendlyError(error) }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
+import { generateText, requireGeneratedText } from "../_shared/generate-text.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -12,6 +12,14 @@ const corsHeaders = {
 interface Message {
     role: 'user' | 'assistant'
     content: string
+}
+
+function serializeConversationHistory(messages: Message[]): string {
+    const lines = messages
+        .filter((m, index) => !(index === 0 && m.role === 'assistant'))
+        .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+
+    return lines.length ? lines.join('\n') : 'No prior conversation.'
 }
 
 serve(async (req) => {
@@ -44,17 +52,6 @@ serve(async (req) => {
         }
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-        // Fetch workspace settings
-        const { data: settings, error: settingsError } = await supabase
-            .from('workspace_settings')
-            .select('*')
-            .eq('workspace_id', workspaceId)
-            .maybeSingle()
-
-        if (settingsError) {
-            console.error('Settings error:', settingsError)
-        }
 
         // Fetch brand profile for context
         const { data: brandProfile, error: brandError } = await supabase
@@ -118,10 +115,7 @@ Use this brand context to generate highly relevant, on-brand content ideas.
             }
         }
 
-        const genAI = new GoogleGenerativeAI(aiConfig.apiKey)
-        const model = genAI.getGenerativeModel({
-            model: aiConfig.modelName,
-            systemInstruction: `You are a Social Media Content Strategist.
+        const systemInstruction = `You are a Social Media Content Strategist.
 
             ${brandContext}
             ${researchContext}
@@ -149,23 +143,25 @@ Use this brand context to generate highly relevant, on-brand content ideas.
             3. Provide the number of ideas requested by the user (default to 5 if not specified).
             4. Tailor content to the target audience and industry.
             5. ALL text content MUST be in ${languageName}.
-            ${research ? '6. IMPORTANT: Base your ideas on the RESEARCH FINDINGS above. Reference current trends, real events, and data points.' : ''}`,
-            generationConfig: {
-                temperature: 0.8,
-                responseMimeType: "application/json"
-            }
-        })
+            ${research ? '6. IMPORTANT: Base your ideas on the RESEARCH FINDINGS above. Reference current trends, real events, and data points.' : ''}`
 
-        const history = messages.slice(0, -1)
-            .filter((m: Message, index: number) => !(index === 0 && m.role === 'assistant'))
-            .map((m: Message) => ({
-                role: m.role === 'user' ? 'user' : 'model',
-                parts: [{ text: m.content }]
-            }))
+        const prompt = `CONVERSATION HISTORY:
+${serializeConversationHistory(messages.slice(0, -1))}
 
-        const chatSession = model.startChat({ history })
-        const result = await chatSession.sendMessage(lastMsg.content)
-        const responseText = result.response.text()
+LATEST USER REQUEST:
+${lastMsg.content}
+
+Return valid JSON only.`
+
+        const responseText = requireGeneratedText(await generateText({
+            provider: aiConfig.provider,
+            apiKey: aiConfig.apiKey,
+            modelName: aiConfig.modelName,
+            prompt,
+            systemInstruction,
+            temperature: 0.8,
+            maxTokens: Math.min(aiConfig.maxTokens, 2200),
+        }), "Content ideas")
         console.log('Raw AI Response:', responseText)
 
         let parsedResult
@@ -180,7 +176,7 @@ Use this brand context to generate highly relevant, on-brand content ideas.
             } else {
                 parsedResult = JSON.parse(cleanText)
             }
-        } catch (e) {
+        } catch {
             // Fallback if model failed to produce valid JSON
             parsedResult = { type: "text", message: responseText }
         }
@@ -189,7 +185,7 @@ Use this brand context to generate highly relevant, on-brand content ideas.
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Generate Ideas Error:', error)
         return new Response(JSON.stringify({ error: toUserFriendlyError(error) }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

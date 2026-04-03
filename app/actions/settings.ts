@@ -72,8 +72,13 @@ export async function getWorkspaceSettings(workspaceId: string): Promise<Workspa
         return {
             id: 'temp-id',
             workspace_id: workspaceId,
-            ai_provider: 'gemini',
-            ai_model_name: getDefaultModelForProvider('gemini'),
+            ai_provider: 'openrouter',
+            openrouter_api_key: null,
+            gemini_api_key: null,
+            openai_api_key: null,
+            ai_text_model_name: getDefaultModelForProvider('openrouter'),
+            ai_image_model_name: null,
+            ai_model_name: getDefaultModelForProvider('openrouter'),
             ai_temperature: 0.7,
             ai_max_tokens: 2048,
             timezone: 'UTC',
@@ -85,6 +90,7 @@ export async function getWorkspaceSettings(workspaceId: string): Promise<Workspa
 
     return {
         ...(data as WorkspaceSettings),
+        openrouter_api_key: decryptSecretIfNeeded(data.openrouter_api_key),
         gemini_api_key: decryptSecretIfNeeded(data.gemini_api_key),
         openai_api_key: decryptSecretIfNeeded(data.openai_api_key),
     } as WorkspaceSettings
@@ -138,9 +144,12 @@ export async function updateWorkspaceSettings(
     const updatePayload = {
         workspace_id: workspaceId,
         ...settings,
+        openrouter_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.openrouter_api_key)),
         gemini_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.gemini_api_key)),
         openai_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.openai_api_key)),
-        ai_model_name: settings.ai_model_name?.trim(),
+        ai_text_model_name: settings.ai_text_model_name?.trim() || settings.ai_model_name?.trim(),
+        ai_image_model_name: settings.ai_image_model_name?.trim() || null,
+        ai_model_name: settings.ai_text_model_name?.trim() || settings.ai_model_name?.trim(),
     }
 
     // Use UPSERT to create or update

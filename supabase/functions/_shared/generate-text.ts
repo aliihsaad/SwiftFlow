@@ -1,26 +1,13 @@
+import { createOpenRouterChatCompletion, extractOpenRouterTextContent } from "./openrouter-client.ts"
+
 interface GenerateTextParams {
-    provider: "gemini" | "openai"
+    provider: "openrouter" | "gemini" | "openai"
     apiKey: string
     modelName: string
     prompt: string
     systemInstruction?: string
     temperature?: number
     maxTokens?: number
-}
-
-function extractOpenAITextContent(content: unknown): string {
-    if (typeof content === "string") return content
-    if (!Array.isArray(content)) return ""
-
-    return content
-        .map((part) => {
-            if (typeof part === "string") return part
-            if (part && typeof part === "object" && "type" in part && (part as { type?: string }).type === "text") {
-                return String((part as { text?: string }).text || "")
-            }
-            return ""
-        })
-        .join("")
 }
 
 function normalizeGeneratedText(value: string): string {
@@ -106,10 +93,32 @@ async function generateWithOpenAI(params: GenerateTextParams): Promise<string> {
         throw new Error(data?.error?.message || `OpenAI request failed (${response.status})`)
     }
 
-    return extractOpenAITextContent(data?.choices?.[0]?.message?.content)
+    return extractOpenRouterTextContent(data?.choices?.[0]?.message?.content)
+}
+
+async function generateWithOpenRouter(params: GenerateTextParams): Promise<string> {
+    const messages = []
+
+    if (params.systemInstruction?.trim()) {
+        messages.push({ role: "system" as const, content: params.systemInstruction.trim() })
+    }
+
+    messages.push({ role: "user" as const, content: params.prompt })
+
+    return createOpenRouterChatCompletion({
+        apiKey: params.apiKey,
+        modelName: params.modelName,
+        messages,
+        temperature: params.temperature,
+        maxTokens: params.maxTokens,
+    })
 }
 
 export async function generateText(params: GenerateTextParams): Promise<string> {
+    if (params.provider === "openrouter") {
+        return generateWithOpenRouter(params)
+    }
+
     if (params.provider === "openai") {
         return generateWithOpenAI(params)
     }

@@ -1,49 +1,12 @@
-// @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { buildAutomationAiPrompt } from "../_shared/automation-context.ts"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
+import { generateText, requireGeneratedText } from "../_shared/generate-text.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-async function generateWithGemini(apiKey: string, modelName: string, prompt: string, temperature: number, maxTokens: number) {
-  const { GoogleGenerativeAI } = await import("npm:@google/generative-ai");
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: modelName,
-    generationConfig: {
-      temperature,
-      maxOutputTokens: maxTokens,
-    },
-  });
-  const result = await model.generateContent(prompt);
-  return result.response.text();
-}
-
-async function generateWithOpenAI(apiKey: string, modelName: string, prompt: string, temperature: number, maxTokens: number) {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: modelName,
-      messages: [{ role: 'user', content: prompt }],
-      temperature,
-      max_tokens: maxTokens,
-    }),
-  });
-  const data = await response.json();
-
-  if (!response.ok || data?.error) {
-    throw new Error(data?.error?.message || `OpenAI request failed (${response.status})`);
-  }
-
-  return data?.choices?.[0]?.message?.content || '';
 }
 
 serve(async (req) => {
@@ -81,13 +44,14 @@ serve(async (req) => {
       useGlobalSettings: useGlobal,
     });
 
-    let responseText = '';
-
-    if (aiConfig.provider === 'openai') {
-      responseText = await generateWithOpenAI(aiConfig.apiKey, aiConfig.modelName, prompt, aiConfig.temperature, aiConfig.maxTokens);
-    } else {
-      responseText = await generateWithGemini(aiConfig.apiKey, aiConfig.modelName, prompt, aiConfig.temperature, aiConfig.maxTokens);
-    }
+    const responseText = requireGeneratedText(await generateText({
+      provider: aiConfig.provider,
+      apiKey: aiConfig.apiKey,
+      modelName: aiConfig.modelName,
+      prompt,
+      temperature: aiConfig.temperature,
+      maxTokens: aiConfig.maxTokens,
+    }))
 
     const provider = aiConfig.provider;
     const modelName = aiConfig.modelName;

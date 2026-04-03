@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 /**
  * POST /api/ai/validate-key
  * Tests whether an API key is valid by making a lightweight API call.
- * Body: { provider: "gemini" | "openai", apiKey: string }
+ * Body: { provider: "openrouter" | "gemini" | "openai", apiKey: string }
  */
 export async function POST(request: NextRequest) {
     try {
@@ -14,6 +14,27 @@ export async function POST(request: NextRequest) {
         }
 
         const trimmedKey = apiKey.trim().replace(/^['"]|['"]$/g, "")
+
+        if (provider === "openrouter") {
+            if (!trimmedKey.startsWith("sk-or-v1-")) {
+                return NextResponse.json({
+                    valid: false,
+                    error: "OpenRouter keys should start with 'sk-or-v1-'. Check that you copied the full key.",
+                })
+            }
+
+            const res = await fetch("https://openrouter.ai/api/v1/key", {
+                headers: { Authorization: `Bearer ${trimmedKey}` },
+            })
+
+            if (res.ok) {
+                return NextResponse.json({ valid: true })
+            }
+
+            const data = await res.json().catch(() => ({}))
+            const msg = data?.error?.message || `OpenRouter returned ${res.status}`
+            return NextResponse.json({ valid: false, error: msg })
+        }
 
         if (provider === "openai") {
             if (!trimmedKey.startsWith("sk-")) {
@@ -37,7 +58,6 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ valid: false, error: msg })
         }
 
-        // Default: Gemini
         if (!trimmedKey.startsWith("AIza")) {
             return NextResponse.json({
                 valid: false,

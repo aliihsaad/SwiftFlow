@@ -56,7 +56,7 @@ async function getGeminiModel(workspaceId: string) {
 
     // Resolve model with upgrade for deprecated names
     const defaultModel = getDefaultModelForProvider('gemini');
-    let modelName = (settings?.ai_model_name || defaultModel).trim();
+    let modelName = (settings?.ai_text_model_name || settings?.ai_model_name || defaultModel).trim();
     if (GEMINI_MODEL_UPGRADES[modelName]) {
         modelName = GEMINI_MODEL_UPGRADES[modelName];
     }

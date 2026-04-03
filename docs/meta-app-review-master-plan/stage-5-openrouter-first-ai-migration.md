@@ -1,6 +1,6 @@
 # Stage 5: OpenRouter-First AI Migration
 
-Status: `not_started`
+Status: `in_progress`
 
 Depends on: `Stage 2`
 
@@ -45,6 +45,16 @@ Instead:
 - `app/api/ai/*`
 - `app/actions/settings.ts`
 - `app/api/workspace/settings/route.ts`
+
+## Progress Notes
+
+- `openrouter` foundation work has started in schema, settings APIs, and the settings UI
+- new workspace defaults are being moved to `openrouter`
+- live model discovery and key validation are being aligned with OpenRouter official endpoints
+- workspace AI settings are being split into separate `text model` and `image model` fields so the runtime can resolve by capability
+- the settings UI is being upgraded with provider-aware recommendations instead of a single generic model selector
+- migrated text-generation flows are now being routed through the shared provider runtime
+- `research-topic` remains a deliberate Gemini-grounded exception for now, with explicit messaging instead of silent provider mismatch
 
 ## Exit Gate
 

@@ -1,75 +1,123 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
+import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
+import { toUserFriendlyError } from "../_shared/ai-config.ts"
 
 const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+}
+
+interface BrandProfileRow {
+    business_name?: string | null
+    industry?: string | null
+    target_audience?: string | null
+    language?: string | null
+}
+
+interface WorkspaceSettingsRow {
+    ai_provider?: string | null
+    ai_text_model_name?: string | null
+    ai_model_name?: string | null
+    gemini_api_key?: string | null
+}
+
+function normalizeApiKey(value: unknown): string {
+    return String(value || "").trim().replace(/^['"]|['"]$/g, "")
+}
+
+function normalizeGeminiModelName(value: unknown): string {
+    const model = String(value || "").trim()
+    if (!model) return "gemini-2.5-flash"
+    return model.replace(/^models\//, "")
 }
 
 serve(async (req) => {
-    if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders })
+    if (req.method === "OPTIONS") {
+        return new Response("ok", { headers: corsHeaders })
     }
 
     try {
         const { query, workspaceId, context } = await req.json()
 
-        if (!query || typeof query !== 'string' || query.trim().length === 0) {
-            throw new Error('query is required')
+        if (!query || typeof query !== "string" || query.trim().length === 0) {
+            throw new Error("query is required")
         }
 
         if (!workspaceId) {
-            throw new Error('workspaceId is required')
+            throw new Error("workspaceId is required")
         }
 
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')
-        const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")
+        const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
         if (!supabaseUrl || !supabaseServiceKey) {
-            throw new Error('Supabase configuration missing')
+            throw new Error("Supabase configuration missing")
         }
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-        // Fetch brand profile for industry/business context
         const { data: brandProfile } = await supabase
-            .from('workspace_brand_profiles')
-            .select('business_name, industry, target_audience, language')
-            .eq('workspace_id', workspaceId)
-            .maybeSingle()
+            .from("workspace_brand_profiles")
+            .select("business_name, industry, target_audience, language")
+            .eq("workspace_id", workspaceId)
+            .maybeSingle<BrandProfileRow>()
 
-        // Resolve AI config via shared helper
-        const aiConfig = await resolveAIConfig({ supabase, workspaceId })
+        const { data: workspaceSettings } = await supabase
+            .from("workspace_settings")
+            .select("ai_provider, ai_text_model_name, ai_model_name, gemini_api_key")
+            .eq("workspace_id", workspaceId)
+            .maybeSingle<WorkspaceSettingsRow>()
 
-        // Language names mapping
+        const geminiWorkspaceKey = normalizeApiKey(await decryptSecretIfNeeded(workspaceSettings?.gemini_api_key))
+        const geminiEnvKey = normalizeApiKey(Deno.env.get("GEMINI_API_KEY"))
+        const geminiApiKey = geminiWorkspaceKey || geminiEnvKey
+
+        if (!geminiApiKey) {
+            throw new Error(
+                "Research mode currently requires a Gemini API key because grounded web search has not been finalized for the OpenRouter-first migration. Add a Gemini key or disable research mode.",
+            )
+        }
+
         const LANGUAGE_NAMES: Record<string, string> = {
-            en: 'English', es: 'Spanish', fr: 'French', de: 'German',
-            it: 'Italian', pt: 'Portuguese', nl: 'Dutch', ar: 'Arabic',
-            zh: 'Chinese', ja: 'Japanese', ko: 'Korean', hi: 'Hindi',
-            ru: 'Russian', tr: 'Turkish'
+            en: "English",
+            es: "Spanish",
+            fr: "French",
+            de: "German",
+            it: "Italian",
+            pt: "Portuguese",
+            nl: "Dutch",
+            ar: "Arabic",
+            zh: "Chinese",
+            ja: "Japanese",
+            ko: "Korean",
+            hi: "Hindi",
+            ru: "Russian",
+            tr: "Turkish",
         }
 
-        const language = brandProfile?.language || 'en'
-        const languageName = LANGUAGE_NAMES[language] || 'English'
+        const language = brandProfile?.language || "en"
+        const languageName = LANGUAGE_NAMES[language] || "English"
 
-        // Build industry context
-        let industryContext = ''
-        if (brandProfile) {
-            industryContext = [
-                brandProfile.business_name ? `Business: ${brandProfile.business_name}` : '',
-                brandProfile.industry ? `Industry: ${brandProfile.industry}` : '',
-                brandProfile.target_audience ? `Target Audience: ${brandProfile.target_audience}` : '',
-            ].filter(Boolean).join('\n')
-        }
+        const industryContext = [
+            brandProfile?.business_name ? `Business: ${brandProfile.business_name}` : "",
+            brandProfile?.industry ? `Industry: ${brandProfile.industry}` : "",
+            brandProfile?.target_audience ? `Target Audience: ${brandProfile.target_audience}` : "",
+        ]
+            .filter(Boolean)
+            .join("\n")
 
-        const genAI = new GoogleGenerativeAI(aiConfig.apiKey)
+        const modelName =
+            workspaceSettings?.ai_provider === "gemini"
+                ? normalizeGeminiModelName(workspaceSettings.ai_text_model_name || workspaceSettings.ai_model_name)
+                : "gemini-2.5-flash"
+
+        const genAI = new GoogleGenerativeAI(geminiApiKey)
         const model = genAI.getGenerativeModel({
-            model: aiConfig.modelName,
+            model: modelName,
             systemInstruction: `You are a social media research analyst. Your job is to research current trends, news, and popular content topics using Google Search.
 
-${industryContext ? `BUSINESS CONTEXT:\n${industryContext}\n` : ''}
+${industryContext ? `BUSINESS CONTEXT:\n${industryContext}\n` : ""}
 
 Provide a structured research summary in ${languageName} that includes:
 1. Current trending topics related to the query
@@ -81,49 +129,48 @@ Be specific with facts, data points, and real examples. Do NOT make things up â€
 
 Format your response as a clear, concise research brief that can be used to inform content creation.`,
             generationConfig: {
-                temperature: 0.3, // Low temperature for factual research
+                temperature: 0.3,
                 maxOutputTokens: 1500,
             },
-            // Enable Google Search Grounding
-            tools: [{ googleSearch: {} } as any],
+            tools: [{ googleSearch: {} } as never],
         })
 
-        // Build the research query
         const researchPrompt = context
             ? `Research the following topic for social media content creation: "${query}"\n\nAdditional context: ${context}`
             : `Research the following topic for social media content creation: "${query}"`
 
-        console.log('Research query:', researchPrompt)
-
         const result = await model.generateContent(researchPrompt)
         const responseText = result.response.text()
-        console.log('Research result length:', responseText.length)
+        const groundingMetadata = result.response.candidates?.[0]?.groundingMetadata as
+            | { groundingChunks?: Array<{ web?: { uri?: string } }> }
+            | undefined
 
-        // Extract grounding sources if available
-        const groundingMetadata = result.response.candidates?.[0]?.groundingMetadata
         const sources: string[] = []
-        if (groundingMetadata?.groundingChunks) {
-            for (const chunk of groundingMetadata.groundingChunks) {
-                if (chunk.web?.uri) {
-                    sources.push(chunk.web.uri)
-                }
+        for (const chunk of groundingMetadata?.groundingChunks || []) {
+            if (chunk.web?.uri) {
+                sources.push(chunk.web.uri)
             }
         }
 
-        return new Response(JSON.stringify({
-            research: responseText,
-            sources,
-        }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        })
-
-    } catch (error: any) {
-        console.error('Research Topic Error:', error)
-        return new Response(JSON.stringify({
-            error: toUserFriendlyError(error),
-        }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200,
-        })
+        return new Response(
+            JSON.stringify({
+                research: responseText,
+                sources,
+            }),
+            {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+        )
+    } catch (error: unknown) {
+        console.error("Research Topic Error:", error)
+        return new Response(
+            JSON.stringify({
+                error: toUserFriendlyError(error),
+            }),
+            {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 200,
+            },
+        )
     }
 })

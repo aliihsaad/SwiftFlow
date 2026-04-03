@@ -1,8 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
+import { generateText, requireGeneratedText } from "../_shared/generate-text.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -12,6 +12,14 @@ const corsHeaders = {
 interface Message {
     role: 'user' | 'assistant'
     content: string
+}
+
+function serializeConversationHistory(messages: Message[]): string {
+    const lines = messages
+        .filter((m, index) => !(index === 0 && m.role === 'assistant'))
+        .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+
+    return lines.length ? lines.join('\n') : 'No prior conversation.'
 }
 
 serve(async (req) => {
@@ -48,11 +56,7 @@ serve(async (req) => {
             }
         }
 
-        const genAI = new GoogleGenerativeAI(aiConfig.apiKey)
-
-        const model = genAI.getGenerativeModel({
-            model: aiConfig.modelName,
-            systemInstruction: `You are a Social Media Content Creator specializing in educational carousels.
+        const systemInstruction = `You are a Social Media Content Creator specializing in educational carousels.
             ${researchContext}
             Your goal is to create a structured slide-by-slide breakdown for a carousel post.
             
@@ -78,20 +82,25 @@ serve(async (req) => {
             3. Slide 1 is always the Hook/Cover.
             4. Last slide is always a CTA.
             5. Keep text concise (under 20 words per slide for better visibility).
-            ${research ? '6. IMPORTANT: Base slide content on the RESEARCH FINDINGS above. Include real facts, stats, and current trends.' : ''}`,
-            generationConfig: {
-                temperature: 0.7,
-                responseMimeType: "application/json"
-            }
-        })
+            ${research ? '6. IMPORTANT: Base slide content on the RESEARCH FINDINGS above. Include real facts, stats, and current trends.' : ''}`
 
-        const history = messages.slice(0, -1)
-            .filter((m: Message, i: number) => !(i === 0 && m.role === 'assistant'))
-            .map((m: Message) => ({ role: m.role === 'user' ? 'user' : 'model', parts: [{ text: m.content }] }))
+        const prompt = `CONVERSATION HISTORY:
+${serializeConversationHistory(messages.slice(0, -1))}
 
-        const chatSession = model.startChat({ history })
-        const result = await chatSession.sendMessage(lastMsg.content)
-        const responseText = result.response.text()
+LATEST USER REQUEST:
+${lastMsg.content}
+
+Return valid JSON only.`
+
+        const responseText = requireGeneratedText(await generateText({
+            provider: aiConfig.provider,
+            apiKey: aiConfig.apiKey,
+            modelName: aiConfig.modelName,
+            prompt,
+            systemInstruction,
+            temperature: 0.7,
+            maxTokens: Math.min(aiConfig.maxTokens, 2600),
+        }), "Carousel response")
         console.log('Raw AI Response:', responseText)
 
         let parsedResult
@@ -106,7 +115,7 @@ serve(async (req) => {
             } else {
                 parsedResult = JSON.parse(cleanText)
             }
-        } catch (e) {
+        } catch {
             parsedResult = { type: "text", message: responseText }
         }
 
@@ -115,7 +124,7 @@ serve(async (req) => {
             status: 200,
         })
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Generate Carousel Error:', error)
         return new Response(JSON.stringify({ error: toUserFriendlyError(error) }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

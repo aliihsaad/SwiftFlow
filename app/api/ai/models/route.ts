@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { getActiveWorkspace } from '@/lib/workspace-utils'
 import {
+  getCuratedModelsForProvider,
   getFallbackModelsForProvider,
   isAIProvider,
   type AIProvider,
@@ -24,6 +25,14 @@ function normalizeApiKey(value: unknown): string {
 
 function normalizeGeminiModelName(name: string): string {
   return name.replace(/^models\//, '').trim()
+}
+
+function isLikelyTextOpenRouterModel(id: string): boolean {
+  const normalized = id.trim().toLowerCase()
+  if (!normalized || !normalized.includes('/')) return false
+  const excluded =
+    /(embedding|moderation|whisper|tts|transcribe|realtime|image|audio|video|vision-preview|omni-moderation)/i
+  return !excluded.test(normalized)
 }
 
 function isLikelyTextOpenAIModel(id: string): boolean {
@@ -77,7 +86,31 @@ async function fetchOpenAIModels(apiKey: string): Promise<string[]> {
   return sortModelIds(models)
 }
 
+async function fetchOpenRouterModels(apiKey: string): Promise<string[]> {
+  const response = await fetch('https://openrouter.ai/api/v1/models', {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    cache: 'no-store',
+  })
+
+  const result = await response.json()
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'OpenRouter models fetch failed')
+  }
+
+  const models = (Array.isArray(result?.data) ? result.data : [])
+    .map((m: { id?: string }) => String(m?.id || '').trim())
+    .filter(Boolean)
+    .filter(isLikelyTextOpenRouterModel)
+
+  return sortModelIds(models)
+}
+
 async function fetchProviderModels(provider: AIProvider, apiKey: string): Promise<string[]> {
+  if (provider === 'openrouter') return fetchOpenRouterModels(apiKey)
   if (provider === 'gemini') return fetchGeminiModels(apiKey)
   return fetchOpenAIModels(apiKey)
 }
@@ -90,17 +123,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const providerParam = request.nextUrl.searchParams.get('provider') || 'gemini'
+    const providerParam = request.nextUrl.searchParams.get('provider') || 'openrouter'
+    const capabilityParam = request.nextUrl.searchParams.get('capability') === 'image' ? 'image' : 'text'
     if (!isAIProvider(providerParam)) {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 })
+    }
+
+    if (capabilityParam === 'image') {
+      return NextResponse.json({
+        models: getFallbackModelsForProvider(providerParam, 'image'),
+        curated: getCuratedModelsForProvider(providerParam, 'image'),
+        provider: providerParam,
+        capability: capabilityParam,
+        source: 'curated',
+      })
     }
 
     const activeWorkspace = await getActiveWorkspace()
     if (!activeWorkspace) {
       return NextResponse.json(
         {
-          models: getFallbackModelsForProvider(providerParam),
+          models: getFallbackModelsForProvider(providerParam, capabilityParam),
+          curated: getCuratedModelsForProvider(providerParam, capabilityParam),
           provider: providerParam,
+          capability: capabilityParam,
           source: 'fallback',
           reason: 'no_active_workspace',
         },
@@ -110,20 +156,24 @@ export async function GET(request: NextRequest) {
 
     const { data: settings } = await supabase
       .from('workspace_settings')
-      .select('gemini_api_key, openai_api_key')
+      .select('openrouter_api_key, gemini_api_key, openai_api_key')
       .eq('workspace_id', activeWorkspace.id)
       .maybeSingle()
 
     const apiKey =
-      providerParam === 'gemini'
+      providerParam === 'openrouter'
+        ? normalizeApiKey(decryptSecretIfNeeded(settings?.openrouter_api_key))
+        : providerParam === 'gemini'
         ? normalizeApiKey(decryptSecretIfNeeded(settings?.gemini_api_key))
         : normalizeApiKey(decryptSecretIfNeeded(settings?.openai_api_key))
 
     if (!apiKey) {
       return NextResponse.json(
         {
-          models: getFallbackModelsForProvider(providerParam),
+          models: getFallbackModelsForProvider(providerParam, capabilityParam),
+          curated: getCuratedModelsForProvider(providerParam, capabilityParam),
           provider: providerParam,
+          capability: capabilityParam,
           source: 'fallback',
           reason: 'missing_api_key',
         },
@@ -136,8 +186,10 @@ export async function GET(request: NextRequest) {
       if (!models.length) {
         return NextResponse.json(
           {
-            models: getFallbackModelsForProvider(providerParam),
+            models: getFallbackModelsForProvider(providerParam, capabilityParam),
+            curated: getCuratedModelsForProvider(providerParam, capabilityParam),
             provider: providerParam,
+            capability: capabilityParam,
             source: 'fallback',
             reason: 'empty_provider_list',
           },
@@ -147,15 +199,19 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({
         models,
+        curated: getCuratedModelsForProvider(providerParam, capabilityParam),
         provider: providerParam,
+        capability: capabilityParam,
         source: 'live',
       })
     } catch (providerError) {
       console.error('[AI_MODELS] Provider fetch failed:', providerError)
       return NextResponse.json(
         {
-          models: getFallbackModelsForProvider(providerParam),
+          models: getFallbackModelsForProvider(providerParam, capabilityParam),
+          curated: getCuratedModelsForProvider(providerParam, capabilityParam),
           provider: providerParam,
+          capability: capabilityParam,
           source: 'fallback',
           reason: 'provider_fetch_failed',
         },

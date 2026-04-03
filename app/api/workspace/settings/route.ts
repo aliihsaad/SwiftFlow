@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
+import { getDefaultModelForProvider } from '@/lib/ai-models';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { decryptSecretIfNeeded, encryptSecretIfNeeded, isEncryptedSecret, normalizeOptionalSecretInput } from '@/lib/secret-crypto';
 
@@ -12,6 +13,7 @@ import { decryptSecretIfNeeded, encryptSecretIfNeeded, isEncryptedSecret, normal
 function decryptWorkspaceSettingsSecrets<T extends Record<string, unknown>>(row: T): T {
     return {
         ...row,
+        openrouter_api_key: decryptSecretIfNeeded(typeof row.openrouter_api_key === 'string' ? row.openrouter_api_key : null),
         gemini_api_key: decryptSecretIfNeeded(typeof row.gemini_api_key === 'string' ? row.gemini_api_key : null),
         openai_api_key: decryptSecretIfNeeded(typeof row.openai_api_key === 'string' ? row.openai_api_key : null),
     }
@@ -20,14 +22,24 @@ function decryptWorkspaceSettingsSecrets<T extends Record<string, unknown>>(row:
 function buildWorkspaceSettingsUpdatePayload(settings: Record<string, unknown>) {
     const payload: Record<string, unknown> = { ...settings }
 
+    if ('openrouter_api_key' in settings) {
+        payload.openrouter_api_key = encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.openrouter_api_key))
+    }
     if ('gemini_api_key' in settings) {
         payload.gemini_api_key = encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.gemini_api_key))
     }
     if ('openai_api_key' in settings) {
         payload.openai_api_key = encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.openai_api_key))
     }
-    if (typeof payload.ai_model_name === 'string') {
+    if (typeof payload.ai_text_model_name === 'string') {
+        payload.ai_text_model_name = payload.ai_text_model_name.trim()
+        payload.ai_model_name = payload.ai_text_model_name
+    } else if (typeof payload.ai_model_name === 'string') {
         payload.ai_model_name = payload.ai_model_name.trim()
+        payload.ai_text_model_name = payload.ai_model_name
+    }
+    if (typeof payload.ai_image_model_name === 'string') {
+        payload.ai_image_model_name = payload.ai_image_model_name.trim() || null
     }
 
     return payload
@@ -71,13 +83,20 @@ export async function GET(request: NextRequest) {
         if (!data) {
             return NextResponse.json({
                 workspace_id: workspaceId,
-                ai_provider: 'gemini',
+                ai_provider: 'openrouter',
+                ai_text_model_name: getDefaultModelForProvider('openrouter'),
+                ai_image_model_name: null,
+                ai_model_name: getDefaultModelForProvider('openrouter'),
+                openrouter_api_key: null,
+                gemini_api_key: null,
+                openai_api_key: null,
                 timezone: 'UTC',
                 default_language: 'en'
             });
         }
 
         const needsMigration =
+            (typeof data.openrouter_api_key === 'string' && data.openrouter_api_key.length > 0 && !isEncryptedSecret(data.openrouter_api_key)) ||
             (typeof data.gemini_api_key === 'string' && data.gemini_api_key.length > 0 && !isEncryptedSecret(data.gemini_api_key)) ||
             (typeof data.openai_api_key === 'string' && data.openai_api_key.length > 0 && !isEncryptedSecret(data.openai_api_key))
 
@@ -86,6 +105,7 @@ export async function GET(request: NextRequest) {
                 await supabaseAdmin
                     .from('workspace_settings')
                     .update({
+                        openrouter_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(data.openrouter_api_key)),
                         gemini_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(data.gemini_api_key)),
                         openai_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(data.openai_api_key)),
                     })

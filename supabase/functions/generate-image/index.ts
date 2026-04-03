@@ -3,243 +3,438 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 
 const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+}
+
+interface ReferenceImage {
+    base64: string
+    mimeType: string
+}
+
+interface BrandColors {
+    primary?: string
+    secondary?: string
+    accent?: string
+}
+
+interface BrandProfileRow {
+    brand_colors?: BrandColors | null
+    business_name?: string | null
+}
+
+interface GoogleErrorDetail {
+    reason?: string
+}
+
+interface GoogleErrorPayload {
+    error?: {
+        status?: string
+        message?: string
+        details?: GoogleErrorDetail[]
+    }
+    candidates?: Array<{
+        content?: {
+            parts?: Array<{
+                text?: string
+                inlineData?: { mimeType?: string; data?: string }
+            }>
+        }
+    }>
+    promptFeedback?: {
+        blockReason?: string
+    }
 }
 
 function normalizeApiKey(value: unknown): string {
-    return String(value || '').trim().replace(/^['"]|['"]$/g, '')
+    return String(value || "").trim().replace(/^['"]|['"]$/g, "")
 }
 
-function getGoogleErrorInfo(payload: any): { reason: string; message: string } {
-    const details = Array.isArray(payload?.error?.details) ? payload.error.details : []
-    const reason = details.find((d: any) => typeof d?.reason === 'string')?.reason || payload?.error?.status || 'UNKNOWN'
-    const message = String(payload?.error?.message || '')
+function asGooglePayload(value: unknown): GoogleErrorPayload | null {
+    return value && typeof value === "object" ? (value as GoogleErrorPayload) : null
+}
+
+function getGoogleErrorInfo(payload: unknown): { reason: string; message: string } {
+    const normalized = asGooglePayload(payload)
+    const details = Array.isArray(normalized?.error?.details) ? normalized.error.details : []
+    const reason = details.find((detail) => typeof detail?.reason === "string")?.reason || normalized?.error?.status || "UNKNOWN"
+    const message = String(normalized?.error?.message || "")
     return { reason, message }
 }
 
+function buildReferenceInstruction(
+    textPrompt: string,
+    referenceMode?: string,
+    brandImageMode?: string,
+    transformAction?: string,
+): string {
+    if (brandImageMode === "transform" && transformAction) {
+        const transformInstructions: Record<string, string> = {
+            restyle: "Restyle the uploaded image(s) while keeping the subject and composition. Apply the described style.",
+            "add-brand-colors": "Modify the uploaded image(s) to incorporate the brand colors while maintaining the original composition.",
+            modernize: "Modernize the uploaded image(s) with a contemporary, clean aesthetic while preserving the core subject.",
+            simplify: "Simplify the uploaded image(s) by reducing visual complexity while keeping the key elements recognizable.",
+        }
+        return `${transformInstructions[transformAction] || "Transform the uploaded image(s) as described."} ${textPrompt}`
+    }
+
+    if (referenceMode) {
+        const referenceInstructions: Record<string, string> = {
+            "match-style": "Generate a new image that matches the visual style, textures, and artistic approach of the reference images.",
+            "match-colors": "Generate a new image using the color palette from the reference images.",
+            "use-as-template": "Generate a new image using the reference images as compositional templates for layout and structure.",
+            "inspired-by": "Generate a new image inspired by the mood, feel, and aesthetic of the reference images.",
+        }
+        return `${referenceInstructions[referenceMode] || "Use the reference images as guidance for the new image."} ${textPrompt}`
+    }
+
+    return textPrompt
+}
+
+function buildOpenRouterImageMessage(
+    textPrompt: string,
+    referenceImages?: ReferenceImage[],
+    referenceMode?: string,
+    brandImageMode?: string,
+    transformAction?: string,
+): Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> {
+    const parts: Array<{ type: "text"; text: string } | { type: "image_url"; image_url: { url: string } }> = [
+        {
+            type: "text",
+            text: buildReferenceInstruction(textPrompt, referenceMode, brandImageMode, transformAction),
+        },
+    ]
+
+    for (const image of referenceImages || []) {
+        parts.push({
+            type: "image_url",
+            image_url: { url: `data:${image.mimeType || "image/jpeg"};base64,${image.base64}` },
+        })
+    }
+
+    return parts
+}
+
+function buildGeminiContentParts(
+    textPrompt: string,
+    referenceImages?: ReferenceImage[],
+    referenceMode?: string,
+    brandImageMode?: string,
+    transformAction?: string,
+): Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> {
+    const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = []
+
+    if (Array.isArray(referenceImages) && referenceImages.length > 0) {
+        for (const image of referenceImages) {
+            parts.push({
+                inlineData: {
+                    mimeType: image.mimeType || "image/jpeg",
+                    data: image.base64,
+                },
+            })
+        }
+
+        parts.push({
+            text: buildReferenceInstruction(textPrompt, referenceMode, brandImageMode, transformAction),
+        })
+        return parts
+    }
+
+    parts.push({ text: textPrompt })
+    return parts
+}
+
+async function generateWithOpenRouterImage(params: {
+    apiKey: string
+    modelName: string
+    prompt: string
+    referenceImages?: ReferenceImage[]
+    referenceMode?: string
+    brandImageMode?: string
+    transformAction?: string
+}): Promise<{ imageUrl: string; usedModel: string }> {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${params.apiKey}`,
+        },
+        body: JSON.stringify({
+            model: params.modelName,
+            messages: [
+                {
+                    role: "user",
+                    content: buildOpenRouterImageMessage(
+                        params.prompt,
+                        params.referenceImages,
+                        params.referenceMode,
+                        params.brandImageMode,
+                        params.transformAction,
+                    ),
+                },
+            ],
+            modalities: params.modelName.startsWith("black-forest-labs/") ? ["image"] : ["image", "text"],
+            image_config: { aspect_ratio: "1:1" },
+        }),
+    })
+
+    const data = await response.json().catch(() => ({} as Record<string, unknown>))
+    const choices = Array.isArray((data as { choices?: unknown[] }).choices) ? (data as { choices: unknown[] }).choices : []
+    const firstChoice = choices[0] as { message?: { images?: Array<{ image_url?: { url?: string } }> } } | undefined
+    const imageUrl = firstChoice?.message?.images?.[0]?.image_url?.url
+
+    if (!response.ok || (data as { error?: { message?: string } }).error) {
+        throw new Error((data as { error?: { message?: string } }).error?.message || `OpenRouter image generation failed (${response.status})`)
+    }
+
+    if (!imageUrl) {
+        throw new Error("OpenRouter did not return image data.")
+    }
+
+    return { imageUrl, usedModel: params.modelName }
+}
+
+async function generateWithOpenAIImage(params: {
+    apiKey: string
+    modelName: string
+    prompt: string
+}): Promise<{ imageUrl: string; usedModel: string }> {
+    const response = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${params.apiKey}`,
+        },
+        body: JSON.stringify({
+            model: params.modelName,
+            prompt: params.prompt,
+            size: "1024x1024",
+            response_format: "b64_json",
+        }),
+    })
+
+    const data = await response.json().catch(() => ({} as Record<string, unknown>))
+    const resultRows = Array.isArray((data as { data?: unknown[] }).data) ? (data as { data: unknown[] }).data : []
+    const firstRow = resultRows[0] as { b64_json?: string; url?: string } | undefined
+    const imageUrl =
+        typeof firstRow?.url === "string" && firstRow.url
+            ? firstRow.url
+            : typeof firstRow?.b64_json === "string" && firstRow.b64_json
+                ? `data:image/png;base64,${firstRow.b64_json}`
+                : ""
+
+    if (!response.ok || (data as { error?: { message?: string } }).error) {
+        throw new Error((data as { error?: { message?: string } }).error?.message || `OpenAI image generation failed (${response.status})`)
+    }
+
+    if (!imageUrl) {
+        throw new Error("OpenAI did not return image data.")
+    }
+
+    return { imageUrl, usedModel: params.modelName }
+}
+
+async function generateWithGeminiImage(params: {
+    primaryKey: string
+    fallbackKey: string | null
+    modelName: string
+    prompt: string
+    referenceImages?: ReferenceImage[]
+    referenceMode?: string
+    brandImageMode?: string
+    transformAction?: string
+}): Promise<{ imageUrl: string; usedModel: string }> {
+    const modelCandidates = Array.from(
+        new Set([
+            params.modelName,
+            "gemini-2.5-flash-image",
+            "gemini-3-pro-image-preview",
+            "gemini-2.0-flash-preview-image-generation",
+        ]),
+    )
+    const tried = new Set<string>()
+    let payload: GoogleErrorPayload | null = null
+    let lastError = ""
+    let successfulModel = params.modelName
+
+    const executeWithKey = async (apiKey: string): Promise<string | null> => {
+        for (const candidate of modelCandidates) {
+            if (tried.has(`${candidate}:${apiKey}`)) continue
+            tried.add(`${candidate}:${apiKey}`)
+
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${apiKey}`,
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                parts: buildGeminiContentParts(
+                                    params.prompt,
+                                    params.referenceImages,
+                                    params.referenceMode,
+                                    params.brandImageMode,
+                                    params.transformAction,
+                                ),
+                            },
+                        ],
+                        generationConfig: {
+                            responseModalities: ["Text", "Image"],
+                            imageConfig: {
+                                aspectRatio: "1:1",
+                                imageSize: "1K",
+                            },
+                        },
+                    }),
+                },
+            )
+
+            const rawText = await response.text()
+            let parsedPayload: GoogleErrorPayload | null = null
+            try {
+                parsedPayload = rawText ? (JSON.parse(rawText) as GoogleErrorPayload) : null
+            } catch {
+                parsedPayload = null
+            }
+
+            if (response.ok) {
+                payload = parsedPayload
+                successfulModel = candidate
+                const parts = parsedPayload?.candidates?.[0]?.content?.parts || []
+                for (const part of parts) {
+                    if (part.inlineData?.data) {
+                        return `data:${part.inlineData.mimeType || "image/png"};base64,${part.inlineData.data}`
+                    }
+                }
+
+                const textPart = parts.find((part) => typeof part.text === "string" && part.text)
+                if (textPart?.text) {
+                    throw new Error(`Model returned text instead of image: "${textPart.text}"`)
+                }
+
+                throw new Error("No image data found in Gemini response.")
+            }
+
+            const info = getGoogleErrorInfo(parsedPayload)
+            lastError = `Gemini API Error (${response.status}) [${info.reason}] ${info.message || rawText}`
+
+            if (/NOT_FOUND|MODEL_NOT_FOUND|FAILED_PRECONDITION|UNIMPLEMENTED|unsupported/i.test(info.reason + " " + info.message)) {
+                continue
+            }
+
+            if (/API_KEY_INVALID|PERMISSION_DENIED|INVALID_ARGUMENT/i.test(info.reason + " " + info.message)) {
+                return null
+            }
+
+            return null
+        }
+
+        return null
+    }
+
+    const primaryResult = await executeWithKey(params.primaryKey)
+    const imageUrl = primaryResult || (params.fallbackKey ? await executeWithKey(params.fallbackKey) : null)
+
+    if (!imageUrl) {
+        const blockReason = payload?.promptFeedback?.blockReason
+        throw new Error(toUserFriendlyError(new Error(blockReason || lastError || "Gemini image generation failed.")))
+    }
+
+    return {
+        imageUrl,
+        usedModel: successfulModel,
+    }
+}
+
 serve(async (req) => {
-    if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+    if (req.method === "OPTIONS") {
+        return new Response("ok", { headers: corsHeaders })
+    }
 
     try {
         const { messages, workspaceId, prompt, style, referenceImages, referenceMode, brandImageMode, transformAction } = await req.json()
         const lastMsg = messages ? messages[messages.length - 1] : { content: prompt || "Generate an image" }
 
         if (!workspaceId) {
-            throw new Error('workspaceId is required for image generation.')
+            throw new Error("workspaceId is required for image generation.")
         }
 
-        const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
-
-        // Resolve AI config via shared helper (validates key format, normalizes, etc.)
-        const aiConfig = await resolveAIConfig({ supabase, workspaceId })
+        const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
+        const aiConfig = await resolveAIConfig({ supabase, workspaceId, capability: "image" })
         const primaryKey = aiConfig.apiKey
-        const keySource = aiConfig.keySource
+        const envKey = normalizeApiKey(Deno.env.get("GEMINI_API_KEY"))
+        const fallbackKey = aiConfig.provider === "gemini" && aiConfig.keySource === "workspace_settings" && envKey && envKey !== primaryKey ? envKey : null
 
-        // For image generation, also try env key as fallback if different
-        const envKey = normalizeApiKey(Deno.env.get('GEMINI_API_KEY'))
-        const fallbackKey = (keySource === 'workspace_settings' && envKey && envKey !== primaryKey) ? envKey : null
-
-        // Fetch brand profile for color context
         const { data: brandProfile } = await supabase
-            .from('workspace_brand_profiles')
-            .select('brand_colors, business_name')
-            .eq('workspace_id', workspaceId)
-            .maybeSingle()
+            .from("workspace_brand_profiles")
+            .select("brand_colors, business_name")
+            .eq("workspace_id", workspaceId)
+            .maybeSingle<BrandProfileRow>()
 
-        // Build color context for the prompt
-        let colorContext = ''
-        if (brandProfile?.brand_colors) {
-            const colors = brandProfile.brand_colors
-            const colorList = []
-            if (colors.primary) colorList.push(`primary: ${colors.primary}`)
-            if (colors.secondary) colorList.push(`secondary: ${colors.secondary}`)
-            if (colors.accent) colorList.push(`accent: ${colors.accent}`)
+        const colors = brandProfile?.brand_colors || null
+        const colorList = [colors?.primary, colors?.secondary, colors?.accent].filter((value): value is string => typeof value === "string" && value.length > 0)
+        const colorContext = colorList.length > 0 ? ` Use these brand colors: ${colorList.join(", ")}.` : ""
+        const promptUsed = String(lastMsg?.content || prompt || "Generate an image")
+        const enhancedPrompt = `${promptUsed}. Style: ${style || "Photorealistic, cinematic lighting"}.${colorContext}`
 
-            if (colorList.length > 0) {
-                colorContext = ` Use these brand colors: ${colorList.join(', ')}.`
-            }
+        let generationResult: { imageUrl: string; usedModel: string }
+        if (aiConfig.provider === "openrouter") {
+            generationResult = await generateWithOpenRouterImage({
+                apiKey: aiConfig.apiKey,
+                modelName: aiConfig.modelName,
+                prompt: enhancedPrompt,
+                referenceImages,
+                referenceMode,
+                brandImageMode,
+                transformAction,
+            })
+        } else if (aiConfig.provider === "openai") {
+            generationResult = await generateWithOpenAIImage({
+                apiKey: aiConfig.apiKey,
+                modelName: aiConfig.modelName,
+                prompt: enhancedPrompt,
+            })
+        } else {
+            generationResult = await generateWithGeminiImage({
+                primaryKey,
+                fallbackKey,
+                modelName: aiConfig.modelName,
+                prompt: enhancedPrompt,
+                referenceImages,
+                referenceMode,
+                brandImageMode,
+                transformAction,
+            })
         }
 
-        const enhancedPrompt = `${lastMsg.content}. Style: ${style || 'Photorealistic, cinematic lighting'}.${colorContext}`
-        const modelCandidates = [
-            'gemini-2.5-flash-image',
-            'gemini-3-pro-image-preview',
-            'gemini-2.0-flash-preview-image-generation',
-        ]
+        let finalAssetUrl = generationResult.imageUrl
 
-        // Build multimodal content parts for Gemini
-        function buildContentParts(
-            textPrompt: string,
-            refImages?: { base64: string; mimeType: string }[],
-            refMode?: string,
-            imgMode?: string,
-            txAction?: string,
-        ): any[] {
-            const parts: any[] = []
-
-            // Add reference images as inline data if provided
-            if (Array.isArray(refImages) && refImages.length > 0) {
-                for (const img of refImages) {
-                    parts.push({ inlineData: { mimeType: img.mimeType || 'image/jpeg', data: img.base64 } })
-                }
-
-                // Add contextual instruction based on mode
-                let refInstruction = ''
-                if (imgMode === 'transform' && txAction) {
-                    const transformInstructions: Record<string, string> = {
-                        'restyle': 'Restyle the uploaded image(s) while keeping the subject and composition. Apply the described style.',
-                        'add-brand-colors': 'Modify the uploaded image(s) to incorporate the brand colors while maintaining the original composition.',
-                        'modernize': 'Modernize the uploaded image(s) with a contemporary, clean aesthetic while preserving the core subject.',
-                        'simplify': 'Simplify the uploaded image(s) by reducing visual complexity while keeping the key elements recognizable.',
-                    }
-                    refInstruction = transformInstructions[txAction] || 'Transform the uploaded image(s) as described.'
-                } else if (refMode) {
-                    const refInstructions: Record<string, string> = {
-                        'match-style': 'Generate a new image that matches the visual style, textures, and artistic approach of the reference images.',
-                        'match-colors': 'Generate a new image using the color palette from the reference images.',
-                        'use-as-template': 'Generate a new image using the reference images as compositional templates for layout and structure.',
-                        'inspired-by': 'Generate a new image inspired by the mood, feel, and aesthetic of the reference images.',
-                    }
-                    refInstruction = refInstructions[refMode] || 'Use the reference images as guidance for the new image.'
-                }
-
-                parts.push({ text: `${refInstruction} ${textPrompt}` })
-            } else {
-                parts.push({ text: textPrompt })
-            }
-
-            return parts
-        }
-
-        let data: any = null
-        let usedModel = ''
-        let lastError = ''
-        const tried = new Set<string>()
-
-        const executeWithKey = async (apiKey: string) => {
-            for (const candidate of modelCandidates) {
-                if (tried.has(`${candidate}:${apiKey}`)) continue
-                tried.add(`${candidate}:${apiKey}`)
-
-                const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${candidate}:generateContent?key=${apiKey}`
-                const response = await fetch(geminiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: buildContentParts(enhancedPrompt, referenceImages, referenceMode, brandImageMode, transformAction)
-                        }],
-                        generationConfig: {
-                            responseModalities: ["Text", "Image"],
-                            imageConfig: {
-                                aspectRatio: "1:1",
-                                imageSize: "1K"
-                            }
-                        }
-                    })
-                })
-
-                const rawText = await response.text()
-                let parsed: any = null
-                try {
-                    parsed = rawText ? JSON.parse(rawText) : null
-                } catch {
-                    parsed = null
-                }
-
-                if (response.ok) {
-                    data = parsed
-                    usedModel = candidate
-                    return true
-                }
-
-                const info = getGoogleErrorInfo(parsed)
-                lastError = `Gemini API Error (${response.status}) [${info.reason}] ${info.message || rawText}`
-
-                // Try next model on model capability / availability errors.
-                if (/NOT_FOUND|MODEL_NOT_FOUND|FAILED_PRECONDITION|UNIMPLEMENTED|unsupported/i.test(info.reason + ' ' + info.message)) {
-                    continue
-                }
-
-                // If key invalid, caller may retry with fallback key.
-                if (/API_KEY_INVALID|PERMISSION_DENIED|INVALID_ARGUMENT/i.test(info.reason + ' ' + info.message)) {
-                    return false
-                }
-
-                // Unknown non-model error, stop trying this key.
-                return false
-            }
-            return false
-        }
-
-        let success = await executeWithKey(primaryKey)
-        if (!success && fallbackKey) {
-            success = await executeWithKey(fallbackKey)
-        }
-
-        if (!success || !data) {
-            throw new Error(
-                toUserFriendlyError(new Error(lastError || 'Gemini image generation failed.'))
-            )
-        }
-
-        // Debug Log
-        console.log('Gemini Response:', JSON.stringify(data).substring(0, 500))
-
-        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-            const reason = data.promptFeedback?.blockReason || 'UNKNOWN'
-            throw new Error(`Gemini Refused. Reason: ${reason}`)
-        }
-
-        let imageUrl = ""
-        let promptUsed = lastMsg.content
-
-        // Parse Inline Data (as per user-provided implementation)
-        for (const part of data.candidates[0].content.parts) {
-            if (part.inlineData) {
-                imageUrl = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`
-                break
-            }
-        }
-
-        if (!imageUrl) {
-            const textPart = data.candidates[0].content.parts.find((p: any) => p.text)
-            if (textPart) {
-                throw new Error(`Model returned text instead of image: "${textPart.text}"`)
-            }
-            throw new Error('No image data found in response.')
-        }
-
-        // --- Persistence Logic ---
-        let finalAssetUrl = imageUrl
-
-        // Upload to Supabase Storage
-        if (imageUrl.startsWith('data:')) {
+        if (generationResult.imageUrl.startsWith("data:")) {
             try {
-                const blob = await (await fetch(imageUrl)).blob()
+                const blob = await (await fetch(generationResult.imageUrl)).blob()
                 const fileName = `generated/${workspaceId}/${Date.now()}.png`
-                const { error: uploadError } = await supabase.storage.from('generated_assets').upload(fileName, blob, {
-                    contentType: 'image/png',
-                    upsert: true
+                const { error: uploadError } = await supabase.storage.from("generated_assets").upload(fileName, blob, {
+                    contentType: "image/png",
+                    upsert: true,
                 })
+
                 if (!uploadError) {
-                    const { data: { publicUrl } } = supabase.storage.from('generated_assets').getPublicUrl(fileName)
-                    finalAssetUrl = publicUrl
+                    const { data: publicData } = supabase.storage.from("generated_assets").getPublicUrl(fileName)
+                    finalAssetUrl = publicData.publicUrl
                 } else {
                     console.error("Upload Error:", uploadError)
                 }
-            } catch (e) {
-                console.error("Blob conversion error:", e)
+            } catch (error) {
+                console.error("Blob conversion error:", error)
             }
         }
 
-        // Insert into generated_assets
-        const { error: insertError } = await supabase.from('generated_assets').insert({
+        const { error: insertError } = await supabase.from("generated_assets").insert({
             workspace_id: workspaceId,
-            asset_type: 'image',
+            asset_type: "image",
             image_url: finalAssetUrl,
-            content: { prompt: promptUsed, model: usedModel, style: style }
+            content: { prompt: promptUsed, model: generationResult.usedModel, style },
         })
 
         if (insertError) {
@@ -248,23 +443,28 @@ serve(async (req) => {
             console.log("Successfully saved to generated_assets")
         }
 
-        const parsedResult = {
-            type: "image",
-            prompt_used: promptUsed,
-            id: `img_${Date.now()}`,
-            imageUrl: finalAssetUrl,
-            model: usedModel,
-        }
-
-        return new Response(JSON.stringify({ result: parsedResult }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200,
-        })
-
-    } catch (error: any) {
-        return new Response(JSON.stringify({ error: error.message }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 200,
-        })
+        return new Response(
+            JSON.stringify({
+                result: {
+                    type: "image",
+                    prompt_used: promptUsed,
+                    id: `img_${Date.now()}`,
+                    imageUrl: finalAssetUrl,
+                    model: generationResult.usedModel,
+                },
+            }),
+            {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 200,
+            },
+        )
+    } catch (error: unknown) {
+        return new Response(
+            JSON.stringify({ error: toUserFriendlyError(error) }),
+            {
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+                status: 200,
+            },
+        )
     }
 })

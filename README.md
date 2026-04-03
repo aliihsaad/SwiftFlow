@@ -112,7 +112,7 @@ An AI-driven social media management platform built with Next.js and Supabase. I
 - **Database**: Supabase (PostgreSQL)
 - **Authentication**: Supabase Auth
 - **Edge Functions**: Deno (Supabase Functions)
-- **AI Provider**: Google Gemini AI
+- **AI Provider**: OpenRouter-first, with Gemini/OpenAI compatibility during migration
 - **File Storage**: Supabase Storage
 
 ### Key Dependencies
@@ -158,8 +158,12 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-# Google Gemini AI
+# OpenRouter AI (preferred)
+OPENROUTER_API_KEY=your_openrouter_api_key
+
+# Optional direct-provider fallbacks during migration
 GEMINI_API_KEY=your_gemini_api_key
+OPENAI_API_KEY=your_openai_api_key
 
 # Meta/Facebook OAuth
 NEXT_PUBLIC_META_APP_ID=your_meta_app_id
@@ -268,6 +272,7 @@ supabase functions deploy automation-worker-send-email --no-verify-jwt
 
 #### Set Function Secrets
 ```bash
+supabase secrets set OPENROUTER_API_KEY=your_openrouter_api_key
 supabase secrets set GEMINI_API_KEY=your_gemini_api_key
 supabase secrets set APP_SECRETS_ENCRYPTION_KEY=your_long_random_secret
 ```
@@ -421,14 +426,14 @@ Legacy/simple wizard automation executor is still kept for backward compatibilit
 ## 🔧 Configuration
 
 ### AI Model Selection
-Configure your preferred Gemini model in Settings > AI Provider:
-- `gemini-2.0-flash` (Default, fastest)
-- `gemini-1.5-pro` (More capable)
-- `gemini-1.5-flash` (Balanced)
+Configure your preferred model in Settings > AI Provider:
+- `openai/gpt-4o-mini` via OpenRouter (default migration target)
+- Gemini direct models for legacy compatibility
+- OpenAI direct models for legacy compatibility
 
 ### Workspace Settings
 Each workspace can have:
-- Custom Gemini/OpenAI API keys (encrypted at rest)
+- Custom OpenRouter/Gemini/OpenAI API keys (encrypted at rest)
 - Preferred AI model
 - Brand profile
 - Connected social accounts
@@ -521,6 +526,7 @@ NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 GEMINI_API_KEY
+OPENROUTER_API_KEY
 NEXT_PUBLIC_META_APP_ID
 META_APP_SECRET
 INSTAGRAM_APP_SECRET

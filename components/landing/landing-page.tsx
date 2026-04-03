@@ -272,7 +272,7 @@ const reviewFaqItems = [
     },
     {
         q: "How does AI billing work in this release?",
-        a: "AI usage follows a BYOK model. Workspace owners connect their own provider key, and provider usage charges stay with that provider account rather than being bundled into the app.",
+        a: "AI usage follows a BYOK model. Workspace owners connect their own provider key, the key is encrypted before storage, and provider usage charges stay with that provider account instead of being bundled into the app. This also keeps usage limits, model selection, and billing visibility under the workspace owner's control.",
     },
 ]
 
@@ -1490,7 +1490,7 @@ function CTABanner({ reviewPhase1Release = false }: { reviewPhase1Release?: bool
 
                         {reviewPhase1Release && (
                             <div className="mb-8 rounded-2xl border border-cyan-300/20 bg-cyan-400/8 px-4 py-3 text-sm text-cyan-100/90">
-                                <span className="font-medium">AI is BYOK:</span> teams connect their own OpenRouter, OpenAI, or Gemini key, and provider usage remains on that provider account.
+                                <span className="font-medium">AI is BYOK:</span> teams connect their own OpenRouter, OpenAI, or Gemini key, the key is encrypted before storage, and provider usage stays on that provider account so spend and limits remain under the team's control.
                             </div>
                         )}
 

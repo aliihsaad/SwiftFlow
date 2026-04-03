@@ -218,7 +218,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
             </CardHeader>
             <CardContent>
                 <div className="mb-4 rounded-xl border border-cyan-300/20 bg-cyan-400/8 p-3 text-sm text-cyan-100/90">
-                    <span className="font-medium">BYOK:</span> SwiftFlow uses your own provider credentials for AI usage. OpenRouter, OpenAI, and Gemini charges stay on your provider account rather than being bundled into the app subscription.
+                    <span className="font-medium">BYOK:</span> SwiftFlow uses your own provider credentials for AI usage. API keys are encrypted before storage, provider usage charges stay on your account, and teams keep direct control over usage limits, billing visibility, and model-level spend.
                 </div>
                 {!canEditSettings && (
                     <div className="mb-4 rounded-xl border border-amber-300/20 bg-amber-400/8 p-3 text-sm text-amber-100/90">

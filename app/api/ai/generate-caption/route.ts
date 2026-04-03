@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { FunctionsHttpError } from '@supabase/functions-js'
 import { AICaptionRequest, AICaptionResponse } from '@/types/post'
 import { createClient } from '@/utils/supabase/server'
+import { invokeWithSessionRetry } from '@/utils/supabase/invoke-with-session-retry'
 
 export const runtime = 'edge'
+
+async function getFunctionErrorMessage(error: unknown): Promise<string> {
+    if (!(error instanceof FunctionsHttpError)) {
+        return error instanceof Error ? error.message : 'Failed to invoke AI function'
+    }
+
+    try {
+        const response = error.context
+        const payload = await response.json().catch(() => null) as { error?: string; message?: string } | null
+        return payload?.error || payload?.message || error.message || 'Failed to invoke AI function'
+    } catch {
+        return error.message || 'Failed to invoke AI function'
+    }
+}
 
 export async function POST(request: NextRequest) {
     try {
@@ -59,21 +75,21 @@ export async function POST(request: NextRequest) {
         }
 
         // Invoke Supabase Edge Function
-        const { data, error } = await supabase.functions.invoke('generate-caption', {
+        const { data, error } = await invokeWithSessionRetry<AICaptionResponse>(supabase, 'generate-caption', {
             body: { description, platforms, tone, language, workspaceId: effectiveWorkspaceId }
         })
 
         if (error) {
             console.error('Edge Function Error:', error)
-            throw new Error(error.message || 'Failed to invoke AI function')
+            throw new Error(await getFunctionErrorMessage(error))
         }
 
         return NextResponse.json(data as AICaptionResponse)
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('AI Caption Generation Error:', error)
         return NextResponse.json(
-            { error: error.message || 'Failed to generate captions' },
+            { error: error instanceof Error ? error.message : 'Failed to generate captions' },
             { status: 500 }
         )
     }

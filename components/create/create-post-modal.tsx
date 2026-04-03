@@ -33,14 +33,25 @@ import { useWorkspacePermission } from "@/components/workspace/workspace-role-pr
 interface CreatePostModalProps {
     open: boolean
     onOpenChange: (open: boolean) => void
-    postToEdit?: any
+    postToEdit?: {
+        id?: string
+        status?: 'draft' | 'scheduled' | 'published' | string
+        content?: string | null
+        media_urls?: string[] | null
+        scheduled_for?: string | null
+    } | null
     workspaceId: string
     initialCaption?: string
     initialMedia?: string[]
     initialDate?: Date
 }
 
-const PLATFORMS = [
+const PLATFORMS: Array<{
+    id: 'all' | 'instagram' | 'facebook'
+    label: string
+    icon: typeof Monitor
+    color?: string
+}> = [
     { id: 'all', label: 'All', icon: Monitor },
     { id: 'instagram', label: 'Instagram', icon: Instagram, color: 'text-pink-500' },
     { id: 'facebook', label: 'Facebook', icon: Facebook, color: 'text-blue-500' },
@@ -50,17 +61,37 @@ const SUGGESTED_HASHTAGS = ['#OpenSourceLife', '#CodingCommunity', '#SkilledDeve
 
 /** Strip raw SDK error prefixes and JSON blobs from AI error messages. */
 function sanitizeAIError(msg: string): string {
+    const normalized = msg
+        .replace(/\[GoogleGenerativeAI Error\]:\s*/i, "")
+        .replace(/Error fetching from https:\/\/[^\s:]+:\s*/i, "")
+        .replace(/\[\{[\s\S]*?\}\]/g, "")
+        .trim()
+
+    if (/invalid jwt|non-2xx status code|failed to invoke ai function/i.test(normalized)) {
+        return "The AI service is temporarily unavailable. Please try again in a moment."
+    }
+    if (/unauthorized|forbidden/i.test(normalized)) {
+        return "Your session expired or this workspace is not available right now. Refresh the page and try again."
+    }
+    if (/workspaceId is required|no active workspace found|workspace membership/i.test(normalized)) {
+        return "No active workspace was found for this AI request. Refresh the page and try again."
+    }
+    if (/openrouter|gemini api key not configured|openai api key not configured|api key missing/i.test(normalized)) {
+        return "Your AI provider is not configured yet. Update it in Settings -> AI Provider."
+    }
     if (/API_KEY_INVALID|api key not valid/i.test(msg)) {
         return "Your AI API key is invalid or expired. Update it in Settings → AI Provider."
     }
     if (/RESOURCE_EXHAUSTED|quota/i.test(msg)) {
         return "AI API quota exceeded. Wait a moment or upgrade your API plan."
     }
-    return msg
-        .replace(/\[GoogleGenerativeAI Error\]:\s*/i, "")
-        .replace(/Error fetching from https:\/\/[^\s:]+:\s*/i, "")
-        .replace(/\[\{[\s\S]*?\}\]/g, "")
-        .trim() || "An unexpected AI error occurred."
+    if (/rate limit|too many requests/i.test(normalized)) {
+        return "The AI service is rate-limited right now. Please wait a moment and try again."
+    }
+    if (/timeout|timed out|network/i.test(normalized)) {
+        return "The AI request took too long or lost connection. Please try again."
+    }
+    return normalized || "An unexpected AI error occurred."
 }
 
 // ─── Shared inner UI ─────────────────────────────────────────────────────────
@@ -162,8 +193,12 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
                 body: JSON.stringify({ description, platforms: [activeTab === 'all' ? 'instagram' : activeTab], tone: 'engaging', language: 'en', workspaceId }),
             })
             const data = await res.json().catch(() => ({}))
-            if (data?.suggestions?.length > 0) setGlobalCaption(data.suggestions[0])
-            else if (data?.error) setInlineError(sanitizeAIError(data.error))
+            if (!res.ok) throw new Error(data?.error || 'Failed to generate caption')
+            if (data?.suggestions?.length > 0) {
+                setGlobalCaption(data.suggestions[0])
+                return
+            }
+            throw new Error(data?.error || 'The AI assistant could not generate a caption for this post.')
         } catch (e) {
             setInlineError(sanitizeAIError(e instanceof Error ? e.message : 'Failed to generate caption.'))
         } finally {
@@ -181,10 +216,15 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
                 body: JSON.stringify({ description: 'Generate 10 relevant hashtags for: ' + globalCaption, platforms: ['instagram'], tone: 'engaging', workspaceId }),
             })
             const data = await res.json().catch(() => ({}))
+            if (!res.ok) throw new Error(data?.error || 'Failed to refresh hashtags')
             if (data?.suggestions && Array.isArray(data.suggestions)) {
                 const tags = (data.suggestions.join(' ').match(/#[a-zA-Z0-9_]+/g) || []) as string[]
-                if (tags.length > 0) setSuggestedHashtags(Array.from(new Set(tags)).slice(0, 8) as string[])
+                if (tags.length > 0) {
+                    setSuggestedHashtags(Array.from(new Set(tags)).slice(0, 8) as string[])
+                    return
+                }
             }
+            throw new Error(data?.error || 'The AI assistant could not generate hashtags for this post.')
         } catch (e) {
             setInlineError(sanitizeAIError(e instanceof Error ? e.message : 'Failed to refresh hashtags.'))
         } finally {
@@ -236,15 +276,16 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
                 }),
             })
 
-            let responseData: any = null
+            let responseData: { error?: string } | null = null
             try { responseData = await res.json() } catch { }
             if (!res.ok) throw new Error(responseData?.error || `Request failed (${res.status})`)
 
             onClose()
             router.refresh()
-        } catch (e: any) {
-            setInlineError(e.message || 'Failed to create post')
-            toast({ title: 'Post action failed', description: e.message || 'Failed to create post', variant: 'destructive' })
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : 'Failed to create post'
+            setInlineError(message)
+            toast({ title: 'Post action failed', description: message, variant: 'destructive' })
         } finally {
             setIsSubmitting(false)
             setSubmitAction(null)
@@ -316,7 +357,7 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
 
                 {/* Platform Tabs */}
                 <div className="flex gap-1.5">
-                    {PLATFORMS.map(({ id, label, icon: Icon, color }: any) => (
+                    {PLATFORMS.map(({ id, label, icon: Icon, color }) => (
                         <button
                             key={id}
                             onClick={() => setActiveTab(id)}

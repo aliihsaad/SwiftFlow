@@ -84,4 +84,5 @@ Status legend:
   - post publish attempts are being normalized into persisted failure summaries and per-platform results
   - brand settings now exposes whether connected accounts are publish-ready or need re-auth
   - the Stage 7 Supabase migration has been applied and `process-scheduled-posts` has been redeployed
+  - `process-scheduled-posts` deployment requirements now explicitly include `--no-verify-jwt` for internal triggers
   - live review-environment publish verification is still pending before Stage 7 can close

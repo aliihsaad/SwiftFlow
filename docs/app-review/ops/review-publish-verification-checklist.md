@@ -9,7 +9,7 @@ Use this after deploying the Stage 7 release candidate to the review environment
 - Confirm `NEXT_PUBLIC_APP_URL` points at the reviewer deployment
 - Confirm `APP_SECRETS_ENCRYPTION_KEY` is present
 - Confirm the Stage 7 migration for post publish failure fields has been applied
-- Confirm `process-scheduled-posts` is deployed after the migration
+- Confirm `process-scheduled-posts` is deployed after the migration with `--no-verify-jwt`
 
 ## Publish Now
 

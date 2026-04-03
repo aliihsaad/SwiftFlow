@@ -46,16 +46,19 @@ This folder contains all deployed Supabase edge functions used by the app.
 - Keep function names stable once referenced by app routes or webhook handlers.
 - Vercel Hobby does not support 1-minute cron. Use a Supabase schedule targeting `scheduler-tick` for minutely jobs.
 
-## Deployment Requirement (Automation Workers)
+## Deployment Requirement (Internal Invocations)
 
-Canvas automation worker functions must be deployed with `--no-verify-jwt`.
+Functions invoked internally by the app server, schedulers, or other edge functions must be deployed with `--no-verify-jwt`.
 
 Reason:
 - `automation-orchestrator` and `process-scheduled-executions` invoke worker functions internally.
+- `process-scheduled-posts` is invoked by the app server for "publish now" and by `scheduler-tick`.
 - In the current setup, redeploying workers without `--no-verify-jwt` can cause internal dispatch failures (`401 Invalid JWT`) before the worker executes.
 - Typical symptom in logs: webhook trigger matches automation, but orchestrator reports `matched > 0`, `dispatched: 0`, `failed > 0`.
+- Typical symptom for publishing: a "publish now" post remains in `scheduled`, while `process-scheduled-posts` logs `401` at the function gateway.
 
 Functions that require `--no-verify-jwt`:
+- `process-scheduled-posts`
 - `automation-worker-run`
 - `automation-worker-ai-response`
 - `automation-worker-condition`
@@ -68,6 +71,7 @@ Functions that require `--no-verify-jwt`:
 Recommended deploy commands:
 
 ```bash
+supabase functions deploy process-scheduled-posts --no-verify-jwt
 supabase functions deploy automation-worker-run --no-verify-jwt
 supabase functions deploy automation-worker-ai-response --no-verify-jwt
 supabase functions deploy automation-worker-condition --no-verify-jwt
@@ -78,7 +82,7 @@ supabase functions deploy automation-worker-send-dm --no-verify-jwt
 supabase functions deploy automation-worker-send-email --no-verify-jwt
 ```
 
-Orchestrator/scheduler functions (normal deploy):
+Cron target / orchestration entrypoints (normal deploy):
 
 ```bash
 supabase functions deploy scheduler-tick

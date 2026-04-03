@@ -42,4 +42,5 @@ Stage 8 must package this exact release candidate, not continue changing core be
 - scheduled/failed post UI is being updated to show readable platform-specific failure summaries
 - a production review verification checklist now lives in `docs/app-review/ops/review-publish-verification-checklist.md`
 - the Stage 7 post-failure migration has been applied to Supabase and `process-scheduled-posts` has been redeployed
+- `process-scheduled-posts` must be deployed with `--no-verify-jwt` because it is triggered internally by the app server and scheduler paths
 - live publish-now and scheduled-publish verification on the production review environment is still pending before this stage can close

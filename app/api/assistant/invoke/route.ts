@@ -13,6 +13,11 @@ const ALLOWED_FUNCTIONS = new Set([
     'select-unsplash-image',
 ])
 
+function looksLikeJwt(value: string | null | undefined): boolean {
+    const normalized = String(value || '').trim()
+    return normalized.startsWith('eyJ') && normalized.split('.').length === 3
+}
+
 export async function POST(request: NextRequest) {
     try {
         const { functionName, body } = await request.json()
@@ -63,6 +68,7 @@ export async function POST(request: NextRequest) {
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
         const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || null
 
         if (!supabaseUrl || !serviceKey) {
             return NextResponse.json(
@@ -71,13 +77,21 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        const authJwt = looksLikeJwt(serviceKey)
+            ? serviceKey
+            : (looksLikeJwt(anonKey) ? anonKey : null)
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            apikey: serviceKey,
+        }
+
+        if (authJwt) {
+            headers.Authorization = `Bearer ${authJwt}`
+        }
+
         const edgeResponse = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': serviceKey,
-                'Authorization': `Bearer ${serviceKey}`,
-            },
+            headers,
             body: JSON.stringify(invokeBody)
         })
 

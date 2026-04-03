@@ -34,21 +34,21 @@ export const PROVIDER_MODEL_CATALOG: Record<AIProvider, ProviderModelCatalog> = 
     ],
     image: [
       {
-        id: 'google/gemini-2.5-flash-image-preview',
-        label: 'Gemini 2.5 Flash Image',
-        summary: 'Balanced default for prompt-following and brand-driven image generation.',
-        recommendation: 'balanced',
-      },
-      {
-        id: 'black-forest-labs/flux.1-schnell',
-        label: 'FLUX.1 Schnell',
-        summary: 'Lower-cost, faster image generation when speed matters most.',
+        id: 'black-forest-labs/flux.2-klein-4b',
+        label: 'FLUX.2 Klein 4B',
+        summary: 'Most cost-effective OpenRouter image option for fast drafts and routine creative volume.',
         recommendation: 'cost',
       },
       {
-        id: 'black-forest-labs/flux.1.1-pro',
-        label: 'FLUX 1.1 Pro',
-        summary: 'Premium quality for polished campaign visuals and hero assets.',
+        id: 'black-forest-labs/flux.2-flex',
+        label: 'FLUX.2 Flex',
+        summary: 'Balanced OpenRouter default for stronger typography, prompt adherence, and editing support.',
+        recommendation: 'balanced',
+      },
+      {
+        id: 'black-forest-labs/flux.2-max',
+        label: 'FLUX.2 Max',
+        summary: 'Highest-quality OpenRouter image option for polished campaign visuals and hero assets.',
         recommendation: 'quality',
       },
     ],
@@ -78,19 +78,13 @@ export const PROVIDER_MODEL_CATALOG: Record<AIProvider, ProviderModelCatalog> = 
       {
         id: 'gemini-2.5-flash-image',
         label: 'Gemini 2.5 Flash Image',
-        summary: 'Recommended Gemini image model for text-to-image and edits.',
+        summary: 'Recommended production Gemini image model for text-to-image and image edits.',
         recommendation: 'balanced',
-      },
-      {
-        id: 'gemini-2.0-flash-preview-image-generation',
-        label: 'Gemini 2.0 Flash Image Preview',
-        summary: 'Lower-cost preview option for experiments and quick drafts.',
-        recommendation: 'cost',
       },
       {
         id: 'gemini-3-pro-image-preview',
         label: 'Gemini 3 Pro Image Preview',
-        summary: 'Highest-quality Gemini preview option for stronger visual detail.',
+        summary: 'Highest-quality Gemini image option for stronger instruction following and detailed creative work.',
         recommendation: 'quality',
       },
     ],
@@ -156,6 +150,7 @@ export function getDefaultTextModelForProvider(provider: AIProvider): string {
 }
 
 export function getDefaultImageModelForProvider(provider: AIProvider): string | null {
+  if (provider === 'openrouter') return 'black-forest-labs/flux.2-flex'
   return getFallbackModelsForProvider(provider, 'image')?.[0] || null
 }
 

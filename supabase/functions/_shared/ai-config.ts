@@ -10,7 +10,7 @@ import { decryptSecretIfNeeded } from "./secret-crypto.ts"
 export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 export const DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 export const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o-mini"
-export const DEFAULT_OPENROUTER_IMAGE_MODEL = "google/gemini-2.5-flash-image-preview"
+export const DEFAULT_OPENROUTER_IMAGE_MODEL = "black-forest-labs/flux.2-flex"
 export const DEFAULT_TEMPERATURE = 0.7
 export const DEFAULT_MAX_TOKENS = 2048
 export const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image"
@@ -20,6 +20,10 @@ export const DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-1-mini"
 const GEMINI_MODEL_UPGRADES: Record<string, string> = {
     "gemini-pro": DEFAULT_GEMINI_MODEL,
     "gemini-1.5-flash-latest": "gemini-1.5-flash",
+}
+
+const OPENROUTER_IMAGE_MODEL_UPGRADES: Record<string, string> = {
+    "google/gemini-2.5-flash-image-preview": DEFAULT_OPENROUTER_IMAGE_MODEL,
 }
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -89,6 +93,9 @@ function upgradeModelName(model: string, provider: string, capability: "text" | 
     }
 
     // Apply known upgrades for deprecated models
+    if (capability === "image" && provider === "openrouter" && OPENROUTER_IMAGE_MODEL_UPGRADES[trimmed]) {
+        return OPENROUTER_IMAGE_MODEL_UPGRADES[trimmed]
+    }
     if (capability === "text" && provider === "gemini" && GEMINI_MODEL_UPGRADES[trimmed]) {
         return GEMINI_MODEL_UPGRADES[trimmed]
     }
@@ -217,6 +224,9 @@ export function toUserFriendlyError(error: unknown): string {
     }
     if (/PERMISSION_DENIED/i.test(raw)) {
         return "Your AI API key doesn't have permission for this operation. Check your Google Cloud project settings."
+    }
+    if (/No endpoints found for/i.test(raw)) {
+        return "The selected image model is not currently available through your AI provider route. Choose another image model in Settings → AI Provider."
     }
     if (/NOT_FOUND|MODEL_NOT_FOUND/i.test(raw)) {
         return "The selected AI model was not found. Try changing the model in Settings → AI Provider."

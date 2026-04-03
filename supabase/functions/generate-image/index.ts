@@ -153,45 +153,64 @@ async function generateWithOpenRouterImage(params: {
     brandImageMode?: string
     transformAction?: string
 }): Promise<{ imageUrl: string; usedModel: string }> {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${params.apiKey}`,
-        },
-        body: JSON.stringify({
-            model: params.modelName,
-            messages: [
-                {
-                    role: "user",
-                    content: buildOpenRouterImageMessage(
-                        params.prompt,
-                        params.referenceImages,
-                        params.referenceMode,
-                        params.brandImageMode,
-                        params.transformAction,
-                    ),
-                },
-            ],
-            modalities: params.modelName.startsWith("black-forest-labs/") ? ["image"] : ["image", "text"],
-            image_config: { aspect_ratio: "1:1" },
-        }),
-    })
+    const modelCandidates = Array.from(
+        new Set([
+            params.modelName,
+            "black-forest-labs/flux.2-flex",
+            "black-forest-labs/flux.2-max",
+            "black-forest-labs/flux.2-klein-4b",
+            "google/gemini-2.5-flash-image-preview",
+        ]),
+    )
 
-    const data = await response.json().catch(() => ({} as Record<string, unknown>))
-    const choices = Array.isArray((data as { choices?: unknown[] }).choices) ? (data as { choices: unknown[] }).choices : []
-    const firstChoice = choices[0] as { message?: { images?: Array<{ image_url?: { url?: string } }> } } | undefined
-    const imageUrl = firstChoice?.message?.images?.[0]?.image_url?.url
+    let lastError = ""
 
-    if (!response.ok || (data as { error?: { message?: string } }).error) {
-        throw new Error((data as { error?: { message?: string } }).error?.message || `OpenRouter image generation failed (${response.status})`)
+    for (const candidate of modelCandidates) {
+        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${params.apiKey}`,
+            },
+            body: JSON.stringify({
+                model: candidate,
+                messages: [
+                    {
+                        role: "user",
+                        content: buildOpenRouterImageMessage(
+                            params.prompt,
+                            params.referenceImages,
+                            params.referenceMode,
+                            params.brandImageMode,
+                            params.transformAction,
+                        ),
+                    },
+                ],
+                modalities: candidate.startsWith("black-forest-labs/") ? ["image"] : ["image", "text"],
+                image_config: { aspect_ratio: "1:1" },
+            }),
+        })
+
+        const data = await response.json().catch(() => ({} as Record<string, unknown>))
+        const choices = Array.isArray((data as { choices?: unknown[] }).choices) ? (data as { choices: unknown[] }).choices : []
+        const firstChoice = choices[0] as { message?: { images?: Array<{ image_url?: { url?: string } }> } } | undefined
+        const imageUrl = firstChoice?.message?.images?.[0]?.image_url?.url
+        const providerError = (data as { error?: { message?: string } }).error?.message || `OpenRouter image generation failed (${response.status})`
+
+        if (response.ok && !(data as { error?: { message?: string } }).error && imageUrl) {
+            return { imageUrl, usedModel: candidate }
+        }
+
+        lastError = providerError
+
+        if (/No endpoints found for|model not found|not available/i.test(providerError)) {
+            continue
+        }
+
+        throw new Error(providerError)
     }
 
-    if (!imageUrl) {
-        throw new Error("OpenRouter did not return image data.")
-    }
-
-    return { imageUrl, usedModel: params.modelName }
+    throw new Error(lastError || "OpenRouter image generation failed.")
 }
 
 async function generateWithOpenAIImage(params: {

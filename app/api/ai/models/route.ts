@@ -43,7 +43,11 @@ function isLikelyTextOpenAIModel(id: string): boolean {
   return !excluded.test(id)
 }
 
-async function fetchGeminiModels(apiKey: string): Promise<string[]> {
+function isLikelyImageOpenAIModel(id: string): boolean {
+  return /^(gpt-image-1(\.5|-mini)?|dall-e-2|dall-e-3)$/i.test(id.trim())
+}
+
+async function fetchGeminiModels(apiKey: string, capability: 'text' | 'image'): Promise<string[]> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
   const response = await fetch(url, { cache: 'no-store' })
   const result = await response.json()
@@ -59,11 +63,12 @@ async function fetchGeminiModels(apiKey: string): Promise<string[]> {
     )
     .map((m: { name?: string }) => normalizeGeminiModelName(String(m?.name || '')))
     .filter((id: string) => id.startsWith('gemini'))
+    .filter((id: string) => capability === 'image' ? id.includes('image') : !id.includes('image'))
 
   return sortModelIds(models)
 }
 
-async function fetchOpenAIModels(apiKey: string): Promise<string[]> {
+async function fetchOpenAIModels(apiKey: string, capability: 'text' | 'image'): Promise<string[]> {
   const response = await fetch('https://api.openai.com/v1/models', {
     method: 'GET',
     headers: {
@@ -81,13 +86,14 @@ async function fetchOpenAIModels(apiKey: string): Promise<string[]> {
   const models = (Array.isArray(result?.data) ? result.data : [])
     .map((m: { id?: string }) => String(m?.id || '').trim())
     .filter(Boolean)
-    .filter(isLikelyTextOpenAIModel)
+    .filter((id: string) => capability === 'image' ? isLikelyImageOpenAIModel(id) : isLikelyTextOpenAIModel(id))
 
   return sortModelIds(models)
 }
 
-async function fetchOpenRouterModels(apiKey: string): Promise<string[]> {
-  const response = await fetch('https://openrouter.ai/api/v1/models', {
+async function fetchOpenRouterModels(apiKey: string, capability: 'text' | 'image'): Promise<string[]> {
+  const suffix = capability === 'image' ? '?output_modality=image' : ''
+  const response = await fetch(`https://openrouter.ai/api/v1/models${suffix}`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -104,15 +110,15 @@ async function fetchOpenRouterModels(apiKey: string): Promise<string[]> {
   const models = (Array.isArray(result?.data) ? result.data : [])
     .map((m: { id?: string }) => String(m?.id || '').trim())
     .filter(Boolean)
-    .filter(isLikelyTextOpenRouterModel)
+    .filter((id: string) => capability === 'image' ? true : isLikelyTextOpenRouterModel(id))
 
   return sortModelIds(models)
 }
 
-async function fetchProviderModels(provider: AIProvider, apiKey: string): Promise<string[]> {
-  if (provider === 'openrouter') return fetchOpenRouterModels(apiKey)
-  if (provider === 'gemini') return fetchGeminiModels(apiKey)
-  return fetchOpenAIModels(apiKey)
+async function fetchProviderModels(provider: AIProvider, apiKey: string, capability: 'text' | 'image'): Promise<string[]> {
+  if (provider === 'openrouter') return fetchOpenRouterModels(apiKey, capability)
+  if (provider === 'gemini') return fetchGeminiModels(apiKey, capability)
+  return fetchOpenAIModels(apiKey, capability)
 }
 
 export async function GET(request: NextRequest) {
@@ -127,16 +133,6 @@ export async function GET(request: NextRequest) {
     const capabilityParam = request.nextUrl.searchParams.get('capability') === 'image' ? 'image' : 'text'
     if (!isAIProvider(providerParam)) {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 })
-    }
-
-    if (capabilityParam === 'image') {
-      return NextResponse.json({
-        models: getFallbackModelsForProvider(providerParam, 'image'),
-        curated: getCuratedModelsForProvider(providerParam, 'image'),
-        provider: providerParam,
-        capability: capabilityParam,
-        source: 'curated',
-      })
     }
 
     const activeWorkspace = await getActiveWorkspace()
@@ -182,7 +178,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const models = await fetchProviderModels(providerParam, apiKey)
+      const models = await fetchProviderModels(providerParam, apiKey, capabilityParam)
       if (!models.length) {
         return NextResponse.json(
           {

@@ -1,6 +1,6 @@
 # Stage 8: Submission Package Finalization
 
-Status: `not_started`
+Status: `in_progress`
 
 Depends on: `Stage 7`
 
@@ -22,6 +22,16 @@ Prepare the final reviewer package only after the product is stable.
 - `docs/app-review/scripts/`
 - `docs/app-review/evidence/`
 - `docs/app-review/ops/`
+
+## Current Execution Notes
+
+- Core reviewer-facing documents already exist under `docs/app-review/`
+- Stage 8 is focused on removing contradictions and packaging the final reviewer handoff
+- The remaining operational gap is not product code; it is the final submission bundle:
+  - reviewer access handoff
+  - asset index
+  - final pre-submit checklist
+  - recorded screencast file placement once captured
 
 ## Exit Gate
 

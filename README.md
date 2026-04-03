@@ -250,8 +250,6 @@ supabase functions deploy generate-image
 supabase functions deploy generate-carousel
 supabase functions deploy generate-reply
 supabase functions deploy generate-message-reply
-supabase functions deploy search-unsplash
-supabase functions deploy select-unsplash-image
 supabase functions deploy process-scheduled-posts
 supabase functions deploy sync-analytics
 supabase functions deploy sync-comments
@@ -343,8 +341,6 @@ Social-Media-Manager-AI-Tool/
 │   │   ├── generate-carousel/   # Carousel generation
 │   │   ├── generate-reply/      # AI comment replies
 │   │   ├── generate-message-reply/ # AI DM replies
-│   │   ├── search-unsplash/     # Unsplash search
-│   │   ├── select-unsplash-image/ # Unsplash selection tracking
 │   │   ├── process-scheduled-posts/ # Scheduled post publisher
 │   │   ├── sync-analytics/      # Follower metrics sync
 │   │   ├── sync-comments/       # Comments sync

@@ -10,8 +10,6 @@ This folder contains all deployed Supabase edge functions used by the app.
 - `generate-image`
 - `generate-message-reply`
 - `generate-reply`
-- `search-unsplash`
-- `select-unsplash-image`
 
 ## Publishing / Analytics / Sync
 - `process-scheduled-posts`

@@ -19,7 +19,7 @@ Status legend:
 | Stage 5: OpenRouter-first AI migration | `done` | Stage 2 | one shared AI adapter for migrated text flows, truthful provider model |
 | Stage 6: Reviewer-safe UX and compliance | `done` | Stage 3, Stage 4 | reviewer path, public compliance pages, aligned reviewer docs |
 | Stage 7: Reliability hardening | `done` | Stage 4, Stage 5, Stage 6 | stable publish/schedule behavior, health/status surfaces, deploy checks |
-| Stage 8: Submission package finalization | `not_started` | Stage 7 | final reviewer assets, test credentials, screencast package |
+| Stage 8: Submission package finalization | `in_progress` | Stage 7 | final reviewer assets, test credentials, screencast package |
 | Stage 9: Post-approval expansion | `not_started` | Stage 8 | comments, analytics, messaging, billing added without regressing review-safe core |
 
 ## Implementation Order
@@ -86,3 +86,7 @@ Status legend:
   - the Stage 7 Supabase migration has been applied and `process-scheduled-posts` has been redeployed
   - `process-scheduled-posts` deployment requirements now explicitly include `--no-verify-jwt` for internal triggers
   - publish-now and scheduled publishing both passed on the production review environment
+- Stage 8 is in progress:
+  - the reviewer package is being consolidated into a final submission bundle under `docs/app-review/`
+  - submission copy, permissions matrix, screencast script, and review-env docs are already aligned to the Phase 1 scope
+  - Stage 8 now needs the final asset index, reviewer access handoff, pre-submit checklist, and recorded screencast placement

@@ -9,8 +9,6 @@ const ALLOWED_FUNCTIONS = new Set([
     'generate-carousel',
     'generate-reply',
     'generate-message-reply',
-    'search-unsplash',
-    'select-unsplash-image',
 ])
 
 function looksLikeJwt(value: string | null | undefined): boolean {

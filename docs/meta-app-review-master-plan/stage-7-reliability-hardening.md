@@ -1,6 +1,6 @@
 # Stage 7: Reliability Hardening
 
-Status: `in_progress`
+Status: `done`
 
 Depends on: `Stage 4`, `Stage 5`, `Stage 6`
 
@@ -43,4 +43,4 @@ Stage 8 must package this exact release candidate, not continue changing core be
 - a production review verification checklist now lives in `docs/app-review/ops/review-publish-verification-checklist.md`
 - the Stage 7 post-failure migration has been applied to Supabase and `process-scheduled-posts` has been redeployed
 - `process-scheduled-posts` must be deployed with `--no-verify-jwt` because it is triggered internally by the app server and scheduler paths
-- live publish-now and scheduled-publish verification on the production review environment is still pending before this stage can close
+- live publish-now and scheduled-publish verification passed on the production review environment

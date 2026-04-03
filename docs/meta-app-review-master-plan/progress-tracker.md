@@ -18,7 +18,7 @@ Status legend:
 | Stage 4: Security and capability layer | `done` | Stage 3 | encrypted token handling, persisted scopes/capabilities, normalized secret/env loading |
 | Stage 5: OpenRouter-first AI migration | `done` | Stage 2 | one shared AI adapter for migrated text flows, truthful provider model |
 | Stage 6: Reviewer-safe UX and compliance | `done` | Stage 3, Stage 4 | reviewer path, public compliance pages, aligned reviewer docs |
-| Stage 7: Reliability hardening | `in_progress` | Stage 4, Stage 5, Stage 6 | stable publish/schedule behavior, health/status surfaces, deploy checks |
+| Stage 7: Reliability hardening | `done` | Stage 4, Stage 5, Stage 6 | stable publish/schedule behavior, health/status surfaces, deploy checks |
 | Stage 8: Submission package finalization | `not_started` | Stage 7 | final reviewer assets, test credentials, screencast package |
 | Stage 9: Post-approval expansion | `not_started` | Stage 8 | comments, analytics, messaging, billing added without regressing review-safe core |
 
@@ -78,11 +78,11 @@ Status legend:
   - `/privacy`, `/data-deletion`, and `/terms` are being rewritten to describe the real product data flows and deletion path
   - reviewer mode is now being surfaced in the dashboard header and dashboard landing experience
   - app-review submission, screencast, and ops docs now match the reviewer-safe Phase 1 UI and route flow
-- Stage 7 is in progress:
-  - build-time environment validation is being added so misconfigured review deployments fail before release
-  - dashboard integration health messaging is being added to show whether connected publishing paths are actually review-ready
-  - post publish attempts are being normalized into persisted failure summaries and per-platform results
+- Stage 7 is complete:
+  - build-time environment validation now fails misconfigured review deployments before release
+  - dashboard integration health messaging now shows whether connected publishing paths are review-ready
+  - post publish attempts now persist normalized failure summaries and per-platform results
   - brand settings now exposes whether connected accounts are publish-ready or need re-auth
   - the Stage 7 Supabase migration has been applied and `process-scheduled-posts` has been redeployed
   - `process-scheduled-posts` deployment requirements now explicitly include `--no-verify-jwt` for internal triggers
-  - live review-environment publish verification is still pending before Stage 7 can close
+  - publish-now and scheduled publishing both passed on the production review environment

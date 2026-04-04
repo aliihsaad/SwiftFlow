@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { PostData } from '@/types/post'
 import { getActiveWorkspace } from '@/lib/workspace-utils'
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions'
@@ -8,13 +9,19 @@ import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@
  * Trigger the process-scheduled-posts edge function (fire-and-forget).
  * The edge function runs on Supabase infrastructure — we don't wait for it.
  */
-function triggerPublishEdgeFunction(supabase: any) {
-    supabase.functions.invoke('process-scheduled-posts').then(
-        ({ data, error }: any) => {
+type EdgeInvokeResult = {
+    data: unknown
+    error: { message?: string } | null
+}
+
+function triggerPublishEdgeFunction() {
+    const supabaseAdmin = createAdminClient()
+    supabaseAdmin.functions.invoke('process-scheduled-posts').then(
+        ({ data, error }: EdgeInvokeResult) => {
             if (error) console.error('[POSTS_API] Edge function error:', error)
             else console.log('[POSTS_API] Edge function result:', data)
         }
-    ).catch((e: any) => {
+    ).catch((e: unknown) => {
         console.error('[POSTS_API] Edge function invoke failed:', e)
     })
 }
@@ -79,7 +86,7 @@ export async function POST(request: NextRequest) {
         // If "Post Now", fire off the edge function (don't wait for it)
         if (shouldPublishNow) {
             console.log('[POSTS_API] Post Now - triggering edge function for post:', post.id)
-            triggerPublishEdgeFunction(supabase)
+            triggerPublishEdgeFunction()
         }
 
         return NextResponse.json({ ...post, publishTriggered: shouldPublishNow })
@@ -142,6 +149,7 @@ export async function PUT(request: NextRequest) {
                 updated_at: new Date().toISOString()
             })
             .eq('id', id)
+            .eq('workspace_id', activeWorkspace.id)
             .select()
             .single()
 
@@ -153,7 +161,7 @@ export async function PUT(request: NextRequest) {
         // If "Post Now", fire off the edge function (don't wait for it)
         if (shouldPublishNow) {
             console.log('[POSTS_API] PUT Post Now - triggering edge function for post:', post.id)
-            triggerPublishEdgeFunction(supabase)
+            triggerPublishEdgeFunction()
         }
 
         return NextResponse.json({ ...post, publishTriggered: shouldPublishNow })

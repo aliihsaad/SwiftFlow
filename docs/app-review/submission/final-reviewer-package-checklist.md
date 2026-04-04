@@ -1,6 +1,6 @@
 # Final Reviewer Package Checklist
 
-Last updated: 2026-04-03
+Last updated: 2026-04-05
 
 Use this checklist immediately before submitting the Phase 1 Meta App Review package.
 
@@ -10,6 +10,7 @@ Use this checklist immediately before submitting the Phase 1 Meta App Review pac
 - Confirm the requested permissions are only:
   - `public_profile`
   - `pages_show_list`
+  - `pages_read_engagement`
   - `pages_manage_posts`
   - `instagram_basic`
   - `instagram_content_publish`
@@ -56,3 +57,4 @@ Use this checklist immediately before submitting the Phase 1 Meta App Review pac
   - create post
   - publish now or schedule
 - Confirm any placeholders have been replaced before submission
+- Confirm the Meta submission has been sent and any follow-up requests are tracked

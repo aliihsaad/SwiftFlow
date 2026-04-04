@@ -37,5 +37,5 @@ Track the environment configuration required for the Meta review deployment.
 - Review deployment shows the `Review Mode` indicator and the Phase 1 guidance card on `/dashboard`
 - Connect flow uses `/api/auth/meta/login`
 - Callback uses `/api/auth/meta/callback`
-- OAuth dialog requests only: `public_profile`, `pages_show_list`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`
+- OAuth dialog requests only: `public_profile`, `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`, `instagram_basic`, `instagram_content_publish`
 - Public compliance pages are live at `/privacy`, `/terms`, and `/data-deletion`

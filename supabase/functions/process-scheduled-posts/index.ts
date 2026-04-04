@@ -20,6 +20,18 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function isAuthorizedInternalInvoke(req: Request): boolean {
+    const expectedApiKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
+    const providedApiKey = req.headers.get('apikey') || ''
+
+    if (!expectedApiKey) {
+        console.error('[process-scheduled-posts] Missing SUPABASE_SERVICE_ROLE_KEY for internal auth check')
+        return false
+    }
+
+    return providedApiKey === expectedApiKey
+}
+
 interface PublishResult {
     success: boolean;
     platform: string;
@@ -458,6 +470,13 @@ async function publishToFacebookMultiPhoto(
 serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
+    }
+
+    if (!isAuthorizedInternalInvoke(req)) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 401
+        });
     }
 
     try {

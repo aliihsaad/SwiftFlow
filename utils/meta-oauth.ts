@@ -28,6 +28,7 @@ const INSTAGRAM_SCOPES = [
 const REVIEW_PHASE_1_SCOPES = [
     ...COMMON_SCOPES,
     'pages_show_list',
+    'pages_read_engagement',
     'pages_manage_posts',
     'instagram_basic',
     'instagram_content_publish',
@@ -136,7 +137,7 @@ export function buildMetaOAuthDialogUrl(params: {
 /**
  * Generate Meta OAuth URL using environment variables
  */
-export function getMetaOAuthUrl(workspaceId?: string): string {
+export function getMetaOAuthUrl(state?: string): string {
     const appId = process.env.NEXT_PUBLIC_META_APP_ID;
     const profile = getMetaScopeProfile();
     const scope = getMetaOAuthScopeString({ profile });
@@ -144,7 +145,7 @@ export function getMetaOAuthUrl(workspaceId?: string): string {
     console.log('[META_OAUTH] Generating OAuth URL', {
         appId: appId,
         appIdType: typeof appId,
-        hasWorkspaceId: !!workspaceId,
+        hasState: !!state,
         profile,
         scopes: scope.split(','),
     });
@@ -156,7 +157,7 @@ export function getMetaOAuthUrl(workspaceId?: string): string {
     const finalUrl = buildMetaOAuthDialogUrl({
         clientId: appId || '',
         redirectUri: getMetaRedirectUri(),
-        state: workspaceId || undefined,
+        state: state || undefined,
         scope,
     });
     console.log('[META_OAUTH] Final URL:', finalUrl);

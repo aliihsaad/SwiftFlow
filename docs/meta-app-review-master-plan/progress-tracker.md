@@ -19,7 +19,7 @@ Status legend:
 | Stage 5: OpenRouter-first AI migration | `done` | Stage 2 | one shared AI adapter for migrated text flows, truthful provider model |
 | Stage 6: Reviewer-safe UX and compliance | `done` | Stage 3, Stage 4 | reviewer path, public compliance pages, aligned reviewer docs |
 | Stage 7: Reliability hardening | `done` | Stage 4, Stage 5, Stage 6 | stable publish/schedule behavior, health/status surfaces, deploy checks |
-| Stage 8: Submission package finalization | `in_progress` | Stage 7 | final reviewer assets, test credentials, screencast package |
+| Stage 8: Submission package finalization | `done` | Stage 7 | submitted reviewer package, final screencast, review answers, evidence bundle |
 | Stage 9: Post-approval expansion | `not_started` | Stage 8 | comments, analytics, messaging, billing added without regressing review-safe core |
 
 ## Implementation Order
@@ -86,7 +86,15 @@ Status legend:
   - the Stage 7 Supabase migration has been applied and `process-scheduled-posts` has been redeployed
   - `process-scheduled-posts` deployment requirements now explicitly include `--no-verify-jwt` for internal triggers
   - publish-now and scheduled publishing both passed on the production review environment
-- Stage 8 is in progress:
-  - the reviewer package is being consolidated into a final submission bundle under `docs/app-review/`
-  - submission copy, permissions matrix, screencast script, and review-env docs are already aligned to the Phase 1 scope
-  - Stage 8 now needs the final asset index, reviewer access handoff, pre-submit checklist, and recorded screencast placement
+- Stage 8 is complete:
+  - the final Meta App Review submission has been sent
+  - the reviewer package is stored under `docs/app-review/`
+  - the final Phase 1 screencast has been recorded locally at `C:\Users\Mini\Desktop\Meta-app-review-video\0404.mp4`
+  - the submitted permission set is:
+    - `public_profile`
+    - `pages_show_list`
+    - `pages_read_engagement`
+    - `pages_manage_posts`
+    - `instagram_basic`
+    - `instagram_content_publish`
+  - access verification remains an external Meta review dependency, but it does not block the submission from being in queue

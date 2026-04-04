@@ -46,12 +46,13 @@ This folder contains all deployed Supabase edge functions used by the app.
 
 ## Deployment Requirement (Internal Invocations)
 
-Functions invoked internally by the app server, schedulers, or other edge functions must be deployed with `--no-verify-jwt`.
+Functions invoked internally by the app server, schedulers, or other edge functions must be deployed with `--no-verify-jwt` when they are not called with a user JWT at the function gateway.
 
 Reason:
 - `automation-orchestrator` and `process-scheduled-executions` invoke worker functions internally.
 - `process-scheduled-posts` is invoked by the app server for "publish now" and by `scheduler-tick`.
 - In the current setup, redeploying workers without `--no-verify-jwt` can cause internal dispatch failures (`401 Invalid JWT`) before the worker executes.
+- `process-scheduled-posts` now performs its own internal auth check by requiring the caller `apikey` header to match `SUPABASE_SERVICE_ROLE_KEY`, so it can stay non-public even when deployed without gateway JWT verification.
 - Typical symptom in logs: webhook trigger matches automation, but orchestrator reports `matched > 0`, `dispatched: 0`, `failed > 0`.
 - Typical symptom for publishing: a "publish now" post remains in `scheduled`, while `process-scheduled-posts` logs `401` at the function gateway.
 

@@ -6,6 +6,9 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
+const META_OAUTH_STATE_COOKIE = 'meta_oauth_state';
+const META_OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000;
+
 // Initialize Supabase Admin Client for database operations
 const supabaseAdmin = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,6 +16,16 @@ const supabaseAdmin = createSupabaseClient(
 );
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
+
+type MetaDebugTokenResponse = {
+    data?: {
+        scopes?: unknown[];
+        granular_scopes?: Array<{
+            scope?: unknown;
+            target_ids?: unknown[];
+        }>;
+    };
+};
 
 /**
  * Meta OAuth Callback Route
@@ -24,6 +37,19 @@ const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const debugLog: string[] = [];
+    const clearOAuthStateCookie = (response: NextResponse) => {
+        response.cookies.set(META_OAUTH_STATE_COOKIE, '', {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            path: '/',
+            maxAge: 0,
+        });
+        return response;
+    };
+    const redirectWithError = (path: string) => clearOAuthStateCookie(
+        NextResponse.redirect(new URL(path, request.url))
+    );
 
     const log = (msg: string) => {
         console.log(`[META_CALLBACK] ${msg}`);
@@ -33,30 +59,49 @@ export async function GET(request: NextRequest) {
     log(`Callback received at ${new Date().toISOString()}`);
 
     const code = searchParams.get('code');
-    const workspaceId = searchParams.get('state');
+    const stateNonce = searchParams.get('state');
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
 
     // Handle OAuth errors
     if (error) {
         log(`OAuth error: ${errorDescription || error}`);
-        return NextResponse.redirect(
-            new URL(`/dashboard/settings/brand?error=${encodeURIComponent(errorDescription || error)}`, request.url)
-        );
+        return redirectWithError(`/dashboard/settings/brand?error=${encodeURIComponent(errorDescription || error)}`);
     }
 
     if (!code) {
         log('Missing code parameter');
-        return NextResponse.redirect(
-            new URL('/dashboard/settings/brand?error=missing_code', request.url)
-        );
+        return redirectWithError('/dashboard/settings/brand?error=missing_code');
     }
 
-    if (!workspaceId) {
-        log('Missing workspaceId (state) parameter');
-        return NextResponse.redirect(
-            new URL('/dashboard/settings/brand?error=missing_workspace_id', request.url)
-        );
+    if (!stateNonce) {
+        log('Missing OAuth state parameter');
+        return redirectWithError('/dashboard/settings/brand?error=invalid_oauth_state');
+    }
+
+    const stateCookie = request.cookies.get(META_OAUTH_STATE_COOKIE)?.value;
+    if (!stateCookie) {
+        log('Missing OAuth state cookie');
+        return redirectWithError('/dashboard/settings/brand?error=invalid_oauth_state');
+    }
+
+    let workspaceId: string | null = null;
+    try {
+        const parsed = JSON.parse(Buffer.from(stateCookie, 'base64url').toString('utf8')) as {
+            nonce?: string;
+            workspaceId?: string;
+            createdAt?: number;
+        };
+
+        const createdAt = Number(parsed.createdAt || 0);
+        const isFresh = Number.isFinite(createdAt) && Date.now() - createdAt <= META_OAUTH_STATE_MAX_AGE_MS;
+        if (parsed.nonce !== stateNonce || !parsed.workspaceId || !isFresh) {
+            throw new Error('OAuth state validation failed');
+        }
+        workspaceId = parsed.workspaceId;
+    } catch (stateError) {
+        log(`OAuth state validation failed: ${stateError instanceof Error ? stateError.message : String(stateError)}`);
+        return redirectWithError('/dashboard/settings/brand?error=invalid_oauth_state');
     }
 
     log(`WorkspaceId from state: ${workspaceId}`);
@@ -66,9 +111,7 @@ export async function GET(request: NextRequest) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
             log('Unauthorized callback: no authenticated user session');
-            return NextResponse.redirect(
-                new URL('/dashboard/settings/brand?error=unauthorized', request.url)
-            );
+            return redirectWithError('/dashboard/settings/brand?error=unauthorized');
         }
 
         await requireWorkspacePermission(supabase, user.id, workspaceId, 'integrations:write');
@@ -79,9 +122,7 @@ export async function GET(request: NextRequest) {
 
         if (!appId || !appSecret) {
             log('ERROR: Missing NEXT_PUBLIC_META_APP_ID or META_APP_SECRET env vars');
-            return NextResponse.redirect(
-                new URL('/dashboard/settings/brand?error=meta_app_not_configured', request.url)
-            );
+            return redirectWithError('/dashboard/settings/brand?error=meta_app_not_configured');
         }
 
         log(`Using shared Meta app (App ID: ${appId.substring(0, 8)}...)`);
@@ -94,9 +135,7 @@ export async function GET(request: NextRequest) {
 
         if (!userAccessToken) {
             log('ERROR: No access token received from Meta');
-            return NextResponse.redirect(
-                new URL('/dashboard/settings/brand?error=no_access_token', request.url)
-            );
+            return redirectWithError('/dashboard/settings/brand?error=no_access_token');
         }
         log(`Step 1 SUCCESS: Got user access token`);
 
@@ -105,7 +144,7 @@ export async function GET(request: NextRequest) {
         const debugResponse = await fetch(`${META_GRAPH_URL}/debug_token?input_token=${userAccessToken}&access_token=${appId}|${appSecret}`, { cache: 'no-store' });
         const debugText = await debugResponse.text();
         log(`Step 1b debug_token status: ${debugResponse.status}`);
-        let parsedDebugToken: any = null;
+        let parsedDebugToken: MetaDebugTokenResponse | null = null;
         let grantedScopes: string[] = [];
         let grantedGranularScopes: Array<{ scope: string; target_ids?: string[] }> = [];
         try {
@@ -115,9 +154,9 @@ export async function GET(request: NextRequest) {
                 : [];
             grantedGranularScopes = Array.isArray(parsedDebugToken?.data?.granular_scopes)
                 ? parsedDebugToken.data.granular_scopes
-                    .filter((s: any) => typeof s?.scope === 'string')
-                    .map((s: any) => ({
-                        scope: s.scope,
+                    .filter((s) => typeof s?.scope === 'string')
+                    .map((s) => ({
+                        scope: String(s.scope),
                         target_ids: Array.isArray(s?.target_ids)
                             ? s.target_ids.filter((id: unknown) => typeof id === 'string')
                             : undefined,
@@ -135,11 +174,9 @@ export async function GET(request: NextRequest) {
         const pagesResponse = await fetch(pagesUrl, { cache: 'no-store' });
 
         if (!pagesResponse.ok) {
-            const errorText = await pagesResponse.text();
+            await pagesResponse.text();
             log(`ERROR: Pages fetch failed with status ${pagesResponse.status}`);
-            return NextResponse.redirect(
-                new URL(`/dashboard/settings/brand?error=pages_fetch_failed&status=${pagesResponse.status}`, request.url)
-            );
+            return redirectWithError(`/dashboard/settings/brand?error=pages_fetch_failed&status=${pagesResponse.status}`);
         }
 
         const rawText = await pagesResponse.text();
@@ -148,12 +185,10 @@ export async function GET(request: NextRequest) {
             pagesData = JSON.parse(rawText);
         } catch (e) {
             log(`ERROR: Failed to parse JSON: ${e}`);
-            return NextResponse.redirect(
-                new URL('/dashboard/settings/brand?error=json_parse_failed', request.url)
-            );
+            return redirectWithError('/dashboard/settings/brand?error=json_parse_failed');
         }
 
-        let pages = pagesData.data || [];
+        const pages = pagesData.data || [];
         log(`Step 2: /me/accounts returned ${pages.length} page(s)`);
 
         // Fallback: if /me/accounts returns empty, extract target page IDs from
@@ -162,8 +197,10 @@ export async function GET(request: NextRequest) {
             log('Step 2b: /me/accounts empty — trying fallback via debug_token target_ids...');
             try {
                 const granularScopes = parsedDebugToken?.data?.granular_scopes || [];
-                const pagesScope = granularScopes.find((s: any) => s.scope === 'pages_show_list');
-                const targetIds: string[] = pagesScope?.target_ids || [];
+                const pagesScope = granularScopes.find((s) => s.scope === 'pages_show_list');
+                const targetIds = Array.isArray(pagesScope?.target_ids)
+                    ? pagesScope.target_ids.filter((id): id is string => typeof id === 'string')
+                    : [];
                 log(`Step 2b: Found ${targetIds.length} target page IDs: ${targetIds.join(', ')}`);
 
                 for (const pageId of targetIds) {
@@ -188,9 +225,7 @@ export async function GET(request: NextRequest) {
 
         if (pages.length === 0) {
             log('WARNING: No pages returned by Meta API');
-            return NextResponse.redirect(
-                new URL('/dashboard/settings/brand?error=no_pages', request.url)
-            );
+            return redirectWithError('/dashboard/settings/brand?error=no_pages');
         }
 
         // Step 3: For each page, check for linked Instagram Business Account
@@ -256,31 +291,25 @@ export async function GET(request: NextRequest) {
 
         if (sessionError) {
             log(`ERROR storing page session: ${JSON.stringify(sessionError)}`);
-            return NextResponse.redirect(
-                new URL('/dashboard/settings/brand?error=session_storage_failed', request.url)
-            );
+            return redirectWithError('/dashboard/settings/brand?error=session_storage_failed');
         }
 
         log(`Step 4: Stored page session ${sessionId}, redirecting to selector`);
 
         // Redirect to page selector UI
-        return NextResponse.redirect(
-            new URL(`/dashboard/settings/select-page?session=${sessionId}`, request.url)
+        return clearOAuthStateCookie(
+            NextResponse.redirect(new URL(`/dashboard/settings/select-page?session=${sessionId}`, request.url))
         );
 
     } catch (error) {
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
-            return NextResponse.redirect(
-                new URL('/dashboard/settings/brand?error=forbidden', request.url)
-            );
+            return redirectWithError('/dashboard/settings/brand?error=forbidden');
         }
         log(`FATAL ERROR: ${error instanceof Error ? error.message : String(error)}`);
         console.error('[META_CALLBACK] Full error:', error);
-        return NextResponse.redirect(
-            new URL(`/dashboard/settings/brand?error=${encodeURIComponent(
-                error instanceof Error ? error.message : 'Unknown error'
-            )}`, request.url)
-        );
+        return redirectWithError(`/dashboard/settings/brand?error=${encodeURIComponent(
+            error instanceof Error ? error.message : 'Unknown error'
+        )}`);
     }
 }

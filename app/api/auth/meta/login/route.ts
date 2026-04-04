@@ -3,12 +3,16 @@ import { getMetaOAuthUrl, getMetaRedirectUri } from '@/utils/meta-oauth';
 import { createClient } from '@/utils/supabase/server';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
+const META_OAUTH_STATE_COOKIE = 'meta_oauth_state'
+const META_OAUTH_STATE_MAX_AGE_SECONDS = 60 * 10
+
 /**
  * Meta OAuth Login Route
  * /api/auth/meta/login
  *
  * Uses shared Meta app credentials from environment variables.
- * Redirects to Facebook OAuth with workspaceId in state.
+ * Redirects to Facebook OAuth with a nonce in state and the workspace binding
+ * stored server-side in an httpOnly cookie.
  */
 export async function GET(request: NextRequest) {
     try {
@@ -43,10 +47,26 @@ export async function GET(request: NextRequest) {
             redirectUri: getMetaRedirectUri()
         });
 
-        // Generate OAuth URL with shared env credentials
-        const authUrl = getMetaOAuthUrl(workspaceId);
+        const stateNonce = crypto.randomUUID()
+        const statePayload = Buffer.from(JSON.stringify({
+            nonce: stateNonce,
+            workspaceId,
+            createdAt: Date.now(),
+        }), 'utf8').toString('base64url')
 
-        return NextResponse.redirect(authUrl);
+        // Generate OAuth URL with shared env credentials
+        const authUrl = getMetaOAuthUrl(stateNonce);
+
+        const response = NextResponse.redirect(authUrl);
+        response.cookies.set(META_OAUTH_STATE_COOKIE, statePayload, {
+            httpOnly: true,
+            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            path: '/',
+            maxAge: META_OAUTH_STATE_MAX_AGE_SECONDS,
+        })
+
+        return response;
     } catch (error) {
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {

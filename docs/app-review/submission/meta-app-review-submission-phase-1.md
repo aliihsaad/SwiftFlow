@@ -1,6 +1,6 @@
 # Meta App Review Submission — Phase 1
 
-Last updated: 2026-04-03
+Last updated: 2026-04-05
 
 ## App Summary
 
@@ -32,11 +32,12 @@ The user creates a post, chooses `Schedule`, and selects a future date/time. A s
 |---|---|---|
 | `public_profile` | Required for Meta OAuth sign-in and token inspection during the connection flow. | `utils/meta-oauth.ts`, `app/api/auth/meta/callback/route.ts` |
 | `pages_show_list` | Required to list the Facebook Pages the user administers so the user can choose which Page to connect to the workspace. | `app/api/auth/meta/callback/route.ts` |
+| `pages_read_engagement` | Required dependency for the submitted Facebook Page publishing flow and for deriving Facebook Page capability metadata during connection. | `utils/meta-oauth.ts`, `app/api/auth/meta/callback/route.ts`, `lib/meta-account.ts` |
 | `pages_manage_posts` | Required to publish text or photo posts to the selected Facebook Page immediately or on schedule. | `utils/meta-publish.ts`, `supabase/functions/process-scheduled-posts/index.ts` |
 | `instagram_basic` | Required to detect the Instagram Business account linked to the selected Facebook Page and store that connected business asset. | `app/api/auth/meta/callback/route.ts`, `app/api/auth/meta/select-page/route.ts` |
 | `instagram_content_publish` | Required to create and publish Instagram media for user-authored posts immediately or on schedule. | `utils/meta-publish.ts`, `supabase/functions/process-scheduled-posts/index.ts` |
 
-Total requested permissions in this Phase 1 submission: `5`
+Total requested permissions in this Phase 1 submission: `6`
 
 ## OAuth and Connection Flow
 

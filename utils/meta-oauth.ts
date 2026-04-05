@@ -15,6 +15,25 @@ const META_TOKEN_URL = `${META_GRAPH_API_BASE_URL}/oauth/access_token`;
 export type MetaOAuthScopeProfile = 'full' | 'review_phase_1';
 export type MetaOAuthPlatform = 'all' | 'facebook' | 'instagram';
 
+const VALID_KNOWN_SCOPES = new Set([
+    'public_profile',
+    'pages_show_list',
+    'pages_read_engagement',
+    'pages_manage_posts',
+    'pages_messaging',
+    'instagram_basic',
+    'instagram_content_publish',
+    'instagram_manage_insights',
+    'instagram_manage_comments',
+    'instagram_manage_messages',
+]);
+
+const BLOCKED_LEGACY_SCOPES = new Set([
+    'pages_manage_engagement',
+    'pages_read_user_content',
+    'read_insights',
+]);
+
 const COMMON_SCOPES = ['public_profile'] as const;
 const FACEBOOK_SCOPES = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts'] as const;
 const INSTAGRAM_SCOPES = [
@@ -53,6 +72,20 @@ function parseCsvScopes(value?: string | null): string[] {
         .filter(Boolean);
 }
 
+function sanitizeAdditionalScopes(scopes: string[]): string[] {
+    const blocked = scopes.filter((scope) => BLOCKED_LEGACY_SCOPES.has(scope));
+    if (blocked.length > 0) {
+        console.warn('[META_OAUTH] Ignoring blocked legacy scopes from configuration:', blocked);
+    }
+
+    const unknown = scopes.filter((scope) => !BLOCKED_LEGACY_SCOPES.has(scope) && !VALID_KNOWN_SCOPES.has(scope));
+    if (unknown.length > 0) {
+        console.warn('[META_OAUTH] Ignoring unknown scopes from configuration:', unknown);
+    }
+
+    return scopes.filter((scope) => VALID_KNOWN_SCOPES.has(scope) && !BLOCKED_LEGACY_SCOPES.has(scope));
+}
+
 export function getMetaScopeProfile(): MetaOAuthScopeProfile {
     const raw = (process.env.META_OAUTH_SCOPE_PROFILE || 'full').trim();
     if (raw === 'review_phase_1') return raw;
@@ -82,7 +115,7 @@ export function getMetaOAuthScopes(options?: {
         ?? String(process.env.META_OAUTH_INCLUDE_PAGES_MESSAGING || '').toLowerCase() === 'true';
 
     const baseScopes = [...(PROFILE_SCOPES[profile] || PROFILE_SCOPES.full)];
-    const extraScopes = parseCsvScopes(process.env.META_OAUTH_EXTRA_SCOPES);
+    const extraScopes = sanitizeAdditionalScopes(parseCsvScopes(process.env.META_OAUTH_EXTRA_SCOPES));
     if (includePagesMessaging) {
         extraScopes.push('pages_messaging');
     }

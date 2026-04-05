@@ -280,6 +280,19 @@ function LoginPageContent() {
                                         {error}
                                     </div>
                                 )}
+                                {isLoading && (
+                                    <div
+                                        className="flex items-center gap-2 rounded-lg p-3 text-sm"
+                                        style={{
+                                            background: 'rgba(34,211,238,0.08)',
+                                            border: '1px solid rgba(34,211,238,0.18)',
+                                            color: 'rgba(219,246,255,0.92)',
+                                        }}
+                                    >
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Signing you in and preparing your workspace…
+                                    </div>
+                                )}
 
                                 <div className="space-y-1.5">
                                     <Label
@@ -340,7 +353,7 @@ function LoginPageContent() {
                                     }}
                                 >
                                     {isLoading
-                                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                                        ? <><Loader2 className="h-4 w-4 animate-spin" />Signing In…</>
                                         : <><KeyRound className="h-4 w-4" />Sign In<ArrowRight className="h-3.5 w-3.5 ml-auto opacity-50" /></>
                                     }
                                 </Button>
@@ -372,6 +385,19 @@ function LoginPageContent() {
                                         }}
                                     >
                                         {success}
+                                    </div>
+                                )}
+                                {isLoading && (
+                                    <div
+                                        className="flex items-center gap-2 rounded-lg p-3 text-sm"
+                                        style={{
+                                            background: 'rgba(34,211,238,0.08)',
+                                            border: '1px solid rgba(34,211,238,0.18)',
+                                            color: 'rgba(219,246,255,0.92)',
+                                        }}
+                                    >
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                        Creating your account and securing your workspace…
                                     </div>
                                 )}
 
@@ -463,7 +489,7 @@ function LoginPageContent() {
                                     }}
                                 >
                                     {isLoading
-                                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                                        ? <><Loader2 className="h-4 w-4 animate-spin" />Creating Account…</>
                                         : <><UserPlus className="h-4 w-4" />Create Account<ArrowRight className="h-3.5 w-3.5 ml-auto opacity-50" /></>
                                     }
                                 </Button>

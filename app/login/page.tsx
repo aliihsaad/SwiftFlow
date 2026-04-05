@@ -66,6 +66,7 @@ function LoginPageContent() {
     const [password, setPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
     const [isLoading, setIsLoading] = useState(false)
+    const [activeAction, setActiveAction] = useState<"signin" | "signup" | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
 
@@ -82,9 +83,13 @@ function LoginPageContent() {
         return callbackUrl.toString()
     }
 
+    const isSigningIn = isLoading && activeAction === "signin"
+    const isSigningUp = isLoading && activeAction === "signup"
+
     const handleSignIn = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsLoading(true)
+        setActiveAction("signin")
         setError(null)
         setSuccess(null)
 
@@ -100,18 +105,21 @@ function LoginPageContent() {
             setError(getErrorMessage(error, "Authentication failed"))
         } finally {
             setIsLoading(false)
+            setActiveAction(null)
         }
     }
 
     const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsLoading(true)
+        setActiveAction("signup")
         setError(null)
         setSuccess(null)
 
         if (password !== confirmPassword) {
             setError("Passwords do not match")
             setIsLoading(false)
+            setActiveAction(null)
             return
         }
 
@@ -119,6 +127,7 @@ function LoginPageContent() {
         if (passwordPolicyError) {
             setError(passwordPolicyError)
             setIsLoading(false)
+            setActiveAction(null)
             return
         }
 
@@ -142,6 +151,7 @@ function LoginPageContent() {
             setError(getErrorMessage(error, "Sign up failed"))
         } finally {
             setIsLoading(false)
+            setActiveAction(null)
         }
     }
 
@@ -245,7 +255,7 @@ function LoginPageContent() {
 
                         {/* Tab switcher */}
                         <TabsList
-                            className="grid w-full grid-cols-2 mb-6 h-10 p-1 rounded-lg gap-1"
+                            className={`grid w-full grid-cols-2 mb-6 h-10 p-1 rounded-lg gap-1 transition-opacity ${isLoading ? "pointer-events-none opacity-70" : ""}`}
                             style={{
                                 background: 'rgba(255,255,255,0.04)',
                                 border: '1px solid rgba(255,255,255,0.06)',
@@ -280,17 +290,38 @@ function LoginPageContent() {
                                         {error}
                                     </div>
                                 )}
-                                {isLoading && (
+                                {isSigningIn && (
                                     <div
-                                        className="flex items-center gap-2 rounded-lg p-3 text-sm"
+                                        className="space-y-3 rounded-xl p-4 text-sm"
                                         style={{
-                                            background: 'rgba(34,211,238,0.08)',
-                                            border: '1px solid rgba(34,211,238,0.18)',
+                                            background: 'linear-gradient(180deg, rgba(34,211,238,0.1), rgba(34,211,238,0.04))',
+                                            border: '1px solid rgba(34,211,238,0.2)',
                                             color: 'rgba(219,246,255,0.92)',
                                         }}
                                     >
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Signing you in and preparing your workspace…
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className="flex h-9 w-9 items-center justify-center rounded-full"
+                                                style={{ background: 'rgba(34,211,238,0.12)', border: '1px solid rgba(34,211,238,0.2)' }}
+                                            >
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="font-semibold">Signing you in</p>
+                                                <p className="text-xs" style={{ color: 'rgba(219,246,255,0.68)' }}>
+                                                    Preparing your workspace and redirecting you to the dashboard.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+                                            <div
+                                                className="h-full w-1/2 rounded-full"
+                                                style={{
+                                                    background: 'linear-gradient(90deg, rgba(34,211,238,0.4), rgba(34,211,238,0.95), rgba(255,255,255,0.85))',
+                                                    animation: 'auth-progress 1.25s ease-in-out infinite',
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 )}
 
@@ -352,7 +383,7 @@ function LoginPageContent() {
                                         boxShadow: '0 8px 26px rgba(34,211,238,0.14), 0 1px 0 rgba(255,255,255,0.1) inset',
                                     }}
                                 >
-                                    {isLoading
+                                    {isSigningIn
                                         ? <><Loader2 className="h-4 w-4 animate-spin" />Signing In…</>
                                         : <><KeyRound className="h-4 w-4" />Sign In<ArrowRight className="h-3.5 w-3.5 ml-auto opacity-50" /></>
                                     }
@@ -387,17 +418,38 @@ function LoginPageContent() {
                                         {success}
                                     </div>
                                 )}
-                                {isLoading && (
+                                {isSigningUp && (
                                     <div
-                                        className="flex items-center gap-2 rounded-lg p-3 text-sm"
+                                        className="space-y-3 rounded-xl p-4 text-sm"
                                         style={{
-                                            background: 'rgba(34,211,238,0.08)',
-                                            border: '1px solid rgba(34,211,238,0.18)',
+                                            background: 'linear-gradient(180deg, rgba(34,211,238,0.1), rgba(34,211,238,0.04))',
+                                            border: '1px solid rgba(34,211,238,0.2)',
                                             color: 'rgba(219,246,255,0.92)',
                                         }}
                                     >
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                        Creating your account and securing your workspace…
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className="flex h-9 w-9 items-center justify-center rounded-full"
+                                                style={{ background: 'rgba(34,211,238,0.12)', border: '1px solid rgba(34,211,238,0.2)' }}
+                                            >
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="font-semibold">Creating your account</p>
+                                                <p className="text-xs" style={{ color: 'rgba(219,246,255,0.68)' }}>
+                                                    Securing your workspace and preparing the confirmation flow.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+                                            <div
+                                                className="h-full w-1/2 rounded-full"
+                                                style={{
+                                                    background: 'linear-gradient(90deg, rgba(34,211,238,0.4), rgba(34,211,238,0.95), rgba(255,255,255,0.85))',
+                                                    animation: 'auth-progress 1.25s ease-in-out infinite',
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 )}
 
@@ -511,6 +563,16 @@ function LoginPageContent() {
                     </a>
                 </p>
             </div>
+            <style jsx>{`
+                @keyframes auth-progress {
+                    0% {
+                        transform: translateX(-100%);
+                    }
+                    100% {
+                        transform: translateX(220%);
+                    }
+                }
+            `}</style>
         </div>
     )
 }

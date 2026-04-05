@@ -366,14 +366,16 @@ function Navbar() {
                     </Link>
                     <Link
                         href="/login"
-                        className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg text-white transition-all duration-200 hover:opacity-90 active:scale-95"
+                        className="hidden sm:inline-flex items-center gap-1.5 text-sm font-semibold px-4 py-2 rounded-lg transition-all duration-200 active:scale-95"
                         style={{
-                            background: "linear-gradient(135deg, #f59e0b 0%, #fb7185 55%, #22d3ee 100%)",
-                            boxShadow: "0 6px 22px rgba(34,211,238,0.18)",
+                            color: "#f8fbff",
+                            background: "linear-gradient(135deg, rgba(9,14,24,0.96) 0%, rgba(12,28,36,0.96) 100%)",
+                            border: "1px solid rgba(34,211,238,0.26)",
+                            boxShadow: "0 10px 28px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(34,211,238,0.05)",
                         }}
                     >
                         Get Started
-                        <ArrowRight className="h-3.5 w-3.5" />
+                        <ArrowRight className="h-3.5 w-3.5 text-cyan-300" />
                     </Link>
 
                     {/* Hamburger */}
@@ -419,8 +421,13 @@ function Navbar() {
                         <Link
                             href="/login"
                             onClick={() => setMobileOpen(false)}
-                            className="block text-center py-3 rounded-xl text-sm font-bold text-white transition-all"
-                            style={{ background: "linear-gradient(135deg, #f59e0b 0%, #fb7185 55%, #22d3ee 100%)" }}
+                            className="block text-center py-3 rounded-xl text-sm font-bold transition-all"
+                            style={{
+                                color: "#f8fbff",
+                                background: "linear-gradient(135deg, rgba(9,14,24,0.98) 0%, rgba(12,28,36,0.98) 100%)",
+                                border: "1px solid rgba(34,211,238,0.26)",
+                                boxShadow: "0 10px 28px rgba(0,0,0,0.36), inset 0 1px 0 rgba(255,255,255,0.06)",
+                            }}
                         >
                             Get Started Free
                         </Link>

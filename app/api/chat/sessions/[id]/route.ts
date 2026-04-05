@@ -2,6 +2,7 @@ import { createClient } from "@/utils/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
+import { assertJsonBodySize, assertUuid, sanitizeChatSessionPayload } from "@/lib/security/phase1-validation"
 
 export async function GET(
     request: NextRequest,
@@ -10,7 +11,7 @@ export async function GET(
     try {
         const params = await props.params;
         const supabase = await createClient()
-        const { id } = params
+        const id = assertUuid(params.id, 'chat session id')
 
         const { data: { user }, error: authError } = await supabase.auth.getUser()
         if (authError || !user) {
@@ -39,6 +40,9 @@ export async function GET(
         return NextResponse.json(session)
 
     } catch (error) {
+        if (error instanceof Error && error.message === 'Invalid chat session id') {
+            return NextResponse.json({ error: error.message }, { status: 400 })
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)
         if (permissionStatus) {
             return NextResponse.json(
@@ -58,8 +62,9 @@ export async function PATCH(
     try {
         const params = await props.params;
         const supabase = await createClient()
-        const { id } = params
-        const body = await request.json()
+        const id = assertUuid(params.id, 'chat session id')
+        assertJsonBodySize(request, 512 * 1024)
+        const body = sanitizeChatSessionPayload(await request.json())
 
         const { data: { user }, error: authError } = await supabase.auth.getUser()
         if (authError || !user) {
@@ -91,6 +96,9 @@ export async function PATCH(
         return NextResponse.json(data)
 
     } catch (error) {
+        if (error instanceof Error && /Invalid chat session id|Invalid chat session payload|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json({ error: error.message }, { status: 400 })
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)
         if (permissionStatus) {
             return NextResponse.json(
@@ -110,7 +118,7 @@ export async function DELETE(
     try {
         const params = await props.params;
         const supabase = await createClient()
-        const { id } = params
+        const id = assertUuid(params.id, 'chat session id')
 
         const { data: { user }, error: authError } = await supabase.auth.getUser()
         if (authError || !user) {
@@ -136,6 +144,9 @@ export async function DELETE(
         return NextResponse.json({ success: true })
 
     } catch (error) {
+        if (error instanceof Error && error.message === 'Invalid chat session id') {
+            return NextResponse.json({ error: error.message }, { status: 400 })
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)
         if (permissionStatus) {
             return NextResponse.json(

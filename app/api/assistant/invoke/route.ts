@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
+import { assertJsonBodySize, sanitizeAssistantInvokePayload } from '@/lib/security/phase1-validation'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -14,6 +15,14 @@ const ALLOWED_FUNCTIONS = new Set([
     'generate-message-reply',
 ])
 
+type AllowedFunctionName =
+    | 'chat-assistant'
+    | 'generate-image'
+    | 'generate-ideas'
+    | 'generate-carousel'
+    | 'generate-reply'
+    | 'generate-message-reply'
+
 function looksLikeJwt(value: string | null | undefined): boolean {
     const normalized = String(value || '').trim()
     return normalized.startsWith('eyJ') && normalized.split('.').length === 3
@@ -21,9 +30,12 @@ function looksLikeJwt(value: string | null | undefined): boolean {
 
 export async function POST(request: NextRequest) {
     try {
-        const { functionName, body } = await request.json()
+        assertJsonBodySize(request)
+        const payload = await request.json()
+        const functionName = typeof payload?.functionName === 'string' ? payload.functionName : ''
+        const body = payload?.body
 
-        if (!functionName || typeof functionName !== 'string') {
+        if (!functionName) {
             return NextResponse.json({ error: 'functionName is required' }, { status: 400 })
         }
 
@@ -65,7 +77,10 @@ export async function POST(request: NextRequest) {
         )
         const effectiveWorkspaceId = preferredWorkspaceId || memberships[0].workspace_id
 
-        const invokeBody = { ...(body || {}), workspaceId: effectiveWorkspaceId }
+        const invokeBody = {
+            ...sanitizeAssistantInvokePayload(functionName as AllowedFunctionName, body || {}),
+            workspaceId: effectiveWorkspaceId,
+        }
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
         const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -115,6 +130,12 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ data: parsed }, { status: 200 })
     } catch (error: unknown) {
+        if (error instanceof Error && /Invalid assistant payload|Invalid workspaceId|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 400 }
+            )
+        }
         console.error('[assistant/invoke] unexpected error:', error)
         return NextResponse.json(
             { error: error instanceof Error ? error.message : 'Internal server error' },

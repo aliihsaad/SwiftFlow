@@ -4,6 +4,7 @@ import { createAdminClient } from '@/utils/supabase/admin'
 import { PostData } from '@/types/post'
 import { getActiveWorkspace } from '@/lib/workspace-utils'
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions'
+import { assertJsonBodySize, sanitizePostPayload, assertUuid } from '@/lib/security/phase1-validation'
 
 /**
  * Trigger the process-scheduled-posts edge function (fire-and-forget).
@@ -29,6 +30,7 @@ function triggerPublishEdgeFunction() {
 export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient()
+        assertJsonBodySize(request, 256 * 1024)
 
         // Check authentication
         const { data: { user }, error: authError } = await supabase.auth.getUser()
@@ -43,8 +45,7 @@ export async function POST(request: NextRequest) {
         }
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write')
 
-        const body = await request.json() as PostData
-        const { platforms, captionByPlatform, mediaUrls, status, scheduledAt } = body
+        const { platforms, captionByPlatform, mediaUrls, status, scheduledAt } = sanitizePostPayload(await request.json() as PostData)
 
         // Validation
         if (!platforms || platforms.length === 0) {
@@ -92,6 +93,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ...post, publishTriggered: shouldPublishNow })
 
     } catch (error) {
+        if (error instanceof Error && /Invalid post payload|At least one valid platform is required|Invalid post status|Invalid scheduled date|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json({ error: error.message }, { status: 400 })
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)
         if (permissionStatus) {
             return NextResponse.json(
@@ -110,6 +114,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
     try {
         const supabase = await createClient()
+        assertJsonBodySize(request, 256 * 1024)
 
         const { data: { user }, error: authError } = await supabase.auth.getUser()
         if (authError || !user) {
@@ -122,12 +127,7 @@ export async function PUT(request: NextRequest) {
         }
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write')
 
-        const body = await request.json()
-        const { id, platforms, captionByPlatform, mediaUrls, status, scheduledAt } = body
-
-        if (!id) {
-            return NextResponse.json({ error: 'Post ID is required' }, { status: 400 })
-        }
+        const { id, platforms, captionByPlatform, mediaUrls, status, scheduledAt } = sanitizePostPayload(await request.json())
 
         const mainCaption = captionByPlatform?.instagram || captionByPlatform?.facebook || ''
         const shouldPublishNow = status === 'published'
@@ -167,6 +167,9 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ ...post, publishTriggered: shouldPublishNow })
 
     } catch (error) {
+        if (error instanceof Error && /Invalid post payload|At least one valid platform is required|Invalid post status|Invalid scheduled date|Invalid post id|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json({ error: error.message }, { status: 400 })
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)
         if (permissionStatus) {
             return NextResponse.json(
@@ -183,6 +186,7 @@ export async function PUT(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
     try {
         const supabase = await createClient()
+        assertJsonBodySize(request, 64 * 1024)
 
         const { data: { user }, error: authError } = await supabase.auth.getUser()
         if (authError || !user) {
@@ -190,13 +194,10 @@ export async function PATCH(request: NextRequest) {
         }
 
         const body = await request.json()
-        const { id, scheduledAt } = body
+        const id = assertUuid(body?.id, 'post id')
+        const scheduledAt = typeof body?.scheduledAt === 'string' ? body.scheduledAt : ''
 
-        if (!id) {
-            return NextResponse.json({ error: 'Post ID is required' }, { status: 400 })
-        }
-
-        if (!scheduledAt) {
+        if (!scheduledAt || Number.isNaN(new Date(scheduledAt).getTime())) {
             return NextResponse.json({ error: 'Scheduled date is required' }, { status: 400 })
         }
 
@@ -227,6 +228,9 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json(post)
 
     } catch (error) {
+        if (error instanceof Error && /Invalid post id|Scheduled date is required|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json({ error: error.message }, { status: 400 })
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)
         if (permissionStatus) {
             return NextResponse.json(

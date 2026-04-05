@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AICaptionRequest, AICaptionResponse } from '@/types/post'
 import { createClient } from '@/utils/supabase/server'
+import { assertJsonBodySize, sanitizeAICaptionPayload } from '@/lib/security/phase1-validation'
 
 export const runtime = 'edge'
 
@@ -12,15 +13,9 @@ function looksLikeJwt(value: string | null | undefined): boolean {
 export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient()
-        const body = await request.json() as (AICaptionRequest & { workspaceId?: string })
+        assertJsonBodySize(request, 128 * 1024)
+        const body = sanitizeAICaptionPayload(await request.json() as (AICaptionRequest & { workspaceId?: string }))
         const { description, platforms, tone, language } = body
-
-        if (!description) {
-            return NextResponse.json(
-                { error: 'Description is required' },
-                { status: 400 }
-            )
-        }
 
         const { data: { user }, error: authError } = await supabase.auth.getUser()
         if (authError || !user) {
@@ -106,6 +101,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(payload as AICaptionResponse)
 
     } catch (error: unknown) {
+        if (error instanceof Error && /Invalid AI caption request|Description is required|At least one valid platform is required|Invalid workspaceId|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 400 }
+            )
+        }
         console.error('AI Caption Generation Error:', error)
         return NextResponse.json(
             { error: error instanceof Error ? error.message : 'Failed to generate captions' },

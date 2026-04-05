@@ -23,6 +23,14 @@ const AUTH_THEME = {
     coral: "#fb7185",
 }
 
+const PASSWORD_POLICY = {
+    minLength: 10,
+    requiresLowercase: true,
+    requiresUppercase: true,
+    requiresDigit: true,
+    requiresSymbol: true,
+}
+
 function getSafeNextPath(rawNext: string | null): string {
     if (!rawNext) return "/dashboard"
     if (!rawNext.startsWith("/") || rawNext.startsWith("//")) return "/dashboard"
@@ -32,6 +40,25 @@ function getSafeNextPath(rawNext: string | null): string {
 function getErrorMessage(error: unknown, fallback: string): string {
     if (error instanceof Error && error.message) return error.message
     return fallback
+}
+
+function validatePasswordAgainstPolicy(password: string): string | null {
+    if (password.length < PASSWORD_POLICY.minLength) {
+        return `Password must be at least ${PASSWORD_POLICY.minLength} characters`
+    }
+    if (PASSWORD_POLICY.requiresLowercase && !/[a-z]/.test(password)) {
+        return "Password must include a lowercase letter"
+    }
+    if (PASSWORD_POLICY.requiresUppercase && !/[A-Z]/.test(password)) {
+        return "Password must include an uppercase letter"
+    }
+    if (PASSWORD_POLICY.requiresDigit && !/[0-9]/.test(password)) {
+        return "Password must include a number"
+    }
+    if (PASSWORD_POLICY.requiresSymbol && !/[^A-Za-z0-9]/.test(password)) {
+        return "Password must include a symbol"
+    }
+    return null
 }
 
 function LoginPageContent() {
@@ -88,8 +115,9 @@ function LoginPageContent() {
             return
         }
 
-        if (password.length < 6) {
-            setError("Password must be at least 6 characters")
+        const passwordPolicyError = validatePasswordAgainstPolicy(password)
+        if (passwordPolicyError) {
+            setError(passwordPolicyError)
             setIsLoading(false)
             return
         }
@@ -383,7 +411,7 @@ function LoginPageContent() {
                                     <Input
                                         id="signup-password"
                                         type="password"
-                                        placeholder="Min. 6 characters"
+                                        placeholder="Min. 10 chars, mixed case, number, symbol"
                                         autoComplete="new-password"
                                         required
                                         value={password}
@@ -395,6 +423,9 @@ function LoginPageContent() {
                                             boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04)',
                                         }}
                                     />
+                                    <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.36)' }}>
+                                        Use at least 10 characters with uppercase, lowercase, a number, and a symbol.
+                                    </p>
                                 </div>
 
                                 <div className="space-y-1.5">

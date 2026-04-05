@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { getActiveWorkspace } from '@/lib/workspace-utils'
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions'
+import { assertJsonBodySize, sanitizeBrandProfilePayload } from '@/lib/security/phase1-validation'
 
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         const supabase = await createClient()
 
@@ -59,10 +60,13 @@ export async function GET(request: NextRequest) {
         }
 
         return NextResponse.json(profile)
-    } catch (error: any) {
+    } catch (error: unknown) {
+        if (error instanceof Error && /Invalid brand profile payload|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json({ error: error.message }, { status: 400 })
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)
         if (permissionStatus) {
-            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus })
+            return NextResponse.json({ error: error instanceof Error ? error.message : 'Forbidden' }, { status: permissionStatus })
         }
         console.error('Brand Profile Fetch Error:', error)
         return NextResponse.json({ error: 'Failed to fetch brand profile' }, { status: 500 })
@@ -84,7 +88,8 @@ export async function PUT(request: NextRequest) {
         }
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'settings:write')
 
-        const body = await request.json()
+        assertJsonBodySize(request, 256 * 1024)
+        const body = sanitizeBrandProfilePayload(await request.json())
 
         // Check if profile exists
         const { data: existing } = await supabase
@@ -96,12 +101,10 @@ export async function PUT(request: NextRequest) {
         let result
         if (existing) {
             // Update existing profile
-            const { id, ...cleanBody } = body // Remove id from body to avoid PK update issues
-
             result = await supabase
                 .from('workspace_brand_profiles')
                 .update({
-                    ...cleanBody,
+                    ...body,
                     workspace_id: activeWorkspace.id,
                     updated_at: new Date().toISOString()
                 })
@@ -110,12 +113,10 @@ export async function PUT(request: NextRequest) {
                 .single()
         } else {
             // Create new profile
-            const { id, ...cleanBody } = body
-
             result = await supabase
                 .from('workspace_brand_profiles')
                 .insert({
-                    ...cleanBody,
+                    ...body,
                     workspace_id: activeWorkspace.id
                 })
                 .select()
@@ -127,10 +128,13 @@ export async function PUT(request: NextRequest) {
         }
 
         return NextResponse.json(result.data)
-    } catch (error: any) {
+    } catch (error: unknown) {
+        if (error instanceof Error && /Invalid brand profile payload|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json({ error: error.message }, { status: 400 })
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)
         if (permissionStatus) {
-            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus })
+            return NextResponse.json({ error: error instanceof Error ? error.message : 'Forbidden' }, { status: permissionStatus })
         }
         console.error('Brand Profile Update Error:', error)
         return NextResponse.json({ error: 'Failed to update brand profile' }, { status: 500 })

@@ -7,7 +7,7 @@ This note records the post-submission security and bug fixes applied to the Phas
 ## Fixed Issues
 
 1. Removed the live debug database route
-- Deleted `app/api/test-db/route.ts`
+- Disabled `app/api/test-db/route.ts` so it no longer exposes any service-role behavior
 - Risk removed: unauthenticated service-role read/write access to `social_accounts`
 
 2. Hardened Meta OAuth state handling
@@ -46,6 +46,50 @@ This note records the post-submission security and bug fixes applied to the Phas
   - the function now requires the caller `apikey` header to match `SUPABASE_SERVICE_ROLE_KEY`
   - this preserves the current internal invocation model while preventing anonymous external triggering
 - Risk reduced: public no-JWT scheduler endpoint abuse
+
+6. Added strict request validation to Phase 1 write paths
+- Added `lib/security/phase1-validation.ts`
+- Updated:
+  - `app/api/brand-profile/route.ts`
+  - `app/api/posts/route.ts`
+  - `app/api/ai/generate-caption/route.ts`
+  - `app/api/assistant/invoke/route.ts`
+- Fix:
+  - brand profile updates now use a strict field whitelist instead of passing the raw request body into the database update/insert
+  - post creation and update requests now normalize and validate IDs, platforms, status values, scheduled timestamps, captions, and media URLs before any database write
+  - AI caption requests now validate workspace IDs, platform arrays, tone values, and request size before invoking the edge function
+  - assistant proxy requests now validate the allowed function payload shape and reject oversized or malformed bodies before forwarding them
+- Risk reduced:
+  - mass assignment through JSON bodies
+  - malformed payloads reaching database writes
+  - oversized AI request bodies and unsafe assistant proxy forwarding
+
+7. Hardened Meta page-selection session endpoints
+- Updated:
+  - `app/api/auth/meta/page-session/route.ts`
+  - `app/api/auth/meta/select-page/route.ts`
+- Fix:
+  - `sessionId` is now validated as a UUID before lookup
+  - `selectedPageId` is now validated as a Meta numeric account/page ID
+  - temporary session `pages_data` is sanitized before it is used or returned to the UI
+  - invalid page-session payloads now fail as `400` instead of falling through to generic server errors
+- Risk reduced:
+  - malformed page-selection payloads
+  - unsafe trust of session JSON blobs
+  - confusing 500s on invalid client input
+
+8. Hardened workspace settings and assistant chat-session persistence
+- Updated:
+  - `app/api/workspace/settings/route.ts`
+  - `app/api/chat/sessions/route.ts`
+  - `app/api/chat/sessions/[id]/route.ts`
+- Fix:
+  - workspace settings now validate `workspaceId`, clamp model/provider/key fields, and only persist the allowed settings keys
+  - chat session create/update routes now validate session IDs, cap payload size, sanitize persisted message history, and stop accepting arbitrary `...body` updates
+- Risk reduced:
+  - settings mass assignment
+  - oversized session payload writes
+  - unsafe JSON persistence from assistant/session requests
 
 ## Verification
 

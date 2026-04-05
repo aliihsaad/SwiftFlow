@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
+import { sanitizeMetaPageSessionData, sanitizeMetaPageSessionId } from '@/lib/security/phase1-validation';
 
 const supabaseAdmin = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,11 +16,7 @@ const supabaseAdmin = createSupabaseClient(
  */
 export async function GET(request: NextRequest) {
     try {
-        const sessionId = request.nextUrl.searchParams.get('sessionId');
-
-        if (!sessionId) {
-            return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
-        }
+        const sessionId = sanitizeMetaPageSessionId(request.nextUrl.searchParams.get('sessionId'));
 
         const supabase = await createServerClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -52,7 +49,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Return pages data WITHOUT access tokens (those stay server-side)
-        const safePagesData = (session.pages_data as any[]).map((p: any) => ({
+        const safePagesData = sanitizeMetaPageSessionData(session.pages_data).map((p) => ({
             id: p.id,
             name: p.name,
             category: p.category,
@@ -66,6 +63,9 @@ export async function GET(request: NextRequest) {
             pages_data: safePagesData,
         });
     } catch (error) {
+        if (error instanceof Error && error.message === 'Invalid sessionId') {
+            return NextResponse.json({ error: 'Missing or invalid sessionId' }, { status: 400 });
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
             return NextResponse.json(

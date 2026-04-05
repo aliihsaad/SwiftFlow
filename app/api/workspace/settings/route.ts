@@ -4,6 +4,7 @@ import { createAdminClient } from '@/utils/supabase/admin';
 import { getDefaultModelForProvider } from '@/lib/ai-models';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { decryptSecretIfNeeded, encryptSecretIfNeeded, isEncryptedSecret, normalizeOptionalSecretInput } from '@/lib/secret-crypto';
+import { assertJsonBodySize, assertUuid, sanitizeWorkspaceSettingsPayload } from '@/lib/security/phase1-validation';
 
 /**
  * GET /api/workspace/settings
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest) {
         if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
-        await requireWorkspacePermission(supabase, user.id, workspaceId, 'workspace:read');
+        await requireWorkspacePermission(supabase, user.id, assertUuid(workspaceId, 'workspaceId'), 'workspace:read');
 
         const supabaseAdmin = createAdminClient();
         const { data, error } = await supabaseAdmin
@@ -117,6 +118,12 @@ export async function GET(request: NextRequest) {
 
         return NextResponse.json(decryptWorkspaceSettingsSecrets(data));
     } catch (error) {
+        if (error instanceof Error && error.message === 'Invalid workspaceId') {
+            return NextResponse.json(
+                { error: 'Invalid workspaceId parameter' },
+                { status: 400 }
+            );
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
             return NextResponse.json(
@@ -144,15 +151,8 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await request.json();
-        const { workspaceId, ...settings } = body;
-
-        if (!workspaceId) {
-            return NextResponse.json(
-                { error: 'Missing workspaceId' },
-                { status: 400 }
-            );
-        }
+        assertJsonBodySize(request, 128 * 1024);
+        const { workspaceId, settings } = sanitizeWorkspaceSettingsPayload(await request.json());
 
         await requireWorkspacePermission(supabase, user.id, workspaceId, 'settings:write');
 
@@ -165,7 +165,7 @@ export async function PUT(request: NextRequest) {
             .eq('workspace_id', workspaceId)
             .maybeSingle();
 
-        const sanitizedSettings = buildWorkspaceSettingsUpdatePayload(settings as Record<string, unknown>);
+        const sanitizedSettings = buildWorkspaceSettingsUpdatePayload(settings);
         let result;
 
         if (existing) {
@@ -201,6 +201,12 @@ export async function PUT(request: NextRequest) {
 
         return NextResponse.json(decryptWorkspaceSettingsSecrets(result.data));
     } catch (error) {
+        if (error instanceof Error && /Invalid workspace settings payload|Invalid workspaceId|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 400 }
+            );
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
             return NextResponse.json(

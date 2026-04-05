@@ -2,8 +2,9 @@ import { createClient } from "@/utils/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
+import { assertJsonBodySize, sanitizeChatSessionPayload } from "@/lib/security/phase1-validation"
 
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         const supabase = await createClient()
 
@@ -59,8 +60,8 @@ export async function POST(request: NextRequest) {
         }
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write')
 
-        const body = await request.json()
-        const { messages, title } = body
+        assertJsonBodySize(request, 512 * 1024)
+        const { messages, title } = sanitizeChatSessionPayload(await request.json())
 
         // If creating a session with initial messages
         const initialTitle = title || (messages && messages.length > 0 ? messages[0].content.slice(0, 50) + "..." : "New Chat")
@@ -83,6 +84,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(session)
 
     } catch (error) {
+        if (error instanceof Error && /Invalid chat session payload|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 400 }
+            )
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)
         if (permissionStatus) {
             return NextResponse.json(

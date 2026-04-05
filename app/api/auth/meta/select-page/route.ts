@@ -3,6 +3,11 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import { buildMetaAccountMetadata, decryptMetaToken, encryptMetaToken } from '@/lib/meta-account';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
+import {
+    assertJsonBodySize,
+    sanitizeMetaPageSessionData,
+    sanitizeMetaSelectPagePayload,
+} from '@/lib/security/phase1-validation';
 
 const supabaseAdmin = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,15 +34,8 @@ interface PageData {
  */
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json();
-        const { sessionId, selectedPageId } = body;
-
-        if (!sessionId || !selectedPageId) {
-            return NextResponse.json(
-                { error: 'Missing sessionId or selectedPageId' },
-                { status: 400 }
-            );
-        }
+        assertJsonBodySize(request, 64 * 1024);
+        const { sessionId, selectedPageId } = sanitizeMetaSelectPagePayload(await request.json());
 
         // Step 1: Fetch the session data
         const { data: session, error: sessionError } = await supabaseAdmin
@@ -65,7 +63,7 @@ export async function POST(request: NextRequest) {
         }
 
         const workspaceId = session.workspace_id;
-        const pagesData = session.pages_data as PageData[];
+        const pagesData = sanitizeMetaPageSessionData(session.pages_data) as PageData[];
 
         const supabase = await createServerClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -88,10 +86,10 @@ export async function POST(request: NextRequest) {
             : [];
         const grantedGranularScopes = Array.isArray(selectedPage.granted_granular_scopes)
             ? selectedPage.granted_granular_scopes
-                .filter((s: any) => typeof s?.scope === 'string')
-                .map((s: any) => ({
+                .filter((s) => typeof s?.scope === 'string')
+                .map((s) => ({
                     scope: s.scope,
-                    target_ids: Array.isArray(s?.target_ids) ? s.target_ids.filter((id: any) => typeof id === 'string') : undefined,
+                    target_ids: Array.isArray(s?.target_ids) ? s.target_ids.filter((id) => typeof id === 'string') : undefined,
                 }))
             : [];
         const decryptedPageAccessToken = decryptMetaToken(selectedPage.access_token);
@@ -252,6 +250,12 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error) {
+        if (error instanceof Error && /Invalid (sessionId|selectedPageId)|Invalid page selection payload|Request payload too large/i.test(error.message)) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 400 }
+            );
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
             return NextResponse.json(

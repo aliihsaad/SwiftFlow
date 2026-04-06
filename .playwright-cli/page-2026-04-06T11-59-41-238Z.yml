@@ -1,0 +1,97 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - heading "Privacy Policy" [level=1] [ref=e5]
+      - paragraph [ref=e6]: "Last updated: April 3, 2026"
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - heading "1. Scope" [level=2] [ref=e9]
+        - paragraph [ref=e10]: Swift Digital Solutions LLC ("we", "us", or "our") operates SwiftFlow, a social media management platform for businesses. This Privacy Policy explains what information we collect, store, process, and delete when you use the product, including data accessed through Meta products such as Facebook Pages and Instagram Business accounts.
+      - generic [ref=e11]:
+        - heading "2. Information We Process" [level=2] [ref=e12]
+        - paragraph [ref=e13]: The categories below reflect the current product and reviewer-safe release behavior.
+        - list [ref=e14]:
+          - listitem [ref=e15]:
+            - strong [ref=e16]: "Workspace and account information:"
+            - text: user account identifiers, workspace membership, roles, and basic profile details needed to authenticate and authorize access.
+          - listitem [ref=e17]:
+            - strong [ref=e18]: "Connected social account records:"
+            - text: Facebook Page IDs, Instagram Business account IDs, usernames, account names, profile pictures, granted scopes, token expiry timestamps, and connection metadata.
+          - listitem [ref=e19]:
+            - strong [ref=e20]: "Authentication secrets:"
+            - text: Meta tokens and workspace AI provider keys. These are stored encrypted at the application layer and used only in server-side routes and server-side functions.
+          - listitem [ref=e21]:
+            - strong [ref=e22]: "Post data:"
+            - text: draft posts, scheduled posts, published post content, media URLs, target platforms, schedule timestamps, publishing status, Meta-side published post IDs, and permalinks.
+          - listitem [ref=e23]:
+            - strong [ref=e24]: "Analytics data when enabled:"
+            - text: follower metrics, engagement metrics, post analytics snapshots, and related sync timestamps.
+          - listitem [ref=e25]:
+            - strong [ref=e26]: "Comments and messages when enabled:"
+            - text: comment content, conversation threads, message bodies, attachment metadata, participant usernames, and related account identifiers.
+          - listitem [ref=e27]:
+            - strong [ref=e28]: "Webhook and automation records when enabled:"
+            - text: webhook event IDs, automation logs, processed trigger records, and execution context needed to prevent duplicate processing and maintain audit history.
+          - listitem [ref=e29]:
+            - strong [ref=e30]: "AI usage data:"
+            - text: AI prompts, chat sessions, generated content, generated assets, image prompts, and provider/model metadata needed to deliver workspace AI features.
+          - listitem [ref=e31]:
+            - strong [ref=e32]: "Support and operational data:"
+            - text: error logs, request metadata, invite emails, and deletion/support communications.
+      - generic [ref=e33]:
+        - heading "3. How We Use Information" [level=2] [ref=e34]
+        - list [ref=e35]:
+          - listitem [ref=e36]: Authenticate users and enforce workspace permissions.
+          - listitem [ref=e37]: Connect one Facebook Page and its linked Instagram Business account to a workspace.
+          - listitem [ref=e38]: Create, schedule, and publish user-authored social content.
+          - listitem [ref=e39]: Display connected account state, publishing history, and health or permission status.
+          - listitem [ref=e40]: Generate AI-assisted draft content, image prompts, and reply suggestions.
+          - listitem [ref=e41]: Operate analytics, comments, messaging, webhook, and automation features when those features are enabled in the product release and supported by granted permissions.
+          - listitem [ref=e42]: Respond to support, compliance, and deletion requests.
+        - paragraph [ref=e43]: We do not sell personal information or use Meta data for unrelated advertising resale. Meta data is used only to operate the product features authorized by the user.
+      - generic [ref=e44]:
+        - heading "4. Reviewer-Safe Release Scope" [level=2] [ref=e45]
+        - paragraph [ref=e46]: "The Meta review deployment is intentionally narrower than the full internal product. In the reviewer release, the visible flow is limited to:"
+        - list [ref=e47]:
+          - listitem [ref=e48]: connecting a Facebook Page and linked Instagram Business account,
+          - listitem [ref=e49]: creating a post,
+          - listitem [ref=e50]: publishing immediately, and
+          - listitem [ref=e51]: scheduling a future publish.
+        - paragraph [ref=e52]: Messaging, comment moderation, analytics, automation, and subscription flows are hidden or blocked in the reviewer deployment until they are ready for their own review phase.
+      - generic [ref=e53]:
+        - heading "5. Retention" [level=2] [ref=e54]
+        - list [ref=e55]:
+          - listitem [ref=e56]: Connected account records and encrypted tokens are retained until the user disconnects the account, the workspace is deleted, or a deletion request is fulfilled.
+          - listitem [ref=e57]: Post records, published post mappings, AI sessions, and generated assets are retained until they are deleted by the workspace or removed as part of an account deletion request.
+          - listitem [ref=e58]: Webhook, automation, analytics, comments, and messaging records are retained only for product operation, troubleshooting, and audit needs, and may be deleted earlier if those features are disabled or a deletion request applies.
+      - generic [ref=e59]:
+        - heading "6. Security" [level=2] [ref=e60]
+        - list [ref=e61]:
+          - listitem [ref=e62]: Workspace AI keys and Meta tokens are stored encrypted at the application layer.
+          - listitem [ref=e63]: Secrets are used only in server-side routes or server-side functions, not exposed directly to other end users.
+          - listitem [ref=e64]: Workspace access is restricted through authentication, role-based access control, and workspace-scoped data checks.
+      - generic [ref=e65]:
+        - heading "7. Data Sharing" [level=2] [ref=e66]
+        - paragraph [ref=e67]: We share data only with service providers needed to operate the product, such as Supabase for infrastructure and storage, Vercel for hosting, AI providers for requested AI tasks, and Meta for the platform actions the user authorizes.
+      - generic [ref=e68]:
+        - heading "8. Deletion Requests" [level=2] [ref=e69]
+        - paragraph [ref=e70]:
+          - text: You may request deletion of your workspace or connected-platform data at any time. Instructions are available on our
+          - link "Data Deletion" [ref=e71] [cursor=pointer]:
+            - /url: /data-deletion
+          - text: page.
+      - generic [ref=e72]:
+        - heading "9. Contact" [level=2] [ref=e73]
+        - paragraph [ref=e74]:
+          - text: For privacy, support, or compliance questions, contact
+          - link "info@swiftdigital-s.com" [ref=e75] [cursor=pointer]:
+            - /url: mailto:info@swiftdigital-s.com
+          - text: .
+        - paragraph [ref=e76]:
+          - text: Swift Digital Solutions LLC
+          - link "https://swiftdigital-s.com" [ref=e77] [cursor=pointer]:
+            - /url: https://swiftdigital-s.com
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e83] [cursor=pointer]:
+    - img [ref=e84]
+  - alert [ref=e87]

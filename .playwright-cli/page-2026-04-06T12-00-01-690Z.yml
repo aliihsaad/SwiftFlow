@@ -1,0 +1,14 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: Invite Unavailable
+      - generic [ref=e7]: This invite link is invalid or no longer exists.
+    - generic [ref=e8]:
+      - link "Go to Login" [ref=e9] [cursor=pointer]:
+        - /url: /login
+      - link "Home" [ref=e10] [cursor=pointer]:
+        - /url: /
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e16] [cursor=pointer]:
+    - img [ref=e17]
+  - alert [ref=e20]

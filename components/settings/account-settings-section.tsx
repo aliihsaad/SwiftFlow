@@ -72,14 +72,6 @@ function ChangePasswordForm() {
         setReauthRequired(false)
     }
 
-    const submitPasswordUpdate = async (nonce?: string) => {
-        const { error } = await supabase.auth.updateUser({
-            password: newPassword,
-            ...(nonce ? { nonce } : {}),
-        })
-        return error
-    }
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
@@ -102,26 +94,7 @@ function ChangePasswordForm() {
                 return
             }
 
-            const {
-                data: { user },
-                error: userError,
-            } = await supabase.auth.getUser()
-
-            if (userError || !user?.email) {
-                throw new Error("Unable to verify your current session")
-            }
-
-            const { error: reauthError } = await supabase.auth.signInWithPassword({
-                email: user.email,
-                password: currentPassword,
-            })
-            if (reauthError) {
-                throw new Error("Please sign in again and retry your password update")
-            }
-
-            const error = await submitPasswordUpdate(reauthRequired ? reauthOtp.trim() : undefined)
-
-            if (error?.message?.toLowerCase().includes("current password required")) {
+            if (!reauthRequired) {
                 setIsSendingNonce(true)
                 const { error: nonceError } = await supabase.auth.reauthenticate()
                 if (nonceError) throw nonceError
@@ -130,8 +103,11 @@ function ChangePasswordForm() {
                 return
             }
 
+            const { error } = await supabase.auth.updateUser({
+                password: newPassword,
+                nonce: reauthOtp.trim(),
+            })
             if (error) throw error
-
             toast.success("Password updated successfully")
             clearForm()
         } catch (err: unknown) {

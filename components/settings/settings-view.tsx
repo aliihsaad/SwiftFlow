@@ -7,6 +7,7 @@ import { ApiSettingsForm } from "@/components/settings/api-settings-form"
 import { Workspace, WorkspaceRole } from "@/types/workspace"
 import { WorkspaceSettings } from "@/types/settings"
 import { TeamMembersPanel } from "@/components/settings/team-members-panel"
+import { AccountSettingsSection } from "@/components/settings/account-settings-section"
 import { TeamMemberRow, WorkspaceInviteRow } from "@/types/team"
 
 interface SettingsViewProps {
@@ -19,6 +20,7 @@ interface SettingsViewProps {
     workspaceInvites: WorkspaceInviteRow[]
     inviteFeatureReady: boolean
     inviteFeatureMessage: string | null
+    userEmail: string
 }
 
 export function SettingsView({
@@ -31,6 +33,7 @@ export function SettingsView({
     workspaceInvites,
     inviteFeatureReady,
     inviteFeatureMessage,
+    userEmail,
 }: SettingsViewProps) {
     const panelClass = "border-white/10 bg-[#151620] text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]"
     const tabListClass = "h-auto w-full sm:w-fit rounded-xl border border-white/10 bg-[#1b1d28] p-1"
@@ -51,6 +54,7 @@ export function SettingsView({
                     <TabsTrigger value="workspaces" className={tabTriggerClass}>Workspaces</TabsTrigger>
                     <TabsTrigger value="api" className={tabTriggerClass}>AI Provider</TabsTrigger>
                     <TabsTrigger value="members" className={tabTriggerClass}>Members</TabsTrigger>
+                    <TabsTrigger value="account" className={tabTriggerClass}>Account</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="workspaces" className="space-y-4">
@@ -91,6 +95,10 @@ export function SettingsView({
                             />
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="account">
+                    <AccountSettingsSection userEmail={userEmail} />
                 </TabsContent>
             </Tabs>
         </div>

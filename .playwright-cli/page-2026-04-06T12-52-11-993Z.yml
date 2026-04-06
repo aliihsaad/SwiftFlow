@@ -1,0 +1,53 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e14]:
+    - link "Back to SwiftFlow" [ref=e16] [cursor=pointer]:
+      - /url: /
+      - img [ref=e17]
+      - text: Back to SwiftFlow
+    - generic [ref=e19]:
+      - img "SwiftFlow Logo" [ref=e20]
+      - heading "SwiftFlow" [level=1] [ref=e21]
+      - paragraph [ref=e22]: AI-assisted social ops for Instagram + Facebook
+      - generic [ref=e23]:
+        - generic [ref=e24]: Publishing
+        - generic [ref=e25]: Messages
+        - generic [ref=e26]: Analytics
+        - generic [ref=e27]: Automations
+    - generic [ref=e29]:
+      - tablist [ref=e30]:
+        - tab "Sign In" [ref=e31]
+        - tab "Sign Up" [selected] [ref=e32]
+      - tabpanel "Sign Up" [ref=e45]:
+        - generic [ref=e46]:
+          - generic [ref=e59]: Check your email for a confirmation link to complete your registration.
+          - generic [ref=e47]:
+            - generic [ref=e48]: Email
+            - textbox "Email" [ref=e49]:
+              - /placeholder: you@company.com
+              - text: definitelynotregistered999@nowhere-at-all.com
+          - generic [ref=e50]:
+            - generic [ref=e51]: Password
+            - textbox "Password" [ref=e52]:
+              - /placeholder: Min. 10 chars, mixed case, number, symbol
+              - text: ValidPassword1!
+            - paragraph [ref=e53]: Use at least 10 characters with uppercase, lowercase, a number, and a symbol.
+          - generic [ref=e54]:
+            - generic [ref=e55]: Confirm Password
+            - textbox "Confirm Password" [ref=e56]:
+              - /placeholder: Confirm your password
+              - text: ValidPassword1!
+          - button "Create Account" [ref=e57]:
+            - img
+            - text: Create Account
+            - img
+    - paragraph [ref=e42]:
+      - text: By continuing you agree to our
+      - link "Terms" [ref=e43] [cursor=pointer]:
+        - /url: /terms
+      - text: "&"
+      - link "Privacy Policy" [ref=e44] [cursor=pointer]:
+        - /url: /privacy
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e8] [cursor=pointer]:
+    - img [ref=e9]
+  - alert [ref=e12]

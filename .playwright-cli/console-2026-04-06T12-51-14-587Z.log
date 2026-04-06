@@ -1,0 +1,2 @@
+[   32329ms] [WARNING] WebCrypto API is not supported. Code challenge method will default to use plain instead of sha256. @ http://host.docker.internal:3000/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
+[   53042ms] [WARNING] WebCrypto API is not supported. Code challenge method will default to use plain instead of sha256. @ http://host.docker.internal:3000/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297

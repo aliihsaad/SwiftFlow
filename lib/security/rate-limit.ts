@@ -1,4 +1,3 @@
-import { createHash } from "crypto"
 import { createAdminClient } from "@/utils/supabase/admin"
 
 export interface RateLimitRule {
@@ -43,8 +42,12 @@ export function normalizeRateLimitEmail(email: string): string {
     return email.trim().toLowerCase().slice(0, 320)
 }
 
-function hashSubject(subject: string): string {
-    return createHash("sha256").update(subject).digest("hex")
+async function hashSubject(subject: string): Promise<string> {
+    const encoder = new TextEncoder()
+    const data = encoder.encode(subject)
+    const digest = await crypto.subtle.digest("SHA-256", data)
+    const bytes = Array.from(new Uint8Array(digest))
+    return bytes.map((value) => value.toString(16).padStart(2, "0")).join("")
 }
 
 export async function consumeRateLimit(rule: RateLimitRule): Promise<RateLimitResult> {
@@ -52,11 +55,12 @@ export async function consumeRateLimit(rule: RateLimitRule): Promise<RateLimitRe
     if (!subject) {
         return { allowed: true, remaining: rule.limit, retryAfterSeconds: 0 }
     }
+    const subjectHash = await hashSubject(subject)
 
     const supabaseAdmin = createAdminClient()
     const { data, error } = await supabaseAdmin.rpc("consume_rate_limit", {
         p_scope: rule.scope,
-        p_subject_hash: hashSubject(subject),
+        p_subject_hash: subjectHash,
         p_limit: rule.limit,
         p_window_seconds: rule.windowSeconds,
         p_bucket_seconds: rule.bucketSeconds ?? 60,

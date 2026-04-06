@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Lock, ArrowRight, ChevronLeft, Check, AlertTriangle } from "lucide-react"
+import { Loader2, Lock, ArrowRight, ChevronLeft, Check } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
 
 const AUTH_THEME = {
@@ -50,7 +50,6 @@ export function ResetPasswordForm() {
     const [confirmPassword, setConfirmPassword] = useState("")
     const [isLoading, setIsLoading] = useState(false)
     const [isInitializing, setIsInitializing] = useState(true)
-    const [isRecoveryReady, setIsRecoveryReady] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState(false)
 
@@ -76,7 +75,6 @@ export function ResetPasswordForm() {
                 let authError: string | null = null
 
                 if (hasRecoveryCookie) {
-                    setIsRecoveryReady(true)
                     return
                 }
 
@@ -102,7 +100,6 @@ export function ResetPasswordForm() {
                 if (authError) {
                     if (!cancelled) {
                         setError(authError)
-                        setIsRecoveryReady(false)
                     }
                     return
                 }
@@ -110,14 +107,9 @@ export function ResetPasswordForm() {
                 if (code || tokenHash || accessToken || refreshToken) {
                     window.history.replaceState({}, document.title, "/reset-password")
                 }
-
-                if (!cancelled) {
-                    setIsRecoveryReady(true)
-                }
             } catch {
                 if (!cancelled) {
                     setError("Password reset link is invalid or expired")
-                    setIsRecoveryReady(false)
                 }
             } finally {
                 if (!cancelled) {
@@ -257,38 +249,6 @@ export function ResetPasswordForm() {
                         >
                             <Check className="h-4 w-4 shrink-0" />
                             Password updated successfully. Redirecting to dashboard...
-                        </div>
-                    ) : !isRecoveryReady ? (
-                        <div className="space-y-4">
-                            <div
-                                className="p-3 text-sm rounded-lg flex items-start gap-2"
-                                style={{
-                                    background: 'rgba(251,113,133,0.08)',
-                                    border: '1px solid rgba(239,68,68,0.2)',
-                                    color: '#fb7185',
-                                }}
-                            >
-                                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-medium">Password reset link unavailable</p>
-                                    <p className="mt-1 text-xs text-white/60">
-                                        {error || "This reset link is invalid or has expired. Request a new password reset email to continue."}
-                                    </p>
-                                </div>
-                            </div>
-                            <Button
-                                asChild
-                                className="w-full h-10 font-semibold text-white border-0 rounded-lg transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
-                                style={{
-                                    background: 'linear-gradient(135deg, #f59e0b 0%, #fb7185 55%, #22d3ee 100%)',
-                                    boxShadow: '0 8px 26px rgba(34,211,238,0.14), 0 1px 0 rgba(255,255,255,0.1) inset',
-                                }}
-                            >
-                                <Link href="/forgot-password">
-                                    Request New Reset Link
-                                    <ArrowRight className="h-3.5 w-3.5 ml-auto opacity-50" />
-                                </Link>
-                            </Button>
                         </div>
                     ) : (
                         <form onSubmit={handleSubmit} className="space-y-4">

@@ -283,9 +283,8 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             throw new Error("No workspace selected")
         }
 
-        const cleanPrompt = prompt.trim().slice(0, 2000)
+        const cleanPrompt = prompt.trim().slice(0, 1200)
         const data = await invokeEdge('generate-image', {
-            messages: [{ role: 'user', content: cleanPrompt }],
             workspaceId,
             prompt: cleanPrompt,
             style,
@@ -306,7 +305,8 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
     // Handlers for Content Card Actions
     const handleGenerateImage = async (_id: string, text: string) => {
         try {
-            return await requestGeneratedImage(text)
+            const contentPrompt = `Create a polished social media image based on this content idea: ${text.slice(0, 500)}`
+            return await requestGeneratedImage(contentPrompt)
         } catch (error) {
             throw new Error(sanitizeAssistantImageError(error instanceof Error ? error.message : "Image generation failed"))
         }

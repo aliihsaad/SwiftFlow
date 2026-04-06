@@ -83,6 +83,23 @@ function ChangePasswordForm() {
                 return
             }
 
+            const {
+                data: { user },
+                error: userError,
+            } = await supabase.auth.getUser()
+
+            if (userError || !user?.email) {
+                throw new Error("Unable to verify your current session")
+            }
+
+            const { error: reauthError } = await supabase.auth.signInWithPassword({
+                email: user.email,
+                password: currentPassword,
+            })
+            if (reauthError) {
+                throw new Error("Please sign in again and retry your password update")
+            }
+
             const { error } = await supabase.auth.updateUser({ password: newPassword })
             if (error) throw error
             toast.success("Password updated successfully")

@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { createClient } from "@/utils/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/use-toast"
-import { X, Plus, Upload, Loader2, Info } from "lucide-react"
+import { X, Plus, Loader2, Info } from "lucide-react"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 
 const DEFAULT_BRAND_COLORS = {
@@ -24,14 +23,45 @@ interface BrandProfileFormProps {
     workspaceId: string
 }
 
+type BrandService = {
+    name: string
+    description: string
+}
+
+type BrandProfileState = {
+    workspace_id?: string
+    business_name?: string
+    owner_name?: string
+    email?: string
+    phone?: string
+    website?: string
+    industry?: string
+    business_description?: string
+    target_audience?: string
+    brand_voice?: string
+    language?: string
+    services?: BrandService[]
+    unique_selling_points?: string[]
+    logo_url?: string
+    brand_colors?: Partial<typeof DEFAULT_BRAND_COLORS>
+    reference_image_urls?: string[]
+    instagram_handle?: string
+    facebook_page?: string
+    content_themes?: string[]
+}
+
+type BrandAssetUploadResponse = {
+    url?: string
+    error?: string
+}
+
 export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
-    const [profile, setProfile] = useState<any>(null)
+    const [profile, setProfile] = useState<BrandProfileState | null>(null)
     const [newService, setNewService] = useState("")
     const [newUSP, setNewUSP] = useState("")
     const [newTheme, setNewTheme] = useState("")
-    const supabase = createClient()
     const { toast } = useToast()
     const canEditSettings = useWorkspacePermission("settings:write")
 
@@ -84,9 +114,9 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
         }
     }
 
-    const updateField = (field: string, value: any) => {
+    const updateField = (field: string, value: unknown) => {
         if (!canEditSettings) return
-        setProfile((prev: any) => ({
+        setProfile((prev) => ({
             ...(prev || {}),
             [field]: value,
         }))
@@ -94,39 +124,39 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
 
     const addService = () => {
         if (!newService.trim()) return
-        const services = profile.services || []
+        const services = profile?.services || []
         updateField('services', [...services, { name: newService, description: '' }])
         setNewService("")
     }
 
     const removeService = (index: number) => {
-        const services = [...profile.services]
+        const services = [...(profile?.services || [])]
         services.splice(index, 1)
         updateField('services', services)
     }
 
     const addUSP = () => {
         if (!newUSP.trim()) return
-        const usps = profile.unique_selling_points || []
+        const usps = profile?.unique_selling_points || []
         updateField('unique_selling_points', [...usps, newUSP])
         setNewUSP("")
     }
 
     const removeUSP = (index: number) => {
-        const usps = [...profile.unique_selling_points]
+        const usps = [...(profile?.unique_selling_points || [])]
         usps.splice(index, 1)
         updateField('unique_selling_points', usps)
     }
 
     const addTheme = () => {
         if (!newTheme.trim()) return
-        const themes = profile.content_themes || []
+        const themes = profile?.content_themes || []
         updateField('content_themes', [...themes, newTheme])
         setNewTheme("")
     }
 
     const removeTheme = (index: number) => {
-        const themes = [...profile.content_themes]
+        const themes = [...(profile?.content_themes || [])]
         themes.splice(index, 1)
         updateField('content_themes', themes)
     }
@@ -137,27 +167,30 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
         if (!file) return
 
         try {
-            const fileExt = file.name.split('.').pop()
-            const fileName = `logo-${Date.now()}.${fileExt}`
+            const formData = new FormData()
+            formData.append('kind', 'logo')
+            formData.append('file', file)
 
-            const { error: uploadError } = await supabase.storage
-                .from('brand_assets')
-                .upload(fileName, file)
+            const response = await fetch('/api/brand-profile/assets', {
+                method: 'POST',
+                body: formData,
+            })
 
-            if (uploadError) throw uploadError
+            const payload = await response.json().catch(() => null) as BrandAssetUploadResponse | null
+            if (!response.ok || !payload?.url) {
+                throw new Error(payload?.error || 'Failed to upload logo')
+            }
 
-            const { data } = supabase.storage
-                .from('brand_assets')
-                .getPublicUrl(fileName)
-
-            updateField('logo_url', data.publicUrl)
+            updateField('logo_url', payload.url)
         } catch (error) {
             console.error('Upload error:', error)
             toast({
                 title: "Upload failed",
-                description: "Failed to upload logo.",
+                description: error instanceof Error ? error.message : "Failed to upload logo.",
                 variant: "destructive",
             })
+        } finally {
+            e.target.value = ''
         }
     }
 
@@ -169,36 +202,39 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
         try {
             const urls = []
             for (const file of Array.from(files)) {
-                const fileExt = file.name.split('.').pop()
-                const fileName = `ref-${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+                const formData = new FormData()
+                formData.append('kind', 'reference')
+                formData.append('file', file)
 
-                const { error: uploadError } = await supabase.storage
-                    .from('brand_assets')
-                    .upload(fileName, file)
+                const response = await fetch('/api/brand-profile/assets', {
+                    method: 'POST',
+                    body: formData,
+                })
 
-                if (uploadError) throw uploadError
+                const payload = await response.json().catch(() => null) as BrandAssetUploadResponse | null
+                if (!response.ok || !payload?.url) {
+                    throw new Error(payload?.error || 'Failed to upload reference image')
+                }
 
-                const { data } = supabase.storage
-                    .from('brand_assets')
-                    .getPublicUrl(fileName)
-
-                urls.push(data.publicUrl)
+                urls.push(payload.url)
             }
 
-            const existing = profile.reference_image_urls || []
+            const existing = profile?.reference_image_urls || []
             updateField('reference_image_urls', [...existing, ...urls])
         } catch (error) {
             console.error('Upload error:', error)
             toast({
                 title: "Upload failed",
-                description: "Failed to upload images.",
+                description: error instanceof Error ? error.message : "Failed to upload images.",
                 variant: "destructive",
             })
+        } finally {
+            e.target.value = ''
         }
     }
 
     const removeReferenceImage = (index: number) => {
-        const images = [...(profile.reference_image_urls || [])]
+        const images = [...(profile?.reference_image_urls || [])]
         images.splice(index, 1)
         updateField('reference_image_urls', images)
     }
@@ -436,7 +472,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                        {profile?.services?.map((service: any, i: number) => (
+                        {profile?.services?.map((service: BrandService, i: number) => (
                             <Badge key={i} variant="secondary" className={chipClass}>
                                 {service.name}
                                 <X

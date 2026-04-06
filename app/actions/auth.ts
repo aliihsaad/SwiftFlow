@@ -4,6 +4,9 @@ import { createClient } from "@/utils/supabase/server"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { redirect } from "next/navigation"
 import { sendPasswordChangedEmail } from "@/lib/email/send-password-changed-email"
+import { cookies } from "next/headers"
+
+const PASSWORD_RECOVERY_COOKIE = "password_recovery_authorized"
 
 async function verifyUserPassword(password: string): Promise<{ ok: boolean; error?: string }> {
     const supabase = await createClient()
@@ -78,6 +81,50 @@ export async function updatePassword(currentPassword: string, newPassword: strin
         changedAt: new Date().toISOString(),
     }).catch((emailError) => {
         console.error("Password change email send failed", emailError)
+    })
+
+    return { ok: true }
+}
+
+export async function completePasswordRecovery(newPassword: string): Promise<{ ok: boolean; error?: string }> {
+    const cookieStore = await cookies()
+    const hasRecoveryAuthorization = cookieStore.get(PASSWORD_RECOVERY_COOKIE)?.value === "1"
+
+    if (!hasRecoveryAuthorization) {
+        return { ok: false, error: "Recovery session is missing or expired" }
+    }
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user?.email) {
+        return { ok: false, error: "Recovery session is missing or expired" }
+    }
+
+    const supabaseAdmin = createAdminClient()
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+        password: newPassword,
+    })
+
+    if (error) {
+        return { ok: false, error: "Failed to update password" }
+    }
+
+    cookieStore.set({
+        name: PASSWORD_RECOVERY_COOKIE,
+        value: "",
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 0,
+    })
+
+    void sendPasswordChangedEmail({
+        to: user.email,
+        changedAt: new Date().toISOString(),
+    }).catch((emailError) => {
+        console.error("Password recovery email send failed", emailError)
     })
 
     return { ok: true }

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Lock, ArrowRight, ChevronLeft, Check } from "lucide-react"
 import { createClient } from "@/utils/supabase/client"
+import { completePasswordRecovery } from "@/app/actions/auth"
 
 const AUTH_THEME = {
     bg: "#0b0b0f",
@@ -152,12 +153,14 @@ export function ResetPasswordForm() {
         setIsLoading(true)
 
         try {
-            const { error } = await supabase.auth.updateUser({ password })
-            if (error) throw error
+            const result = await completePasswordRecovery(password)
+            if (!result.ok) {
+                throw new Error(result.error || "Failed to update password")
+            }
             setSuccess(true)
             setTimeout(() => router.push("/dashboard"), 2000)
-        } catch {
-            setError("Failed to update password")
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : "Failed to update password")
         } finally {
             setIsLoading(false)
         }

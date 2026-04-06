@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { executeWorkflowGraph } from "./graph-executor.ts"
 import { canManageMessagesWithMetaAccount, canReadCommentsWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
 
-import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
+import { isSafeMetaGraphNodeId, META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
@@ -59,6 +59,10 @@ async function fetchPostComments(
     postId: string,
     accessToken: string
 ): Promise<CommentData[]> {
+    if (!isSafeMetaGraphNodeId(postId)) {
+        console.error(`Rejected unsafe Meta post ID: ${postId}`);
+        return [];
+    }
     const url = `${META_GRAPH_URL}/${postId}/comments?fields=id,text,from,timestamp&limit=50&access_token=${accessToken}`;
 
     const response = await fetch(url);
@@ -102,6 +106,9 @@ async function replyToComment(
     accessToken: string
 ): Promise<{ success: boolean; replyId?: string; error?: string }> {
     try {
+        if (!isSafeMetaGraphNodeId(commentId)) {
+            return { success: false, error: 'Unsafe comment ID rejected' };
+        }
         const url = `${META_GRAPH_URL}/${commentId}/replies`;
         const response = await fetch(url, {
             method: 'POST',
@@ -218,6 +225,9 @@ async function sendPrivateReply(
     accessToken: string
 ): Promise<DmResult> {
     try {
+        if (!isSafeMetaGraphNodeId(commentId)) {
+            return { success: false, error: 'Unsafe comment ID rejected' };
+        }
         // Combine opening message + link into one plain text message
         const text = dmConfig.link_url
             ? `${dmConfig.opening_message}\n\n${dmConfig.link_url}`

@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
+import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
@@ -71,12 +72,13 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const postId = searchParams.get('postId'); // platform_post_id (media ID or post ID)
+        const rawPostId = searchParams.get('postId'); // platform_post_id (media ID or post ID)
         const platform = searchParams.get('platform') || 'instagram';
 
-        if (!postId) {
+        if (!rawPostId) {
             return NextResponse.json({ error: 'postId is required' }, { status: 400 });
         }
+        const postId = assertMetaGraphNodeId(rawPostId, 'postId')
 
         // Get the social account for this platform
         const { data: account, error: accountError } = await supabase
@@ -184,6 +186,12 @@ export async function GET(request: NextRequest) {
         });
 
     } catch (error: any) {
+        if (error instanceof Error && /Invalid postId/i.test(error.message)) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 400 }
+            );
+        }
         console.error('Post comments API error:', error);
         return NextResponse.json(
             { error: error.message || 'Failed to fetch comments' },
@@ -208,15 +216,19 @@ export async function POST(request: NextRequest) {
         }
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write');
 
+        assertJsonBodySize(request, 64 * 1024);
         const body = await request.json();
-        const { commentId, message, platform } = body;
+        const rawCommentId = body?.commentId;
+        const message = typeof body?.message === 'string' ? body.message.trim() : '';
+        const platform = body?.platform;
 
-        if (!commentId || !message || !platform) {
+        if (!rawCommentId || !message || !platform) {
             return NextResponse.json(
                 { error: 'commentId, message, and platform are required' },
                 { status: 400 }
             );
         }
+        const commentId = assertMetaGraphNodeId(rawCommentId, 'commentId')
 
         // Get the social account
         const { data: account, error: accountError } = await supabase
@@ -271,6 +283,9 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error: any) {
+        if (error instanceof Error && /Invalid commentId|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
             return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
@@ -300,12 +315,13 @@ export async function DELETE(request: NextRequest) {
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write');
 
         const { searchParams } = new URL(request.url);
-        const commentId = searchParams.get('commentId');
+        const rawCommentId = searchParams.get('commentId');
         const platform = searchParams.get('platform') || 'instagram';
 
-        if (!commentId) {
+        if (!rawCommentId) {
             return NextResponse.json({ error: 'commentId is required' }, { status: 400 });
         }
+        const commentId = assertMetaGraphNodeId(rawCommentId, 'commentId')
 
         // Get the social account
         const { data: account } = await supabase
@@ -344,6 +360,9 @@ export async function DELETE(request: NextRequest) {
         return NextResponse.json({ success: true });
 
     } catch (error: any) {
+        if (error instanceof Error && /Invalid commentId/i.test(error.message)) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
             return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
@@ -372,14 +391,16 @@ export async function PATCH(request: NextRequest) {
         }
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write');
 
+        assertJsonBodySize(request, 64 * 1024);
         const body = await request.json();
-        const commentId = body?.commentId as string | undefined;
+        const rawCommentId = body?.commentId as string | undefined;
         const platform = (body?.platform as string | undefined) || 'instagram';
         const hidden = Boolean(body?.hidden);
 
-        if (!commentId) {
+        if (!rawCommentId) {
             return NextResponse.json({ error: 'commentId is required' }, { status: 400 });
         }
+        const commentId = assertMetaGraphNodeId(rawCommentId, 'commentId')
 
         const { data: account } = await supabase
             .from('social_accounts')
@@ -421,6 +442,9 @@ export async function PATCH(request: NextRequest) {
 
         return NextResponse.json({ success: true, hidden });
     } catch (error: any) {
+        if (error instanceof Error && /Invalid commentId|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
             return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });

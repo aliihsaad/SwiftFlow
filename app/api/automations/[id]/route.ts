@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
+import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
 
 // GET - Get a single automation
 export async function GET(
@@ -91,6 +92,7 @@ export async function PUT(
             );
         }
 
+        assertJsonBodySize(request, 256 * 1024);
         const body = await request.json();
         const {
             name,
@@ -159,7 +161,7 @@ export async function PUT(
                     );
                 }
 
-                updateData.platform_post_id = graphTriggerConfig.post_id;
+                updateData.platform_post_id = assertMetaGraphNodeId(graphTriggerConfig.post_id, 'post_id');
                 updateData.post_thumbnail_url = graphTriggerConfig.post_thumbnail_url || null;
                 updateData.post_caption = graphTriggerConfig.post_caption || null;
             } else {
@@ -184,6 +186,12 @@ export async function PUT(
         });
 
     } catch (error: any) {
+        if (error instanceof Error && /Invalid post_id|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 400 }
+            );
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
             return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });

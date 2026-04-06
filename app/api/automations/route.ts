@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
+import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
 
 function summarizeError(error: unknown): string {
     if (error instanceof Error) return error.message;
@@ -128,6 +129,7 @@ export async function POST(request: NextRequest) {
         }
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write');
 
+        assertJsonBodySize(request, 256 * 1024);
         const body = await request.json();
         const {
             social_account_id,
@@ -168,6 +170,7 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             );
         }
+        const validatedPlatformPostId = !isCanvasMode ? assertMetaGraphNodeId(platform_post_id, 'platform_post_id') : null;
 
         // Resolve social_account_id: from body or from graph trigger node
         const resolvedAccountId = social_account_id ||
@@ -284,7 +287,7 @@ export async function POST(request: NextRequest) {
                     );
                 }
 
-                insertData.platform_post_id = graphTriggerConfig.post_id;
+                insertData.platform_post_id = assertMetaGraphNodeId(graphTriggerConfig.post_id, 'post_id');
                 insertData.post_thumbnail_url = graphTriggerConfig.post_thumbnail_url || null;
                 insertData.post_caption = graphTriggerConfig.post_caption || null;
                 insertData.trigger_config = {
@@ -297,7 +300,7 @@ export async function POST(request: NextRequest) {
                 insertData.trigger_config = { trigger_type: 'any_comment', keywords: [] };
             }
         } else {
-            insertData.platform_post_id = platform_post_id;
+            insertData.platform_post_id = validatedPlatformPostId;
             insertData.post_thumbnail_url = post_thumbnail_url;
             insertData.post_caption = post_caption;
             insertData.trigger_config = trigger_config || { trigger_type: 'any_comment', keywords: [] };
@@ -337,6 +340,12 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error: any) {
+        if (error instanceof Error && /Invalid platform_post_id|Invalid post_id|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 400 }
+            );
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
             return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });

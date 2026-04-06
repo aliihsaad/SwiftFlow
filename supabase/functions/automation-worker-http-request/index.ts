@@ -11,39 +11,15 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  try {
-    const body = await req.json();
-    const config = body?.config || {};
-
-    const method = String(config.method || 'GET').toUpperCase();
-    const headers = { ...(config.headers || {}) };
-    const options: RequestInit = { method, headers };
-
-    if (config.body && method !== 'GET') {
-      options.body = String(config.body);
-      if (!headers['Content-Type']) {
-        headers['Content-Type'] = 'application/json';
-      }
-    }
-
-    const response = await fetch(String(config.url || ''), options);
-    const responseText = await response.text();
-
-    return new Response(JSON.stringify({
-      success: response.ok,
-      output: {
-        status: response.status,
-        body: responseText.substring(0, 1000),
-      },
-      error: response.ok ? undefined : `HTTP ${response.status}`,
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (err) {
-    return new Response(JSON.stringify({ success: false, error: err?.message || 'HTTP request failed' }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+  return new Response(JSON.stringify({
+    success: false,
+    error: 'HTTP request automation is disabled',
+    output: {
+      disabled: true,
+      reason: 'action_http_request is not allowed in the current security profile',
+    },
+  }), {
+    status: 403,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
 });

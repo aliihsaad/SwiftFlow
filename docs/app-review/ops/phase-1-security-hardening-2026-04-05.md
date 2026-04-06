@@ -91,6 +91,35 @@ This note records the post-submission security and bug fixes applied to the Phas
   - oversized session payload writes
   - unsafe JSON persistence from assistant/session requests
 
+9. Blocked Meta Graph path traversal through comment and automation IDs
+- Updated:
+  - `lib/security/phase1-validation.ts`
+  - `app/api/posts-media/comments/route.ts`
+  - `app/api/automations/route.ts`
+  - `app/api/automations/[id]/route.ts`
+  - `app/api/automations/validate/route.ts`
+  - `supabase/functions/_shared/meta-graph.ts`
+  - `supabase/functions/process-automations/index.ts`
+  - `supabase/functions/sync-comments/index.ts`
+- Fix:
+  - strict Meta object ID validation now rejects malformed `postId`, `commentId`, `platform_post_id`, and comment-trigger `post_id` values before any Meta Graph URL is assembled
+  - automation create/update and design-time validation now reject comment-trigger post IDs that are not valid Meta object IDs
+  - background automation/comment sync workers now skip unsafe stored IDs instead of issuing outbound Meta requests with them
+- Risk reduced:
+  - Meta Graph path/query injection through crafted object IDs
+  - stored traversal payloads being replayed by background workers
+  - comment-management endpoints acting as indirect data exfiltration proxies
+
+10. Disabled the automation HTTP request worker
+- Updated:
+  - `supabase/functions/automation-worker-http-request/index.ts`
+- Fix:
+  - the worker now rejects all invocations and no longer performs arbitrary outbound `fetch()` calls
+  - this matches the existing product state where `action_http_request` is already marked temporarily disabled in the canvas validator/executor
+- Risk reduced:
+  - unrestricted SSRF through automation workflows
+  - internal network probing or metadata-service access through user-configured URLs
+
 ## Verification
 
 - `npx tsc --noEmit --pretty false`

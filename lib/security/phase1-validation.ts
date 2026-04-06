@@ -2,6 +2,7 @@ import type { AICaptionRequest, Platform, PostStatus } from '@/types/post'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const META_ACCOUNT_ID_RE = /^[0-9]{3,32}$/
+const META_GRAPH_NODE_ID_RE = /^[0-9_]{3,128}$/
 const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i
 const ALLOWED_PLATFORMS: Platform[] = ['instagram', 'facebook']
 const ALLOWED_STATUSES: PostStatus[] = ['draft', 'scheduled', 'publishing', 'published', 'failed']
@@ -84,8 +85,19 @@ export function isMetaAccountId(value: unknown): value is string {
     return typeof value === 'string' && META_ACCOUNT_ID_RE.test(value.trim())
 }
 
+export function isMetaGraphNodeId(value: unknown): value is string {
+    return typeof value === 'string' && META_GRAPH_NODE_ID_RE.test(value.trim())
+}
+
 export function assertUuid(value: unknown, fieldName: string): string {
     if (!isUuid(value)) {
+        throw new Error(`Invalid ${fieldName}`)
+    }
+    return value.trim()
+}
+
+export function assertMetaGraphNodeId(value: unknown, fieldName: string): string {
+    if (!isMetaGraphNodeId(value)) {
         throw new Error(`Invalid ${fieldName}`)
     }
     return value.trim()

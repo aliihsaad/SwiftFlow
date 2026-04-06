@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { canReadCommentsWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
-import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
+import { isSafeMetaGraphNodeId, META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
@@ -128,6 +128,10 @@ async function syncComments(supabase: any, workspaceId: string) {
 
         for (const publishedPost of platformPosts) {
             try {
+                if (!isSafeMetaGraphNodeId(publishedPost.platform_post_id)) {
+                    console.error(`[CommentSync] Rejected unsafe published post ID: ${publishedPost.platform_post_id}`);
+                    continue;
+                }
                 let comments: Comment[] = [];
 
                 if (account.platform === 'instagram') {
@@ -260,6 +264,10 @@ async function syncComments(supabase: any, workspaceId: string) {
             }
 
             try {
+                if (!isSafeMetaGraphNodeId(automation.platform_post_id)) {
+                    console.error(`[CommentSync] Rejected unsafe automation post ID: ${automation.platform_post_id}`);
+                    continue;
+                }
                 console.log(`[CommentSync] Fetching comments for automation post ${automation.platform_post_id}`);
                 const url = `${META_GRAPH_URL}/${automation.platform_post_id}/comments?fields=id,text,timestamp,username,from{id,username},replies{id,text,timestamp,username,from{id,username}}&access_token=${account.access_token}`;
 

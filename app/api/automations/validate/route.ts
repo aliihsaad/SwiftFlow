@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { WorkflowGraph } from '@/types/automation-graph'
 import { isTriggerNode } from '@/types/automation-graph'
+import { isMetaGraphNodeId } from '@/lib/security/phase1-validation'
 
 interface ValidationError {
   code: string
@@ -238,6 +239,9 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
       case 'trigger_new_comment':
         if (!config.post_id) {
           errors.push({ code: 'MISSING_FIELD', message: 'Comment trigger requires a post ID.', nodeId: node.id })
+        }
+        if (config.post_id && !isMetaGraphNodeId(config.post_id)) {
+          errors.push({ code: 'INVALID_POST_ID', message: 'Comment trigger post ID must be a valid Meta object ID.', nodeId: node.id })
         }
         if (!config.social_account_id) {
           errors.push({ code: 'MISSING_FIELD', message: 'Comment trigger requires an account.', nodeId: node.id })

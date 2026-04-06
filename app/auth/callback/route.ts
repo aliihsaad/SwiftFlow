@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/utils/supabase/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 
 const PASSWORD_RECOVERY_COOKIE = "password_recovery_authorized"
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
     const { searchParams, origin } = new URL(request.url)
     const code = searchParams.get('code')
     const tokenHash = searchParams.get("token_hash")
@@ -13,7 +13,26 @@ export async function GET(request: Request) {
         ? nextParam
         : '/dashboard'
 
-    const applyRecoveryCookie = (response: NextResponse) => {
+    const response = NextResponse.redirect(`${origin}${next}`)
+
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return request.cookies.getAll()
+                },
+                setAll(cookiesToSet) {
+                    cookiesToSet.forEach(({ name, value, options }) => {
+                        response.cookies.set(name, value, options)
+                    })
+                },
+            },
+        }
+    )
+
+    const applyRecoveryCookie = () => {
         if (next === "/reset-password") {
             response.cookies.set(PASSWORD_RECOVERY_COOKIE, "1", {
                 httpOnly: true,
@@ -23,25 +42,24 @@ export async function GET(request: Request) {
                 maxAge: 15 * 60,
             })
         }
-        return response
     }
 
     if (code) {
-        const supabase = await createClient()
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (!error) {
-            return applyRecoveryCookie(NextResponse.redirect(`${origin}${next}`))
+            applyRecoveryCookie()
+            return response
         }
     }
 
     if (tokenHash && type === "recovery") {
-        const supabase = await createClient()
         const { error } = await supabase.auth.verifyOtp({
             token_hash: tokenHash,
             type: "recovery",
         })
         if (!error) {
-            return applyRecoveryCookie(NextResponse.redirect(`${origin}${next}`))
+            applyRecoveryCookie()
+            return response
         }
     }
 

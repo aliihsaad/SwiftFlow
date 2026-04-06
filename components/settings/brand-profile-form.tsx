@@ -86,7 +86,10 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
 
     const updateField = (field: string, value: any) => {
         if (!canEditSettings) return
-        setProfile({ ...profile, [field]: value })
+        setProfile((prev: any) => ({
+            ...(prev || {}),
+            [field]: value,
+        }))
     }
 
     const addService = () => {

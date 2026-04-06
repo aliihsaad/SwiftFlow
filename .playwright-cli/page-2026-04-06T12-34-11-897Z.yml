@@ -1,0 +1,481 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - navigation [ref=e3]:
+      - generic [ref=e4]:
+        - link "SwiftFlow Logo SwiftFlow" [ref=e5] [cursor=pointer]:
+          - /url: /
+          - img "SwiftFlow Logo" [ref=e6]
+          - generic [ref=e7]: SwiftFlow
+        - generic [ref=e8]:
+          - link "Features" [ref=e9] [cursor=pointer]:
+            - /url: "#phases"
+          - link "How it works" [ref=e10] [cursor=pointer]:
+            - /url: "#how-it-works"
+          - link "FAQ" [ref=e11] [cursor=pointer]:
+            - /url: "#faq"
+          - link "Pricing" [ref=e12] [cursor=pointer]:
+            - /url: /pricing
+        - generic [ref=e13]:
+          - link "Sign In" [ref=e14] [cursor=pointer]:
+            - /url: /login
+          - link "Get Started" [ref=e15] [cursor=pointer]:
+            - /url: /login
+            - text: Get Started
+            - img [ref=e16]
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]: SwiftFlow Command Center
+        - heading "Connect. Publish. Review." [level=1] [ref=e25]:
+          - text: Connect. Publish.
+          - text: Review.
+        - paragraph [ref=e26]:
+          - text: The ultimate execution workspace for modern creators.
+          - text: Stop bouncing between tabs. Start scaling your brand.
+        - generic [ref=e27]:
+          - link "Start for Free" [ref=e29] [cursor=pointer]:
+            - /url: /login
+            - text: Start for Free
+            - img [ref=e30]
+          - link "See Features" [ref=e32] [cursor=pointer]:
+            - /url: "#phases"
+      - generic [ref=e33]:
+        - generic [ref=e39]:
+          - img [ref=e40]
+          - generic [ref=e43]: Dashboard · Workspace
+        - generic [ref=e49]: SF
+    - generic [ref=e102]:
+      - generic:
+        - generic:
+          - generic [ref=e103]:
+            - generic [ref=e104]:
+              - generic [ref=e105]:
+                - generic [ref=e108]: SF
+                - generic [ref=e109]: SwiftFlow Identity
+              - generic [ref=e110]:
+                - img [ref=e111]
+                - text: Saved
+            - generic [ref=e114]:
+              - generic [ref=e115]:
+                - heading "Brand Guidelines" [level=3] [ref=e116]
+                - paragraph [ref=e117]: Set the boundaries for how the AI should sound.
+                - generic [ref=e118]:
+                  - generic [ref=e119]:
+                    - generic [ref=e120]:
+                      - text: Primary Voice
+                      - generic [ref=e121] [cursor=pointer]:
+                        - text: Authoritative & Clean
+                        - img [ref=e122]
+                    - generic [ref=e124]:
+                      - text: Language
+                      - generic [ref=e125] [cursor=pointer]:
+                        - text: English (US)
+                        - img [ref=e126]
+                  - generic [ref=e128]:
+                    - text: Target Audience Persona
+                    - generic [ref=e129]: Creators and startup founders scaling social media via AI automation. They value aesthetics, speed, and premium experiences.
+              - generic [ref=e130]:
+                - generic [ref=e131]:
+                  - heading "Core Services" [level=3] [ref=e132]
+                  - generic [ref=e133]:
+                    - generic [ref=e134]:
+                      - text: Content Gen
+                      - img [ref=e135] [cursor=pointer]
+                    - generic [ref=e138]:
+                      - text: Scheduling
+                      - img [ref=e139] [cursor=pointer]
+                    - generic [ref=e142]:
+                      - text: Analytics
+                      - img [ref=e143] [cursor=pointer]
+                - generic [ref=e146]:
+                  - heading "Key Value Props" [level=3] [ref=e147]
+                  - generic [ref=e148]:
+                    - generic [ref=e149]:
+                      - text: Saves 10+ hrs
+                      - img [ref=e150] [cursor=pointer]
+                    - generic [ref=e153]:
+                      - text: On-Brand AI
+                      - img [ref=e154] [cursor=pointer]
+          - generic [ref=e157]:
+            - generic [ref=e158]:
+              - generic [ref=e159]:
+                - img [ref=e161]
+                - generic [ref=e164]: AI Copilot
+              - generic [ref=e167]: Connected
+            - generic [ref=e168]:
+              - generic [ref=e170]: Suggest 3 new content angles.
+              - generic [ref=e171]:
+                - img [ref=e173]
+                - generic [ref=e176]:
+                  - paragraph [ref=e177]: "Here are three high-converting content angles:"
+                  - generic [ref=e178]:
+                    - generic [ref=e179]:
+                      - generic [ref=e180]: Behind the Scenes
+                      - generic [ref=e181]: Show your setup.
+                    - generic [ref=e182]:
+                      - generic [ref=e183]: Value Breakdown
+                      - generic [ref=e184]: Step-by-step.
+                    - generic [ref=e185]:
+                      - generic [ref=e186]: Transformation
+                      - generic [ref=e187]: Before & after.
+            - generic [ref=e189]:
+              - generic [ref=e190]: Ask anything...
+              - img [ref=e192] [cursor=pointer]
+          - generic [ref=e194]:
+            - generic [ref=e195]:
+              - generic [ref=e196]:
+                - heading "Content Pipeline" [level=3] [ref=e197]
+                - button "Create" [ref=e198]:
+                  - img [ref=e199]
+                  - text: Create
+              - generic [ref=e200]:
+                - generic [ref=e201] [cursor=pointer]:
+                  - text: Scheduled
+                  - generic [ref=e202]: "3"
+                - generic [ref=e204] [cursor=pointer]: Drafts
+            - generic [ref=e205]:
+              - generic [ref=e206] [cursor=pointer]:
+                - img [ref=e208]
+                - generic [ref=e211]:
+                  - heading "Weekly Resource Roundup" [level=4] [ref=e212]
+                  - paragraph [ref=e213]: Tomorrow, 10:00 AM
+                - generic [ref=e214]: Ready
+              - generic [ref=e215] [cursor=pointer]:
+                - img [ref=e217]
+                - generic [ref=e219]:
+                  - heading "Founders Q&A Highlights" [level=4] [ref=e220]
+                  - paragraph [ref=e221]: Friday, 02:30 PM
+                - generic [ref=e222]: Ready
+              - generic [ref=e223] [cursor=pointer]:
+                - img [ref=e225]
+                - generic [ref=e228]:
+                  - heading "UI Deep-Dive Carousel" [level=4] [ref=e229]
+                  - paragraph [ref=e230]: Monday, 11:15 AM
+                - generic [ref=e231]: Ready
+          - generic [ref=e232]:
+            - generic [ref=e234]:
+              - generic [ref=e235]:
+                - img [ref=e237]
+                - generic [ref=e240]: Auto-DM Flow
+              - generic [ref=e243]: Live
+            - generic [ref=e244]:
+              - img
+              - generic [ref=e245]:
+                - generic [ref=e247] [cursor=pointer]:
+                  - img [ref=e249]
+                  - generic [ref=e252]:
+                    - generic [ref=e253]: New Comment
+                    - generic [ref=e254]: "Contains word: \"link\""
+                - generic [ref=e256] [cursor=pointer]:
+                  - img [ref=e258]
+                  - generic [ref=e260]:
+                    - generic [ref=e261]: Check Follow Status
+                    - generic [ref=e262]: Must be a follower
+                - generic [ref=e264] [cursor=pointer]:
+                  - img [ref=e266]
+                  - generic [ref=e269]:
+                    - generic [ref=e270]: Send Direct Message
+                    - generic [ref=e271]: "\"Hey! Here is the link...\""
+          - generic [ref=e272]:
+            - generic [ref=e273]:
+              - generic [ref=e274]:
+                - heading "Performance" [level=4] [ref=e275]
+                - paragraph [ref=e276]: Last 30 days vs previous period
+              - button "Oct 1 - Oct 31" [ref=e277]:
+                - img [ref=e278]
+                - text: Oct 1 - Oct 31
+            - generic [ref=e280]:
+              - generic [ref=e281]:
+                - generic [ref=e282]:
+                  - generic [ref=e283]: Total Reach
+                  - img [ref=e284]
+                - generic [ref=e287]: 2.4M
+                - generic [ref=e288]:
+                  - img [ref=e289]
+                  - generic [ref=e292]: +14.2%
+              - generic [ref=e293]:
+                - generic [ref=e294]:
+                  - generic [ref=e295]: Total Engagement
+                  - img [ref=e296]
+                - generic [ref=e298]: 142K
+                - generic [ref=e299]:
+                  - img [ref=e300]
+                  - generic [ref=e303]: +8.4%
+              - generic [ref=e304]:
+                - generic [ref=e305]:
+                  - generic [ref=e306]: Followers
+                  - img [ref=e307]
+                - generic [ref=e312]: 12.5K
+                - generic [ref=e313]:
+                  - img [ref=e314]
+                  - generic [ref=e317]: +24.1%
+              - generic [ref=e318]:
+                - generic [ref=e319]:
+                  - generic [ref=e320]: Avg. Daily
+                  - img [ref=e321]
+                - generic [ref=e323]: 4.8K
+                - generic [ref=e324]:
+                  - img [ref=e325]
+                  - generic [ref=e328]: +3.1%
+            - generic [ref=e329]:
+              - generic [ref=e330]: Audience Growth
+              - img [ref=e332]
+      - generic:
+        - heading "SWIFTFLOW" [level=2]
+      - generic [ref=e336]:
+        - generic [ref=e338]:
+          - paragraph [ref=e339]: 01 // Phase
+          - heading "Brand Profile" [level=3] [ref=e340]
+          - paragraph [ref=e341]: Set firm tonal guidelines and vocabulary rules to ensure the AI always sounds exactly like you.
+        - generic [ref=e343]:
+          - paragraph [ref=e344]: 02 // Phase
+          - heading "AI Chat Assistant" [level=3] [ref=e345]
+          - paragraph [ref=e346]: Chat with an intelligent assistant to rapidly brainstorm ideas and draft high-converting captions.
+        - generic [ref=e348]:
+          - paragraph [ref=e349]: 03 // Phase
+          - heading "Tabbed Scheduling" [level=3] [ref=e350]
+          - paragraph [ref=e351]: Organize your content effectively with clean, list-based views for scheduled posts and drafts.
+        - generic [ref=e353]:
+          - paragraph [ref=e354]: 04 // Phase
+          - heading "Trigger Automations" [level=3] [ref=e355]
+          - paragraph [ref=e356]: Build comment and DM auto-replies instantly using our visual drag-and-drop workflow canvas.
+        - generic [ref=e358]:
+          - paragraph [ref=e359]: 05 // Phase
+          - heading "Track Performance" [level=3] [ref=e360]
+          - paragraph [ref=e361]: Monitor your multi-channel reach and engagement growth natively inside the dashboard.
+    - generic [ref=e363]:
+      - generic [ref=e364]:
+        - generic [ref=e365]:
+          - img [ref=e366]
+          - text: Workflow Engine
+        - heading "What scaleups can automate today." [level=2] [ref=e370]
+        - paragraph [ref=e371]: Start from pre-tested templates or build visually on the node canvas. We stripped away the complexity so you can deploy engagement cycles in minutes, not months.
+      - generic [ref=e372]:
+        - generic [ref=e374]:
+          - generic [ref=e375]:
+            - generic [ref=e376]:
+              - img [ref=e378]
+              - generic [ref=e382]:
+                - paragraph [ref=e383]: Real Canvas Preview
+                - paragraph [ref=e384]: Actual in-app workspace capture
+            - generic [ref=e385]:
+              - generic [ref=e386]:
+                - img [ref=e387]
+                - text: IG Waitlist
+              - generic [ref=e390]:
+                - img [ref=e391]
+                - text: FB Waitlist
+          - img "Automation canvas workflow preview" [ref=e394]
+        - generic [ref=e396]:
+          - generic [ref=e397]:
+            - img [ref=e399]
+            - heading "Operational Engine" [level=3] [ref=e402]
+          - generic [ref=e403]:
+            - generic [ref=e404]:
+              - paragraph [ref=e407]: Universal Platforms
+              - paragraph [ref=e408]: Instagram and Facebook comments/messages are perfectly synced in the core flows.
+            - generic [ref=e409]:
+              - paragraph [ref=e412]: Unified Scheduler ticks
+              - paragraph [ref=e413]: Delayed automation steps run from a single unified ticking engine to keep ops insanely simple.
+            - generic [ref=e414]:
+              - paragraph [ref=e417]: Heuristic Analytics
+              - paragraph [ref=e418]: If Meta throttles metrics, the UI immediately flags partial limits instead of crashing.
+            - generic [ref=e419]:
+              - paragraph [ref=e422]: 1-Click Templates
+              - paragraph [ref=e423]: Instantly preload the canvas graph. You only configure handles and text, not logic.
+            - generic [ref=e424]:
+              - paragraph [ref=e427]: Tonal Guardrails
+              - paragraph [ref=e428]: Your workspace Brand Profile strictly forces AI replies to match your brand's unique voice.
+    - generic [ref=e431]:
+      - generic [ref=e432]:
+        - generic [ref=e433]: Rapid Onboarding
+        - heading "Up and running in minutes." [level=2] [ref=e434]
+        - paragraph [ref=e435]: No massive migration plans. Just connect your accounts, setup your brand voice, and let SwiftFlow take the wheel.
+      - generic [ref=e438]:
+        - generic [ref=e439]:
+          - generic [ref=e442]: "01"
+          - generic [ref=e443]:
+            - heading "Connect Your Accounts" [level=3] [ref=e444]
+            - paragraph [ref=e445]: Link your Instagram and Facebook Pages with one click via secure OAuth — no passwords stored.
+        - generic [ref=e446]:
+          - generic [ref=e449]: "02"
+          - generic [ref=e450]:
+            - heading "Create with AI" [level=3] [ref=e451]
+            - paragraph [ref=e452]: Chat with the AI Assistant to brainstorm ideas, generate captions, and craft posts using your saved brand profile and tone.
+        - generic [ref=e453]:
+          - generic [ref=e456]: "03"
+          - generic [ref=e457]:
+            - heading "Schedule & Publish" [level=3] [ref=e458]
+            - paragraph [ref=e459]: Pick the best time, hit schedule, and watch your content go live automatically while you focus elsewhere.
+    - generic [ref=e463]:
+      - paragraph [ref=e464]: Natively Integrated With
+      - generic [ref=e465]:
+        - generic [ref=e466]:
+          - img [ref=e468]
+          - generic [ref=e471]: Instagram
+        - generic [ref=e472]:
+          - img [ref=e474]
+          - generic [ref=e476]: Facebook
+    - generic [ref=e479]:
+      - generic [ref=e481]:
+        - generic [ref=e482]:
+          - img [ref=e483]
+          - text: FAQ
+        - heading "Answers before you commit." [level=2] [ref=e486]
+        - paragraph [ref=e487]: Covering everything from API permissions, platform connections, to edge cases.
+        - link "See pricing plans" [ref=e489] [cursor=pointer]:
+          - /url: /pricing
+          - img [ref=e490]
+          - text: See pricing plans
+      - generic [ref=e493]:
+        - generic [ref=e494]:
+          - button "Which platforms are supported right now?" [ref=e495]:
+            - paragraph [ref=e499]: Which platforms are supported right now?
+            - img [ref=e500]
+          - generic [ref=e504]: SwiftFlow supports Instagram and Facebook workflows for publishing, inbox management, analytics, and core automation triggers/actions such as comments and messages.
+        - generic [ref=e505]:
+          - button "Do automations use real webhooks or polling?" [ref=e506]:
+            - paragraph [ref=e510]: Do automations use real webhooks or polling?
+            - img [ref=e511]
+          - generic [ref=e514]: Core comment and message automations are webhook-driven through Meta events. Delay steps and scheduled posts are resumed by a unified scheduler tick so you do not need multiple cron jobs.
+        - generic [ref=e515]:
+          - button "Why do some analytics metrics show as partial?" [ref=e516]:
+            - paragraph [ref=e520]: Why do some analytics metrics show as partial?
+            - img [ref=e521]
+          - generic [ref=e524]: Meta does not always return every metric for every post type or endpoint. SwiftFlow shows platform-aware partial states so you can distinguish missing data from actual zero performance.
+        - generic [ref=e525]:
+          - button "How does Brand Profile help AI outputs?" [ref=e526]:
+            - paragraph [ref=e530]: How does Brand Profile help AI outputs?
+            - img [ref=e531]
+          - generic [ref=e534]: Brand Profile stores your business context and voice preferences so generated captions and AI replies stay more consistent across posts, messages, and automations in the same workspace.
+        - generic [ref=e535]:
+          - button "Do I need separate logins for Instagram and Facebook?" [ref=e536]:
+            - paragraph [ref=e540]: Do I need separate logins for Instagram and Facebook?
+            - img [ref=e541]
+          - generic [ref=e544]: Instagram Business accounts are connected through Facebook Pages in the Meta flow. Connect your pages and any linked Instagram business accounts can be used inside the app.
+        - generic [ref=e545]:
+          - button "Is there a free plan?" [ref=e546]:
+            - paragraph [ref=e550]: Is there a free plan?
+            - img [ref=e551]
+          - generic [ref=e554]: Yes. There is a free starting tier, and a Pro plan page is available with expanded limits/features coming next. You can start from the free flow and upgrade later.
+    - generic [ref=e557]:
+      - generic [ref=e558]:
+        - generic [ref=e559]:
+          - img [ref=e560]
+          - text: Start Executing
+        - heading "Scale your impact. Not headcount." [level=2] [ref=e562]:
+          - text: Scale your impact.
+          - text: Not headcount.
+        - paragraph [ref=e563]: SwiftFlow centralizes content creation, scheduling, and Inbox automations. Spend less time copying and pasting across apps, and more time growing.
+        - generic [ref=e564]:
+          - generic [ref=e567]:
+            - heading "Fast Setup" [level=4] [ref=e568]
+            - paragraph [ref=e569]: Connect pages and start in minutes.
+          - generic [ref=e572]:
+            - heading "AI + Workflows" [level=4] [ref=e573]
+            - paragraph [ref=e574]: Generate and automate in one flow.
+          - generic [ref=e577]:
+            - heading "Operational Focus" [level=4] [ref=e578]
+            - paragraph [ref=e579]: Track, iterate, and maintain consistency.
+          - generic [ref=e582]:
+            - heading "Constant ROI" [level=4] [ref=e583]
+            - paragraph [ref=e584]: Save hours automatically.
+      - generic [ref=e585]:
+        - generic [ref=e588]:
+          - generic [ref=e589]:
+            - paragraph [ref=e590]: Quick Start Checklist
+            - generic [ref=e591]: ~ 5 mins
+          - generic [ref=e592]:
+            - generic [ref=e593]:
+              - img [ref=e595]
+              - paragraph [ref=e597]: Connect Instagram / Facebook pages
+            - generic [ref=e598]:
+              - img [ref=e600]
+              - paragraph [ref=e602]: Load a template or build a canvas workflow
+            - generic [ref=e603]:
+              - img [ref=e605]
+              - paragraph [ref=e607]: Set brand profile and AI response tone
+            - generic [ref=e608]:
+              - img [ref=e610]
+              - paragraph [ref=e612]: Enable automation and monitor runs
+          - generic [ref=e613]:
+            - link "Start for Free" [ref=e614] [cursor=pointer]:
+              - /url: /login
+              - text: Start for Free
+              - img [ref=e615]
+            - link "Sign In" [ref=e617] [cursor=pointer]:
+              - /url: /login
+        - generic [ref=e618]:
+          - generic [ref=e619]:
+            - paragraph [ref=e620]: For creators
+            - paragraph [ref=e621]: Publish faster and stay responsive without living in your inbox.
+          - generic [ref=e622]:
+            - paragraph [ref=e623]: For brands
+            - paragraph [ref=e624]: Standardize tone, automate common replies, and keep content execution organized.
+    - contentinfo [ref=e625]:
+      - generic [ref=e627]:
+        - generic [ref=e628]:
+          - generic [ref=e629]:
+            - generic [ref=e630]:
+              - img "SwiftFlow Logo" [ref=e631]
+              - generic [ref=e632]: SwiftFlow
+            - paragraph [ref=e633]: AI-assisted social media operations for publishing, conversations, analytics and automation across Instagram and Facebook.
+            - generic [ref=e634]:
+              - generic [ref=e635]: AI Assistant
+              - generic [ref=e636]: Automation Canvas
+              - generic [ref=e637]: Unified Inbox
+              - generic [ref=e638]: Analytics
+          - generic [ref=e639]:
+            - heading "Product" [level=4] [ref=e640]
+            - list [ref=e641]:
+              - listitem [ref=e642]:
+                - link "Features" [ref=e643] [cursor=pointer]:
+                  - /url: "#phases"
+                  - text: Features
+              - listitem [ref=e644]:
+                - link "How it works" [ref=e645] [cursor=pointer]:
+                  - /url: "#how-it-works"
+                  - text: How it works
+              - listitem [ref=e646]:
+                - link "Pricing" [ref=e647] [cursor=pointer]:
+                  - /url: /pricing
+                  - text: Pricing
+              - listitem [ref=e648]:
+                - link "Dashboard Login" [ref=e649] [cursor=pointer]:
+                  - /url: /login
+                  - text: Dashboard Login
+          - generic [ref=e650]:
+            - heading "Company" [level=4] [ref=e651]
+            - list [ref=e652]:
+              - listitem [ref=e653]:
+                - link "Privacy Policy" [ref=e654] [cursor=pointer]:
+                  - /url: /privacy
+                  - text: Privacy Policy
+              - listitem [ref=e655]:
+                - link "Terms of Service" [ref=e656] [cursor=pointer]:
+                  - /url: /terms
+                  - text: Terms of Service
+              - listitem [ref=e657]:
+                - link "Data Deletion" [ref=e658] [cursor=pointer]:
+                  - /url: /data-deletion
+                  - text: Data Deletion
+              - listitem [ref=e659]:
+                - link "Contact Support" [ref=e660] [cursor=pointer]:
+                  - /url: mailto:info@swiftdigital-s.com
+                  - text: Contact Support
+          - generic [ref=e662]:
+            - heading "Start Scaling" [level=4] [ref=e664]
+            - paragraph [ref=e665]: Open the dashboard and connect your pages to start publishing and automating today.
+            - link "Open Dashboard" [ref=e666] [cursor=pointer]:
+              - /url: /login
+              - generic [ref=e667]: Open Dashboard
+              - img [ref=e669]
+        - generic [ref=e672]:
+          - generic [ref=e674]: © 2026 SwiftFlow
+          - generic [ref=e675]:
+            - generic [ref=e676]: Instagram
+            - generic [ref=e678]: +
+            - generic [ref=e679]: Facebook
+            - generic [ref=e682]: Built for scale
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e688] [cursor=pointer]:
+    - img [ref=e689]

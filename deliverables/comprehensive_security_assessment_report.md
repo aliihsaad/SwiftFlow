@@ -1,3 +1,66 @@
+# Security Assessment Report
+
+## Executive Summary
+
+**Target:** http://host.docker.internal:3000  
+**Assessment Date:** April 06, 2026  
+**Scope:** Authentication, XSS, SQL and Command Injection, SSRF, Authorization testing
+
+## Summary by Vulnerability Type
+
+**Injection Vulnerabilities:**
+- **INJ-VULN-03:** Meta Graph API Path Traversal via `postId` - Critical severity - Live data exfiltration (Facebook posts, Messenger threads, Instagram media)
+- **INJ-VULN-02:** Meta Graph API Path Traversal via `platform_post_id` - Persistent payload storage in automations
+- **INJ-VULN-04:** Meta Graph API Path Traversal via `commentId` - Three HTTP method attack surface (POST, DELETE, PATCH)
+- **INJ-VULN-01:** URL Parameter Injection via `apiKey` - API key validation bypass
+- **INJ-VULN-05:** Blind SSRF via `mediaUrls[]` - Private IP payload storage confirmed
+
+**Authentication Vulnerabilities:**
+- **AUTH-VULN-05:** Session Hijacking via Non-HttpOnly, Non-Secure Cookie - High severity - Complete account takeover possible
+- **AUTH-VULN-01:** Unrestricted Brute Force Login - High severity - Account takeover via password guessing
+- **AUTH-VULN-04:** Account Enumeration via Supabase Signup API Response - Medium severity - User reconnaissance
+
+**Authorization Vulnerabilities:**
+- **AUTHZ-VULN-02:** Unauthenticated Cron Scheduler Execution - Scheduled post processing triggered without authentication
+- **AUTHZ-VULN-03:** Viewer Role Exposes Decrypted AI API Keys via REST Endpoint - High severity - Plaintext API key disclosure
+- **AUTHZ-VULN-04:** Server Action `getWorkspaceSettings` Leaks Decrypted AI API Keys - High severity - Plaintext API key disclosure via Server Action
+
+**Cross-Site Scripting (XSS) Vulnerabilities:**
+No XSS vulnerabilities were found. The application benefits from React's default JSX auto-escaping, absence of `dangerouslySetInnerHTML`, and proper use of `sanitizeHttpUrl()` for most URL inputs. One structural deficiency exists in `post_thumbnail_url` in automations API, but browser-level security prevents JavaScript execution in `<img src>` context.
+
+**Server-Side Request Forgery (SSRF) Vulnerabilities:**
+- **SSRF-VULN-03, SSRF-VULN-04, SSRF-VULN-05, SSRF-VULN-06:** Meta Graph API Path Traversal via multiple HTTP methods on `/api/posts-media/comments` endpoint
+- **SSRF-VULN-02:** Meta Graph API Path Traversal via `platform_post_id` on `/api/automations` endpoint
+
+## Network Reconnaissance
+
+**Application Infrastructure:**
+- **Primary Access Point:** Port 3000 (Next.js 16.1.1 application)
+- **Authentication Method:** Supabase Auth with JWT-based session cookies
+- **Backend Runtime:** Vercel serverless (Node.js, 30-second timeout, IAD1 region)
+- **Database:** Supabase PostgreSQL with Row-Level Security (RLS) enabled on 25+ tables
+
+**Exposed Services:**
+- Port 3000: Next.js application (HTTP, primary attack surface)
+- Supabase services: Internal only, not directly accessible
+
+**Public Entry Points:**
+- `/login` - Email/password authentication
+- `/signup` - User registration
+- `/pricing` - Public information
+- `/terms`, `/privacy` - Public information
+- `/invite/[token]` - Workspace invitation acceptance (public but token-protected)
+
+**Critical Security Gaps Identified:**
+- No Content Security Policy (CSP) configured
+- No HTTP Strict-Transport-Security (HSTS) header
+- No rate limiting on authentication endpoints (enables brute force)
+- Unauthenticated access to several validation endpoints (`/api/ai/validate-key`, `/api/automations/validate`)
+- Session cookies lack HttpOnly and Secure flags (vulnerable to XSS and MITM)
+- Several API endpoints lack proper RBAC enforcement
+
+---
+
 # Injection Exploitation Evidence
 
 ## Successfully Exploited Vulnerabilities
@@ -382,17 +445,6 @@ Response to Step 2 — RFC-1918 addresses also stored:
 
 ---
 
-## Summary Table
-
-| ID | Vulnerability | Classification | Severity | Impact |
-|---|---|---|---|---|
-| AUTH-VULN-01 | No Rate Limiting on Login — Brute Force | EXPLOITED | High | Account Takeover |
-| AUTH-VULN-04 | Account Enumeration via Signup API Response | EXPLOITED | Medium | User Reconnaissance |
-| AUTH-VULN-05 | Non-HttpOnly, Non-Secure Session Cookie | EXPLOITED | High | Session Hijacking / Account Takeover |
-| AUTH-VULN-02 | Client-Side Password Policy Bypass | FALSE POSITIVE | — | Server-side policy confirmed enforced |
-| AUTH-VULN-03 | Fail-Open Middleware Authentication Bypass | FALSE POSITIVE | — | Catch block not triggerable via cookies |
-
----
 
 ## Successfully Exploited Vulnerabilities
 
@@ -618,66 +670,8 @@ Email: fakeemail@nodomain.xyz    => identities: POPULATED → NOT REGISTERED ✓
 
 ---
 
-## Confirmed Non-Exploitable (False Positives)
-
-### AUTH-VULN-02: Client-Side Password Policy Bypass
-
-**Assessment: FALSE POSITIVE**
-
-**Summary:** The analysis hypothesized that because the application's password complexity validation (`validatePasswordAgainstPolicy`) is client-side only, an attacker could register with a weak password by calling the Supabase signup API directly, bypassing the JavaScript check.
-
-**Live Testing Results:** The Supabase project has been configured with a server-side password policy that exactly matches the application's client-side requirements (≥10 chars, uppercase, lowercase, digit, symbol). All direct API signup attempts with weak passwords returned:
-```json
-{
-  "code": 422,
-  "error_code": "weak_password",
-  "msg": "Password should be at least 10 characters. Password should contain at least one character of each: abcdefghijklmnopqrstuvwxyz, ABCDEFGHIJKLMNOPQRSTUVWXYZ, 0123456789, !@#$%^&*()_+-=[]{};':\"|\u003c\u003e?,./`~.",
-  "weak_password": {"reasons": ["length", "characters"]}
-}
-```
-
-Tested passwords: `"abc"`, `"123"`, `"a"`, `"password"` — all rejected with HTTP 422.
-
-**Conclusion:** The Supabase project's password strength settings in the dashboard enforce the policy at the server level. The client-side validation is redundant but not the only control. **No exploitation is possible.**
-
----
-
-### AUTH-VULN-03: Authentication Bypass via Fail-Open Middleware Catch Block
-
-**Assessment: FALSE POSITIVE**
-
-**Summary:** The `proxy.ts` middleware contains a catch block that returns `NextResponse.next()` (proceeding without authentication) if any exception is thrown during `supabase.auth.getUser()`. The hypothesis was that sending a malformed session cookie could trigger an exception in the Supabase SSR library, causing the middleware to fail open and grant unauthenticated access to `/dashboard` routes.
-
-**Exploitation Attempts:**
-All of the following cookie manipulation techniques were tested against `GET http://host.docker.internal:3000/dashboard`:
-
-1. **Oversized garbage value** (~2KB of "A" characters) → `HTTP 307 → /login`
-2. **Invalid base64 characters** (`!!!INVALID!!!BASE64!!!`) → `HTTP 307 → /login`
-3. **Corrupted JWT structure** (`{"access_token":"BADTOKEN.INVALID.SIGNATURE"}`) → `HTTP 307 → /login`
-4. **Chunked cookie format with invalid chunks** (`.0` and `.1` suffix variants) → `HTTP 307 → /login`
-5. **Null bytes in cookie value** → `HTTP 307 → /login`
-6. **Nested JSON structure that breaks parsing** → `HTTP 307 → /login`
-
-**Root Cause Analysis:** The `@supabase/ssr` v0.8.0 library handles all cookie parsing errors internally without propagating exceptions to the caller. When `supabase.auth.getUser()` receives malformed cookie data, it returns `{data: {user: null}, error: AuthError}` rather than throwing. The catch block in `proxy.ts` is effectively unreachable via HTTP cookie manipulation.
-
-**Conclusion:** The fail-open catch block represents poor defensive programming practice (it should return a redirect to `/login` rather than proceeding), but the specific attack vector — triggering an exception via cookie manipulation — is blocked by the Supabase SSR library's internal error handling. **No exploitation is possible via external HTTP requests.**
-
-
 # SSRF Exploitation Evidence
 
-## Test Environment Setup
-
-All exploitation was performed against **http://host.docker.internal:3000** from the external network.
-
-**Test account provisioned for exploitation:**
-- Email: `ssrf_test_3d1fa59c@pentest.local`
-- Workspace ID: `5ecf3626-b4c0-41af-8e56-fdcdba3b6e48`
-- Workspace Role: `owner` (grants all permissions including `automation:write`, `content:write`)
-- Test Social Account ID: `4090e3f5-3631-4d52-893c-c74c900f1201` (Instagram, null metadata → all capability checks pass)
-
-**Note on Test Social Account:** The Meta capability permission functions (`canReadCommentsWithMetaAccount`, `canManageMessagesWithMetaAccount`, `canManageCommentsWithMetaAccount`) all default to `return true` when `metadata` is null or lacks a `capabilities` field. A social account with `metadata: null` was inserted to bypass these checks, which is a realistic attacker scenario for any connected account created before capability tracking was added.
-
----
 
 ## Successfully Exploited Vulnerabilities
 
@@ -950,81 +944,6 @@ The error `"Invalid OAuth access token - Cannot parse access token"` originates 
 
 ---
 
-## Potential Vulnerabilities (Validation Blocked)
-
-### SSRF-VULN-07: mediaUrls Blind SSRF via Meta Publishing Pipeline (POST /api/posts)
-
-**Summary:**
-- **Vulnerable location:** `POST /api/posts` → `lib/security/phase1-validation.ts:351-354`, sink at `utils/meta-publish.ts:136` (and lines 188, 281, 397, 505, 562)
-- **Overview:** The `mediaUrls` parameter accepts any `http://` or `https://` URL without filtering private IP ranges, IMDS addresses, or internal hostnames. These URLs are stored in the `posts.media_urls` column and later passed as `image_url`/`url`/`video_url` parameters to Meta Graph API publishing endpoints. Meta's CDN/server infrastructure then fetches the attacker-specified URL on behalf of the application — constituting blind SSRF with Meta as the egress proxy.
-- **Current Blocker:** The SSRF request originates from Meta's server infrastructure (not from the target application server). Proving the Meta servers actually fetched the internal URL and returned data requires triggering a full publish cycle with a real connected Meta account and an externally observable target URL (e.g., Burp Collaborator, Interactsh). In this test environment, we confirmed URL storage but could not trigger the Meta publish pipeline without a real connected account.
-- **Potential Impact:** If Meta's CDN servers can reach the target application's internal network (e.g., cloud metadata service at `169.254.169.254`, or other services that allowlist Meta's IP ranges), the attacker could cause Meta to fetch sensitive internal resources and use the resulting content as media for a post — or observe timing differences to infer service availability.
-- **Confidence:** MEDIUM
-
-**Evidence of Vulnerability:**
-
-1. AWS IMDS URL accepted and stored (HTTP 200):
-   ```
-   POST http://host.docker.internal:3000/api/posts
-   Content-Type: application/json
-   Cookie: [valid session]
-
-   {
-     "content": "Test SSRF post",
-     "mediaUrls": ["http://169.254.169.254/latest/meta-data/"],
-     "platforms": ["instagram"],
-     "socialAccountIds": ["[account_uuid]"],
-     "status": "draft"
-   }
-   ```
-
-   Response (HTTP 200):
-   ```json
-   {
-     "id": "252b7bbc-3f91-433d-989e-424b328002a9",
-     "workspace_id": "5ecf3626-b4c0-41af-8e56-fdcdba3b6e48",
-     "content": "",
-     "media_urls": ["http://169.254.169.254/latest/meta-data/"],
-     "platforms": ["instagram"],
-     "status": "draft"
-   }
-   ```
-
-2. RFC 1918 private IPs also accepted (HTTP 200):
-   ```json
-   {
-     "content": "Test SSRF private IP",
-     "mediaUrls": ["http://10.0.0.1/admin", "http://192.168.1.1/", "http://172.16.0.1/"]
-   }
-   ```
-   Response returned HTTP 200 with all three private IP URLs stored verbatim in `media_urls`.
-
-3. The `sanitizeHttpUrl()` function (`lib/security/phase1-validation.ts:65-77`) only validates the URL scheme (`http:`/`https:`) and syntax via `new URL()` constructor. It applies **no IP range filtering** for private ranges (10.x, 172.16-31.x, 192.168.x, 127.x) or cloud metadata addresses (169.254.169.254).
-
-4. Additionally, a data: URI bypass exists at `phase1-validation.ts:352`: if `sanitizeHttpUrl()` returns null, the code falls through to accept any string starting with `data:` up to 8 MB with no MIME validation.
-
-**Attempted Exploitation:**
-
-- Confirmed URL storage without restrictions for IMDS and RFC1918 ranges.
-- Could not complete the publish cycle in this test environment (requires a real Meta account with valid OAuth token to trigger the `process-scheduled-posts` Edge Function which calls the Meta Graph API with the stored `image_url`).
-- Blind SSRF confirmation requires an externally observable endpoint (Burp Collaborator / Interactsh) to detect whether Meta's servers actually fetched the URL.
-
-**How This Would Be Exploited:**
-
-If an attacker controls a workspace with a connected Meta account and can observe incoming requests to an external server:
-
-1. Create a post with `mediaUrls: ["https://attacker-collaborator.burpcollaborator.net/ssrf-probe"]`.
-2. Set the post status to `scheduled` for immediate publishing.
-3. The `process-scheduled-posts` Edge Function runs, calls Meta Graph API with `image_url: "https://attacker-collaborator.burpcollaborator.net/ssrf-probe"`.
-4. Meta's CDN fetches the URL — observe the HTTP request from Meta's IP ranges in Collaborator logs.
-5. Once Meta's outbound IP range is confirmed as trusted by target infrastructure, substitute with internal URLs: `http://169.254.169.254/latest/meta-data/iam/security-credentials/` or internal admin services.
-
-**Expected Impact:**
-
-Potential cloud metadata credential theft (AWS IAM credentials, GCP service account tokens), access to internal services that trust Meta's IP ranges, and server-side request forgery using Meta's distributed CDN infrastructure as the egress proxy.
-
-
-
 # Authorization Exploitation Evidence
 
 **Target:** http://host.docker.internal:3000
@@ -1034,18 +953,6 @@ Potential cloud metadata credential theft (AWS IAM credentials, GCP service acco
 
 ---
 
-## Executive Summary
-
-Three authorization vulnerabilities were successfully exploited against the SwiftFlow application. Two relate to a shared root cause (insufficient role requirement for accessing sensitive workspace settings), and one exposes privileged internal functions to unauthenticated external callers.
-
-| ID | Type | Verdict | Severity |
-|----|------|---------|----------|
-| AUTHZ-VULN-02 | Vertical | EXPLOITED | Critical |
-| AUTHZ-VULN-03 | Vertical | EXPLOITED | High |
-| AUTHZ-VULN-04 | Vertical | EXPLOITED | High |
-| AUTHZ-VULN-01 | Horizontal | FALSE POSITIVE | N/A |
-
----
 
 ## Successfully Exploited Vulnerabilities
 
@@ -1259,13 +1166,3 @@ The fix requires adding `requireWorkspacePermission(supabase, user.id, workspace
 
 ---
 
-## Test Environment Details
-
-| Item | Value |
-|------|-------|
-| Target | http://host.docker.internal:3000 |
-| App | SwiftFlow (Next.js 16, Supabase) |
-| Test User 1 (owner) | pentest_owner@test.com / ede95c93-1027-426e-b0d6-36f1498c5ddd |
-| Test User 2 (viewer) | pentest_viewer@test.com / 2ffb16ad-9a01-4aa0-8fdb-9a49bb4b0598 |
-| Test Workspace | PentestWorkspace / 793cf183-0da9-4374-8717-52efbc9009d9 |
-| Supabase Project | txomrdymcawauezlprvn |

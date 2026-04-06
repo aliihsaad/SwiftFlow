@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -255,17 +256,20 @@ function DeleteAccountSection() {
     const [currentPassword, setCurrentPassword] = useState("")
     const [isDeleting, setIsDeleting] = useState(false)
     const [open, setOpen] = useState(false)
+    const router = useRouter()
 
     const handleDelete = async () => {
         setIsDeleting(true)
         try {
             const result = await deleteAccount(currentPassword)
-            if (result?.error) {
+            if ("error" in result) {
                 toast.error(result.error)
                 setIsDeleting(false)
                 setOpen(false)
+                return
             }
-            // On success, the server action redirects to /login
+            router.replace("/login")
+            router.refresh()
         } catch {
             toast.error("Failed to delete account")
             setIsDeleting(false)

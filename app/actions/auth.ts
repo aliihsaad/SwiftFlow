@@ -130,7 +130,7 @@ export async function completePasswordRecovery(newPassword: string): Promise<{ o
     return { ok: true }
 }
 
-export async function deleteAccount(currentPassword: string): Promise<{ error: string } | never> {
+export async function deleteAccount(currentPassword: string): Promise<{ ok: true } | { error: string }> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -180,7 +180,7 @@ export async function deleteAccount(currentPassword: string): Promise<{ error: s
         return { error: error.message }
     }
 
-    // Sign out and redirect
+    // Sign out server-side so auth cookies are cleared before the client redirects.
     await supabase.auth.signOut()
-    redirect("/login")
+    return { ok: true }
 }

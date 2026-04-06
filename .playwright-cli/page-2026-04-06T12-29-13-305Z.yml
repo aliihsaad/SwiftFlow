@@ -1,0 +1,142 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e66]:
+    - generic [ref=e68]:
+      - button "W Select Workspace Free Plan" [ref=e70]:
+        - generic [ref=e71]: W
+        - generic [ref=e72]:
+          - generic [ref=e73]: Select Workspace
+          - generic [ref=e74]: Free Plan
+        - img
+      - generic [ref=e75]:
+        - button "Create Post" [disabled] [ref=e77]:
+          - img [ref=e78]
+          - generic [ref=e81]: Create Post
+        - generic [ref=e82]:
+          - link "Dashboard" [ref=e84] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e86]
+            - generic [ref=e91]: Dashboard
+          - link "Scheduled" [ref=e93] [cursor=pointer]:
+            - /url: /dashboard/scheduled
+            - img [ref=e95]
+            - generic [ref=e97]: Scheduled
+          - link "AI Assistant" [ref=e99] [cursor=pointer]:
+            - /url: /dashboard/assistant
+            - img [ref=e101]
+            - generic [ref=e104]: AI Assistant
+          - link "Analytics" [ref=e106] [cursor=pointer]:
+            - /url: /dashboard/analytics
+            - img [ref=e108]
+            - generic [ref=e110]: Analytics
+          - link "Posts" [ref=e112] [cursor=pointer]:
+            - /url: /dashboard/comments
+            - img [ref=e114]
+            - generic [ref=e116]: Posts
+          - link "Messages" [ref=e118] [cursor=pointer]:
+            - /url: /dashboard/messages
+            - img [ref=e120]
+            - generic [ref=e123]: Messages
+          - link "Automation" [ref=e125] [cursor=pointer]:
+            - /url: /dashboard/automation
+            - img [ref=e127]
+            - generic [ref=e129]: Automation
+        - generic [ref=e131]:
+          - link "Brand Profile" [ref=e133] [cursor=pointer]:
+            - /url: /dashboard/settings/brand
+            - img [ref=e135]
+            - generic [ref=e138]: Brand Profile
+          - link "Subscription" [ref=e140] [cursor=pointer]:
+            - /url: /dashboard/subscription
+            - img [ref=e142]
+            - generic [ref=e144]: Subscription
+          - link "Settings" [ref=e146] [cursor=pointer]:
+            - /url: /dashboard/settings
+            - img [ref=e148]
+            - generic [ref=e151]: Settings
+      - button "Log Out" [ref=e153]:
+        - img [ref=e154]
+        - generic [ref=e157]: Log Out
+      - button [ref=e158]:
+        - img [ref=e159]
+    - generic [ref=e161]:
+      - banner [ref=e162]:
+        - generic [ref=e165]: Dashboard
+        - generic "pentester@swiftflow-test.com" [ref=e167]: P
+      - main [ref=e168]:
+        - generic [ref=e170]:
+          - generic [ref=e171]:
+            - generic [ref=e172]: Welcome to SwiftFlow
+            - generic [ref=e173]: To get started, create your first workspace.
+          - generic [ref=e175]:
+            - generic [ref=e176]:
+              - text: Workspace Name
+              - textbox "Workspace Name" [ref=e177]:
+                - /placeholder: e.g. Swift Digital Solutions
+            - button "Create Workspace" [disabled]
+      - contentinfo [ref=e178]:
+        - generic [ref=e179]: © 2026 SwiftFlow
+        - navigation [ref=e180]:
+          - link "Privacy" [ref=e181] [cursor=pointer]:
+            - /url: /privacy
+          - link "Terms" [ref=e182] [cursor=pointer]:
+            - /url: /terms
+          - link "Data Deletion" [ref=e183] [cursor=pointer]:
+            - /url: /data-deletion
+          - link "Support" [ref=e184] [cursor=pointer]:
+            - /url: mailto:info@swiftdigital-s.com
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e39] [cursor=pointer]:
+    - img [ref=e40]
+  - alert [ref=e43]
+  - generic [ref=e185]:
+    - button "W Select Workspace Free Plan" [ref=e187]:
+      - generic [ref=e188]: W
+      - generic [ref=e189]:
+        - generic [ref=e190]: Select Workspace
+        - generic [ref=e191]: Free Plan
+      - img
+    - generic [ref=e192]:
+      - button "Create Post" [disabled] [ref=e194]:
+        - img [ref=e195]
+        - generic [ref=e198]: Create Post
+      - generic [ref=e199]:
+        - link "Dashboard" [ref=e200] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e201]
+          - generic [ref=e206]: Dashboard
+        - link "Scheduled" [ref=e207] [cursor=pointer]:
+          - /url: /dashboard/scheduled
+          - img [ref=e208]
+          - generic [ref=e210]: Scheduled
+        - link "AI Assistant" [ref=e211] [cursor=pointer]:
+          - /url: /dashboard/assistant
+          - img [ref=e212]
+          - generic [ref=e215]: AI Assistant
+        - link "Analytics" [ref=e216] [cursor=pointer]:
+          - /url: /dashboard/analytics
+          - img [ref=e217]
+          - generic [ref=e219]: Analytics
+        - link "Posts" [ref=e220] [cursor=pointer]:
+          - /url: /dashboard/comments
+          - img [ref=e221]
+          - generic [ref=e223]: Posts
+        - link "Messages" [ref=e224] [cursor=pointer]:
+          - /url: /dashboard/messages
+          - img [ref=e225]
+          - generic [ref=e228]: Messages
+        - link "Automation" [ref=e229] [cursor=pointer]:
+          - /url: /dashboard/automation
+          - img [ref=e230]
+          - generic [ref=e232]: Automation
+      - generic [ref=e234]:
+        - link "Brand Profile" [ref=e235] [cursor=pointer]:
+          - /url: /dashboard/settings/brand
+          - img [ref=e236]
+          - generic [ref=e239]: Brand Profile
+        - link "Settings" [ref=e240] [cursor=pointer]:
+          - /url: /dashboard/settings
+          - img [ref=e241]
+          - generic [ref=e244]: Settings
+    - button "Log Out" [ref=e246]:
+      - img [ref=e247]
+      - generic [ref=e250]: Log Out

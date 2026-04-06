@@ -1,0 +1,179 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - button "S Swift Digital Sol Free Plan" [ref=e6]:
+        - generic [ref=e7]: S
+        - generic [ref=e8]:
+          - generic [ref=e9]: Swift Digital Sol
+          - generic [ref=e10]: Free Plan
+        - img
+      - generic [ref=e11]:
+        - button "Create Post" [ref=e13]:
+          - img [ref=e14]
+          - generic [ref=e17]: Create Post
+        - generic [ref=e18]:
+          - link "Dashboard" [ref=e20] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e24]
+            - generic [ref=e29]: Dashboard
+          - link "Scheduled" [ref=e31] [cursor=pointer]:
+            - /url: /dashboard/scheduled
+            - img [ref=e33]
+            - generic [ref=e35]: Scheduled
+          - link "AI Assistant" [ref=e37] [cursor=pointer]:
+            - /url: /dashboard/assistant
+            - img [ref=e39]
+            - generic [ref=e42]: AI Assistant
+          - link "Analytics" [ref=e44] [cursor=pointer]:
+            - /url: /dashboard/analytics
+            - img [ref=e46]
+            - generic [ref=e48]: Analytics
+          - link "Posts" [ref=e50] [cursor=pointer]:
+            - /url: /dashboard/comments
+            - img [ref=e52]
+            - generic [ref=e54]: Posts
+          - link "Messages" [ref=e56] [cursor=pointer]:
+            - /url: /dashboard/messages
+            - img [ref=e58]
+            - generic [ref=e61]: Messages
+          - link "Automation" [ref=e63] [cursor=pointer]:
+            - /url: /dashboard/automation
+            - img [ref=e65]
+            - generic [ref=e67]: Automation
+        - generic [ref=e69]:
+          - link "Brand Profile" [ref=e71] [cursor=pointer]:
+            - /url: /dashboard/settings/brand
+            - img [ref=e73]
+            - generic [ref=e76]: Brand Profile
+          - link "Subscription" [ref=e78] [cursor=pointer]:
+            - /url: /dashboard/subscription
+            - img [ref=e80]
+            - generic [ref=e82]: Subscription
+          - link "Settings" [ref=e84] [cursor=pointer]:
+            - /url: /dashboard/settings
+            - img [ref=e86]
+            - generic [ref=e89]: Settings
+      - button "Log Out" [ref=e91]:
+        - img [ref=e92]
+        - generic [ref=e95]: Log Out
+      - button [ref=e96]:
+        - img [ref=e97]
+    - generic [ref=e99]:
+      - banner [ref=e100]:
+        - generic [ref=e103]: Swift Digital Sol
+        - generic "pentester@swiftflow-test.com" [ref=e105]: P
+      - main [ref=e106]:
+        - generic [ref=e107]:
+          - generic [ref=e108]:
+            - generic [ref=e109]:
+              - generic [ref=e110]: Dashboard
+              - heading "Overview" [level=2] [ref=e111]
+              - paragraph [ref=e112]: Welcome back to your social media command center.
+            - button "1" [ref=e113]:
+              - img [ref=e114]
+              - generic [ref=e117]: "1"
+          - generic [ref=e118]:
+            - generic [ref=e119]:
+              - generic [ref=e120]:
+                - heading "Integration Health" [level=3] [ref=e121]
+                - paragraph [ref=e122]: Review-ready publishing depends on a connected Page, a linked Instagram business account, and granted publish capabilities.
+              - link "Manage Connections" [ref=e123] [cursor=pointer]:
+                - /url: /dashboard/settings/brand
+            - generic [ref=e124]:
+              - generic [ref=e125]:
+                - generic [ref=e126]: Facebook Page
+                - generic [ref=e127]: Connected
+                - paragraph [ref=e128]: Swift Digital Solutions
+              - generic [ref=e129]:
+                - generic [ref=e130]: Instagram Business
+                - generic [ref=e131]: Connected
+                - paragraph [ref=e132]: "@swiftdigital.sol"
+              - generic [ref=e133]:
+                - generic [ref=e134]: Publish Readiness
+                - generic [ref=e135]: Ready
+                - paragraph [ref=e136]: At least one connected platform can publish with the granted capabilities.
+          - generic [ref=e137]:
+            - link "Drafts Create First Post" [ref=e138] [cursor=pointer]:
+              - /url: /dashboard/scheduled?tab=drafts
+              - generic [ref=e139]:
+                - generic [ref=e140]:
+                  - generic [ref=e141]:
+                    - generic [ref=e142]: Drafts
+                    - button [ref=e143]:
+                      - img [ref=e144]
+                  - img [ref=e148]
+                - button "Create First Post" [ref=e153]:
+                  - img [ref=e154]
+                  - text: Create First Post
+            - generic [ref=e155] [cursor=pointer]:
+              - generic [ref=e156]:
+                - generic [ref=e157]:
+                  - generic [ref=e158]: Scheduled
+                  - button [ref=e159]:
+                    - img [ref=e160]
+                - img [ref=e164]
+              - button "Create First Post" [ref=e167]:
+                - img [ref=e168]
+                - text: Create First Post
+            - generic [ref=e169] [cursor=pointer]:
+              - generic [ref=e170]:
+                - generic [ref=e171]:
+                  - generic [ref=e172]: Posted
+                  - button [ref=e173]:
+                    - img [ref=e174]
+                - img [ref=e178]
+              - button "Create First Post" [ref=e182]:
+                - img [ref=e183]
+                - text: Create First Post
+          - generic [ref=e184]:
+            - link "Generate Ideas AI content" [ref=e185] [cursor=pointer]:
+              - /url: /dashboard/assistant
+              - button "Generate Ideas AI content" [ref=e186]:
+                - img [ref=e188]
+                - generic [ref=e191]:
+                  - generic [ref=e192]: Generate Ideas
+                  - generic [ref=e193]: AI content
+            - button "Create Post New post" [ref=e194]:
+              - img [ref=e196]
+              - generic [ref=e197]:
+                - generic [ref=e198]: Create Post
+                - generic [ref=e199]: New post
+            - link "Analytics View stats" [ref=e200] [cursor=pointer]:
+              - /url: /dashboard/analytics
+              - button "Analytics View stats" [ref=e201]:
+                - img [ref=e203]
+                - generic [ref=e204]:
+                  - generic [ref=e205]: Analytics
+                  - generic [ref=e206]: View stats
+            - link "AI Assistant Chat & ideas" [ref=e207] [cursor=pointer]:
+              - /url: /dashboard/assistant
+              - button "AI Assistant Chat & ideas" [ref=e208]:
+                - img [ref=e210]
+                - generic [ref=e213]:
+                  - generic [ref=e214]: AI Assistant
+                  - generic [ref=e215]: Chat & ideas
+          - generic [ref=e216]:
+            - generic [ref=e218]:
+              - generic [ref=e219]:
+                - heading "Post Activity" [level=3] [ref=e220]
+                - paragraph [ref=e221]: Last 7 days · Next 7 days
+              - generic [ref=e222]:
+                - generic [ref=e223]: Posted
+                - generic [ref=e225]: Scheduled
+            - generic [ref=e229]:
+              - generic [ref=e231]: Content Calendar
+              - generic [ref=e233]: Loading calendar...
+      - contentinfo [ref=e234]:
+        - generic [ref=e235]: © 2026 SwiftFlow
+        - navigation [ref=e236]:
+          - link "Privacy" [ref=e237] [cursor=pointer]:
+            - /url: /privacy
+          - link "Terms" [ref=e238] [cursor=pointer]:
+            - /url: /terms
+          - link "Data Deletion" [ref=e239] [cursor=pointer]:
+            - /url: /data-deletion
+          - link "Support" [ref=e240] [cursor=pointer]:
+            - /url: mailto:info@swiftdigital-s.com
+  - region "Notifications alt+T"
+  - button "Open Next.js Dev Tools" [ref=e246] [cursor=pointer]:
+    - img [ref=e247]

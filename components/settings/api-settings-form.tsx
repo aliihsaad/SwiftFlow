@@ -34,6 +34,11 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
     const [showOpenAIKey, setShowOpenAIKey] = useState(false)
     const [isTesting, setIsTesting] = useState(false)
     const [testResult, setTestResult] = useState<{ valid: boolean; error?: string } | null>(null)
+    const [savedKeys, setSavedKeys] = useState({
+        openrouter: settings?.has_openrouter_api_key ?? false,
+        gemini: settings?.has_gemini_api_key ?? false,
+        openai: settings?.has_openai_api_key ?? false,
+    })
     const canEditSettings = useWorkspacePermission("settings:write")
 
     const initialProvider: AIProvider = isAIProvider(settings?.ai_provider || '')
@@ -42,9 +47,9 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
 
     const [formData, setFormData] = useState({
         ai_provider: initialProvider,
-        openrouter_api_key: settings?.openrouter_api_key || '',
-        gemini_api_key: settings?.gemini_api_key || '',
-        openai_api_key: settings?.openai_api_key || '',
+        openrouter_api_key: '',
+        gemini_api_key: '',
+        openai_api_key: '',
         ai_text_model_name: settings?.ai_text_model_name || settings?.ai_model_name || getDefaultTextModelForProvider(initialProvider),
         ai_image_model_name: settings?.ai_image_model_name || getDefaultImageModelForProvider(initialProvider) || '',
         ai_temperature: settings?.ai_temperature || 0.7,
@@ -167,6 +172,17 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                 ai_temperature: formData.ai_temperature,
                 ai_max_tokens: formData.ai_max_tokens,
             })
+            setSavedKeys((prev) => ({
+                openrouter: prev.openrouter || formData.openrouter_api_key.trim().length > 0,
+                gemini: prev.gemini || formData.gemini_api_key.trim().length > 0,
+                openai: prev.openai || formData.openai_api_key.trim().length > 0,
+            }))
+            setFormData((prev) => ({
+                ...prev,
+                openrouter_api_key: '',
+                gemini_api_key: '',
+                openai_api_key: '',
+            }))
             toast.success("Settings updated successfully!")
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : "Failed to update settings"
@@ -183,6 +199,9 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
     const selectContentClass = "border-white/10 bg-[#1b1d28] text-white/85"
     const helperClass = "text-xs text-white/45"
     const showAdvancedSamplingControls = formData.ai_provider !== 'openrouter'
+    const hasSavedOpenRouterKey = savedKeys.openrouter
+    const hasSavedGeminiKey = savedKeys.gemini
+    const hasSavedOpenAIKey = savedKeys.openai
     const recommendationClassMap = {
         cost: "border-emerald-300/20 bg-emerald-400/10 text-emerald-100/90",
         balanced: "border-cyan-300/20 bg-cyan-400/10 text-cyan-100/90",
@@ -261,9 +280,9 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     type={showOpenRouterKey ? "text" : "password"}
                                     value={formData.openrouter_api_key}
                                     onChange={(e) => setFormData({ ...formData, openrouter_api_key: e.target.value })}
-                                    placeholder="sk-or-v1-..."
+                                    placeholder={hasSavedOpenRouterKey ? "Saved key on file. Enter a new key to replace it." : "sk-or-v1-..."}
                                     className={`${fieldClass} pr-10`}
-                                    required={formData.ai_provider === 'openrouter'}
+                                    required={formData.ai_provider === 'openrouter' && !hasSavedOpenRouterKey}
                                 />
                                 <Button
                                     type="button"
@@ -299,6 +318,11 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     Test Key
                                 </Button>
                             </div>
+                            {hasSavedOpenRouterKey && (
+                                <p className={helperClass}>
+                                    An OpenRouter key is already saved securely. Leave this blank to keep it, or enter a new key to replace it.
+                                </p>
+                            )}
                             {testResult && formData.ai_provider === 'openrouter' && (
                                 <div className={`flex items-center gap-1.5 text-xs mt-1 ${testResult.valid ? 'text-emerald-400' : 'text-red-400'}`}>
                                     {testResult.valid
@@ -323,9 +347,9 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     type={showGeminiKey ? "text" : "password"}
                                     value={formData.gemini_api_key}
                                     onChange={(e) => setFormData({ ...formData, gemini_api_key: e.target.value })}
-                                    placeholder="AIzaSy..."
+                                    placeholder={hasSavedGeminiKey ? "Saved key on file. Enter a new key to replace it." : "AIzaSy..."}
                                     className={`${fieldClass} pr-10`}
-                                    required={formData.ai_provider === 'gemini'}
+                                    required={formData.ai_provider === 'gemini' && !hasSavedGeminiKey}
                                 />
                                 <Button
                                     type="button"
@@ -361,6 +385,11 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     Test Key
                                 </Button>
                             </div>
+                            {hasSavedGeminiKey && (
+                                <p className={helperClass}>
+                                    A Gemini key is already saved securely. Leave this blank to keep it, or enter a new key to replace it.
+                                </p>
+                            )}
                             {testResult && formData.ai_provider === 'gemini' && (
                                 <div className={`flex items-center gap-1.5 text-xs mt-1 ${testResult.valid ? 'text-emerald-400' : 'text-red-400'}`}>
                                     {testResult.valid
@@ -385,9 +414,9 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     type={showOpenAIKey ? "text" : "password"}
                                     value={formData.openai_api_key}
                                     onChange={(e) => setFormData({ ...formData, openai_api_key: e.target.value })}
-                                    placeholder="sk-..."
+                                    placeholder={hasSavedOpenAIKey ? "Saved key on file. Enter a new key to replace it." : "sk-..."}
                                     className={`${fieldClass} pr-10`}
-                                    required={formData.ai_provider === 'openai'}
+                                    required={formData.ai_provider === 'openai' && !hasSavedOpenAIKey}
                                 />
                                 <Button
                                     type="button"
@@ -423,6 +452,11 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     Test Key
                                 </Button>
                             </div>
+                            {hasSavedOpenAIKey && (
+                                <p className={helperClass}>
+                                    An OpenAI key is already saved securely. Leave this blank to keep it, or enter a new key to replace it.
+                                </p>
+                            )}
                             {testResult && formData.ai_provider === 'openai' && (
                                 <div className={`flex items-center gap-1.5 text-xs mt-1 ${testResult.valid ? 'text-emerald-400' : 'text-red-400'}`}>
                                     {testResult.valid

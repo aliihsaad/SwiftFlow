@@ -7,6 +7,9 @@ export interface WorkspaceSettings {
   openrouter_api_key: string | null
   gemini_api_key: string | null
   openai_api_key: string | null
+  has_openrouter_api_key?: boolean
+  has_gemini_api_key?: boolean
+  has_openai_api_key?: boolean
 
   // AI Model Configuration
   ai_text_model_name: string

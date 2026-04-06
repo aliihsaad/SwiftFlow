@@ -37,10 +37,8 @@ function getSafeNextPath(rawNext: string | null): string {
     return rawNext
 }
 
-function getErrorMessage(error: unknown, fallback: string): string {
-    if (error instanceof Error && error.message) return error.message
-    return fallback
-}
+const GENERIC_SIGNIN_ERROR = "Sign in failed. Check your credentials and try again."
+const GENERIC_SIGNUP_ERROR = "Sign up could not be completed. If the email can be used, you will receive the next step by email."
 
 function validatePasswordAgainstPolicy(password: string): string | null {
     if (password.length < PASSWORD_POLICY.minLength) {
@@ -69,6 +67,7 @@ function LoginPageContent() {
     const [activeAction, setActiveAction] = useState<"signin" | "signup" | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
+    const [resendCooldown, setResendCooldown] = useState(0)
 
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -86,6 +85,22 @@ function LoginPageContent() {
     const isSigningIn = isLoading && activeAction === "signin"
     const isSigningUp = isLoading && activeAction === "signup"
 
+    const handleResendVerification = async () => {
+        if (resendCooldown > 0 || !email) return
+        try {
+            await supabase.auth.resend({ type: 'signup', email })
+            setResendCooldown(60)
+            const interval = setInterval(() => {
+                setResendCooldown((prev) => {
+                    if (prev <= 1) { clearInterval(interval); return 0 }
+                    return prev - 1
+                })
+            }, 1000)
+        } catch {
+            setError("Failed to resend verification email")
+        }
+    }
+
     const handleSignIn = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsLoading(true)
@@ -102,7 +117,7 @@ function LoginPageContent() {
             router.push(nextPath)
         } catch (error: unknown) {
             console.error(error)
-            setError(getErrorMessage(error, "Authentication failed"))
+            setError(GENERIC_SIGNIN_ERROR)
         } finally {
             setIsLoading(false)
             setActiveAction(null)
@@ -148,7 +163,7 @@ function LoginPageContent() {
             }
         } catch (error: unknown) {
             console.error(error)
-            setError(getErrorMessage(error, "Sign up failed"))
+            setError(GENERIC_SIGNUP_ERROR)
         } finally {
             setIsLoading(false)
             setActiveAction(null)
@@ -388,6 +403,16 @@ function LoginPageContent() {
                                         : <><KeyRound className="h-4 w-4" />Sign In<ArrowRight className="h-3.5 w-3.5 ml-auto opacity-50" /></>
                                     }
                                 </Button>
+
+                                <div className="text-center pt-1">
+                                    <Link
+                                        href="/forgot-password"
+                                        className="text-xs transition-colors hover:text-white/50"
+                                        style={{ color: 'rgba(255,255,255,0.3)' }}
+                                    >
+                                        Forgot your password?
+                                    </Link>
+                                </div>
                             </form>
                         </TabsContent>
 
@@ -408,14 +433,24 @@ function LoginPageContent() {
                                 )}
                                 {success && (
                                     <div
-                                        className="p-3 text-sm rounded-lg"
+                                        className="p-3 text-sm rounded-lg space-y-2"
                                         style={{
                                             background: 'rgba(132,204,22,0.08)',
                                             border: '1px solid rgba(34,197,94,0.2)',
                                             color: '#84cc16',
                                         }}
                                     >
-                                        {success}
+                                        <p>{success}</p>
+                                        <button
+                                            type="button"
+                                            onClick={handleResendVerification}
+                                            disabled={resendCooldown > 0}
+                                            className="text-xs underline underline-offset-2 transition-colors hover:text-lime-300 disabled:opacity-50 disabled:no-underline disabled:cursor-default"
+                                        >
+                                            {resendCooldown > 0
+                                                ? `Resend available in ${resendCooldown}s`
+                                                : "Didn\u2019t receive it? Resend email"}
+                                        </button>
                                     </div>
                                 )}
                                 {isSigningUp && (

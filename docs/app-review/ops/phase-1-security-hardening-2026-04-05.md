@@ -120,6 +120,93 @@ This note records the post-submission security and bug fixes applied to the Phas
   - unrestricted SSRF through automation workflows
   - internal network probing or metadata-service access through user-configured URLs
 
+11. Stopped returning decrypted AI provider keys to the browser
+- Updated:
+  - `types/settings.ts`
+  - `app/actions/settings.ts`
+  - `app/dashboard/settings/page.tsx`
+  - `app/api/workspace/settings/route.ts`
+  - `components/settings/api-settings-form.tsx`
+- Fix:
+  - browser-facing workspace settings now return `has_openrouter_api_key`, `has_gemini_api_key`, and `has_openai_api_key` flags instead of decrypted secret values
+  - the settings page now loads a display-safe settings object for serialization to the client
+  - the workspace settings API route now returns masked key state instead of plaintext API keys on both `GET` and `PUT`
+  - the AI Provider form now uses a secure “saved key / replace key” flow, so users can keep an existing key without re-exposing it in the browser
+- Risk reduced:
+  - authenticated client-side disclosure of stored provider credentials
+  - accidental plaintext key exposure in serialized React props and settings API responses
+
+12. Locked AI key validation behind authenticated workspace settings access
+- Updated:
+  - `app/api/ai/validate-key/route.ts`
+- Fix:
+  - the key-validation endpoint now requires an authenticated user, an active workspace, and `settings:write` permission before it will validate any provider key
+  - requests now enforce a small body-size limit, validate the provider value, reject oversized key input, and URL-encode Gemini API keys before provider validation calls
+- Risk reduced:
+  - unauthenticated API-key validation abuse
+  - public provider-key oracle behavior
+  - query-parameter injection through the Gemini validation branch
+
+13. Blocked private and local media URLs in posts and the publish worker
+- Updated:
+  - `lib/security/phase1-validation.ts`
+  - `app/api/posts/route.ts`
+  - `supabase/functions/process-scheduled-posts/index.ts`
+- Fix:
+  - post create/update now reject media URLs that point to localhost, private IPv4 ranges, local/internal hostnames, or credentialed URLs
+  - the scheduler worker now re-validates stored media URLs before publishing and fails the post safely if any unsafe media URL is present
+- Risk reduced:
+  - stored SSRF-style payloads through `mediaUrls[]`
+  - legacy unsafe media URLs being replayed by the background publish worker
+
+14. Reduced authentication error disclosure in the web UI
+- Updated:
+  - `app/login/page.tsx`
+- Fix:
+  - sign-in failures now return a generic authentication error instead of surfacing raw upstream Supabase messages
+  - sign-up failures now return a neutral message instead of echoing provider-side failure details into the UI
+- Risk reduced:
+  - auth error detail leakage in the browser
+  - lower-signal feedback for UI-driven account probing
+
+15. Added baseline edge security headers
+- Updated:
+  - `proxy.ts`
+- Fix:
+  - responses now include `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, and a restrictive `Permissions-Policy`
+  - production responses now include HSTS
+- Risk reduced:
+  - clickjacking
+  - MIME-sniffing
+  - unnecessary browser feature exposure
+  - downgrade risk on production HTTPS
+
+16. Restricted password reset to the recovery flow
+- Updated:
+  - `app/auth/callback/route.ts`
+  - `app/api/auth/recovery-session/route.ts`
+  - `app/reset-password/page.tsx`
+  - `components/auth/reset-password-form.tsx`
+- Fix:
+  - the password reset page now requires a short-lived server-side recovery cookie set only after a successful auth callback into `/reset-password`
+  - successful password resets clear the recovery cookie immediately
+- Risk reduced:
+  - normal authenticated sessions reaching the recovery-only password reset page
+  - bypass of the intended “current password required” account-settings flow
+
+17. Added server-side password verification for account-sensitive actions
+- Updated:
+  - `app/actions/auth.ts`
+  - `components/settings/account-settings-section.tsx`
+- Fix:
+  - account password changes now verify the current password through a server action instead of using a second browser sign-in flow
+  - account deletion now requires current-password re-entry before any destructive operation begins
+  - account deletion now fails early on membership/workspace cleanup errors instead of deleting the auth user after partial database failures
+- Risk reduced:
+  - brittle client-side password verification behavior
+  - destructive account deletion without re-authentication
+  - orphaned workspace data after partial delete failures
+
 ## Verification
 
 - `npx tsc --noEmit --pretty false`
@@ -128,3 +215,13 @@ This note records the post-submission security and bug fixes applied to the Phas
 ## Follow-up Deployment Requirement
 
 After these changes are committed, `process-scheduled-posts` must be redeployed so the new internal auth check is live.
+
+## Remaining External/Auth Controls
+
+Some findings from the Shannon report are only partially addressable inside this repo because they stem from the current Supabase browser-auth architecture:
+
+- The public anon key is still intentionally exposed to the browser for Supabase client usage.
+- Supabase auth endpoints remain publicly reachable outside the app domain.
+- Supabase SSR defaults still use non-HttpOnly auth cookies for browser session continuity.
+
+Repo-side mitigations were applied where they do not break the current Phase 1 review flow, but full closure of those findings would require a larger auth-architecture change and/or Supabase dashboard controls such as bot protection / CAPTCHA and stricter auth-service policy configuration.

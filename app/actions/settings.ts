@@ -8,6 +8,18 @@ import { getDefaultModelForProvider } from "@/lib/ai-models"
 import { requireWorkspacePermission } from "@/lib/workspace-permissions"
 import { decryptSecretIfNeeded, encryptSecretIfNeeded, normalizeOptionalSecretInput } from "@/lib/secret-crypto"
 
+function sanitizeWorkspaceSettingsForClient(row: WorkspaceSettings): WorkspaceSettings {
+    return {
+        ...row,
+        openrouter_api_key: null,
+        gemini_api_key: null,
+        openai_api_key: null,
+        has_openrouter_api_key: typeof row.openrouter_api_key === 'string' && row.openrouter_api_key.length > 0,
+        has_gemini_api_key: typeof row.gemini_api_key === 'string' && row.gemini_api_key.length > 0,
+        has_openai_api_key: typeof row.openai_api_key === 'string' && row.openai_api_key.length > 0,
+    }
+}
+
 export async function togglePageSelection(platform: string, pageId: string, selected: boolean) {
     const supabase = await createClient()
     const activeWorkspace = await getActiveWorkspace()
@@ -96,6 +108,11 @@ export async function getWorkspaceSettings(workspaceId: string): Promise<Workspa
     } as WorkspaceSettings
 }
 
+export async function getWorkspaceSettingsForDisplay(workspaceId: string): Promise<WorkspaceSettings | null> {
+    const settings = await getWorkspaceSettings(workspaceId)
+    return settings ? sanitizeWorkspaceSettingsForClient(settings) : null
+}
+
 /**
  * Get current workspace settings
  */
@@ -106,6 +123,15 @@ export async function getCurrentWorkspaceSettings(): Promise<WorkspaceSettings |
     }
 
     return getWorkspaceSettings(activeWorkspace.id)
+}
+
+export async function getCurrentWorkspaceSettingsForDisplay(): Promise<WorkspaceSettings | null> {
+    const activeWorkspace = await getActiveWorkspace()
+    if (!activeWorkspace) {
+        return null
+    }
+
+    return getWorkspaceSettingsForDisplay(activeWorkspace.id)
 }
 
 /**

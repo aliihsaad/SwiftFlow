@@ -2,12 +2,28 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { isDashboardPathBlockedInCurrentRelease } from "@/lib/release-channel";
 
+function applySecurityHeaders(response: NextResponse) {
+    response.headers.set("X-Frame-Options", "DENY");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.headers.set(
+        "Permissions-Policy",
+        "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+    );
+
+    if (process.env.NODE_ENV === "production") {
+        response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    }
+
+    return response;
+}
+
 export async function proxy(request: NextRequest) {
-    let response = NextResponse.next({
+    let response = applySecurityHeaders(NextResponse.next({
         request: {
             headers: request.headers,
         },
-    });
+    }));
 
     try {
         const supabase = createServerClient(
@@ -30,6 +46,7 @@ export async function proxy(request: NextRequest) {
                         cookiesToSet.forEach(({ name, value, options: cookieOptions }) =>
                             response.cookies.set(name, value, cookieOptions)
                         );
+                        applySecurityHeaders(response);
                     },
                 },
             }
@@ -42,11 +59,11 @@ export async function proxy(request: NextRequest) {
         // Protected Routes Logic
         if (request.nextUrl.pathname.startsWith("/dashboard")) {
             if (!user) {
-                return NextResponse.redirect(new URL("/login", request.url));
+                return applySecurityHeaders(NextResponse.redirect(new URL("/login", request.url)));
             }
 
             if (isDashboardPathBlockedInCurrentRelease(request.nextUrl.pathname)) {
-                return NextResponse.redirect(new URL("/dashboard", request.url));
+                return applySecurityHeaders(NextResponse.redirect(new URL("/dashboard", request.url)));
             }
 
             // Workspace Check
@@ -76,7 +93,7 @@ export async function proxy(request: NextRequest) {
                     });
                 } else {
                     // No workspaces -> Redirect to onboarding
-                    return NextResponse.redirect(new URL("/dashboard/onboarding", request.url));
+                    return applySecurityHeaders(NextResponse.redirect(new URL("/dashboard/onboarding", request.url)));
                 }
             }
         }
@@ -84,16 +101,16 @@ export async function proxy(request: NextRequest) {
         // Auth Page Logic (if logged in, go to dashboard)
         if (["/login", "/signup"].includes(request.nextUrl.pathname)) {
             if (user) {
-                return NextResponse.redirect(new URL("/dashboard", request.url));
+                return applySecurityHeaders(NextResponse.redirect(new URL("/dashboard", request.url)));
             }
         }
 
-        return response;
+        return applySecurityHeaders(response);
     } catch (error) {
         console.error("Middleware error:", error);
         // On error, allow the request to proceed
         // This prevents the middleware from blocking the entire app
-        return response;
+        return applySecurityHeaders(response);
     }
 }
 

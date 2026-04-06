@@ -3,7 +3,7 @@ import { createAdminClient } from "@/utils/supabase/admin"
 import { SettingsView } from "@/components/settings/settings-view"
 import { redirect } from "next/navigation"
 import { Workspace, WorkspaceRole } from "@/types/workspace"
-import { getCurrentWorkspaceSettings } from "@/app/actions/settings"
+import { getCurrentWorkspaceSettingsForDisplay } from "@/app/actions/settings"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { TeamMemberRow, WorkspaceInviteRow } from "@/types/team"
 
@@ -44,7 +44,7 @@ export default async function SettingsPage() {
     }).filter(Boolean) || []) as (Workspace & { role: WorkspaceRole })[]
 
     // Fetch current workspace settings
-    const settings = await getCurrentWorkspaceSettings()
+    const settings = await getCurrentWorkspaceSettingsForDisplay()
     const activeWorkspace = await getActiveWorkspace()
 
     let activeWorkspaceRole: WorkspaceRole | null = null
@@ -143,6 +143,7 @@ export default async function SettingsPage() {
             workspaceInvites={workspaceInvites}
             inviteFeatureReady={inviteFeatureReady}
             inviteFeatureMessage={inviteFeatureMessage}
+            userEmail={user.email ?? ""}
         />
     )
 }

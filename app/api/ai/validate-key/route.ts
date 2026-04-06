@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
+import { createClient } from "@/utils/supabase/server"
+import { getActiveWorkspace } from "@/lib/workspace-utils"
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
+import { assertJsonBodySize } from "@/lib/security/phase1-validation"
 
 /**
  * POST /api/ai/validate-key
@@ -7,13 +11,34 @@ import { NextRequest, NextResponse } from "next/server"
  */
 export async function POST(request: NextRequest) {
     try {
+        const supabase = await createClient()
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+            return NextResponse.json({ valid: false, error: "Unauthorized" }, { status: 401 })
+        }
+
+        const activeWorkspace = await getActiveWorkspace()
+        if (!activeWorkspace) {
+            return NextResponse.json({ valid: false, error: "No active workspace" }, { status: 400 })
+        }
+
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, "settings:write")
+        assertJsonBodySize(request, 8 * 1024)
+
         const { provider, apiKey } = await request.json()
+
+        if (!provider || (provider !== "openrouter" && provider !== "gemini" && provider !== "openai")) {
+            return NextResponse.json({ valid: false, error: "Invalid provider." }, { status: 400 })
+        }
 
         if (!apiKey || typeof apiKey !== "string") {
             return NextResponse.json({ valid: false, error: "API key is required." }, { status: 400 })
         }
 
         const trimmedKey = apiKey.trim().replace(/^['"]|['"]$/g, "")
+        if (trimmedKey.length > 500) {
+            return NextResponse.json({ valid: false, error: "API key is too long." }, { status: 400 })
+        }
 
         if (provider === "openrouter") {
             if (!trimmedKey.startsWith("sk-or-v1-")) {
@@ -67,7 +92,7 @@ export async function POST(request: NextRequest) {
 
         // Lightweight: list models (free, no token usage)
         const res = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models?pageSize=1&key=${trimmedKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models?pageSize=1&key=${encodeURIComponent(trimmedKey)}`,
         )
 
         if (res.ok) {
@@ -87,7 +112,15 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ valid: false, error: message })
     } catch (error: unknown) {
+        const permissionStatus = getWorkspacePermissionErrorStatus(error)
+        if (permissionStatus) {
+            return NextResponse.json(
+                { valid: false, error: error instanceof Error ? error.message : "Forbidden" },
+                { status: permissionStatus }
+            )
+        }
         const msg = error instanceof Error ? error.message : "Validation failed"
-        return NextResponse.json({ valid: false, error: msg }, { status: 500 })
+        const status = /Request payload too large|Invalid content length/i.test(msg) ? 400 : 500
+        return NextResponse.json({ valid: false, error: msg }, { status })
     }
 }

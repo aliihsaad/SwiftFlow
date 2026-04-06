@@ -77,6 +77,56 @@ function sanitizeHttpUrl(value: unknown): string | null {
     }
 }
 
+function isPrivateIpv4Host(hostname: string): boolean {
+    const match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+    if (!match) return false
+
+    const octets = match.slice(1).map((part) => Number(part))
+    if (octets.some((octet) => Number.isNaN(octet) || octet < 0 || octet > 255)) return true
+
+    return (
+        octets[0] === 10 ||
+        octets[0] === 127 ||
+        octets[0] === 0 ||
+        (octets[0] === 169 && octets[1] === 254) ||
+        (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+        (octets[0] === 192 && octets[1] === 168)
+    )
+}
+
+function isBlockedHostname(hostname: string): boolean {
+    const normalized = hostname.trim().toLowerCase()
+    if (!normalized) return true
+
+    return (
+        normalized === 'localhost' ||
+        normalized === '0.0.0.0' ||
+        normalized === '::1' ||
+        normalized.endsWith('.localhost') ||
+        normalized.endsWith('.local') ||
+        normalized.endsWith('.internal') ||
+        normalized.endsWith('.lan') ||
+        normalized.endsWith('.home') ||
+        normalized.endsWith('.test') ||
+        normalized.endsWith('.invalid') ||
+        isPrivateIpv4Host(normalized)
+    )
+}
+
+function sanitizePublicMediaUrl(value: unknown): string | null {
+    const sanitized = sanitizeHttpUrl(value)
+    if (!sanitized) return null
+
+    try {
+        const url = new URL(sanitized)
+        if (url.username || url.password) return null
+        if (isBlockedHostname(url.hostname)) return null
+        return url.toString().slice(0, 2048)
+    } catch {
+        return null
+    }
+}
+
 export function isUuid(value: unknown): value is string {
     return typeof value === 'string' && UUID_RE.test(value.trim())
 }
@@ -360,10 +410,22 @@ export function sanitizePostPayload(body: unknown): {
     const captionObj = isPlainObject(body.captionByPlatform) ? body.captionByPlatform : {}
     const instagramCaption = clampString(captionObj.instagram, 4000)
     const facebookCaption = clampString(captionObj.facebook, 4000)
-    const mediaUrls = (Array.isArray(body.mediaUrls) ? body.mediaUrls : [])
-        .map((value) => sanitizeHttpUrl(value) || (typeof value === 'string' && value.startsWith('data:') ? value.slice(0, 8_000_000) : null))
-        .filter((value): value is string => Boolean(value))
-        .slice(0, 10)
+    const mediaUrls: string[] = []
+    const rawMediaUrls = Array.isArray(body.mediaUrls) ? body.mediaUrls.slice(0, 10) : []
+    for (const value of rawMediaUrls) {
+        const sanitizedMediaUrl = sanitizePublicMediaUrl(value)
+        if (sanitizedMediaUrl) {
+            mediaUrls.push(sanitizedMediaUrl)
+            continue
+        }
+
+        if (typeof value === 'string' && value.startsWith('data:')) {
+            mediaUrls.push(value.slice(0, 8_000_000))
+            continue
+        }
+
+        throw new Error('Invalid media URL')
+    }
 
     let scheduledAt: string | null = null
     if (body.scheduledAt != null) {

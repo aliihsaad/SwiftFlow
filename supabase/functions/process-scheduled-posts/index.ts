@@ -15,6 +15,53 @@ function isVideoUrl(url: string): boolean {
     return VIDEO_EXTENSIONS.some(ext => lower.endsWith(ext));
 }
 
+function isPrivateIpv4Host(hostname: string): boolean {
+    const match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if (!match) return false;
+
+    const octets = match.slice(1).map((part) => Number(part));
+    if (octets.some((octet) => Number.isNaN(octet) || octet < 0 || octet > 255)) return true;
+
+    return (
+        octets[0] === 10 ||
+        octets[0] === 127 ||
+        octets[0] === 0 ||
+        (octets[0] === 169 && octets[1] === 254) ||
+        (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
+        (octets[0] === 192 && octets[1] === 168)
+    );
+}
+
+function isSafePublicMediaUrl(value: string): boolean {
+    try {
+        const url = new URL(value);
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+        if (url.username || url.password) return false;
+
+        const hostname = url.hostname.trim().toLowerCase();
+        if (!hostname) return false;
+        if (
+            hostname === 'localhost' ||
+            hostname === '0.0.0.0' ||
+            hostname === '::1' ||
+            hostname.endsWith('.localhost') ||
+            hostname.endsWith('.local') ||
+            hostname.endsWith('.internal') ||
+            hostname.endsWith('.lan') ||
+            hostname.endsWith('.home') ||
+            hostname.endsWith('.test') ||
+            hostname.endsWith('.invalid') ||
+            isPrivateIpv4Host(hostname)
+        ) {
+            return false;
+        }
+
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -514,7 +561,11 @@ serve(async (req) => {
         for (const post of duePosts || []) {
             const postResults: PublishResult[] = [];
             const platforms = post.platforms as string[];
-            const mediaUrls = post.media_urls as string[];
+            const rawMediaUrls = Array.isArray(post.media_urls)
+                ? (post.media_urls as unknown[]).filter((value): value is string => typeof value === 'string')
+                : [];
+            const hasUnsafeMediaUrl = rawMediaUrls.some((value) => !isSafePublicMediaUrl(value));
+            const mediaUrls = rawMediaUrls.filter((value) => isSafePublicMediaUrl(value));
             const content = post.content || '';
 
             // Get social accounts for this workspace
@@ -532,6 +583,14 @@ serve(async (req) => {
                         platform,
                         `No ${platform} account connected`,
                         'no_connected_account',
+                    ));
+                    continue;
+                }
+                if (hasUnsafeMediaUrl) {
+                    postResults.push(buildPublishFailure(
+                        platform,
+                        'One or more media URLs are invalid or private. Re-upload the media and try again.',
+                        'invalid_media_url',
                     ));
                     continue;
                 }

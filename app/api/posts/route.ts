@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ...post, publishTriggered: shouldPublishNow })
 
     } catch (error) {
-        if (error instanceof Error && /Invalid post payload|At least one valid platform is required|Invalid post status|Invalid scheduled date|Request payload too large|Invalid content length/i.test(error.message)) {
+        if (error instanceof Error && /Invalid post payload|At least one valid platform is required|Invalid post status|Invalid scheduled date|Invalid media URL|Request payload too large|Invalid content length/i.test(error.message)) {
             return NextResponse.json({ error: error.message }, { status: 400 })
         }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)
@@ -167,7 +167,7 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ ...post, publishTriggered: shouldPublishNow })
 
     } catch (error) {
-        if (error instanceof Error && /Invalid post payload|At least one valid platform is required|Invalid post status|Invalid scheduled date|Invalid post id|Request payload too large|Invalid content length/i.test(error.message)) {
+        if (error instanceof Error && /Invalid post payload|At least one valid platform is required|Invalid post status|Invalid scheduled date|Invalid media URL|Invalid post id|Request payload too large|Invalid content length/i.test(error.message)) {
             return NextResponse.json({ error: error.message }, { status: 400 })
         }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)

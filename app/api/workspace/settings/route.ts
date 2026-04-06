@@ -3,7 +3,7 @@ import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { getDefaultModelForProvider } from '@/lib/ai-models';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
-import { decryptSecretIfNeeded, encryptSecretIfNeeded, isEncryptedSecret, normalizeOptionalSecretInput } from '@/lib/secret-crypto';
+import { encryptSecretIfNeeded, isEncryptedSecret, normalizeOptionalSecretInput } from '@/lib/secret-crypto';
 import { assertJsonBodySize, assertUuid, sanitizeWorkspaceSettingsPayload } from '@/lib/security/phase1-validation';
 
 /**
@@ -11,12 +11,22 @@ import { assertJsonBodySize, assertUuid, sanitizeWorkspaceSettingsPayload } from
  * Fetch workspace settings
  */
 
-function decryptWorkspaceSettingsSecrets<T extends Record<string, unknown>>(row: T): T {
+function sanitizeWorkspaceSettingsForClient<T extends Record<string, unknown>>(row: T): T & {
+    openrouter_api_key: null
+    gemini_api_key: null
+    openai_api_key: null
+    has_openrouter_api_key: boolean
+    has_gemini_api_key: boolean
+    has_openai_api_key: boolean
+} {
     return {
         ...row,
-        openrouter_api_key: decryptSecretIfNeeded(typeof row.openrouter_api_key === 'string' ? row.openrouter_api_key : null),
-        gemini_api_key: decryptSecretIfNeeded(typeof row.gemini_api_key === 'string' ? row.gemini_api_key : null),
-        openai_api_key: decryptSecretIfNeeded(typeof row.openai_api_key === 'string' ? row.openai_api_key : null),
+        openrouter_api_key: null,
+        gemini_api_key: null,
+        openai_api_key: null,
+        has_openrouter_api_key: typeof row.openrouter_api_key === 'string' && row.openrouter_api_key.length > 0,
+        has_gemini_api_key: typeof row.gemini_api_key === 'string' && row.gemini_api_key.length > 0,
+        has_openai_api_key: typeof row.openai_api_key === 'string' && row.openai_api_key.length > 0,
     }
 }
 
@@ -91,6 +101,9 @@ export async function GET(request: NextRequest) {
                 openrouter_api_key: null,
                 gemini_api_key: null,
                 openai_api_key: null,
+                has_openrouter_api_key: false,
+                has_gemini_api_key: false,
+                has_openai_api_key: false,
                 timezone: 'UTC',
                 default_language: 'en'
             });
@@ -116,7 +129,7 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        return NextResponse.json(decryptWorkspaceSettingsSecrets(data));
+        return NextResponse.json(sanitizeWorkspaceSettingsForClient(data));
     } catch (error) {
         if (error instanceof Error && error.message === 'Invalid workspaceId') {
             return NextResponse.json(
@@ -199,7 +212,7 @@ export async function PUT(request: NextRequest) {
             );
         }
 
-        return NextResponse.json(decryptWorkspaceSettingsSecrets(result.data));
+        return NextResponse.json(sanitizeWorkspaceSettingsForClient(result.data));
     } catch (error) {
         if (error instanceof Error && /Invalid workspace settings payload|Invalid workspaceId|Request payload too large|Invalid content length/i.test(error.message)) {
             return NextResponse.json(

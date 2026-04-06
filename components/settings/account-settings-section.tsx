@@ -214,13 +214,13 @@ function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
                 </CardTitle>
                 <CardDescription className="text-white/50">
                     Your current email is <span className="text-white/70 font-medium">{currentEmail}</span>.
-                    A confirmation link will be sent to your new email.
+                    Confirmation links will be sent to both your current email and your new email before the change is applied.
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 {sent ? (
                     <div className="rounded-lg border border-emerald-300/20 bg-emerald-300/8 p-3 text-sm text-emerald-100 max-w-md">
-                        Check your new email inbox for a confirmation link. Your email won&apos;t change until you confirm.
+                        Check both inboxes for confirmation links. Your email won&apos;t change until both the current and new email addresses are confirmed.
                     </div>
                 ) : (
                     <form onSubmit={handleSubmit} className="space-y-4 max-w-md">

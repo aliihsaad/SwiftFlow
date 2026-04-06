@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { redirect } from "next/navigation"
+import { sendPasswordChangedEmail } from "@/lib/email/send-password-changed-email"
 
 async function verifyUserPassword(password: string): Promise<{ ok: boolean; error?: string }> {
     const supabase = await createClient()
@@ -54,7 +55,7 @@ export async function updatePassword(currentPassword: string, newPassword: strin
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) {
+    if (!user?.email) {
         return { ok: false, error: "Not authenticated" }
     }
 
@@ -71,6 +72,13 @@ export async function updatePassword(currentPassword: string, newPassword: strin
     if (error) {
         return { ok: false, error: "Failed to update password" }
     }
+
+    void sendPasswordChangedEmail({
+        to: user.email,
+        changedAt: new Date().toISOString(),
+    }).catch((emailError) => {
+        console.error("Password change email send failed", emailError)
+    })
 
     return { ok: true }
 }

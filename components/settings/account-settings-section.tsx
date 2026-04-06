@@ -190,7 +190,11 @@ function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
 
         setIsLoading(true)
         try {
-            const { error } = await supabase.auth.updateUser({ email: newEmail })
+            const emailRedirectTo = `${location.origin}/auth/callback?next=/dashboard/settings`
+            const { error } = await supabase.auth.updateUser(
+                { email: newEmail },
+                { emailRedirectTo }
+            )
             if (error) throw error
             setSent(true)
             toast.success("Confirmation email sent")

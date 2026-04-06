@@ -47,6 +47,13 @@ interface GoogleErrorPayload {
     }
 }
 
+interface OpenRouterModelRecord {
+    id?: string
+    architecture?: {
+        output_modalities?: string[]
+    }
+}
+
 function normalizeApiKey(value: unknown): string {
     return String(value || "").trim().replace(/^['"]|['"]$/g, "")
 }
@@ -145,6 +152,56 @@ function buildGeminiContentParts(
     return parts
 }
 
+async function fetchOpenRouterImageModels(apiKey: string): Promise<string[]> {
+    const queries = ["?output_modalities=image", "?output_modality=image", ""]
+    const fallbackPreferred = [
+        "google/gemini-2.5-flash-image",
+        "google/gemini-3.1-flash-image-preview",
+        "openai/gpt-5-image-mini",
+        "openai/gpt-5-image",
+        "google/gemini-3-pro-image-preview",
+        "black-forest-labs/flux.2-flex",
+        "black-forest-labs/flux.2-max",
+        "black-forest-labs/flux.2-klein-4b",
+    ]
+    let discovered: string[] = []
+
+    for (const suffix of queries) {
+        const response = await fetch(`https://openrouter.ai/api/v1/models${suffix}`, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+            },
+        })
+
+        const payload = await response.json().catch(() => ({} as Record<string, unknown>))
+        if (!response.ok) {
+            continue
+        }
+
+        const rows = Array.isArray((payload as { data?: unknown[] }).data)
+            ? ((payload as { data: unknown[] }).data as OpenRouterModelRecord[])
+            : []
+
+        discovered = rows
+            .map((row) => {
+                const id = String(row?.id || "").trim()
+                const outputModalities = Array.isArray(row?.architecture?.output_modalities)
+                    ? row.architecture.output_modalities.map((entry) => String(entry || "").trim().toLowerCase())
+                    : []
+                return id && outputModalities.includes("image") ? id : ""
+            })
+            .filter(Boolean)
+
+        if (discovered.length > 0) {
+            break
+        }
+    }
+
+    return Array.from(new Set([...fallbackPreferred, ...discovered]))
+}
+
 async function generateWithOpenRouterImage(params: {
     apiKey: string
     modelName: string
@@ -154,9 +211,16 @@ async function generateWithOpenRouterImage(params: {
     brandImageMode?: string
     transformAction?: string
 }): Promise<{ imageUrl: string; usedModel: string }> {
+    const discoveredModels = await fetchOpenRouterImageModels(params.apiKey).catch(() => [] as string[])
     const modelCandidates = Array.from(
         new Set([
             params.modelName,
+            ...discoveredModels,
+            "openai/gpt-5-image-mini",
+            "openai/gpt-5-image",
+            "google/gemini-2.5-flash-image",
+            "google/gemini-3-pro-image-preview",
+            "google/gemini-3.1-flash-image-preview",
             "black-forest-labs/flux.2-flex",
             "black-forest-labs/flux.2-max",
             "black-forest-labs/flux.2-klein-4b",

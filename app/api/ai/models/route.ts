@@ -27,6 +27,13 @@ function normalizeGeminiModelName(name: string): string {
   return name.replace(/^models\//, '').trim()
 }
 
+interface OpenRouterModelRecord {
+  id?: string
+  architecture?: {
+    output_modalities?: string[]
+  }
+}
+
 function isLikelyTextOpenRouterModel(id: string): boolean {
   const normalized = id.trim().toLowerCase()
   if (!normalized || !normalized.includes('/')) return false
@@ -92,27 +99,56 @@ async function fetchOpenAIModels(apiKey: string, capability: 'text' | 'image'): 
 }
 
 async function fetchOpenRouterModels(apiKey: string, capability: 'text' | 'image'): Promise<string[]> {
-  const suffix = capability === 'image' ? '?output_modality=image' : ''
-  const response = await fetch(`https://openrouter.ai/api/v1/models${suffix}`, {
-    method: 'GET',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    cache: 'no-store',
-  })
+  const queries =
+    capability === 'image'
+      ? ['?output_modalities=image', '?output_modality=image', '']
+      : ['?output_modalities=text', '']
 
-  const result = await response.json()
-  if (!response.ok) {
-    throw new Error(result?.error?.message || 'OpenRouter models fetch failed')
+  let lastError = 'OpenRouter models fetch failed'
+
+  for (const suffix of queries) {
+    const response = await fetch(`https://openrouter.ai/api/v1/models${suffix}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    })
+
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      lastError = result?.error?.message || `OpenRouter models fetch failed (${response.status})`
+      continue
+    }
+
+    const rows = (Array.isArray(result?.data) ? result.data : []) as OpenRouterModelRecord[]
+    const models = rows
+      .map((model) => {
+        const id = String(model?.id || '').trim()
+        const outputModalities = Array.isArray(model?.architecture?.output_modalities)
+          ? model.architecture.output_modalities.map((entry) => String(entry || '').trim().toLowerCase())
+          : []
+
+        if (!id) return ''
+        if (capability === 'image') {
+          return outputModalities.includes('image') ? id : ''
+        }
+
+        if (outputModalities.length > 0 && !outputModalities.includes('text')) {
+          return ''
+        }
+
+        return isLikelyTextOpenRouterModel(id) ? id : ''
+      })
+      .filter(Boolean)
+
+    if (models.length > 0) {
+      return sortModelIds(models)
+    }
   }
 
-  const models = (Array.isArray(result?.data) ? result.data : [])
-    .map((m: { id?: string }) => String(m?.id || '').trim())
-    .filter(Boolean)
-    .filter((id: string) => capability === 'image' ? true : isLikelyTextOpenRouterModel(id))
-
-  return sortModelIds(models)
+  throw new Error(lastError)
 }
 
 async function fetchProviderModels(provider: AIProvider, apiKey: string, capability: 'text' | 'image'): Promise<string[]> {

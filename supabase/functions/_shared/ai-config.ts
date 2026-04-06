@@ -10,7 +10,7 @@ import { decryptSecretIfNeeded } from "./secret-crypto.ts"
 export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 export const DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 export const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o-mini"
-export const DEFAULT_OPENROUTER_IMAGE_MODEL = "black-forest-labs/flux.2-flex"
+export const DEFAULT_OPENROUTER_IMAGE_MODEL = "google/gemini-2.5-flash-image"
 export const DEFAULT_TEMPERATURE = 0.7
 export const DEFAULT_MAX_TOKENS = 2048
 export const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image"

@@ -34,22 +34,52 @@ export const PROVIDER_MODEL_CATALOG: Record<AIProvider, ProviderModelCatalog> = 
     ],
     image: [
       {
-        id: 'black-forest-labs/flux.2-klein-4b',
-        label: 'FLUX.2 Klein 4B',
-        summary: 'Most cost-effective OpenRouter image option for fast drafts and routine creative volume.',
+        id: 'google/gemini-2.5-flash-image',
+        label: 'Nano Banana',
+        summary: 'Most cost-effective OpenRouter image option for fast image generation, edits, and reliable prompt adherence.',
         recommendation: 'cost',
+      },
+      {
+        id: 'google/gemini-3.1-flash-image-preview',
+        label: 'Nano Banana 2',
+        summary: 'Newer OpenRouter Gemini image route with stronger edits, image understanding, and improved multimodal output quality.',
+        recommendation: 'balanced',
+      },
+      {
+        id: 'openai/gpt-5-image-mini',
+        label: 'GPT-5 Image Mini',
+        summary: 'Balanced OpenRouter default for polished visuals, strong text rendering, and dependable general-purpose image generation.',
+        recommendation: 'balanced',
+      },
+      {
+        id: 'openai/gpt-5-image',
+        label: 'GPT-5 Image',
+        summary: 'Highest-quality OpenRouter image option for polished campaign visuals and premium creative work.',
+        recommendation: 'quality',
+      },
+      {
+        id: 'google/gemini-3-pro-image-preview',
+        label: 'Nano Banana Pro',
+        summary: 'High-fidelity OpenRouter image model with stronger creative control and advanced editing behavior.',
+        recommendation: 'quality',
       },
       {
         id: 'black-forest-labs/flux.2-flex',
         label: 'FLUX.2 Flex',
-        summary: 'Balanced OpenRouter default for stronger typography, prompt adherence, and editing support.',
+        summary: 'Alternative OpenRouter image route for typography-sensitive visuals and editing workflows.',
         recommendation: 'balanced',
       },
       {
         id: 'black-forest-labs/flux.2-max',
         label: 'FLUX.2 Max',
-        summary: 'Highest-quality OpenRouter image option for polished campaign visuals and hero assets.',
+        summary: 'Higher-end FLUX route for richer visual detail when OpenRouter image routing is available for your account.',
         recommendation: 'quality',
+      },
+      {
+        id: 'black-forest-labs/flux.2-klein-4b',
+        label: 'FLUX.2 Klein 4B',
+        summary: 'Lean FLUX route for lower-cost experimentation when premium image routes are unavailable.',
+        recommendation: 'cost',
       },
     ],
   },
@@ -150,7 +180,7 @@ export function getDefaultTextModelForProvider(provider: AIProvider): string {
 }
 
 export function getDefaultImageModelForProvider(provider: AIProvider): string | null {
-  if (provider === 'openrouter') return 'black-forest-labs/flux.2-flex'
+  if (provider === 'openrouter') return 'google/gemini-2.5-flash-image'
   return getFallbackModelsForProvider(provider, 'image')?.[0] || null
 }
 

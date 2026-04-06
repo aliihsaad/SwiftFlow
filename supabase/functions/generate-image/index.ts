@@ -167,6 +167,7 @@ async function generateWithOpenRouterImage(params: {
     let lastError = ""
 
     for (const candidate of modelCandidates) {
+        console.log(`[generate-image] trying OpenRouter candidate=${candidate}`)
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
@@ -189,22 +190,48 @@ async function generateWithOpenRouterImage(params: {
                 ],
                 modalities: candidate.startsWith("black-forest-labs/") ? ["image"] : ["image", "text"],
                 image_config: { aspect_ratio: "1:1" },
+                stream: false,
             }),
         })
 
         const data = await response.json().catch(() => ({} as Record<string, unknown>))
         const choices = Array.isArray((data as { choices?: unknown[] }).choices) ? (data as { choices: unknown[] }).choices : []
-        const firstChoice = choices[0] as { message?: { images?: Array<{ image_url?: { url?: string } }> } } | undefined
-        const imageUrl = firstChoice?.message?.images?.[0]?.image_url?.url
+        const firstChoice = choices[0] as {
+            message?: {
+                images?: Array<{
+                    image_url?: { url?: string }
+                    imageUrl?: { url?: string }
+                }>
+                content?: string
+            }
+        } | undefined
+        const firstImage = firstChoice?.message?.images?.[0]
+        const imageUrl = firstImage?.image_url?.url || firstImage?.imageUrl?.url
         const providerError = (data as { error?: { message?: string } }).error?.message || `OpenRouter image generation failed (${response.status})`
 
         if (response.ok && !(data as { error?: { message?: string } }).error && imageUrl) {
+            console.log(`[generate-image] OpenRouter succeeded with candidate=${candidate}`)
             return { imageUrl, usedModel: candidate }
+        }
+
+        if (response.ok && !(data as { error?: { message?: string } }).error && !imageUrl) {
+            console.error("[generate-image] OpenRouter returned no image payload", {
+                candidate,
+                hasChoices: choices.length > 0,
+                messageContent: firstChoice?.message?.content || null,
+                imageKeys: firstImage ? Object.keys(firstImage) : [],
+            })
+        } else {
+            console.error("[generate-image] OpenRouter candidate failed", {
+                candidate,
+                status: response.status,
+                providerError,
+            })
         }
 
         lastError = providerError
 
-        if (/No endpoints found for|model not found|not available/i.test(providerError)) {
+        if (/No endpoints found for|model not found|not available|provider returned error|provider error|temporarily unavailable|upstream error|internal error/i.test(providerError)) {
             continue
         }
 
@@ -482,6 +509,7 @@ serve(async (req) => {
             },
         )
     } catch (error: unknown) {
+        console.error("[generate-image] fatal error:", error)
         return new Response(
             JSON.stringify({ error: toUserFriendlyError(error) }),
             {

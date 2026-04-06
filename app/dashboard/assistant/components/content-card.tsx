@@ -11,7 +11,7 @@ interface ContentCardProps {
     title: string
     body: string
     workspaceId?: string
-    onGenerateImage: (id: string, text: string) => void
+    onGenerateImage: (id: string, text: string) => Promise<string | null>
     onRefine: (id: string, text: string) => void
     onSchedule: (id: string, text: string, image?: string) => void
 }
@@ -28,32 +28,9 @@ export function ContentCard({ id, title, body, workspaceId, onGenerateImage, onR
         setIsGenerating(true)
 
         try {
-            const response = await fetch('/api/assistant/invoke', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    functionName: 'generate-image',
-                    body: {
-                        prompt: `Create an image for this social media post: "${body}"`,
-                        workspaceId
-                    }
-                })
-            })
-
-            const payload = await response.json().catch(() => ({}))
-
-            if (response.status === 401) {
-                throw new Error("Session expired. Please log in again.")
-            }
-            if (!response.ok) {
-                throw new Error(payload?.error || "Failed to generate image")
-            }
-
-            const data = payload?.data
-            if (data?.error) throw new Error(data.error)
-
-            if (data?.result?.imageUrl) {
-                setGeneratedImage(data.result.imageUrl)
+            const imageUrl = await onGenerateImage(id, body)
+            if (imageUrl) {
+                setGeneratedImage(imageUrl)
             } else {
                 throw new Error("No image generated")
             }

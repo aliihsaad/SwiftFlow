@@ -71,6 +71,20 @@ interface ChatInterfaceProps {
     workspaceId?: string
 }
 
+function sanitizeAssistantImageError(msg: string): string {
+    const normalized = msg.trim()
+    if (/provider returned error|No endpoints found for|model not found|not available/i.test(normalized)) {
+        return "The selected image model is unavailable right now. Try again in a moment or switch the image model in Settings -> AI Provider."
+    }
+    if (/quota|rate limit|too many requests/i.test(normalized)) {
+        return "Your AI image provider is rate-limited or out of quota right now. Try again shortly."
+    }
+    if (/api key|unauthorized|forbidden|permission/i.test(normalized)) {
+        return "Your AI image provider credentials need attention. Check Settings -> AI Provider."
+    }
+    return normalized || "Image generation failed. Please try again."
+}
+
 const ACTION_CARDS = [
     {
         icon: Lightbulb,
@@ -264,10 +278,38 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
     const [draftCaption, setDraftCaption] = useState("")
     const [draftMedia, setDraftMedia] = useState<string[]>([])
 
+    const requestGeneratedImage = async (prompt: string, style = "Photorealistic, cinematic lighting") => {
+        if (!workspaceId) {
+            throw new Error("No workspace selected")
+        }
+
+        const cleanPrompt = prompt.trim().slice(0, 2000)
+        const data = await invokeEdge('generate-image', {
+            messages: [{ role: 'user', content: cleanPrompt }],
+            workspaceId,
+            prompt: cleanPrompt,
+            style,
+        }) as any
+
+        if (data?.error) {
+            throw new Error(data.error)
+        }
+
+        const imageUrl = data?.result?.imageUrl
+        if (!imageUrl) {
+            throw new Error("No image generated")
+        }
+
+        return imageUrl as string
+    }
+
     // Handlers for Content Card Actions
-    const handleGenerateImage = (id: string, text: string) => {
-        // Trigger image generation based on content
-        handleSend(`Generate an image for this post: "${text.substring(0, 100)}..."`, "generate-image")
+    const handleGenerateImage = async (_id: string, text: string) => {
+        try {
+            return await requestGeneratedImage(text)
+        } catch (error) {
+            throw new Error(sanitizeAssistantImageError(error instanceof Error ? error.message : "Image generation failed"))
+        }
     }
 
     const handleSend = async (text?: string, overrideFunction?: string, extraPayload?: Record<string, unknown>) => {
@@ -752,17 +794,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                 carouselStyle = carouselMsg.data.style
             }
 
-            // Call generate-image edge function directly
-            const data = await invokeEdge('generate-image', {
-                messages: [{ role: 'user', content: prompt }],
-                workspaceId,
-                prompt,
-                style: carouselStyle
-            }) as any
-
-            if (data?.error) throw new Error(data.error)
-
-            const imageUrl = data?.result?.imageUrl
+            const imageUrl = await requestGeneratedImage(prompt, carouselStyle)
             if (imageUrl) {
                 // Update the messages state to include the new image URL for the specific slide
                 setMessages(prevMessages => {
@@ -794,7 +826,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
         } catch (e: any) {
             console.error("Failed to generate slide image:", e)
-            toast({ title: "Generation failed", description: e.message, variant: "destructive" })
+            toast({ title: "Generation failed", description: sanitizeAssistantImageError(e.message || "Image generation failed"), variant: "destructive" })
         } finally {
             setGeneratingSlide(null)
         }

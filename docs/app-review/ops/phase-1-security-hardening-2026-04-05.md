@@ -207,6 +207,30 @@ This note records the post-submission security and bug fixes applied to the Phas
   - destructive account deletion without re-authentication
   - orphaned workspace data after partial delete failures
 
+18. Added shared database-backed rate limiting to public auth and AI entry points
+- Updated:
+  - `supabase/migrations/20260406220000_add_rate_limit_buckets.sql`
+  - `lib/security/rate-limit.ts`
+  - `utils/supabase/route.ts`
+  - `app/api/auth/sign-in/route.ts`
+  - `app/api/auth/sign-up/route.ts`
+  - `app/api/auth/forgot-password/route.ts`
+  - `app/api/auth/resend-signup/route.ts`
+  - `app/login/page.tsx`
+  - `app/forgot-password/page.tsx`
+  - `app/api/ai/validate-key/route.ts`
+  - `app/api/ai/generate-caption/route.ts`
+  - `app/api/assistant/invoke/route.ts`
+- Fix:
+  - added a shared Postgres-backed rate limiter using bucketed counters and an atomic `consume_rate_limit(...)` function
+  - moved sign-in, sign-up, forgot-password, and resend-signup behind server routes so abuse controls are enforced consistently
+  - added workspace/user/IP throttles to expensive AI routes that can consume provider credits
+- Risk reduced:
+  - credential stuffing and brute-force login attempts
+  - signup and forgot-password email abuse
+  - repeated API-key probing
+  - high-volume AI request abuse from a single user, workspace, or IP
+
 ## Verification
 
 - `npx tsc --noEmit --pretty false`

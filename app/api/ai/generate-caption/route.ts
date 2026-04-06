@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { AICaptionRequest, AICaptionResponse } from '@/types/post'
 import { createClient } from '@/utils/supabase/server'
 import { assertJsonBodySize, sanitizeAICaptionPayload } from '@/lib/security/phase1-validation'
+import { enforceRateLimit, getClientIp, RateLimitExceededError } from '@/lib/security/rate-limit'
 
 export const runtime = 'edge'
 
@@ -58,6 +59,16 @@ export async function POST(request: NextRequest) {
             )
         }
 
+        const clientIp = getClientIp(request)
+        await enforceRateLimit(
+            { scope: 'ai:caption:user', subject: `${user.id}:${effectiveWorkspaceId}`, limit: 30, windowSeconds: 15 * 60 },
+            'Too many caption requests. Please wait a moment and try again.'
+        )
+        await enforceRateLimit(
+            { scope: 'ai:caption:ip', subject: clientIp, limit: 60, windowSeconds: 15 * 60 },
+            'Too many caption requests. Please wait a moment and try again.'
+        )
+
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
         const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
         const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || null
@@ -101,6 +112,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(payload as AICaptionResponse)
 
     } catch (error: unknown) {
+        if (error instanceof RateLimitExceededError) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 429, headers: { 'Retry-After': String(error.retryAfterSeconds) } }
+            )
+        }
         if (error instanceof Error && /Invalid AI caption request|Description is required|At least one valid platform is required|Invalid workspaceId|Request payload too large|Invalid content length/i.test(error.message)) {
             return NextResponse.json(
                 { error: error.message },

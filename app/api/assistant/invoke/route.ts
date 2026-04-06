@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { assertJsonBodySize, sanitizeAssistantInvokePayload } from '@/lib/security/phase1-validation'
+import { enforceRateLimit, getClientIp, RateLimitExceededError } from '@/lib/security/rate-limit'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -82,6 +83,16 @@ export async function POST(request: NextRequest) {
             workspaceId: effectiveWorkspaceId,
         }
 
+        const clientIp = getClientIp(request)
+        await enforceRateLimit(
+            { scope: `assistant:${functionName}:user`, subject: `${user.id}:${effectiveWorkspaceId}`, limit: 30, windowSeconds: 15 * 60 },
+            'Too many AI requests. Please wait a moment and try again.'
+        )
+        await enforceRateLimit(
+            { scope: `assistant:${functionName}:ip`, subject: clientIp, limit: 60, windowSeconds: 15 * 60 },
+            'Too many AI requests. Please wait a moment and try again.'
+        )
+
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
         const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
         const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || null
@@ -130,6 +141,12 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ data: parsed }, { status: 200 })
     } catch (error: unknown) {
+        if (error instanceof RateLimitExceededError) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 429, headers: { 'Retry-After': String(error.retryAfterSeconds) } }
+            )
+        }
         if (error instanceof Error && /Invalid assistant payload|Invalid workspaceId|Request payload too large|Invalid content length/i.test(error.message)) {
             return NextResponse.json(
                 { error: error.message },

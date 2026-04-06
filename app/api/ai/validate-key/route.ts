@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
 import { assertJsonBodySize } from "@/lib/security/phase1-validation"
+import { enforceRateLimit, getClientIp, RateLimitExceededError } from "@/lib/security/rate-limit"
 
 /**
  * POST /api/ai/validate-key
@@ -24,6 +25,15 @@ export async function POST(request: NextRequest) {
 
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, "settings:write")
         assertJsonBodySize(request, 8 * 1024)
+        const clientIp = getClientIp(request)
+        await enforceRateLimit(
+            { scope: "ai:validate-key:user", subject: `${user.id}:${activeWorkspace.id}`, limit: 10, windowSeconds: 60 * 60 },
+            "Too many AI key validation attempts. Please try again later."
+        )
+        await enforceRateLimit(
+            { scope: "ai:validate-key:ip", subject: clientIp, limit: 20, windowSeconds: 60 * 60 },
+            "Too many AI key validation attempts. Please try again later."
+        )
 
         const { provider, apiKey } = await request.json()
 
@@ -112,6 +122,12 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ valid: false, error: message })
     } catch (error: unknown) {
+        if (error instanceof RateLimitExceededError) {
+            return NextResponse.json(
+                { valid: false, error: error.message },
+                { status: 429, headers: { "Retry-After": String(error.retryAfterSeconds) } }
+            )
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)
         if (permissionStatus) {
             return NextResponse.json(

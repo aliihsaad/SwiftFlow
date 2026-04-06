@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, Mail, ArrowRight, ChevronLeft } from "lucide-react"
-import { createClient } from "@/utils/supabase/client"
 
 const AUTH_THEME = {
     bg: "#0b0b0f",
@@ -27,18 +26,21 @@ export default function ForgotPasswordPage() {
     const [error, setError] = useState<string | null>(null)
     const [submitted, setSubmitted] = useState(false)
 
-    const supabase = createClient()
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsLoading(true)
         setError(null)
 
         try {
-            const redirectTo = `${location.origin}/auth/callback?next=/reset-password`
-            const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
-            if (error) throw error
-            // Always show success to prevent email enumeration
+            const res = await fetch("/api/auth/forgot-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email }),
+            })
+            const data = await res.json().catch(() => ({}))
+            if (res.status === 429) {
+                throw new Error(data?.error || "Too many password reset attempts. Please try again later.")
+            }
             setSubmitted(true)
         } catch {
             // Show success even on error to prevent email enumeration

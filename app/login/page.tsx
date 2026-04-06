@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2, KeyRound, UserPlus, ArrowRight, ChevronLeft } from "lucide-react"
-import { createClient } from "@/utils/supabase/client"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const AUTH_THEME = {
@@ -71,16 +70,7 @@ function LoginPageContent() {
 
     const router = useRouter()
     const searchParams = useSearchParams()
-    const supabase = createClient()
     const nextPath = getSafeNextPath(searchParams.get("next"))
-
-    const getAuthCallbackRedirectUrl = () => {
-        const callbackUrl = new URL("/auth/callback", location.origin)
-        if (nextPath !== "/dashboard") {
-            callbackUrl.searchParams.set("next", nextPath)
-        }
-        return callbackUrl.toString()
-    }
 
     const isSigningIn = isLoading && activeAction === "signin"
     const isSigningUp = isLoading && activeAction === "signup"
@@ -88,7 +78,15 @@ function LoginPageContent() {
     const handleResendVerification = async () => {
         if (resendCooldown > 0 || !email) return
         try {
-            await supabase.auth.resend({ type: 'signup', email })
+            const res = await fetch("/api/auth/resend-signup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, next: nextPath }),
+            })
+            const data = await res.json().catch(() => ({}))
+            if (!res.ok) {
+                throw new Error(data?.error || "Failed to resend verification email")
+            }
             setResendCooldown(60)
             const interval = setInterval(() => {
                 setResendCooldown((prev) => {
@@ -109,15 +107,22 @@ function LoginPageContent() {
         setSuccess(null)
 
         try {
-            const { error } = await supabase.auth.signInWithPassword({
-                email,
-                password
+            const res = await fetch("/api/auth/sign-in", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email,
+                    password,
+                }),
             })
-            if (error) throw error
+            const data = await res.json().catch(() => ({}))
+            if (!res.ok) {
+                throw new Error(data?.error || GENERIC_SIGNIN_ERROR)
+            }
             router.push(nextPath)
         } catch (error: unknown) {
             console.error(error)
-            setError(GENERIC_SIGNIN_ERROR)
+            setError(error instanceof Error ? error.message : GENERIC_SIGNIN_ERROR)
         } finally {
             setIsLoading(false)
             setActiveAction(null)
@@ -147,23 +152,28 @@ function LoginPageContent() {
         }
 
         try {
-            const { data, error } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    emailRedirectTo: getAuthCallbackRedirectUrl(),
-                }
+            const res = await fetch("/api/auth/sign-up", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    email,
+                    password,
+                    next: nextPath,
+                }),
             })
-            if (error) throw error
+            const data = await res.json().catch(() => ({}))
+            if (!res.ok) {
+                throw new Error(data?.error || GENERIC_SIGNUP_ERROR)
+            }
 
-            if (data.session) {
+            if (data?.sessionCreated) {
                 router.push(nextPath)
             } else {
                 setSuccess("Check your email for a confirmation link to complete your registration.")
             }
         } catch (error: unknown) {
             console.error(error)
-            setError(GENERIC_SIGNUP_ERROR)
+            setError(error instanceof Error ? error.message : GENERIC_SIGNUP_ERROR)
         } finally {
             setIsLoading(false)
             setActiveAction(null)

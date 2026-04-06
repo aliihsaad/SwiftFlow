@@ -65,7 +65,16 @@ export function ResetPasswordForm() {
                 const searchParams = url.searchParams
                 const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""))
 
-                const hasRecoveryCookie = document.cookie.includes("password_recovery_authorized=1")
+                const recoveryResponse = await fetch("/api/auth/recovery-session", {
+                    method: "GET",
+                    credentials: "include",
+                    cache: "no-store",
+                })
+                const recoveryState = recoveryResponse.ok
+                    ? await recoveryResponse.json().catch(() => ({ authorized: false }))
+                    : { authorized: false }
+
+                const hasRecoveryCookie = recoveryState.authorized === true
                 const code = searchParams.get("code")
                 const tokenHash = searchParams.get("token_hash")
                 const type = searchParams.get("type")

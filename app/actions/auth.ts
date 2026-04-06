@@ -50,6 +50,31 @@ export async function verifyCurrentPassword(password: string): Promise<{ ok: boo
     return verifyUserPassword(password)
 }
 
+export async function updatePassword(currentPassword: string, newPassword: string): Promise<{ ok: boolean; error?: string }> {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        return { ok: false, error: "Not authenticated" }
+    }
+
+    const passwordCheck = await verifyUserPassword(currentPassword)
+    if (!passwordCheck.ok) {
+        return { ok: false, error: passwordCheck.error || "Current password is incorrect" }
+    }
+
+    const supabaseAdmin = createAdminClient()
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+        password: newPassword,
+    })
+
+    if (error) {
+        return { ok: false, error: "Failed to update password" }
+    }
+
+    return { ok: true }
+}
+
 export async function deleteAccount(currentPassword: string): Promise<{ error: string } | never> {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

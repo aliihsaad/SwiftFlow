@@ -19,7 +19,7 @@ import {
 import { Loader2, Lock, Mail, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { createClient } from "@/utils/supabase/client"
-import { deleteAccount, verifyCurrentPassword } from "@/app/actions/auth"
+import { deleteAccount, updatePassword } from "@/app/actions/auth"
 
 const panelClass = "border-white/10 bg-[#151620] text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]"
 const inputClass = "h-10 border-white/10 bg-[#1b1d28] text-white/85 placeholder:text-white/25 focus-visible:ring-1 focus-visible:ring-white/20"
@@ -58,18 +58,12 @@ function ChangePasswordForm() {
     const [currentPassword, setCurrentPassword] = useState("")
     const [newPassword, setNewPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
-    const [reauthOtp, setReauthOtp] = useState("")
-    const [reauthRequired, setReauthRequired] = useState(false)
-    const [isSendingNonce, setIsSendingNonce] = useState(false)
     const [isLoading, setIsLoading] = useState(false)
-    const supabase = createClient()
 
     const clearForm = () => {
         setCurrentPassword("")
         setNewPassword("")
         setConfirmPassword("")
-        setReauthOtp("")
-        setReauthRequired(false)
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -88,32 +82,17 @@ function ChangePasswordForm() {
 
         setIsLoading(true)
         try {
-            const passwordCheck = await verifyCurrentPassword(currentPassword)
-            if (!passwordCheck.ok) {
-                toast.error(passwordCheck.error || "Current password is incorrect")
+            const result = await updatePassword(currentPassword, newPassword)
+            if (!result.ok) {
+                toast.error(result.error || "Failed to update password")
                 return
             }
 
-            if (!reauthRequired) {
-                setIsSendingNonce(true)
-                const { error: nonceError } = await supabase.auth.reauthenticate()
-                if (nonceError) throw nonceError
-                setReauthRequired(true)
-                toast.info("We sent a verification code to your email. Enter it below to finish updating your password.")
-                return
-            }
-
-            const { error } = await supabase.auth.updateUser({
-                password: newPassword,
-                nonce: reauthOtp.trim(),
-            })
-            if (error) throw error
             toast.success("Password updated successfully")
             clearForm()
         } catch (err: unknown) {
             toast.error(err instanceof Error ? err.message : "Failed to update password")
         } finally {
-            setIsSendingNonce(false)
             setIsLoading(false)
         }
     }
@@ -179,41 +158,12 @@ function ChangePasswordForm() {
                         />
                     </div>
 
-                    {reauthRequired && (
-                        <div className="space-y-1.5 rounded-lg border border-amber-300/20 bg-amber-300/6 p-3">
-                            <Label htmlFor="reauth-otp" className={labelClass}>Email Verification Code</Label>
-                            <Input
-                                id="reauth-otp"
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                maxLength={8}
-                                placeholder="Enter the code from your email"
-                                autoComplete="one-time-code"
-                                required
-                                value={reauthOtp}
-                                onChange={(e) => setReauthOtp(e.target.value.replace(/\D/g, ""))}
-                                disabled={isLoading || isSendingNonce}
-                                className={inputClass}
-                            />
-                            <p className="text-[11px] text-white/40">
-                                Your session needs extra verification before the password can be changed.
-                            </p>
-                        </div>
-                    )}
-
                     <Button
                         type="submit"
-                        disabled={isLoading || isSendingNonce || (reauthRequired && reauthOtp.trim().length < 6)}
+                        disabled={isLoading}
                         className="border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/30 hover:via-cyan-300/20 hover:to-amber-300/25"
                     >
-                        {isSendingNonce
-                            ? <><Loader2 className="h-4 w-4 animate-spin" />Sending Code…</>
-                            : isLoading
-                                ? <><Loader2 className="h-4 w-4 animate-spin" />Updating…</>
-                                : reauthRequired
-                                    ? "Verify and Update Password"
-                                    : "Update Password"}
+                        {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Updating…</> : "Update Password"}
                     </Button>
                 </form>
             </CardContent>

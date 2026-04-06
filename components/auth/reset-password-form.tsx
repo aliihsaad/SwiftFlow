@@ -66,6 +66,7 @@ export function ResetPasswordForm() {
                 const searchParams = url.searchParams
                 const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""))
 
+                const hasRecoveryCookie = document.cookie.includes("password_recovery_authorized=1")
                 const code = searchParams.get("code")
                 const tokenHash = searchParams.get("token_hash")
                 const type = searchParams.get("type")
@@ -73,6 +74,11 @@ export function ResetPasswordForm() {
                 const refreshToken = hashParams.get("refresh_token")
 
                 let authError: string | null = null
+
+                if (hasRecoveryCookie) {
+                    setIsRecoveryReady(true)
+                    return
+                }
 
                 if (code) {
                     const { error } = await supabase.auth.exchangeCodeForSession(code)

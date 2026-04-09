@@ -162,16 +162,25 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
         setIsLoading(true)
 
         try {
-            await updateCurrentWorkspaceSettings({
+            const payload: Parameters<typeof updateCurrentWorkspaceSettings>[0] = {
                 ai_provider: formData.ai_provider,
-                openrouter_api_key: formData.openrouter_api_key || undefined,
-                gemini_api_key: formData.gemini_api_key || undefined,
-                openai_api_key: formData.openai_api_key || undefined,
                 ai_text_model_name: formData.ai_text_model_name,
                 ai_image_model_name: formData.ai_image_model_name || undefined,
                 ai_temperature: formData.ai_temperature,
                 ai_max_tokens: formData.ai_max_tokens,
-            })
+            }
+
+            if (formData.openrouter_api_key.trim()) {
+                payload.openrouter_api_key = formData.openrouter_api_key
+            }
+            if (formData.gemini_api_key.trim()) {
+                payload.gemini_api_key = formData.gemini_api_key
+            }
+            if (formData.openai_api_key.trim()) {
+                payload.openai_api_key = formData.openai_api_key
+            }
+
+            await updateCurrentWorkspaceSettings(payload)
             setSavedKeys((prev) => ({
                 openrouter: prev.openrouter || formData.openrouter_api_key.trim().length > 0,
                 gemini: prev.gemini || formData.gemini_api_key.trim().length > 0,

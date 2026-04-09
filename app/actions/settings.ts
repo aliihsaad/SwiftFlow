@@ -167,15 +167,31 @@ export async function updateWorkspaceSettings(
 
     await requireWorkspacePermission(supabase, user.id, workspaceId, "settings:write")
 
-    const updatePayload = {
+    const updatePayload: Record<string, unknown> = {
         workspace_id: workspaceId,
         ...settings,
-        openrouter_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.openrouter_api_key)),
-        gemini_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.gemini_api_key)),
-        openai_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.openai_api_key)),
         ai_text_model_name: settings.ai_text_model_name?.trim() || settings.ai_model_name?.trim(),
         ai_image_model_name: settings.ai_image_model_name?.trim() || null,
         ai_model_name: settings.ai_text_model_name?.trim() || settings.ai_model_name?.trim(),
+    }
+
+    if (typeof settings.openrouter_api_key === 'string') {
+        const normalized = normalizeOptionalSecretInput(settings.openrouter_api_key)
+        if (normalized !== null) {
+            updatePayload.openrouter_api_key = encryptSecretIfNeeded(normalized)
+        }
+    }
+    if (typeof settings.gemini_api_key === 'string') {
+        const normalized = normalizeOptionalSecretInput(settings.gemini_api_key)
+        if (normalized !== null) {
+            updatePayload.gemini_api_key = encryptSecretIfNeeded(normalized)
+        }
+    }
+    if (typeof settings.openai_api_key === 'string') {
+        const normalized = normalizeOptionalSecretInput(settings.openai_api_key)
+        if (normalized !== null) {
+            updatePayload.openai_api_key = encryptSecretIfNeeded(normalized)
+        }
     }
 
     // Use UPSERT to create or update

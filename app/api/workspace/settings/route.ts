@@ -34,13 +34,28 @@ function buildWorkspaceSettingsUpdatePayload(settings: Record<string, unknown>) 
     const payload: Record<string, unknown> = { ...settings }
 
     if ('openrouter_api_key' in settings) {
-        payload.openrouter_api_key = encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.openrouter_api_key))
+        const normalized = normalizeOptionalSecretInput(settings.openrouter_api_key)
+        if (normalized === null) {
+            delete payload.openrouter_api_key
+        } else {
+            payload.openrouter_api_key = encryptSecretIfNeeded(normalized)
+        }
     }
     if ('gemini_api_key' in settings) {
-        payload.gemini_api_key = encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.gemini_api_key))
+        const normalized = normalizeOptionalSecretInput(settings.gemini_api_key)
+        if (normalized === null) {
+            delete payload.gemini_api_key
+        } else {
+            payload.gemini_api_key = encryptSecretIfNeeded(normalized)
+        }
     }
     if ('openai_api_key' in settings) {
-        payload.openai_api_key = encryptSecretIfNeeded(normalizeOptionalSecretInput(settings.openai_api_key))
+        const normalized = normalizeOptionalSecretInput(settings.openai_api_key)
+        if (normalized === null) {
+            delete payload.openai_api_key
+        } else {
+            payload.openai_api_key = encryptSecretIfNeeded(normalized)
+        }
     }
     if (typeof payload.ai_text_model_name === 'string') {
         payload.ai_text_model_name = payload.ai_text_model_name.trim()

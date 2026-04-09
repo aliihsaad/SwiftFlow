@@ -10,21 +10,22 @@ interface ContentCardProps {
     id: string
     title: string
     body: string
-    workspaceId?: string
     onGenerateImage: (id: string, text: string) => Promise<string | null>
     onRefine: (id: string, text: string) => void
     onSchedule: (id: string, text: string, image?: string) => void
 }
 
-export function ContentCard({ id, title, body, workspaceId, onGenerateImage, onRefine, onSchedule }: ContentCardProps) {
+export function ContentCard({ id, title, body, onGenerateImage, onRefine, onSchedule }: ContentCardProps) {
     // Local state for in-card image generation
     const [generatedImage, setGeneratedImage] = useState<string | null>(null)
     const [isGenerating, setIsGenerating] = useState(false)
+    const [imageError, setImageError] = useState<string | null>(null)
 
     const { toast } = useToast()
 
     const handleGenerateInternal = async () => {
         if (isGenerating) return
+        setImageError(null)
         setIsGenerating(true)
 
         try {
@@ -34,12 +35,14 @@ export function ContentCard({ id, title, body, workspaceId, onGenerateImage, onR
             } else {
                 throw new Error("No image generated")
             }
-        } catch (e: any) {
+        } catch (e: unknown) {
+            const errorMessage = e instanceof Error ? e.message : "Please try again."
             console.error("Failed to generate image in card", e)
+            setImageError(errorMessage)
             toast({
                 variant: "destructive",
                 title: "Image Generation Failed",
-                description: e.message || "Please try again."
+                description: errorMessage
             })
         } finally {
             setIsGenerating(false)
@@ -83,6 +86,12 @@ export function ContentCard({ id, title, body, workspaceId, onGenerateImage, onR
                             </Button>
                         </div>
                     )}
+                </div>
+            )}
+
+            {imageError && (
+                <div className="mb-4 rounded-md border border-rose-400/20 bg-rose-500/10 px-3 py-2 text-xs leading-relaxed text-rose-200">
+                    {imageError}
                 </div>
             )}
 

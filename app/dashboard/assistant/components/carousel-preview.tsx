@@ -24,9 +24,10 @@ interface CarouselPreviewProps {
     onGenerateImage?: (slideNumber: number, prompt: string) => void
     onSchedule?: (slideId: string, content: string, images?: string[]) => void
     generatingSlide?: number | null
+    slideImageErrors?: Record<number, string>
 }
 
-export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, generatingSlide }: CarouselPreviewProps) {
+export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, generatingSlide, slideImageErrors = {} }: CarouselPreviewProps) {
     const [copiedCaption, setCopiedCaption] = useState(false)
 
     const copyCaption = async () => {
@@ -49,8 +50,9 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
         <div className="flex flex-col gap-4">
             <ScrollArea className="w-full whitespace-nowrap rounded-xl border border-white/10 bg-[#151620]">
                 <div className="flex w-max space-x-4 p-4">
-                    {slots.map((slide, idx) => {
+                    {slots.map((slide) => {
                         const isGenerating = generatingSlide === slide.slide_number
+                        const slideError = slideImageErrors[slide.slide_number]
 
                         return (
                             <Card key={slide.slide_number} className="flex h-auto min-h-[320px] w-[280px] shrink-0 flex-col gap-3 border-white/10 bg-[#1b1d28] p-4 text-white/85">
@@ -107,6 +109,11 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
                                                 alt={`Slide ${slide.slide_number}`}
                                                 className="w-full h-32 object-cover rounded-md"
                                             />
+                                        )}
+                                        {slideError && (
+                                            <div className="rounded-md border border-rose-400/20 bg-rose-500/10 px-3 py-2 text-[11px] leading-relaxed text-rose-200 whitespace-normal">
+                                                {slideError}
+                                            </div>
                                         )}
                                     </div>
                                 )}

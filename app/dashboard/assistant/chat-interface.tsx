@@ -270,6 +270,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
     const [tempImagePrompt, setTempImagePrompt] = useState("")
     const [tempCarouselTopic, setTempCarouselTopic] = useState("")
     const [generatingSlide, setGeneratingSlide] = useState<number | null>(null)
+    const [slideImageErrors, setSlideImageErrors] = useState<Record<number, string>>({})
 
     // Brand Image flow state
     const [tempBrandImageMode, setTempBrandImageMode] = useState<'generate' | 'transform' | null>(null)
@@ -283,7 +284,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
     const requestGeneratedImage = async (prompt: string, style = "Photorealistic, cinematic lighting") => {
         if (!workspaceId) {
-            throw new Error("No workspace selected")
+            throw new Error(sanitizeAssistantImageError("No workspace selected"))
         }
 
         const cleanPrompt = prompt.trim().slice(0, 1200)
@@ -294,12 +295,12 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }) as any
 
         if (data?.error) {
-            throw new Error(data.error)
+            throw new Error(sanitizeAssistantImageError(data.error))
         }
 
         const imageUrl = data?.result?.imageUrl
         if (!imageUrl) {
-            throw new Error("No image generated")
+            throw new Error(sanitizeAssistantImageError("No image generated"))
         }
 
         return imageUrl as string
@@ -786,6 +787,11 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             return
         }
 
+        setSlideImageErrors(prev => {
+            const next = { ...prev }
+            delete next[slideNumber]
+            return next
+        })
         setGeneratingSlide(slideNumber)
 
         try {
@@ -829,7 +835,9 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
         } catch (e: any) {
             console.error("Failed to generate slide image:", e)
-            toast({ title: "Generation failed", description: sanitizeAssistantImageError(e.message || "Image generation failed"), variant: "destructive" })
+            const friendlyError = sanitizeAssistantImageError(e.message || "Image generation failed")
+            setSlideImageErrors(prev => ({ ...prev, [slideNumber]: friendlyError }))
+            toast({ title: "Generation failed", description: friendlyError, variant: "destructive" })
         } finally {
             setGeneratingSlide(null)
         }
@@ -1131,7 +1139,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                         {msg.type === 'content_cards' && msg.data?.data && (
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
                                                 {msg.data.data.map((card: any, idx: number) => (
-                                                    <ContentCard key={idx} id={card.id || idx.toString()} title={card.title} body={card.body} workspaceId={workspaceId} onGenerateImage={handleGenerateImage} onRefine={handleRefine} onSchedule={handleSchedule} />
+                                                    <ContentCard key={idx} id={card.id || idx.toString()} title={card.title} body={card.body} onGenerateImage={handleGenerateImage} onRefine={handleRefine} onSchedule={handleSchedule} />
                                                 ))}
                                             </div>
                                         )}
@@ -1139,7 +1147,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                         {/* Carousel preview */}
                                         {msg.type === 'carousel_slides' && msg.data?.data && (
                                             <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
-                                                <CarouselPreview slots={msg.data.data} caption={msg.data.caption} onGenerateImage={handleGenerateSlideImage} onSchedule={handleSchedule} generatingSlide={generatingSlide} />
+                                                <CarouselPreview slots={msg.data.data} caption={msg.data.caption} onGenerateImage={handleGenerateSlideImage} onSchedule={handleSchedule} generatingSlide={generatingSlide} slideImageErrors={slideImageErrors} />
                                             </div>
                                         )}
 

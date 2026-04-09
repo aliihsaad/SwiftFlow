@@ -73,8 +73,11 @@ interface ChatInterfaceProps {
 
 function sanitizeAssistantImageError(msg: string): string {
     const normalized = msg.trim()
-    if (/provider returned error|No endpoints found for|model not found|not available/i.test(normalized)) {
-        return "The selected image model is unavailable right now. Try again in a moment or switch the image model in Settings -> AI Provider."
+    if (/No endpoints found that support the requested output modalities|output modalities: image, text|No endpoints found for|model not found|not available/i.test(normalized)) {
+        return "The selected image model is not currently available through your AI provider route. Choose another image model in Settings -> AI Provider."
+    }
+    if (/provider returned error/i.test(normalized)) {
+        return "Your AI provider could not generate an image with the current image model. Try again or switch the image model in Settings -> AI Provider."
     }
     if (/quota|rate limit|too many requests/i.test(normalized)) {
         return "Your AI image provider is rate-limited or out of quota right now. Try again shortly."

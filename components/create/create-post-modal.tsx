@@ -67,6 +67,12 @@ function sanitizeAIError(msg: string): string {
         .replace(/\[\{[\s\S]*?\}\]/g, "")
         .trim()
 
+    if (/No endpoints found that support the requested output modalities|output modalities: image, text|No endpoints found for|model not found|not available/i.test(normalized)) {
+        return "The selected image model is not currently available through your AI provider route. Choose another image model in Settings -> AI Provider."
+    }
+    if (/provider returned error/i.test(normalized)) {
+        return "Your AI provider could not generate an image with the current image model. Try again or switch the image model in Settings -> AI Provider."
+    }
     if (/invalid jwt|non-2xx status code|failed to invoke ai function/i.test(normalized)) {
         return "The AI service is temporarily unavailable. Please try again in a moment."
     }

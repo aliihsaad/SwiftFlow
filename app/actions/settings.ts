@@ -225,3 +225,43 @@ export async function updateCurrentWorkspaceSettings(
 
     await updateWorkspaceSettings(activeWorkspace.id, settings)
 }
+
+export async function removeCurrentWorkspaceProviderKey(
+    provider: 'openrouter' | 'gemini' | 'openai'
+): Promise<void> {
+    const activeWorkspace = await getActiveWorkspace()
+    if (!activeWorkspace) {
+        throw new Error("No active workspace. Create or switch to a workspace first.")
+    }
+
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+        throw new Error("Unauthorized")
+    }
+
+    await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, "settings:write")
+
+    const keyField =
+        provider === 'openrouter'
+            ? 'openrouter_api_key'
+            : provider === 'gemini'
+                ? 'gemini_api_key'
+                : 'openai_api_key'
+
+    const { error } = await supabase
+        .from('workspace_settings')
+        .update({
+            [keyField]: null,
+            updated_at: new Date().toISOString(),
+        })
+        .eq('workspace_id', activeWorkspace.id)
+
+    if (error) {
+        console.error(`Error removing ${provider} API key:`, error)
+        throw new Error(`Failed to remove ${provider} API key`)
+    }
+
+    revalidatePath('/dashboard/settings')
+}

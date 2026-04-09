@@ -4,12 +4,22 @@ import { useState, useEffect } from "react"
 import useSWR from "swr"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Eye, EyeOff, Save, CheckCircle2, XCircle } from "lucide-react"
 import { WorkspaceSettings } from "@/types/settings"
-import { updateCurrentWorkspaceSettings } from "@/app/actions/settings"
+import { removeCurrentWorkspaceProviderKey, updateCurrentWorkspaceSettings } from "@/app/actions/settings"
 import { toast } from "sonner"
 import {
     getCuratedModelsForProvider,
@@ -29,6 +39,7 @@ interface ApiSettingsFormProps {
 
 export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
     const [isLoading, setIsLoading] = useState(false)
+    const [removingProvider, setRemovingProvider] = useState<AIProvider | null>(null)
     const [showOpenRouterKey, setShowOpenRouterKey] = useState(false)
     const [showGeminiKey, setShowGeminiKey] = useState(false)
     const [showOpenAIKey, setShowOpenAIKey] = useState(false)
@@ -154,6 +165,33 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
             ai_text_model_name: getDefaultTextModelForProvider(provider),
             ai_image_model_name: getDefaultImageModelForProvider(provider) || '',
         }))
+    }
+
+    const handleRemoveSavedKey = async () => {
+        if (!removingProvider || !canEditSettings) return
+
+        setIsLoading(true)
+        try {
+            await removeCurrentWorkspaceProviderKey(removingProvider)
+            setSavedKeys((prev) => ({
+                ...prev,
+                [removingProvider]: false,
+            }))
+            setFormData((prev) => ({
+                ...prev,
+                ...(removingProvider === 'openrouter' ? { openrouter_api_key: '' } : {}),
+                ...(removingProvider === 'gemini' ? { gemini_api_key: '' } : {}),
+                ...(removingProvider === 'openai' ? { openai_api_key: '' } : {}),
+            }))
+            setTestResult(null)
+            toast.success(`${removingProvider === 'openai' ? 'OpenAI' : removingProvider === 'openrouter' ? 'OpenRouter' : 'Gemini'} key removed`)
+            setRemovingProvider(null)
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Failed to remove API key"
+            toast.error(message)
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -328,9 +366,20 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                 </Button>
                             </div>
                             {hasSavedOpenRouterKey && (
-                                <p className={helperClass}>
-                                    An OpenRouter key is already saved securely. Leave this blank to keep it, or enter a new key to replace it.
-                                </p>
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                    <p className={helperClass}>
+                                        An OpenRouter key is already saved securely. Leave this blank to keep it, or enter a new key to replace it.
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="shrink-0 border border-red-500/25 bg-red-500/10 text-red-300 hover:bg-red-500/15 hover:text-red-200"
+                                        onClick={() => setRemovingProvider('openrouter')}
+                                    >
+                                        Remove saved key
+                                    </Button>
+                                </div>
                             )}
                             {testResult && formData.ai_provider === 'openrouter' && (
                                 <div className={`flex items-center gap-1.5 text-xs mt-1 ${testResult.valid ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -395,9 +444,20 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                 </Button>
                             </div>
                             {hasSavedGeminiKey && (
-                                <p className={helperClass}>
-                                    A Gemini key is already saved securely. Leave this blank to keep it, or enter a new key to replace it.
-                                </p>
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                    <p className={helperClass}>
+                                        A Gemini key is already saved securely. Leave this blank to keep it, or enter a new key to replace it.
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="shrink-0 border border-red-500/25 bg-red-500/10 text-red-300 hover:bg-red-500/15 hover:text-red-200"
+                                        onClick={() => setRemovingProvider('gemini')}
+                                    >
+                                        Remove saved key
+                                    </Button>
+                                </div>
                             )}
                             {testResult && formData.ai_provider === 'gemini' && (
                                 <div className={`flex items-center gap-1.5 text-xs mt-1 ${testResult.valid ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -462,9 +522,20 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                 </Button>
                             </div>
                             {hasSavedOpenAIKey && (
-                                <p className={helperClass}>
-                                    An OpenAI key is already saved securely. Leave this blank to keep it, or enter a new key to replace it.
-                                </p>
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                    <p className={helperClass}>
+                                        An OpenAI key is already saved securely. Leave this blank to keep it, or enter a new key to replace it.
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="shrink-0 border border-red-500/25 bg-red-500/10 text-red-300 hover:bg-red-500/15 hover:text-red-200"
+                                        onClick={() => setRemovingProvider('openai')}
+                                    >
+                                        Remove saved key
+                                    </Button>
+                                </div>
                             )}
                             {testResult && formData.ai_provider === 'openai' && (
                                 <div className={`flex items-center gap-1.5 text-xs mt-1 ${testResult.valid ? 'text-emerald-400' : 'text-red-400'}`}>
@@ -605,6 +676,33 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                     )}
                 </form>
                 </fieldset>
+                <AlertDialog open={!!removingProvider} onOpenChange={(open) => !open && !isLoading && setRemovingProvider(null)}>
+                    <AlertDialogContent className="border-white/10 bg-[#151620] text-white/85">
+                        <AlertDialogHeader>
+                            <AlertDialogTitle className="text-white/90">Remove saved API key?</AlertDialogTitle>
+                            <AlertDialogDescription className="text-white/55">
+                                This will delete the saved {removingProvider === 'openai' ? 'OpenAI' : removingProvider === 'openrouter' ? 'OpenRouter' : 'Gemini'} API key for this workspace.
+                                AI features for that provider will stop working until you add a new key.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel
+                                disabled={isLoading}
+                                className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                            >
+                                Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={handleRemoveSavedKey}
+                                className="border border-red-500/25 bg-red-500/15 text-red-300 hover:bg-red-500/20"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Remove key
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </CardContent>
         </Card>
     )

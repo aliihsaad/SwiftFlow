@@ -43,6 +43,7 @@ export async function GET() {
                 business_description: '',
                 target_audience: '',
                 brand_voice: 'professional',
+                language: 'en',
                 services: [],
                 unique_selling_points: [],
                 logo_url: '',

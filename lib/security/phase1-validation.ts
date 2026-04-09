@@ -8,6 +8,7 @@ const ALLOWED_PLATFORMS: Platform[] = ['instagram', 'facebook']
 const ALLOWED_STATUSES: PostStatus[] = ['draft', 'scheduled', 'publishing', 'published', 'failed']
 const ALLOWED_TONES = ['educational', 'funny', 'professional', 'engaging'] as const
 const ALLOWED_BRAND_VOICES = ['professional', 'friendly', 'playful', 'luxury', 'bold'] as const
+const ALLOWED_BRAND_LANGUAGES = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'ar', 'zh', 'ja', 'ko', 'hi', 'ru', 'tr'] as const
 const ALLOWED_AI_PROVIDERS = ['openrouter', 'gemini', 'openai'] as const
 
 type JsonObject = Record<string, unknown>
@@ -517,6 +518,9 @@ export function sanitizeBrandProfilePayload(body: unknown) {
         brand_voice: typeof body.brand_voice === 'string' && (ALLOWED_BRAND_VOICES as readonly string[]).includes(body.brand_voice)
             ? body.brand_voice
             : 'professional',
+        language: typeof body.language === 'string' && (ALLOWED_BRAND_LANGUAGES as readonly string[]).includes(body.language)
+            ? body.language
+            : 'en',
         services: sanitizeServices(body.services),
         unique_selling_points: sanitizeStringArray(body.unique_selling_points, 25, 200),
         logo_url: sanitizeHttpUrl(body.logo_url) || '',

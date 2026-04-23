@@ -78,6 +78,34 @@ type PublishedPostLinkRow = {
     post_id: string | null;
 };
 
+type PublishedPostMediaRow = {
+    id: string;
+    platform_post_id: string;
+    post_id: string | null;
+    permalink: string | null;
+    published_at: string | null;
+    platform_caption: string | null;
+};
+
+function buildPostMediaWarning(
+    graphError: MetaGraphErrorShape | null | undefined,
+    ctx: { platform: string; operation: 'fetch_posts' | 'update_post' | 'delete_post' }
+) {
+    const normalized = normalizeMetaGraphError(graphError, {
+        feature: 'posts',
+        platform: ctx.platform,
+        operation: ctx.operation,
+    });
+
+    return {
+        error: normalized.message,
+        errorCode: normalized.code,
+        missingPermissions: normalized.missingPermissions,
+        requiresReconnect: normalized.requiresReconnect,
+        meta: normalized.meta,
+    };
+}
+
 function requiredPostMediaPermissions(platform: string, mode: 'read' | 'manage'): string[] {
     if (platform === 'facebook') {
         return [mode === 'read' ? 'pages_read_engagement' : 'pages_manage_posts'];
@@ -90,21 +118,11 @@ function metaPostErrorResponse(
     graphError: MetaGraphErrorShape | null | undefined,
     ctx: { platform: string; operation: 'fetch_posts' | 'update_post' | 'delete_post' }
 ) {
-    const normalized = normalizeMetaGraphError(graphError, {
-        feature: 'posts',
-        platform: ctx.platform,
-        operation: ctx.operation,
-    });
+    const warning = buildPostMediaWarning(graphError, ctx);
 
     return NextResponse.json(
-        {
-            error: normalized.message,
-            errorCode: normalized.code,
-            missingPermissions: normalized.missingPermissions,
-            requiresReconnect: normalized.requiresReconnect,
-            meta: normalized.meta,
-        },
-        { status: normalized.httpStatus }
+        warning,
+        { status: warning.errorCode === 'meta_auth_invalid_token' ? 401 : warning.errorCode === 'meta_rate_limited' ? 429 : warning.errorCode === 'meta_missing_permission' ? 403 : 502 }
     );
 }
 
@@ -121,6 +139,40 @@ function postMediaCapabilityErrorResponse(platform: string, mode: 'read' | 'mana
         },
         { status: 403 }
     );
+}
+
+async function loadCachedFacebookPosts(params: {
+    socialAccountId: string;
+    limit: number;
+}): Promise<MediaItem[]> {
+    const supabaseAdmin = createAdminClient();
+    const { data, error } = await supabaseAdmin
+        .from('published_posts')
+        .select('id, platform_post_id, post_id, permalink, published_at, platform_caption')
+        .eq('social_account_id', params.socialAccountId)
+        .eq('platform', 'facebook')
+        .order('published_at', { ascending: false })
+        .limit(params.limit);
+
+    if (error) {
+        console.error('[PostsMedia] Failed to load cached Facebook posts:', error);
+        return [];
+    }
+
+    return ((data || []) as PublishedPostMediaRow[])
+        .filter((row) => typeof row.platform_post_id === 'string' && row.platform_post_id.length > 0)
+        .map((row) => ({
+            id: row.platform_post_id,
+            media_type: 'POST',
+            media_url: '',
+            thumbnail_url: '',
+            caption: row.platform_caption || 'Facebook Page post',
+            timestamp: row.published_at || '',
+            permalink: row.permalink || '',
+            comments_count: 0,
+            like_count: 0,
+            source: row.post_id ? 'app_managed' : 'native_discovered',
+        }));
 }
 
 // GET - Fetch media posts from Instagram or Facebook using account_id + token
@@ -168,10 +220,12 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        if (!canReadConnectedMediaWithMetaAccount(
+        const canReadConnectedMedia = canReadConnectedMediaWithMetaAccount(
             decryptedAccount.metadata,
             platform === 'facebook' ? 'facebook' : 'instagram',
-        )) {
+        );
+
+        if (!canReadConnectedMedia && platform !== 'facebook') {
             return postMediaCapabilityErrorResponse(platform, 'read');
         }
 
@@ -209,6 +263,32 @@ export async function GET(request: NextRequest) {
             paging = result.paging || null;
 
         } else if (platform === 'facebook') {
+            if (!canReadConnectedMedia) {
+                const cachedMedia = await loadCachedFacebookPosts({
+                    socialAccountId: decryptedAccount.id,
+                    limit,
+                });
+
+                return NextResponse.json({
+                    media: cachedMedia,
+                    paging: null,
+                    partial: true,
+                    contentDiscoveryUnavailable: {
+                        error: 'Native Facebook Page discovery is unavailable because the current token does not include pages_read_engagement. Showing cached/app-managed posts only.',
+                        errorCode: 'meta_missing_permission',
+                        missingPermissions: ['pages_read_engagement'],
+                        requiresReconnect: true,
+                        meta: null,
+                    },
+                    account: {
+                        id: decryptedAccount.id,
+                        account_id: decryptedAccount.account_id,
+                        account_name: decryptedAccount.account_name,
+                        platform: decryptedAccount.platform,
+                    }
+                });
+            }
+
             // Facebook: GET /{page-id}/posts
             let postsUrl = `${META_GRAPH_URL}/${decryptedAccount.account_id}/posts?fields=id,message,full_picture,created_time,permalink_url,attachments{media_type,media,url},comments.summary(true),likes.summary(true)&limit=${limit}&access_token=${decryptedAccount.access_token}`;
             if (after) {
@@ -221,7 +301,23 @@ export async function GET(request: NextRequest) {
 
             if (!response.ok) {
                 console.error('[PostsMedia] Facebook API error:', result.error);
-                return metaPostErrorResponse(result.error, { platform: 'facebook', operation: 'fetch_posts' });
+                const cachedMedia = await loadCachedFacebookPosts({
+                    socialAccountId: decryptedAccount.id,
+                    limit,
+                });
+
+                return NextResponse.json({
+                    media: cachedMedia,
+                    paging: null,
+                    partial: true,
+                    contentDiscoveryUnavailable: buildPostMediaWarning(result.error, { platform: 'facebook', operation: 'fetch_posts' }),
+                    account: {
+                        id: decryptedAccount.id,
+                        account_id: decryptedAccount.account_id,
+                        account_name: decryptedAccount.account_name,
+                        platform: decryptedAccount.platform,
+                    }
+                });
             }
 
             const fetchedPosts = result.data || [];

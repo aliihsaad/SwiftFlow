@@ -42,6 +42,13 @@ interface MediaResponse {
         platform: string
     } | null
     error?: string
+    partial?: boolean
+    contentDiscoveryUnavailable?: {
+        error: string
+        errorCode?: string
+        missingPermissions?: string[]
+        requiresReconnect?: boolean
+    }
 }
 
 const fetcher = async (url: string) => {
@@ -116,6 +123,7 @@ export default function PostsPage() {
         ? media.filter((post) => post.source === facebookSourceFilter)
         : media
     const account = hasBlockingPostsError ? null : data?.account
+    const contentDiscoveryUnavailable = !hasBlockingPostsError ? data?.contentDiscoveryUnavailable : null
     const noAccount = data?.error && !data?.media?.length
     const showInitialLoading = isLoading && !data && !error
     const showRefreshingHint = (isRefreshing || isValidating) && !!data
@@ -288,6 +296,38 @@ export default function PostsPage() {
                             })}
                         </div>
                     </div>
+                </div>
+            )}
+
+            {activePlatform === 'facebook' && contentDiscoveryUnavailable && (
+                <div
+                    className="rounded-xl p-4"
+                    style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}
+                >
+                    <div className="text-sm font-semibold" style={{ color: '#fbbf24' }}>
+                        Native Page discovery unavailable
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed" style={{ color: POSTS_THEME.muted }}>
+                        {contentDiscoveryUnavailable.error}
+                    </p>
+                    {!!contentDiscoveryUnavailable.missingPermissions?.length && (
+                        <p className="mt-2 text-xs" style={{ color: POSTS_THEME.mutedSoft }}>
+                            Missing on current token: <span className="font-semibold text-white/70">{contentDiscoveryUnavailable.missingPermissions.join(', ')}</span>
+                        </p>
+                    )}
+                    {contentDiscoveryUnavailable.requiresReconnect && (
+                        <a
+                            href="/dashboard/settings/brand"
+                            className="mt-3 inline-flex rounded-lg px-3 py-2 text-xs font-semibold"
+                            style={{
+                                background: 'rgba(245,158,11,0.12)',
+                                border: '1px solid rgba(245,158,11,0.22)',
+                                color: '#fde68a',
+                            }}
+                        >
+                            Reconnect in Brand Settings
+                        </a>
+                    )}
                 </div>
             )}
 

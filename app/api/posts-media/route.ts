@@ -145,34 +145,39 @@ async function loadCachedFacebookPosts(params: {
     socialAccountId: string;
     limit: number;
 }): Promise<MediaItem[]> {
-    const supabaseAdmin = createAdminClient();
-    const { data, error } = await supabaseAdmin
-        .from('published_posts')
-        .select('id, platform_post_id, post_id, permalink, published_at, platform_caption')
-        .eq('social_account_id', params.socialAccountId)
-        .eq('platform', 'facebook')
-        .order('published_at', { ascending: false })
-        .limit(params.limit);
+    try {
+        const supabaseAdmin = createAdminClient();
+        const { data, error } = await supabaseAdmin
+            .from('published_posts')
+            .select('id, platform_post_id, post_id, permalink, published_at, platform_caption')
+            .eq('social_account_id', params.socialAccountId)
+            .eq('platform', 'facebook')
+            .order('published_at', { ascending: false })
+            .limit(params.limit);
 
-    if (error) {
-        console.error('[PostsMedia] Failed to load cached Facebook posts:', error);
+        if (error) {
+            console.error('[PostsMedia] Failed to load cached Facebook posts:', error);
+            return [];
+        }
+
+        return ((data || []) as PublishedPostMediaRow[])
+            .filter((row) => typeof row.platform_post_id === 'string' && row.platform_post_id.length > 0)
+            .map((row) => ({
+                id: row.platform_post_id,
+                media_type: 'POST',
+                media_url: '',
+                thumbnail_url: '',
+                caption: row.platform_caption || 'Facebook Page post',
+                timestamp: row.published_at || '',
+                permalink: row.permalink || '',
+                comments_count: 0,
+                like_count: 0,
+                source: row.post_id ? 'app_managed' : 'native_discovered',
+            }));
+    } catch (error) {
+        console.error('[PostsMedia] Cached Facebook posts fallback unavailable:', error);
         return [];
     }
-
-    return ((data || []) as PublishedPostMediaRow[])
-        .filter((row) => typeof row.platform_post_id === 'string' && row.platform_post_id.length > 0)
-        .map((row) => ({
-            id: row.platform_post_id,
-            media_type: 'POST',
-            media_url: '',
-            thumbnail_url: '',
-            caption: row.platform_caption || 'Facebook Page post',
-            timestamp: row.published_at || '',
-            permalink: row.permalink || '',
-            comments_count: 0,
-            like_count: 0,
-            source: row.post_id ? 'app_managed' : 'native_discovered',
-        }));
 }
 
 // GET - Fetch media posts from Instagram or Facebook using account_id + token
@@ -268,6 +273,9 @@ export async function GET(request: NextRequest) {
                     socialAccountId: decryptedAccount.id,
                     limit,
                 });
+                console.warn('[PostsMedia] Facebook read capability missing; returning cached/app-managed fallback', {
+                    cachedCount: cachedMedia.length,
+                });
 
                 return NextResponse.json({
                     media: cachedMedia,
@@ -297,13 +305,17 @@ export async function GET(request: NextRequest) {
 
             console.log(`[PostsMedia] Fetching Facebook posts for page ${decryptedAccount.account_id}`);
             const response = await fetch(postsUrl, { cache: 'no-store' });
-            const result = await response.json() as { data?: FacebookPostApiItem[]; paging?: PagingInfo; error?: { message?: string } };
+            const result = await response.json() as { data?: FacebookPostApiItem[]; paging?: PagingInfo; error?: MetaGraphErrorShape };
 
             if (!response.ok) {
                 console.error('[PostsMedia] Facebook API error:', result.error);
                 const cachedMedia = await loadCachedFacebookPosts({
                     socialAccountId: decryptedAccount.id,
                     limit,
+                });
+                console.warn('[PostsMedia] Facebook native discovery failed; returning cached/app-managed fallback', {
+                    cachedCount: cachedMedia.length,
+                    graphCode: result.error?.code,
                 });
 
                 return NextResponse.json({

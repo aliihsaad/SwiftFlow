@@ -111,11 +111,13 @@ export function getMetaOAuthScopes(options?: {
 }): string[] {
     const profile = options?.profile || getMetaScopeProfile();
     const platform = options?.platform || 'all';
-    const includePagesMessaging = options?.includePagesMessaging
+    const requestedPagesMessaging = options?.includePagesMessaging
         ?? String(process.env.META_OAUTH_INCLUDE_PAGES_MESSAGING || '').toLowerCase() === 'true';
+    const includePagesMessaging = profile !== 'review_phase_1' && requestedPagesMessaging;
 
     const baseScopes = [...(PROFILE_SCOPES[profile] || PROFILE_SCOPES.full)];
-    const extraScopes = sanitizeAdditionalScopes(parseCsvScopes(process.env.META_OAUTH_EXTRA_SCOPES));
+    const extraScopes = sanitizeAdditionalScopes(parseCsvScopes(process.env.META_OAUTH_EXTRA_SCOPES))
+        .filter((scope) => profile !== 'review_phase_1' || REVIEW_PHASE_1_SCOPES.includes(scope as typeof REVIEW_PHASE_1_SCOPES[number]));
     if (includePagesMessaging) {
         extraScopes.push('pages_messaging');
     }

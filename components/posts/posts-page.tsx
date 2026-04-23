@@ -315,7 +315,7 @@ export default function PostsPage() {
                             Missing on current token: <span className="font-semibold text-white/70">{contentDiscoveryUnavailable.missingPermissions.join(', ')}</span>
                         </p>
                     )}
-                    {contentDiscoveryUnavailable.requiresReconnect && (
+                    {contentDiscoveryUnavailable.requiresReconnect ? (
                         <a
                             href="/dashboard/settings/brand"
                             className="mt-3 inline-flex rounded-lg px-3 py-2 text-xs font-semibold"
@@ -326,6 +326,18 @@ export default function PostsPage() {
                             }}
                         >
                             Reconnect in Brand Settings
+                        </a>
+                    ) : (
+                        <a
+                            href="/dashboard/settings/brand"
+                            className="mt-3 inline-flex rounded-lg px-3 py-2 text-xs font-semibold"
+                            style={{
+                                background: 'rgba(245,158,11,0.08)',
+                                border: '1px solid rgba(245,158,11,0.16)',
+                                color: '#fde68a',
+                            }}
+                        >
+                            Review Connection Details
                         </a>
                     )}
                 </div>

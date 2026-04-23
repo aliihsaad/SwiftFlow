@@ -87,6 +87,25 @@ type PublishedPostMediaRow = {
     platform_caption: string | null;
 };
 
+function metadataHasScope(metadata: unknown, scopeName: string): boolean {
+    if (!metadata || typeof metadata !== 'object') return false;
+    const value = metadata as {
+        granted_scopes?: unknown;
+        granted_granular_scopes?: unknown;
+    };
+
+    const grantedScopes = Array.isArray(value.granted_scopes)
+        ? value.granted_scopes.filter((scope): scope is string => typeof scope === 'string')
+        : [];
+    const granularScopes = Array.isArray(value.granted_granular_scopes)
+        ? value.granted_granular_scopes
+            .filter((scope): scope is { scope: string } => typeof scope?.scope === 'string')
+            .map((scope) => scope.scope)
+        : [];
+
+    return grantedScopes.includes(scopeName) || granularScopes.includes(scopeName);
+}
+
 function buildPostMediaWarning(
     graphError: MetaGraphErrorShape | null | undefined,
     ctx: { platform: string; operation: 'fetch_posts' | 'update_post' | 'delete_post' }
@@ -103,6 +122,39 @@ function buildPostMediaWarning(
         missingPermissions: normalized.missingPermissions,
         requiresReconnect: normalized.requiresReconnect,
         meta: normalized.meta,
+    };
+}
+
+function buildFacebookDiscoveryWarning(
+    graphError: MetaGraphErrorShape | null | undefined,
+    metadata: unknown,
+) {
+    const warning = buildPostMediaWarning(graphError, { platform: 'facebook', operation: 'fetch_posts' });
+    const hasRecordedReadScope = metadataHasScope(metadata, 'pages_read_engagement');
+
+    if (warning.errorCode === 'meta_missing_permission' && hasRecordedReadScope) {
+        return {
+            ...warning,
+            error: 'Meta rejected native Facebook Page discovery for this Page even though pages_read_engagement is recorded on the OAuth grant. Showing cached/app-managed posts only. Check that this Facebook user has Page asset access in Meta Business Suite and that the Page was granted to SwiftFlow in Facebook Business Integrations.',
+            missingPermissions: [],
+            requiresReconnect: false,
+        };
+    }
+
+    return warning;
+}
+
+function buildFacebookCapabilityWarning(metadata: unknown) {
+    const hasRecordedReadScope = metadataHasScope(metadata, 'pages_read_engagement');
+
+    return {
+        error: hasRecordedReadScope
+            ? 'Native Facebook Page discovery is unavailable for this Page token even though pages_read_engagement is recorded. Showing cached/app-managed posts only.'
+            : 'Native Facebook Page discovery is unavailable because the current OAuth grant does not include pages_read_engagement. Showing cached/app-managed posts only.',
+        errorCode: 'meta_missing_permission',
+        missingPermissions: hasRecordedReadScope ? [] : ['pages_read_engagement'],
+        requiresReconnect: !hasRecordedReadScope,
+        meta: null,
     };
 }
 
@@ -281,13 +333,7 @@ export async function GET(request: NextRequest) {
                     media: cachedMedia,
                     paging: null,
                     partial: true,
-                    contentDiscoveryUnavailable: {
-                        error: 'Native Facebook Page discovery is unavailable because the current token does not include pages_read_engagement. Showing cached/app-managed posts only.',
-                        errorCode: 'meta_missing_permission',
-                        missingPermissions: ['pages_read_engagement'],
-                        requiresReconnect: true,
-                        meta: null,
-                    },
+                    contentDiscoveryUnavailable: buildFacebookCapabilityWarning(decryptedAccount.metadata),
                     account: {
                         id: decryptedAccount.id,
                         account_id: decryptedAccount.account_id,
@@ -322,7 +368,7 @@ export async function GET(request: NextRequest) {
                     media: cachedMedia,
                     paging: null,
                     partial: true,
-                    contentDiscoveryUnavailable: buildPostMediaWarning(result.error, { platform: 'facebook', operation: 'fetch_posts' }),
+                    contentDiscoveryUnavailable: buildFacebookDiscoveryWarning(result.error, decryptedAccount.metadata),
                     account: {
                         id: decryptedAccount.id,
                         account_id: decryptedAccount.account_id,

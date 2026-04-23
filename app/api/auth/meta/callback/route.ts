@@ -27,6 +27,58 @@ type MetaDebugTokenResponse = {
     };
 };
 
+function parseDebugTokenScopes(parsedDebugToken: MetaDebugTokenResponse | null): {
+    scopes: string[];
+    granularScopes: Array<{ scope: string; target_ids?: string[] }>;
+} {
+    return {
+        scopes: Array.isArray(parsedDebugToken?.data?.scopes)
+            ? parsedDebugToken.data.scopes.filter((s: unknown) => typeof s === 'string')
+            : [],
+        granularScopes: Array.isArray(parsedDebugToken?.data?.granular_scopes)
+            ? parsedDebugToken.data.granular_scopes
+                .filter((s) => typeof s?.scope === 'string')
+                .map((s) => ({
+                    scope: String(s.scope),
+                    target_ids: Array.isArray(s?.target_ids)
+                        ? s.target_ids.filter((id: unknown) => typeof id === 'string')
+                        : undefined,
+                }))
+            : [],
+    };
+}
+
+async function debugMetaTokenScopes(params: {
+    inputToken: string;
+    appId: string;
+    appSecret: string;
+}): Promise<{
+    status: number;
+    scopes: string[];
+    granularScopes: Array<{ scope: string; target_ids?: string[] }>;
+    parsed: MetaDebugTokenResponse | null;
+}> {
+    const debugResponse = await fetch(
+        `${META_GRAPH_URL}/debug_token?input_token=${params.inputToken}&access_token=${params.appId}|${params.appSecret}`,
+        { cache: 'no-store' }
+    );
+    const debugText = await debugResponse.text();
+    let parsed: MetaDebugTokenResponse | null = null;
+    try {
+        parsed = JSON.parse(debugText);
+    } catch {
+        parsed = null;
+    }
+
+    const parsedScopes = parseDebugTokenScopes(parsed);
+    return {
+        status: debugResponse.status,
+        scopes: parsedScopes.scopes,
+        granularScopes: parsedScopes.granularScopes,
+        parsed,
+    };
+}
+
 /**
  * Meta OAuth Callback Route
  * 
@@ -141,27 +193,13 @@ export async function GET(request: NextRequest) {
 
         // Step 1b: Debug token to check scopes
         log('Step 1b: Debugging token...');
-        const debugResponse = await fetch(`${META_GRAPH_URL}/debug_token?input_token=${userAccessToken}&access_token=${appId}|${appSecret}`, { cache: 'no-store' });
-        const debugText = await debugResponse.text();
-        log(`Step 1b debug_token status: ${debugResponse.status}`);
-        let parsedDebugToken: MetaDebugTokenResponse | null = null;
         let grantedScopes: string[] = [];
         let grantedGranularScopes: Array<{ scope: string; target_ids?: string[] }> = [];
         try {
-            parsedDebugToken = JSON.parse(debugText);
-            grantedScopes = Array.isArray(parsedDebugToken?.data?.scopes)
-                ? parsedDebugToken.data.scopes.filter((s: unknown) => typeof s === 'string')
-                : [];
-            grantedGranularScopes = Array.isArray(parsedDebugToken?.data?.granular_scopes)
-                ? parsedDebugToken.data.granular_scopes
-                    .filter((s) => typeof s?.scope === 'string')
-                    .map((s) => ({
-                        scope: String(s.scope),
-                        target_ids: Array.isArray(s?.target_ids)
-                            ? s.target_ids.filter((id: unknown) => typeof id === 'string')
-                            : undefined,
-                    }))
-                : [];
+            const debuggedUserToken = await debugMetaTokenScopes({ inputToken: userAccessToken, appId, appSecret });
+            log(`Step 1b debug_token status: ${debuggedUserToken.status}`);
+            grantedScopes = debuggedUserToken.scopes;
+            grantedGranularScopes = debuggedUserToken.granularScopes;
             log(`Step 1b parsed scopes: ${grantedScopes.length} scopes, ${grantedGranularScopes.length} granular scopes`);
         } catch (debugParseError) {
             log(`Step 1b debug_token parse skipped: ${debugParseError}`);
@@ -246,6 +284,23 @@ export async function GET(request: NextRequest) {
         for (const page of pages) {
             let igAccountId = null;
             let igUsername = null;
+            let pageGrantedScopes = grantedScopes;
+            let pageGrantedGranularScopes = grantedGranularScopes;
+
+            try {
+                const debuggedPageToken = await debugMetaTokenScopes({
+                    inputToken: page.access_token,
+                    appId,
+                    appSecret,
+                });
+                if (debuggedPageToken.scopes.length > 0 || debuggedPageToken.granularScopes.length > 0) {
+                    pageGrantedScopes = debuggedPageToken.scopes;
+                    pageGrantedGranularScopes = debuggedPageToken.granularScopes;
+                }
+                log(`  Page "${page.name}": page token debug status ${debuggedPageToken.status}, scopes: ${pageGrantedScopes.join(',') || 'none'}`);
+            } catch (pageTokenDebugError) {
+                log(`  Page "${page.name}": page token debug skipped: ${pageTokenDebugError}`);
+            }
 
             try {
                 const igUrl = `${META_GRAPH_URL}/${page.id}?fields=instagram_business_account&access_token=${page.access_token}`;
@@ -280,8 +335,8 @@ export async function GET(request: NextRequest) {
                 access_token: encryptMetaToken(page.access_token),
                 ig_account_id: igAccountId,
                 ig_username: igUsername,
-                granted_scopes: grantedScopes,
-                granted_granular_scopes: grantedGranularScopes,
+                granted_scopes: pageGrantedScopes,
+                granted_granular_scopes: pageGrantedGranularScopes,
             });
         }
 

@@ -56,6 +56,16 @@ function sanitizeGranularScopes(scopes: unknown): MetaGrantedGranularScope[] {
     }))
 }
 
+function getEffectiveGrantedScopes(
+  scopes: unknown,
+  granularScopes: unknown,
+): string[] {
+  return Array.from(new Set([
+    ...sanitizeScopes(scopes),
+    ...sanitizeGranularScopes(granularScopes).map((scope) => scope.scope),
+  ]))
+}
+
 export function deriveMetaCapabilities(scopes: readonly string[]): MetaCapabilityMap {
   const granted = new Set(scopes)
 
@@ -77,10 +87,11 @@ function getMetaCapabilities(
   metadata: MetaAccountMetadata | null | undefined,
 ): MetaCapabilityMap | null {
   if (!metadata || typeof metadata !== "object") return null
-  if (metadata.capabilities) return metadata.capabilities
 
-  const grantedScopes = sanitizeScopes(metadata.granted_scopes)
-  return grantedScopes.length > 0 ? deriveMetaCapabilities(grantedScopes) : null
+  const grantedScopes = getEffectiveGrantedScopes(metadata.granted_scopes, metadata.granted_granular_scopes)
+  return grantedScopes.length > 0
+    ? deriveMetaCapabilities(grantedScopes)
+    : metadata.capabilities || null
 }
 
 export function buildMetaAccountMetadata(input: {
@@ -96,6 +107,7 @@ export function buildMetaAccountMetadata(input: {
 }): MetaAccountMetadata {
   const grantedScopes = sanitizeScopes(input.grantedScopes)
   const grantedGranularScopes = sanitizeGranularScopes(input.grantedGranularScopes)
+  const effectiveGrantedScopes = getEffectiveGrantedScopes(grantedScopes, grantedGranularScopes)
   const existingMetadata = input.existingMetadata && typeof input.existingMetadata === "object"
     ? input.existingMetadata
     : {}
@@ -109,7 +121,7 @@ export function buildMetaAccountMetadata(input: {
     user_access_token: input.userAccessToken ?? (typeof existingMetadata.user_access_token === "string" ? existingMetadata.user_access_token : null),
     granted_scopes: grantedScopes,
     granted_granular_scopes: grantedGranularScopes,
-    capabilities: deriveMetaCapabilities(grantedScopes),
+    capabilities: deriveMetaCapabilities(effectiveGrantedScopes),
     last_scope_sync_at: syncedAt,
     scopes_checked_at: syncedAt,
     token_status: input.tokenStatus,
@@ -152,6 +164,8 @@ export function sanitizeMetaAccountMetadataForClient(
     instagram_business_account_id: metadata.instagram_business_account_id ?? null,
     connected_page_id: metadata.connected_page_id ?? null,
     ig_username: metadata.ig_username ?? null,
+    granted_scopes: getEffectiveGrantedScopes(metadata.granted_scopes, metadata.granted_granular_scopes),
+    granted_granular_scopes: sanitizeGranularScopes(metadata.granted_granular_scopes),
     capabilities: metadata.capabilities,
     last_scope_sync_at: metadata.last_scope_sync_at,
     scopes_checked_at: metadata.scopes_checked_at,

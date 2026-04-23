@@ -29,6 +29,7 @@ type ConnectedAccountStatus = {
     account_name: string
     metadata?: {
         instagram_business_account_id?: string | null
+        granted_scopes?: string[]
     } | null
 }
 
@@ -58,6 +59,8 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
         instagram: boolean
         facebookPublishReady: boolean
         facebookReadReady: boolean
+        facebookGrantedScopes: string[]
+        facebookMissingReadScopes: string[]
         instagramPublishReady: boolean
         publishReady: boolean
         accounts: ConnectedAccountStatus[]
@@ -66,6 +69,8 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
         instagram: false,
         facebookPublishReady: false,
         facebookReadReady: false,
+        facebookGrantedScopes: [],
+        facebookMissingReadScopes: [],
         instagramPublishReady: false,
         publishReady: false,
         accounts: []
@@ -288,6 +293,14 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                     </div>
                                     <div className="mt-1 text-sm leading-relaxed">
                                         The current Page token does not include <span className="font-semibold">pages_read_engagement</span>, so native Page posts cannot load. Reconnect once after the latest update. If it persists, remove SwiftFlow from Facebook Business Integrations and connect again.
+                                    </div>
+                                    <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-white/60">
+                                        <div>
+                                            Missing: <span className="text-red-100">{status.facebookMissingReadScopes.join(', ') || 'none recorded'}</span>
+                                        </div>
+                                        <div className="mt-1 break-words">
+                                            Stored granted scopes: <span className="text-white/80">{status.facebookGrantedScopes.join(', ') || 'none recorded'}</span>
+                                        </div>
                                     </div>
                                 </div>
                             )}

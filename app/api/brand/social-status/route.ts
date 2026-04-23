@@ -35,6 +35,11 @@ export async function GET(request: NextRequest) {
                 account.metadata && typeof account.metadata === 'object' ? account.metadata : undefined
             ),
         }));
+        const facebookAccount = sanitizedAccounts.find((account) => account.platform === 'facebook');
+        const facebookGrantedScopes = Array.isArray(facebookAccount?.metadata?.granted_scopes)
+            ? facebookAccount.metadata.granted_scopes.filter((scope): scope is string => typeof scope === 'string')
+            : [];
+        const facebookRequiredReadScopes = ['pages_read_engagement'];
 
         const status = {
             facebook: sanitizedAccounts.some((account) => account.platform === 'facebook'),
@@ -49,6 +54,8 @@ export async function GET(request: NextRequest) {
             facebookReadReady: sanitizedAccounts.some(
                 (account) => account.platform === 'facebook' && canReadConnectedMediaWithMetaAccount(account.metadata, 'facebook')
             ),
+            facebookGrantedScopes,
+            facebookMissingReadScopes: facebookRequiredReadScopes.filter((scope) => !facebookGrantedScopes.includes(scope)),
             instagramPublishReady: sanitizedAccounts.some(
                 (account) => account.platform === 'instagram' && canPublishWithMetaAccount(account.metadata, 'instagram')
             ),

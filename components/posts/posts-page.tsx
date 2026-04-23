@@ -11,7 +11,6 @@ import { useToast } from "@/components/ui/use-toast"
 import {
     Instagram,
     Facebook,
-    Loader2,
     RefreshCw,
     Grid3X3,
     AlertCircle
@@ -27,6 +26,7 @@ interface PostData {
     permalink: string
     comments_count: number
     like_count: number
+    source?: 'app_managed' | 'native_discovered'
 }
 
 interface MediaResponse {
@@ -47,7 +47,17 @@ interface MediaResponse {
 const fetcher = async (url: string) => {
     const res = await fetch(url)
     const data = await res.json()
-    if (!res.ok && res.status !== 200) throw new Error(data.error || 'Failed to fetch')
+    if (!res.ok && res.status !== 200) {
+        const err = new Error(data.error || 'Failed to fetch') as Error & {
+            errorCode?: string
+            missingPermissions?: string[]
+            requiresReconnect?: boolean
+        }
+        err.errorCode = data.errorCode
+        err.missingPermissions = data.missingPermissions
+        err.requiresReconnect = data.requiresReconnect
+        throw err
+    }
     return data
 }
 
@@ -67,6 +77,7 @@ const POSTS_THEME = {
 
 export default function PostsPage() {
     const [activePlatform, setActivePlatform] = useState<'instagram' | 'facebook'>('instagram')
+    const [facebookSourceFilter, setFacebookSourceFilter] = useState<'all' | 'native_discovered' | 'app_managed'>('all')
     const [selectedPost, setSelectedPost] = useState<PostData | null>(null)
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [workspaceId, setWorkspaceId] = useState<string | null>(null)
@@ -99,8 +110,12 @@ export default function PostsPage() {
         }
     )
 
-    const media = data?.media || []
-    const account = data?.account
+    const hasBlockingPostsError = !!error
+    const media = hasBlockingPostsError ? [] : data?.media || []
+    const filteredMedia = activePlatform === 'facebook' && facebookSourceFilter !== 'all'
+        ? media.filter((post) => post.source === facebookSourceFilter)
+        : media
+    const account = hasBlockingPostsError ? null : data?.account
     const noAccount = data?.error && !data?.media?.length
     const showInitialLoading = isLoading && !data && !error
     const showRefreshingHint = (isRefreshing || isValidating) && !!data
@@ -115,15 +130,37 @@ export default function PostsPage() {
         try {
             await mutate()
             toast({ title: "Posts refreshed", description: "Latest posts and comments counts were updated." })
-        } catch (error: any) {
+        } catch (error: unknown) {
             toast({
                 title: "Refresh failed",
-                description: error?.message || "Could not refresh posts.",
+                description: error instanceof Error ? error.message : "Could not refresh posts.",
                 variant: "destructive",
             })
         } finally {
             setIsRefreshing(false)
         }
+    }
+
+    const handlePostUpdated = (updatedPost: PostData) => {
+        setSelectedPost(updatedPost)
+        mutate((current) => {
+            if (!current?.media) return current
+            return {
+                ...current,
+                media: current.media.map((post) => post.id === updatedPost.id ? updatedPost : post),
+            }
+        }, { revalidate: false })
+    }
+
+    const handlePostDeleted = (postId: string) => {
+        setSelectedPost(null)
+        mutate((current) => {
+            if (!current?.media) return current
+            return {
+                ...current,
+                media: current.media.filter((post) => post.id !== postId),
+            }
+        }, { revalidate: false })
     }
 
     const tabs = [
@@ -143,6 +180,11 @@ export default function PostsPage() {
         },
     ]
 
+    const facebookSourceSummary = {
+        native: media.filter((post) => post.source === 'native_discovered').length,
+        app: media.filter((post) => post.source === 'app_managed').length,
+    }
+
     return (
         <div className="space-y-6">
             {/* Page Header */}
@@ -159,7 +201,7 @@ export default function PostsPage() {
                         Posts
                     </h1>
                     <p className="text-sm mt-0.5" style={{ color: POSTS_THEME.mutedSoft }}>
-                        View your posts and manage comments
+                        View your posts, inspect Page-native content, and manage comments
                     </p>
                 </div>
                 <button
@@ -202,6 +244,52 @@ export default function PostsPage() {
                     )
                 })}
             </div>
+
+            {activePlatform === 'facebook' && (
+                <div
+                    className="rounded-xl p-4"
+                    style={{ background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.16)' }}
+                >
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="space-y-1">
+                            <div className="text-sm font-semibold text-white/88">Facebook Page content library</div>
+                            <p className="text-xs leading-relaxed" style={{ color: POSTS_THEME.mutedSoft }}>
+                                Browse all loaded Facebook posts or focus only on native Page content discovered via the approved `pages_read_engagement` permission.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {[
+                                { id: 'all' as const, label: `All (${media.length})` },
+                                { id: 'native_discovered' as const, label: `Native Page (${facebookSourceSummary.native})` },
+                                { id: 'app_managed' as const, label: `App-Managed (${facebookSourceSummary.app})` },
+                            ].map((filter) => {
+                                const isActive = facebookSourceFilter === filter.id
+                                return (
+                                    <button
+                                        key={filter.id}
+                                        type="button"
+                                        onClick={() => setFacebookSourceFilter(filter.id)}
+                                        className="rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150"
+                                        style={isActive
+                                            ? {
+                                                background: 'rgba(56,189,248,0.14)',
+                                                border: '1px solid rgba(56,189,248,0.24)',
+                                                color: '#dff6ff',
+                                            }
+                                            : {
+                                                background: POSTS_THEME.panelAlt,
+                                                border: `1px solid ${POSTS_THEME.border}`,
+                                                color: POSTS_THEME.muted,
+                                            }}
+                                    >
+                                        {filter.label}
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Account info */}
             {account && (
@@ -249,6 +337,29 @@ export default function PostsPage() {
                     <AlertCircle className="h-7 w-7 mx-auto mb-3" style={{ color: '#f87171' }} />
                     <p className="text-sm font-medium" style={{ color: '#f87171' }}>Failed to load posts</p>
                     <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>{error.message}</p>
+                    {(error as Error & { missingPermissions?: string[]; requiresReconnect?: boolean }).requiresReconnect && (
+                        <div className="mt-4 space-y-2">
+                            {!!(error as Error & { missingPermissions?: string[] }).missingPermissions?.length && (
+                                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.38)' }}>
+                                    Missing on current token: {(error as Error & { missingPermissions?: string[] }).missingPermissions?.join(', ')}
+                                </p>
+                            )}
+                            <a
+                                href="/dashboard/settings/brand"
+                                className="inline-flex rounded-lg px-3 py-2 text-xs font-semibold"
+                                style={{
+                                    background: 'rgba(248,113,113,0.12)',
+                                    border: '1px solid rgba(248,113,113,0.22)',
+                                    color: '#fecdd3',
+                                }}
+                            >
+                                Reconnect in Settings
+                            </a>
+                            <p className="mx-auto max-w-xl text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.34)' }}>
+                                If this still appears after reconnecting, remove SwiftFlow from Facebook Business Integrations, then connect again so Meta prompts for the approved Page scopes.
+                            </p>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -269,9 +380,9 @@ export default function PostsPage() {
             )}
 
             {/* Posts Grid */}
-            {!showInitialLoading && !error && media.length > 0 && (
+            {!showInitialLoading && !error && filteredMedia.length > 0 && (
                 <div className={cn("grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 transition-opacity", showRefreshingHint && "opacity-90")}>
-                    {media.map((post) => (
+                    {filteredMedia.map((post) => (
                         <PostCard
                             key={post.id}
                             post={post}
@@ -282,15 +393,19 @@ export default function PostsPage() {
             )}
 
             {/* Empty state */}
-            {!showInitialLoading && !error && !noAccount && media.length === 0 && (
+            {!showInitialLoading && !error && !noAccount && filteredMedia.length === 0 && (
                 <div
                     className="rounded-xl p-12 text-center"
                     style={{ background: POSTS_THEME.panel, border: `1px dashed ${POSTS_THEME.border}` }}
                 >
                     <Grid3X3 className="h-10 w-10 mx-auto mb-4" style={{ color: 'rgba(255,255,255,0.12)' }} />
-                    <p className="font-medium" style={{ color: POSTS_THEME.muted }}>No posts yet</p>
+                    <p className="font-medium" style={{ color: POSTS_THEME.muted }}>
+                        {activePlatform === 'facebook' && facebookSourceFilter !== 'all' ? 'No posts match this source filter' : 'No posts yet'}
+                    </p>
                     <p className="text-sm mt-2" style={{ color: POSTS_THEME.mutedFaint }}>
-                        Posts will appear here once you publish content.
+                        {activePlatform === 'facebook' && facebookSourceFilter !== 'all'
+                            ? 'Try another source filter or refresh to load more Facebook Page content.'
+                            : 'Posts will appear here once you publish content.'}
                     </p>
                 </div>
             )}
@@ -302,6 +417,8 @@ export default function PostsPage() {
                 post={selectedPost}
                 platform={activePlatform}
                 workspaceId={workspaceId || ""}
+                onPostUpdated={handlePostUpdated}
+                onPostDeleted={handlePostDeleted}
             />
         </div>
     )

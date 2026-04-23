@@ -24,7 +24,7 @@ export default function PrivacyPolicy() {
                     <section>
                         <h2 className={sectionHeadingClass}>2. Information We Process</h2>
                         <p className={bodyClass}>
-                            The categories below reflect the current product and reviewer-safe release behavior.
+                            The categories below reflect the current product behavior and supported platform-connected workflows.
                         </p>
                         <ul className={listClass}>
                             <li><strong>Workspace and account information:</strong> user account identifiers, workspace membership, roles, and basic profile details needed to authenticate and authorize access.</li>
@@ -56,23 +56,7 @@ export default function PrivacyPolicy() {
                     </section>
 
                     <section>
-                        <h2 className={sectionHeadingClass}>4. Reviewer-Safe Release Scope</h2>
-                        <p className={bodyClass}>
-                            The Meta review deployment is intentionally narrower than the full internal product. In the reviewer release, the visible flow is limited to:
-                        </p>
-                        <ul className={listClass}>
-                            <li>connecting a Facebook Page and linked Instagram Business account,</li>
-                            <li>creating a post,</li>
-                            <li>publishing immediately, and</li>
-                            <li>scheduling a future publish.</li>
-                        </ul>
-                        <p className={`${bodyClass} mt-3`}>
-                            Messaging, comment moderation, analytics, automation, and subscription flows are hidden or blocked in the reviewer deployment until they are ready for their own review phase.
-                        </p>
-                    </section>
-
-                    <section>
-                        <h2 className={sectionHeadingClass}>5. Retention</h2>
+                        <h2 className={sectionHeadingClass}>4. Retention</h2>
                         <ul className={listClass}>
                             <li>Connected account records and encrypted tokens are retained until the user disconnects the account, the workspace is deleted, or a deletion request is fulfilled.</li>
                             <li>Post records, published post mappings, AI sessions, and generated assets are retained until they are deleted by the workspace or removed as part of an account deletion request.</li>
@@ -81,7 +65,7 @@ export default function PrivacyPolicy() {
                     </section>
 
                     <section>
-                        <h2 className={sectionHeadingClass}>6. Security</h2>
+                        <h2 className={sectionHeadingClass}>5. Security</h2>
                         <ul className={listClass}>
                             <li>Workspace AI keys and Meta tokens are stored encrypted at the application layer.</li>
                             <li>Secrets are used only in server-side routes or server-side functions, not exposed directly to other end users.</li>
@@ -90,14 +74,14 @@ export default function PrivacyPolicy() {
                     </section>
 
                     <section>
-                        <h2 className={sectionHeadingClass}>7. Data Sharing</h2>
+                        <h2 className={sectionHeadingClass}>6. Data Sharing</h2>
                         <p className={bodyClass}>
                             We share data only with service providers needed to operate the product, such as Supabase for infrastructure and storage, Vercel for hosting, AI providers for requested AI tasks, and Meta for the platform actions the user authorizes.
                         </p>
                     </section>
 
                     <section>
-                        <h2 className={sectionHeadingClass}>8. Deletion Requests</h2>
+                        <h2 className={sectionHeadingClass}>7. Deletion Requests</h2>
                         <p className={bodyClass}>
                             You may request deletion of your workspace or connected-platform data at any time. Instructions are available on our{" "}
                             <a href="/data-deletion" className="text-blue-600 hover:underline">Data Deletion</a> page.
@@ -105,7 +89,7 @@ export default function PrivacyPolicy() {
                     </section>
 
                     <section>
-                        <h2 className={sectionHeadingClass}>9. Contact</h2>
+                        <h2 className={sectionHeadingClass}>8. Contact</h2>
                         <p className={bodyClass}>
                             For privacy, support, or compliance questions, contact{" "}
                             <a href="mailto:info@swiftdigital-s.com" className="text-blue-600 hover:underline">info@swiftdigital-s.com</a>.

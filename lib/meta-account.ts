@@ -227,6 +227,6 @@ export function canReadConnectedMediaWithMetaAccount(
   if (!capabilities) return true
 
   return platform === "facebook"
-    ? capabilities.facebook_publish || capabilities.facebook_page_selection
+    ? capabilities.analytics_read
     : capabilities.instagram_basic || capabilities.instagram_publish
 }

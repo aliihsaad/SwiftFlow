@@ -232,100 +232,6 @@ export default async function DashboardPage() {
                 <RecentActivityDropdown activities={recentActivities} />
             </div>
 
-            {reviewPhase1Release && (
-                <div
-                    className="overflow-hidden rounded-3xl border"
-                    style={{
-                        background: "linear-gradient(135deg, rgba(8,15,28,0.96), rgba(18,26,44,0.94) 52%, rgba(53,24,17,0.92))",
-                        borderColor: "rgba(255,255,255,0.08)",
-                    }}
-                >
-                    <div className="flex flex-col gap-6 p-5 sm:p-6 lg:flex-row lg:items-end lg:justify-between">
-                        <div className="max-w-3xl space-y-4">
-                            <div className="space-y-3">
-                                <div
-                                    className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em]"
-                                    style={{
-                                        background: "rgba(245,158,11,0.12)",
-                                        border: "1px solid rgba(245,158,11,0.22)",
-                                        color: "rgba(255,244,214,0.92)",
-                                    }}
-                                >
-                                    Meta Review Path
-                                </div>
-                                <div className="space-y-2">
-                                    <h3 className="text-xl font-semibold tracking-tight text-white/92">Phase 1 review build</h3>
-                                    <p className="max-w-2xl text-sm leading-relaxed text-white/64">
-                                        This release is intentionally narrowed to account connection, post creation, immediate publishing,
-                                        and scheduled publishing. Messaging, comments, analytics, automation, and billing remain outside
-                                        the reviewer flow for this submission.
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="grid gap-3 sm:grid-cols-3">
-                                {[
-                                    "Connect a Facebook Page and linked Instagram business account.",
-                                    "Create a post from the dashboard or quick actions.",
-                                    "Publish immediately or schedule it for later.",
-                                ].map((step, index) => (
-                                    <div
-                                        key={step}
-                                        className="rounded-2xl border px-4 py-4"
-                                        style={{
-                                            background: "rgba(255,255,255,0.04)",
-                                            borderColor: "rgba(255,255,255,0.08)",
-                                        }}
-                                    >
-                                        <div
-                                            className="mb-3 inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
-                                            style={{
-                                                background: "rgba(34,211,238,0.14)",
-                                                border: "1px solid rgba(34,211,238,0.2)",
-                                                color: "rgba(207,250,254,0.95)",
-                                            }}
-                                        >
-                                            {index + 1}
-                                        </div>
-                                        <p className="text-sm leading-relaxed text-white/74">{step}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="min-w-[240px] space-y-3">
-                            <div
-                                className="rounded-2xl border p-4"
-                                style={{
-                                    background: "rgba(255,255,255,0.04)",
-                                    borderColor: "rgba(255,255,255,0.08)",
-                                }}
-                            >
-                                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-white/42">Reviewer links</div>
-                                <div className="mt-3 flex flex-col gap-2">
-                                    <Link
-                                        href="/dashboard/settings/brand"
-                                        className="inline-flex items-center justify-center rounded-xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/15"
-                                    >
-                                        Open Brand Profile
-                                    </Link>
-                                    <Link
-                                        href="/privacy"
-                                        className="inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-white/78 transition hover:bg-white/10"
-                                    >
-                                        Privacy Policy
-                                    </Link>
-                                </div>
-                            </div>
-
-                            <p className="px-1 text-xs leading-relaxed text-white/42">
-                                Review mode keeps the demonstrated product surface aligned with the submitted permissions and screencast.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             <div
                 className="rounded-2xl border p-4 sm:p-5"
                 style={{
@@ -337,7 +243,7 @@ export default async function DashboardPage() {
                     <div className="space-y-2">
                         <h3 className="text-lg font-semibold text-white/90">Integration Health</h3>
                         <p className="text-sm text-white/55">
-                            Review-ready publishing depends on a connected Page, a linked Instagram business account, and granted publish capabilities.
+                            Reliable publishing depends on a connected Page, a linked Instagram business account, and granted publish capabilities.
                         </p>
                     </div>
                     <Link
@@ -367,7 +273,7 @@ export default async function DashboardPage() {
                             status: publishReady ? "Ready" : "Needs Attention",
                             detail: publishReady
                                 ? "At least one connected platform can publish with the granted capabilities."
-                                : "Reconnect the account or verify granted publish permissions before reviewer testing.",
+                                : "Reconnect the account or verify granted publish permissions before sending live content.",
                             tone: publishReady ? "cyan" : "amber",
                         },
                     ].map((item) => (
@@ -410,7 +316,7 @@ export default async function DashboardPage() {
                                     {failedCount} post{failedCount === 1 ? '' : 's'} need{failedCount === 1 ? 's' : ''} attention
                                 </div>
                                 <p className="text-sm text-red-100/80">
-                                    {latestFailedPost?.last_publish_error_message || 'A recent publish attempt failed. Open the Failed tab to review the platform-specific reason and retry safely.'}
+                                    {latestFailedPost?.last_publish_error_message || 'A recent publish attempt failed. Open the Failed tab to inspect the platform-specific reason and retry safely.'}
                                 </p>
                             </div>
                             <Link

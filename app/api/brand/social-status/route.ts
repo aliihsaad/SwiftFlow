@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { canPublishWithMetaAccount } from '@/lib/meta-account';
-import { sanitizeMetaAccountMetadataForClient } from '@/lib/meta-account';
+import { canPublishWithMetaAccount, canReadConnectedMediaWithMetaAccount, sanitizeMetaAccountMetadataForClient } from '@/lib/meta-account';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { createClient } from '@/utils/supabase/server';
 
@@ -46,6 +45,9 @@ export async function GET(request: NextRequest) {
             ),
             facebookPublishReady: sanitizedAccounts.some(
                 (account) => account.platform === 'facebook' && canPublishWithMetaAccount(account.metadata, 'facebook')
+            ),
+            facebookReadReady: sanitizedAccounts.some(
+                (account) => account.platform === 'facebook' && canReadConnectedMediaWithMetaAccount(account.metadata, 'facebook')
             ),
             instagramPublishReady: sanitizedAccounts.some(
                 (account) => account.platform === 'instagram' && canPublishWithMetaAccount(account.metadata, 'instagram')

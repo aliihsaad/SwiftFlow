@@ -24,9 +24,6 @@ export default function TermsOfService() {
                         <p className={bodyClass}>
                             SwiftFlow is a workspace-based social media management product. Depending on release scope and granted permissions, the service may support connected-account setup, post drafting, scheduling, publishing, analytics, comments, messaging, automations, and AI-assisted content workflows.
                         </p>
-                        <p className={`${bodyClass} mt-3`}>
-                            Some deployments, including Meta review releases, intentionally expose a narrower set of features than internal or later-phase product releases.
-                        </p>
                     </section>
 
                     <section>

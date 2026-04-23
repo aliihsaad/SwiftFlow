@@ -167,7 +167,7 @@ export function SubscriptionView() {
 
             <div className="flex items-center justify-between gap-4 flex-wrap">
                 <p className="text-sm text-white/40 max-w-2xl">
-                    Until subscriptions are implemented properly, the review-safe release should treat plans as roadmap context rather than an active product surface.
+                    Until subscriptions are implemented properly, plans should remain roadmap context rather than an active product surface.
                 </p>
                 <Link
                     href="/pricing"

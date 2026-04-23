@@ -87,7 +87,7 @@ function sanitizeAdditionalScopes(scopes: string[]): string[] {
 }
 
 export function getMetaScopeProfile(): MetaOAuthScopeProfile {
-    const raw = (process.env.META_OAUTH_SCOPE_PROFILE || 'full').trim();
+    const raw = (process.env.META_OAUTH_SCOPE_PROFILE || 'review_phase_1').trim();
     if (raw === 'review_phase_1') return raw;
     return 'full';
 }
@@ -151,6 +151,7 @@ export function buildMetaOAuthDialogUrl(params: {
     redirectUri: string;
     state?: string;
     scope?: string;
+    authType?: 'rerequest';
 }): string {
     const queryParams = new URLSearchParams({
         client_id: params.clientId,
@@ -162,6 +163,9 @@ export function buildMetaOAuthDialogUrl(params: {
 
     if (params.state) {
         queryParams.set('state', params.state);
+    }
+    if (params.authType) {
+        queryParams.set('auth_type', params.authType);
     }
 
     return `${META_OAUTH_URL}?${queryParams.toString()}`;
@@ -192,6 +196,7 @@ export function getMetaOAuthUrl(state?: string): string {
         redirectUri: getMetaRedirectUri(),
         state: state || undefined,
         scope,
+        authType: 'rerequest',
     });
     console.log('[META_OAUTH] Final URL:', finalUrl);
 

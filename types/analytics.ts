@@ -88,6 +88,25 @@ export interface AnalyticsResponse {
                 platformsWithAnalyticsRows: string[]
             }
         }
+        contentDiscovery?: {
+            byPlatform: Array<{
+                platform: 'instagram' | 'facebook'
+                totalSyncedPosts: number
+                appManagedPosts: number
+                discoveredNativePosts: number
+                latestPublishedAt: string | null
+                topPost: {
+                    id: string
+                    caption: string
+                    permalink: string | null
+                    likes: number
+                    comments: number
+                    shares: number
+                    views: number
+                    source: 'app_managed' | 'native_discovered'
+                } | null
+            }>
+        }
     }
 }
 

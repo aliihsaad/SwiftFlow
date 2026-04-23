@@ -9,7 +9,7 @@ export interface MetaGraphErrorShape {
 }
 
 export interface MetaErrorContext {
-    feature?: 'messages' | 'comments' | 'analytics' | 'generic';
+    feature?: 'messages' | 'comments' | 'analytics' | 'posts' | 'generic';
     platform?: 'instagram' | 'facebook' | string;
     operation?: string;
 }
@@ -67,6 +67,19 @@ function inferMissingPermissions(ctx?: MetaErrorContext): string[] {
         return ['instagram_manage_insights', 'pages_read_engagement'];
     }
 
+    if (ctx?.feature === 'posts') {
+        if (ctx.platform === 'facebook') {
+            if (ctx.operation === 'fetch_posts') {
+                return ['pages_read_engagement'];
+            }
+            if (ctx.operation === 'update_post' || ctx.operation === 'delete_post') {
+                return ['pages_manage_posts'];
+            }
+            return ['pages_read_engagement', 'pages_manage_posts'];
+        }
+        return ['instagram_basic'];
+    }
+
     return [];
 }
 
@@ -95,6 +108,18 @@ function buildPermissionMessage(ctx?: MetaErrorContext, missingPermissions: stri
     }
     if (ctx?.feature === 'analytics') {
         return `Analytics sync is limited or unavailable. Reconnect with ${permissionList}.`;
+    }
+    if (ctx?.feature === 'posts') {
+        if (ctx.operation === 'fetch_posts') {
+            return `Facebook Page posts are not available for this connected account. Reconnect with ${permissionList}.`;
+        }
+        if (ctx.operation === 'update_post') {
+            return `Facebook post editing is not available for this connected account. Reconnect with ${permissionList}.`;
+        }
+        if (ctx.operation === 'delete_post') {
+            return `Facebook post deletion is not available for this connected account. Reconnect with ${permissionList}.`;
+        }
+        return `Post access is not available for this connected account. Reconnect with ${permissionList}.`;
     }
     return `This action requires additional Meta permissions: ${permissionList}.`;
 }

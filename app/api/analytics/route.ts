@@ -45,6 +45,80 @@ type AnalyticsMeta = {
             platformsWithAnalyticsRows: string[]
         }
     }
+    contentDiscovery?: {
+        byPlatform: Array<{
+            platform: PlatformKey
+            totalSyncedPosts: number
+            appManagedPosts: number
+            discoveredNativePosts: number
+            latestPublishedAt: string | null
+            topPost: {
+                id: string
+                caption: string
+                permalink: string | null
+                likes: number
+                comments: number
+                shares: number
+                views: number
+                source: 'app_managed' | 'native_discovered'
+            } | null
+        }>
+    }
+}
+
+function buildContentDiscoveryMeta(params: {
+    publishedPosts: any[]
+    postAnalytics: any[]
+}): AnalyticsMeta['contentDiscovery'] {
+    const { publishedPosts, postAnalytics } = params
+    const analyticsByPublishedPostId = new Map<string, any>()
+    ;(postAnalytics || []).forEach((row) => {
+        if (row?.published_post_id && !analyticsByPublishedPostId.has(row.published_post_id)) {
+            analyticsByPublishedPostId.set(row.published_post_id, row)
+        }
+    })
+
+    const byPlatform = (['instagram', 'facebook'] as PlatformKey[]).map((platform) => {
+        const platformPosts = (publishedPosts || []).filter((row) => row?.platform === platform)
+        const sortedByDate = [...platformPosts].sort((a, b) =>
+            new Date(b?.published_at || 0).getTime() - new Date(a?.published_at || 0).getTime(),
+        )
+        const topPostCandidate = [...platformPosts]
+            .map((row) => {
+                const analytics = analyticsByPublishedPostId.get(row.id) || {}
+                return {
+                    row,
+                    analytics,
+                    score:
+                        Number(analytics?.likes || 0) +
+                        Number(analytics?.comments || 0) +
+                        Number(analytics?.shares || 0),
+                }
+            })
+            .sort((a, b) => b.score - a.score || new Date(b.row?.published_at || 0).getTime() - new Date(a.row?.published_at || 0).getTime())[0]
+
+        return {
+            platform,
+            totalSyncedPosts: platformPosts.length,
+            appManagedPosts: platformPosts.filter((row) => Boolean(row?.post_id)).length,
+            discoveredNativePosts: platformPosts.filter((row) => !row?.post_id).length,
+            latestPublishedAt: sortedByDate[0]?.published_at || null,
+            topPost: topPostCandidate
+                ? {
+                    id: topPostCandidate.row.id,
+                    caption: topPostCandidate.row.platform_caption || `Direct ${platform.toUpperCase()} post`,
+                    permalink: topPostCandidate.row.permalink || null,
+                    likes: Number(topPostCandidate.analytics?.likes || 0),
+                    comments: Number(topPostCandidate.analytics?.comments || 0),
+                    shares: Number(topPostCandidate.analytics?.shares || 0),
+                    views: Number(topPostCandidate.analytics?.views || 0),
+                    source: (topPostCandidate.row?.post_id ? 'app_managed' : 'native_discovered') as 'app_managed' | 'native_discovered',
+                }
+                : null,
+        }
+    })
+
+    return { byPlatform }
 }
 
 function buildAnalyticsMeta(params: {
@@ -936,6 +1010,10 @@ export async function GET(request: NextRequest) {
             needsSync: !hasAnalytics,
             reason: hasPublishedPosts ? null : 'no_published_posts',
             selectedPlatform: platformFilter,
+        })
+        analyticsMeta.contentDiscovery = buildContentDiscoveryMeta({
+            publishedPosts: publishedPostsData,
+            postAnalytics: postAnalyticsData,
         })
 
         return NextResponse.json({

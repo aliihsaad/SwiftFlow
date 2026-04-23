@@ -57,6 +57,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
         facebook: boolean
         instagram: boolean
         facebookPublishReady: boolean
+        facebookReadReady: boolean
         instagramPublishReady: boolean
         publishReady: boolean
         accounts: ConnectedAccountStatus[]
@@ -64,6 +65,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
         facebook: false,
         instagram: false,
         facebookPublishReady: false,
+        facebookReadReady: false,
         instagramPublishReady: false,
         publishReady: false,
         accounts: []
@@ -273,7 +275,19 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                         Reconnect for publish access
                                     </div>
                                     <div className="mt-1 text-sm">
-                                        At least one connected account is missing publish permissions. Reconnect the affected account before reviewer testing.
+                                        At least one connected account is missing publish permissions. Reconnect the affected account before sending live content.
+                                    </div>
+                                </div>
+                            )}
+
+                            {status.facebook && !status.facebookReadReady && (
+                                <div className="rounded-xl border border-red-300/20 bg-red-500/10 p-4 text-red-100/90">
+                                    <div className="flex items-center gap-2 font-medium">
+                                        <AlertCircle className="h-4 w-4" />
+                                        Facebook Page read permission missing
+                                    </div>
+                                    <div className="mt-1 text-sm leading-relaxed">
+                                        The current Page token does not include <span className="font-semibold">pages_read_engagement</span>, so native Page posts cannot load. Reconnect once after the latest update. If it persists, remove SwiftFlow from Facebook Business Integrations and connect again.
                                     </div>
                                 </div>
                             )}

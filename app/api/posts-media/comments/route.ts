@@ -3,11 +3,63 @@ import { canManageCommentsWithMetaAccount, canReadCommentsWithMetaAccount, decry
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
-import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
+import { normalizeMetaGraphError, type MetaGraphErrorShape } from '@/lib/meta-graph-errors';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
+
+type CommentData = {
+    id: string;
+    platform_comment_id: string;
+    author_username: string;
+    message: string;
+    timestamp: string;
+    is_hidden: boolean;
+    replies: CommentData[];
+};
+
+type InstagramCommentApiItem = {
+    id: string;
+    text?: string;
+    timestamp?: string;
+    username?: string;
+    hidden?: boolean;
+    from?: {
+        username?: string;
+    };
+    replies?: {
+        data?: InstagramCommentApiItem[];
+    };
+};
+
+type FacebookCommentApiItem = {
+    id: string;
+    message?: string;
+    created_time?: string;
+    is_hidden?: boolean;
+    from?: {
+        name?: string;
+    };
+    comments?: {
+        data?: FacebookCommentApiItem[];
+    };
+};
+
+type CommentsApiResponse<T> = {
+    data?: T[];
+    error?: MetaGraphErrorShape;
+};
+
+type CommentActionApiResponse = {
+    id?: string;
+    success?: boolean;
+    error?: MetaGraphErrorShape;
+};
+
+function errorMessage(error: unknown, fallback: string): string {
+    return error instanceof Error ? error.message : fallback;
+}
 
 function requiredCommentPermissions(platform: string, mode: 'read' | 'manage'): string[] {
     if (platform === 'facebook') {
@@ -18,7 +70,7 @@ function requiredCommentPermissions(platform: string, mode: 'read' | 'manage'): 
 }
 
 function metaErrorResponse(
-    graphError: any,
+    graphError: MetaGraphErrorShape | null | undefined,
     ctx: { platform: string; operation: 'fetch_comments' | 'reply_comment' | 'hide_comment' | 'unhide_comment' }
 ) {
     const normalized = normalizeMetaGraphError(graphError, {
@@ -40,9 +92,13 @@ function metaErrorResponse(
 }
 
 function commentCapabilityErrorResponse(platform: string, mode: 'read' | 'manage') {
+    const isInstagramPhase2Read = platform === 'instagram' && mode === 'read';
+
     return NextResponse.json(
         {
-            error: mode === 'read'
+            error: isInstagramPhase2Read
+                ? 'Instagram comments require instagram_manage_comments, which is reserved for Phase 2.'
+                : mode === 'read'
                 ? 'Comment access is not available for this connected account'
                 : 'Comment management is not available for this connected account',
             errorCode: 'meta_missing_permission',
@@ -110,7 +166,7 @@ export async function GET(request: NextRequest) {
             return commentCapabilityErrorResponse(platform, 'read');
         }
 
-        let comments: any[] = [];
+        let comments: CommentData[] = [];
 
         if (platform === 'instagram') {
             // Instagram: GET /{media-id}/comments
@@ -118,27 +174,28 @@ export async function GET(request: NextRequest) {
 
             console.log(`[PostComments] Fetching Instagram comments for ${postId}`);
             const response = await fetch(url);
-            const data = await response.json();
+            const data = await response.json() as CommentsApiResponse<InstagramCommentApiItem>;
 
             if (!response.ok) {
                 console.error('[PostComments] Instagram API error:', data.error);
                 return metaErrorResponse(data?.error, { platform, operation: 'fetch_comments' });
             }
 
-            comments = (data.data || []).map((c: any) => ({
+            comments = (data.data || []).map((c) => ({
                 id: c.id,
                 platform_comment_id: c.id,
                 author_username: c.from?.username || c.username || 'Unknown',
                 message: c.text || '',
-                timestamp: c.timestamp,
+                timestamp: c.timestamp || '',
                 is_hidden: !!c.hidden,
-                replies: (c.replies?.data || []).map((r: any) => ({
+                replies: (c.replies?.data || []).map((r) => ({
                     id: r.id,
                     platform_comment_id: r.id,
                     author_username: r.from?.username || r.username || 'Unknown',
                     message: r.text || '',
-                    timestamp: r.timestamp,
+                    timestamp: r.timestamp || '',
                     is_hidden: !!r.hidden,
+                    replies: [],
                 })),
             }));
 
@@ -148,7 +205,7 @@ export async function GET(request: NextRequest) {
 
             console.log(`[PostComments] Fetching Facebook comments for ${postId}`);
             const response = await fetch(url);
-            const data = await response.json();
+            const data = await response.json() as CommentsApiResponse<FacebookCommentApiItem>;
 
             if (!response.ok) {
                 console.error('[PostComments] Facebook API error:', data.error);
@@ -156,21 +213,22 @@ export async function GET(request: NextRequest) {
             }
 
             comments = (data.data || [])
-                .map((c: any) => ({
+                .map((c) => ({
                     id: c.id,
                     platform_comment_id: c.id,
                     author_username: c.from?.name || 'Unknown',
                     message: c.message || '',
-                    timestamp: c.created_time,
+                    timestamp: c.created_time || '',
                     is_hidden: !!c.is_hidden,
                     replies: (c.comments?.data || [])
-                        .map((r: any) => ({
+                        .map((r) => ({
                             id: r.id,
                             platform_comment_id: r.id,
                             author_username: r.from?.name || 'Unknown',
                             message: r.message || '',
-                            timestamp: r.created_time,
+                            timestamp: r.created_time || '',
                             is_hidden: !!r.is_hidden,
+                            replies: [],
                         })),
                 }));
         }
@@ -185,7 +243,7 @@ export async function GET(request: NextRequest) {
             workspaceId: activeWorkspace.id,
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         if (error instanceof Error && /Invalid postId/i.test(error.message)) {
             return NextResponse.json(
                 { error: error.message },
@@ -194,7 +252,7 @@ export async function GET(request: NextRequest) {
         }
         console.error('Post comments API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to fetch comments' },
+            { error: errorMessage(error, 'Failed to fetch comments') },
             { status: 500 }
         );
     }
@@ -270,7 +328,7 @@ export async function POST(request: NextRequest) {
             }),
         });
 
-        const result = await response.json();
+        const result = await response.json() as CommentActionApiResponse;
 
         if (!response.ok) {
             console.error('[PostComments] Reply API error:', result?.error);
@@ -282,17 +340,17 @@ export async function POST(request: NextRequest) {
             replyId: result.id,
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         if (error instanceof Error && /Invalid commentId|Request payload too large|Invalid content length/i.test(error.message)) {
             return NextResponse.json({ error: error.message }, { status: 400 });
         }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
-            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+            return NextResponse.json({ error: errorMessage(error, 'Forbidden') }, { status: permissionStatus });
         }
         console.error('Reply to comment API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to reply to comment' },
+            { error: errorMessage(error, 'Failed to reply to comment') },
             { status: 500 }
         );
     }
@@ -350,7 +408,7 @@ export async function DELETE(request: NextRequest) {
         const hideParam = platform === 'facebook' ? 'is_hidden=true' : 'hide=true';
         const hideUrl = `${META_GRAPH_URL}/${commentId}?${hideParam}&access_token=${decryptedAccount.access_token}`;
         const response = await fetch(hideUrl, { method: 'POST' });
-        const result = await response.json();
+        const result = await response.json() as CommentActionApiResponse;
 
         if (!response.ok) {
             console.error('[PostComments] Hide API error:', result?.error);
@@ -359,17 +417,17 @@ export async function DELETE(request: NextRequest) {
 
         return NextResponse.json({ success: true });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         if (error instanceof Error && /Invalid commentId/i.test(error.message)) {
             return NextResponse.json({ error: error.message }, { status: 400 });
         }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
-            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+            return NextResponse.json({ error: errorMessage(error, 'Forbidden') }, { status: permissionStatus });
         }
         console.error('Hide comment API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to hide comment' },
+            { error: errorMessage(error, 'Failed to hide comment') },
             { status: 500 }
         );
     }
@@ -430,7 +488,7 @@ export async function PATCH(request: NextRequest) {
 
         const moderationUrl = `${META_GRAPH_URL}/${commentId}?${visibilityParam}&access_token=${decryptedAccount.access_token}`;
         const response = await fetch(moderationUrl, { method: 'POST' });
-        const result = await response.json();
+        const result = await response.json() as CommentActionApiResponse;
 
         if (!response.ok) {
             console.error('[PostComments] Comment moderation API error:', result?.error);
@@ -441,17 +499,17 @@ export async function PATCH(request: NextRequest) {
         }
 
         return NextResponse.json({ success: true, hidden });
-    } catch (error: any) {
+    } catch (error: unknown) {
         if (error instanceof Error && /Invalid commentId|Request payload too large|Invalid content length/i.test(error.message)) {
             return NextResponse.json({ error: error.message }, { status: 400 });
         }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
-            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+            return NextResponse.json({ error: errorMessage(error, 'Forbidden') }, { status: permissionStatus });
         }
         console.error('Comment moderation API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to update comment visibility' },
+            { error: errorMessage(error, 'Failed to update comment visibility') },
             { status: 500 }
         );
     }

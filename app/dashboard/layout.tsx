@@ -77,18 +77,6 @@ export default async function DashboardLayout({
                         <span className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.75)' }}>
                             {activeWorkspace?.name || 'Dashboard'}
                         </span>
-                        {reviewPhase1Release && (
-                            <span
-                                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]"
-                                style={{
-                                    background: 'rgba(245,158,11,0.12)',
-                                    border: '1px solid rgba(245,158,11,0.24)',
-                                    color: 'rgba(255,244,214,0.88)',
-                                }}
-                            >
-                                Review Mode
-                            </span>
-                        )}
                     </div>
 
                     {/* Right: user avatar */}

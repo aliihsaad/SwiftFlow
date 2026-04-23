@@ -249,33 +249,6 @@ const faqItems = [
     },
 ]
 
-const reviewFaqItems = [
-    {
-        q: "What does this review build demonstrate?",
-        a: "This Phase 1 build focuses on Meta account connection, AI-assisted post creation, immediate publishing, and scheduled publishing.",
-    },
-    {
-        q: "Which platforms are included in this release?",
-        a: "The review path covers Facebook Pages and linked Instagram Business accounts connected through the Meta flow.",
-    },
-    {
-        q: "Why are inbox, analytics, and automation features not shown here?",
-        a: "This review deployment intentionally narrows the product surface so the visible experience matches the permissions and flows submitted for Meta App Review.",
-    },
-    {
-        q: "Do I need separate Instagram credentials?",
-        a: "No. Instagram Business access is connected through the linked Facebook Page inside the Meta connection flow.",
-    },
-    {
-        q: "Where can I verify privacy and data handling details?",
-        a: "Use the public Privacy Policy, Terms of Service, and Data Deletion pages linked in the site footer and reviewer flow.",
-    },
-    {
-        q: "How does AI billing work in this release?",
-        a: "AI usage follows a BYOK model. Workspace owners connect their own provider key, the key is encrypted before storage, and provider usage charges stay with that provider account instead of being bundled into the app. This also keeps usage limits, model selection, and billing visibility under the workspace owner's control.",
-    },
-]
-
 /* ─────────────────────────────────
    Animated floating orb
 ───────────────────────────────── */
@@ -581,7 +554,7 @@ function HeroAppWindow({ scrollYProgress }: { scrollYProgress: any }) {
     )
 }
 
-function Hero({ reviewPhase1Release = false }: { reviewPhase1Release?: boolean }) {
+function Hero() {
     const containerRef = useRef<HTMLElement>(null)
     const { scrollYProgress } = useScroll({
         target: containerRef,
@@ -642,7 +615,7 @@ function Hero({ reviewPhase1Release = false }: { reviewPhase1Release?: boolean }
                     >
                         Connect. Publish. <br />
                         <span className="text-transparent bg-clip-text bg-linear-to-r from-cyan-400 via-fuchsia-500 to-amber-400">
-                            Review.
+                            Scale.
                         </span>
                     </motion.h1>
 
@@ -652,14 +625,10 @@ function Hero({ reviewPhase1Release = false }: { reviewPhase1Release?: boolean }
                         transition={{ duration: 0.8, delay: 0.2, ease: EASE }}
                         className="text-base md:text-2xl text-white/50 max-w-2xl font-medium mb-8 md:mb-12 px-2 md:px-0"
                     >
-                        {reviewPhase1Release
-                            ? "A review-safe SwiftFlow release focused on Meta account connection, AI-assisted post creation, immediate publishing, and scheduled publishing."
-                            : (
-                                <>
-                                    The ultimate execution workspace for modern creators. <br className="hidden md:block" />
-                                    Stop bouncing between tabs. Start scaling your brand.
-                                </>
-                            )}
+                        <>
+                            The ultimate execution workspace for modern creators. <br className="hidden md:block" />
+                            Stop bouncing between tabs. Start scaling your brand.
+                        </>
                     </motion.p>
 
                     <motion.div
@@ -1356,7 +1325,7 @@ function AutomationPlaybook() {
 /* ─────────────────────────────────
    How it Works Section
 ───────────────────────────────── */
-function HowItWorks({ reviewPhase1Release = false }: { reviewPhase1Release?: boolean }) {
+function HowItWorks() {
     return (
         <section id="how-it-works" className="relative py-16 md:py-32 overflow-hidden bg-black">
             {/* Background elements */}
@@ -1372,9 +1341,7 @@ function HowItWorks({ reviewPhase1Release = false }: { reviewPhase1Release?: boo
                         Up and running in <span className="text-transparent bg-clip-text bg-linear-to-r from-fuchsia-500 to-amber-500">minutes.</span>
                     </h2>
                     <p className="mt-4 text-base md:text-xl max-w-2xl mx-auto leading-relaxed text-white/50 font-medium">
-                        {reviewPhase1Release
-                            ? "Connect your accounts, create content with AI assistance, and publish from one clean workspace."
-                            : "No massive migration plans. Just connect your accounts, setup your brand voice, and let SwiftFlow take the wheel."}
+                        No massive migration plans. Just connect your accounts, setup your brand voice, and let SwiftFlow take the wheel.
                     </p>
                 </Reveal>
 
@@ -1463,7 +1430,7 @@ function PlatformStrip() {
 /* ─────────────────────────────────
    Highlight / CTA Banner
 ───────────────────────────────── */
-function CTABanner({ reviewPhase1Release = false }: { reviewPhase1Release?: boolean }) {
+function CTABanner() {
     const ref = useRef(null)
     const inView = useInView(ref, { once: true, margin: "-100px" })
 
@@ -1485,36 +1452,25 @@ function CTABanner({ reviewPhase1Release = false }: { reviewPhase1Release?: bool
                         </div>
 
                         <h2 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight leading-[1.05] text-white mb-8">
-                            {reviewPhase1Release ? "Launch the review flow." : "Scale your impact."}<br />
+                            Scale your impact.<br />
                             <span className="text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-fuchsia-500">Not headcount.</span>
                         </h2>
 
                         <p className="text-base md:text-lg leading-relaxed text-white/50 font-medium mb-10">
-                            {reviewPhase1Release
-                                ? "SwiftFlow centralizes Meta account connection, AI-assisted content creation, immediate publishing, and scheduled publishing for this submission."
-                                : "SwiftFlow centralizes content creation, scheduling, and Inbox automations. Spend less time copying and pasting across apps, and more time growing."}
+                            SwiftFlow centralizes content creation, scheduling, and Inbox automations. Spend less time copying and pasting across apps, and more time growing.
                         </p>
 
-                        {reviewPhase1Release && (
-                            <div className="mb-8 rounded-2xl border border-cyan-300/20 bg-cyan-400/8 px-4 py-3 text-sm text-cyan-100/90">
-                                <span className="font-medium">AI is BYOK:</span> teams connect their own OpenRouter, OpenAI, or Gemini key, the key is encrypted before storage, and provider usage stays on that provider account so spend and limits remain under the team's control.
-                            </div>
-                        )}
+                        <div className="mb-8 rounded-2xl border border-cyan-300/20 bg-cyan-400/8 px-4 py-3 text-sm text-cyan-100/90">
+                            <span className="font-medium">AI is BYOK:</span> teams connect their own OpenRouter, OpenAI, or Gemini key, the key is encrypted before storage, and provider usage stays on that provider account so spend and limits remain under the team&apos;s control.
+                        </div>
 
                         <div className="grid sm:grid-cols-2 gap-6">
-                            {(reviewPhase1Release
-                                ? [
-                                    { title: "Fast Setup", text: "Connect Pages and linked Instagram accounts in minutes." },
-                                    { title: "AI Drafting", text: "Generate captions and creative starting points inside the app." },
-                                    { title: "Direct Publishing", text: "Publish immediately without leaving the workspace." },
-                                    { title: "Scheduled Posts", text: "Set a publishing time and let the scheduler handle the rest." },
-                                ]
-                                : [
-                                    { title: "Fast Setup", text: "Connect pages and start in minutes." },
-                                    { title: "AI + Workflows", text: "Generate and automate in one flow." },
-                                    { title: "Operational Focus", text: "Track, iterate, and maintain consistency." },
-                                    { title: "Constant ROI", text: "Save hours automatically." },
-                                ]).map((item, idx) => (
+                            {[
+                                { title: "Fast Setup", text: "Connect pages and start in minutes." },
+                                { title: "AI + Workflows", text: "Generate and automate in one flow." },
+                                { title: "Operational Focus", text: "Track, iterate, and maintain consistency." },
+                                { title: "Constant ROI", text: "Save hours automatically." },
+                            ].map((item, idx) => (
                                 <div key={idx} className="flex gap-3 ">
                                     <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(34,211,238,0.8)] shrink-0" />
                                     <div>
@@ -1545,19 +1501,12 @@ function CTABanner({ reviewPhase1Release = false }: { reviewPhase1Release?: bool
                                 </div>
 
                                 <div className="space-y-4 mb-8">
-                                    {(reviewPhase1Release
-                                        ? [
-                                            "Connect Facebook Pages and linked Instagram business accounts",
-                                            "Create a post or draft with AI assistance",
-                                            "Review brand context and publishing readiness",
-                                            "Publish now or schedule for later",
-                                        ]
-                                        : [
-                                            "Connect Instagram / Facebook pages",
-                                            "Load a template or build a canvas workflow",
-                                            "Set brand profile and AI response tone",
-                                            "Enable automation and monitor runs",
-                                        ]).map((item, idx) => (
+                                    {[
+                                        "Connect Instagram / Facebook pages",
+                                        "Load a template or build a canvas workflow",
+                                        "Set brand profile and AI response tone",
+                                        "Enable automation and monitor runs",
+                                    ].map((item, idx) => (
                                         <div key={item} className="flex items-start gap-4">
                                             <div
                                                 className="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full shrink-0"
@@ -1595,17 +1544,13 @@ function CTABanner({ reviewPhase1Release = false }: { reviewPhase1Release?: bool
                             <div className="rounded-2xl p-5 bg-[#0a0a0a] border border-white/10">
                                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-2 text-rose-400">For creators</p>
                                 <p className="text-sm font-medium leading-relaxed text-white/60">
-                                    {reviewPhase1Release
-                                        ? "Create and schedule social posts faster without leaving the workspace."
-                                        : "Publish faster and stay responsive without living in your inbox."}
+                                    Publish faster and stay responsive without living in your inbox.
                                 </p>
                             </div>
                             <div className="rounded-2xl p-5 bg-[#0a0a0a] border border-white/10">
                                 <p className="text-[10px] font-bold uppercase tracking-[0.2em] mb-2 text-cyan-400">For brands</p>
                                 <p className="text-sm font-medium leading-relaxed text-white/60">
-                                    {reviewPhase1Release
-                                        ? "Keep Meta publishing organized with reusable brand context and cleaner execution."
-                                        : "Standardize tone, automate common replies, and keep content execution organized."}
+                                    Standardize tone, automate common replies, and keep content execution organized.
                                 </p>
                             </div>
                         </div>
@@ -1616,9 +1561,8 @@ function CTABanner({ reviewPhase1Release = false }: { reviewPhase1Release?: bool
     )
 }
 
-function FAQSection({ reviewPhase1Release = false }: { reviewPhase1Release?: boolean }) {
+function FAQSection() {
     const [openIndex, setOpenIndex] = useState<number>(0)
-    const activeFaqItems = reviewPhase1Release ? reviewFaqItems : faqItems
     return (
         <section id="faq" className="relative py-16 md:py-32 overflow-hidden bg-black">
             <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-fuchsia-500/10 blur-[120px] rounded-full pointer-events-none opacity-50 mix-blend-screen" />
@@ -1634,9 +1578,7 @@ function FAQSection({ reviewPhase1Release = false }: { reviewPhase1Release?: boo
                                 Answers before you commit.
                             </h2>
                             <p className="mt-6 text-base leading-relaxed text-white/50 font-medium max-w-md">
-                                {reviewPhase1Release
-                                    ? "Focused on the exact connection and publishing flow included in this Meta review release."
-                                    : "Covering everything from API permissions, platform connections, to edge cases."}
+                                Covering everything from API permissions, platform connections, to edge cases.
                             </p>
                             <div className="mt-8">
                                 <Link
@@ -1657,7 +1599,7 @@ function FAQSection({ reviewPhase1Release = false }: { reviewPhase1Release?: boo
                         variants={stagger}
                         className="space-y-4"
                     >
-                        {activeFaqItems.map((item, index) => {
+                        {faqItems.map((item, index) => {
                             const open = openIndex === index
                             return (
                                 <motion.div
@@ -1707,7 +1649,7 @@ function FAQSection({ reviewPhase1Release = false }: { reviewPhase1Release?: boo
 /* ─────────────────────────────────
    Footer
 ───────────────────────────────── */
-function Footer({ reviewPhase1Release = false }: { reviewPhase1Release?: boolean }) {
+function Footer() {
     return (
         <footer className="relative bg-black pt-20 pb-10 border-t border-white/5 overflow-hidden">
             {/* Background Effects */}
@@ -1733,14 +1675,10 @@ function Footer({ reviewPhase1Release = false }: { reviewPhase1Release?: boolean
                             </span>
                         </div>
                         <p className="text-sm leading-relaxed max-w-xs text-white/50 font-medium">
-                            {reviewPhase1Release
-                                ? "AI-assisted social publishing for Facebook and Instagram, focused on account connection, post creation, immediate publishing, and scheduled publishing."
-                                : "AI-assisted social media operations for publishing, conversations, analytics and automation across Instagram and Facebook."}
+                            AI-assisted social media operations for publishing, conversations, analytics and automation across Instagram and Facebook.
                         </p>
                         <div className="flex flex-wrap gap-2 pt-2">
-                            {(reviewPhase1Release
-                                ? ["AI Assistant", "Meta Connect", "Direct Publish", "Scheduling"]
-                                : ["AI Assistant", "Automation Canvas", "Unified Inbox", "Analytics"]).map((pill, i) => (
+                            {["AI Assistant", "Automation Canvas", "Unified Inbox", "Analytics"].map((pill) => (
                                 <span
                                     key={pill}
                                     className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest bg-white/3 border border-white/6 text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors"
@@ -1807,12 +1745,10 @@ function Footer({ reviewPhase1Release = false }: { reviewPhase1Release?: boolean
                             <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 blur-[50px] group-hover:bg-cyan-500/20 transition-colors duration-500" />
 
                             <h4 className="text-xs font-bold uppercase tracking-[0.2em] mb-3 text-white/70 relative z-10">
-                                {reviewPhase1Release ? "Start Publishing" : "Start Scaling"}
+                                Start Scaling
                             </h4>
                             <p className="text-sm font-medium leading-relaxed mb-6 text-white/40 relative z-10">
-                                {reviewPhase1Release
-                                    ? "Open the dashboard, connect your pages, and test the Phase 1 publishing flow."
-                                    : "Open the dashboard and connect your pages to start publishing and automating today."}
+                                Open the dashboard and connect your pages to start publishing and automating today.
                             </p>
 
                             <Link
@@ -1859,19 +1795,19 @@ function Footer({ reviewPhase1Release = false }: { reviewPhase1Release?: boolean
 /* ─────────────────────────────────
    Root export
 ───────────────────────────────── */
-export function LandingPage({ reviewPhase1Release = false }: { reviewPhase1Release?: boolean }) {
+export function LandingPage() {
     return (
         <div className="dark" style={{ background: THEME.bg, minHeight: "100vh" }}>
             <Navbar />
-            <Hero reviewPhase1Release={reviewPhase1Release} />
+            <Hero />
 
-            {!reviewPhase1Release && <FeatureShowcase />}
-            {!reviewPhase1Release && <AutomationPlaybook />}
-            <HowItWorks reviewPhase1Release={reviewPhase1Release} />
+            <FeatureShowcase />
+            <AutomationPlaybook />
+            <HowItWorks />
             <PlatformStrip />
-            <FAQSection reviewPhase1Release={reviewPhase1Release} />
-            <CTABanner reviewPhase1Release={reviewPhase1Release} />
-            <Footer reviewPhase1Release={reviewPhase1Release} />
+            <FAQSection />
+            <CTABanner />
+            <Footer />
         </div>
     )
 }

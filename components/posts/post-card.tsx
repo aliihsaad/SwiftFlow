@@ -14,6 +14,7 @@ interface PostCardProps {
         permalink: string
         comments_count: number
         like_count: number
+        source?: 'app_managed' | 'native_discovered'
     }
     onClick: () => void
 }
@@ -69,6 +70,19 @@ export function PostCard({ post, onClick }: PostCardProps) {
                     </div>
                 )}
 
+                {post.source && (
+                    <div
+                        className="absolute top-2 left-2 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-widest"
+                        style={{
+                            background: post.source === 'native_discovered' ? 'rgba(34,211,238,0.82)' : 'rgba(251,113,133,0.82)',
+                            color: '#041018',
+                            boxShadow: '0 8px 20px rgba(0,0,0,0.18)',
+                        }}
+                    >
+                        {post.source === 'native_discovered' ? 'Page' : 'App'}
+                    </div>
+                )}
+
                 {/* Hover overlay */}
                 <div className="absolute inset-0 flex items-center justify-center gap-5 opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: 'rgba(0,0,0,0.6)' }}>
                     <div className="flex items-center gap-1.5 text-white font-semibold text-sm">
@@ -102,6 +116,11 @@ export function PostCard({ post, onClick }: PostCardProps) {
                         </span>
                     </div>
                 </div>
+                {post.source && (
+                    <div className="text-[10px] uppercase tracking-[0.14em]" style={{ color: 'rgba(255,255,255,0.28)' }}>
+                        {post.source === 'native_discovered' ? 'Native Page Content' : 'App-Managed Post'}
+                    </div>
+                )}
             </div>
         </button>
     )

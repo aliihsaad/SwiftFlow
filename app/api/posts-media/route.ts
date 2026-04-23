@@ -1,12 +1,127 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { canReadConnectedMediaWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
+import {
+    canPublishWithMetaAccount,
+    canReadConnectedMediaWithMetaAccount,
+    decryptMetaAccountRow,
+} from '@/lib/meta-account';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
+import { normalizeMetaGraphError, type MetaGraphErrorShape } from '@/lib/meta-graph-errors';
+import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+type PostMediaSource = 'app_managed' | 'native_discovered';
+
+type MediaItem = {
+    id: string;
+    media_type: string;
+    media_url: string;
+    thumbnail_url: string;
+    caption: string;
+    timestamp: string;
+    permalink: string;
+    comments_count: number;
+    like_count: number;
+    source?: PostMediaSource;
+};
+
+type PagingInfo = {
+    cursors?: {
+        after?: string | null;
+    };
+    next?: string;
+} | null;
+
+type InstagramMediaApiItem = {
+    id: string;
+    media_type?: string;
+    media_url?: string;
+    thumbnail_url?: string;
+    caption?: string;
+    timestamp?: string;
+    permalink?: string;
+    comments_count?: number;
+    like_count?: number;
+};
+
+type FacebookPostApiItem = {
+    id: string;
+    message?: string;
+    full_picture?: string;
+    created_time?: string;
+    permalink_url?: string;
+    attachments?: {
+        data?: Array<{
+            media_type?: string;
+        }>;
+    };
+    comments?: {
+        summary?: {
+            total_count?: number;
+        };
+    };
+    likes?: {
+        summary?: {
+            total_count?: number;
+        };
+    };
+};
+
+type PublishedPostLinkRow = {
+    platform_post_id: string;
+    post_id: string | null;
+};
+
+function requiredPostMediaPermissions(platform: string, mode: 'read' | 'manage'): string[] {
+    if (platform === 'facebook') {
+        return [mode === 'read' ? 'pages_read_engagement' : 'pages_manage_posts'];
+    }
+
+    return mode === 'read' ? ['instagram_basic'] : ['instagram_content_publish'];
+}
+
+function metaPostErrorResponse(
+    graphError: MetaGraphErrorShape | null | undefined,
+    ctx: { platform: string; operation: 'fetch_posts' | 'update_post' | 'delete_post' }
+) {
+    const normalized = normalizeMetaGraphError(graphError, {
+        feature: 'posts',
+        platform: ctx.platform,
+        operation: ctx.operation,
+    });
+
+    return NextResponse.json(
+        {
+            error: normalized.message,
+            errorCode: normalized.code,
+            missingPermissions: normalized.missingPermissions,
+            requiresReconnect: normalized.requiresReconnect,
+            meta: normalized.meta,
+        },
+        { status: normalized.httpStatus }
+    );
+}
+
+function postMediaCapabilityErrorResponse(platform: string, mode: 'read' | 'manage') {
+    return NextResponse.json(
+        {
+            error: mode === 'read'
+                ? 'Post media access is not available for this connected account'
+                : 'Post management is not available for this connected account',
+            errorCode: 'meta_missing_permission',
+            missingPermissions: requiredPostMediaPermissions(platform, mode),
+            requiresReconnect: false,
+            media: mode === 'read' ? [] : undefined,
+        },
+        { status: 403 }
+    );
+}
 
 // GET - Fetch media posts from Instagram or Facebook using account_id + token
 export async function GET(request: NextRequest) {
@@ -57,22 +172,11 @@ export async function GET(request: NextRequest) {
             decryptedAccount.metadata,
             platform === 'facebook' ? 'facebook' : 'instagram',
         )) {
-            return NextResponse.json(
-                {
-                    error: 'Media access is not available for this connected account',
-                    errorCode: 'meta_missing_permission',
-                    missingPermissions: platform === 'facebook'
-                        ? ['pages_manage_posts']
-                        : ['instagram_basic'],
-                    requiresReconnect: false,
-                    media: [],
-                },
-                { status: 403 }
-            );
+            return postMediaCapabilityErrorResponse(platform, 'read');
         }
 
-        let media: any[] = [];
-        let paging: any = null;
+        let media: MediaItem[] = [];
+        let paging: PagingInfo = null;
 
         if (platform === 'instagram') {
             // Instagram: GET /{ig-user-id}/media
@@ -83,21 +187,21 @@ export async function GET(request: NextRequest) {
 
             console.log(`[PostsMedia] Fetching Instagram media for account ${decryptedAccount.account_id}`);
             const response = await fetch(mediaUrl, { cache: 'no-store' });
-            const result = await response.json();
+            const result = await response.json() as { data?: InstagramMediaApiItem[]; paging?: PagingInfo; error?: { message?: string } };
 
             if (!response.ok) {
                 console.error('[PostsMedia] Instagram API error:', result.error);
                 throw new Error(result.error?.message || 'Failed to fetch Instagram media');
             }
 
-            media = (result.data || []).map((item: any) => ({
+            media = (result.data || []).map((item) => ({
                 id: item.id,
-                media_type: item.media_type, // IMAGE, VIDEO, CAROUSEL_ALBUM
-                media_url: item.media_url,
-                thumbnail_url: item.thumbnail_url || item.media_url,
+                media_type: item.media_type || 'IMAGE', // IMAGE, VIDEO, CAROUSEL_ALBUM
+                media_url: item.media_url || '',
+                thumbnail_url: item.thumbnail_url || item.media_url || '',
                 caption: item.caption || '',
-                timestamp: item.timestamp,
-                permalink: item.permalink,
+                timestamp: item.timestamp || '',
+                permalink: item.permalink || '',
                 comments_count: item.comments_count || 0,
                 like_count: item.like_count || 0,
             }));
@@ -113,23 +217,52 @@ export async function GET(request: NextRequest) {
 
             console.log(`[PostsMedia] Fetching Facebook posts for page ${decryptedAccount.account_id}`);
             const response = await fetch(postsUrl, { cache: 'no-store' });
-            const result = await response.json();
+            const result = await response.json() as { data?: FacebookPostApiItem[]; paging?: PagingInfo; error?: { message?: string } };
 
             if (!response.ok) {
                 console.error('[PostsMedia] Facebook API error:', result.error);
-                throw new Error(result.error?.message || 'Failed to fetch Facebook posts');
+                return metaPostErrorResponse(result.error, { platform: 'facebook', operation: 'fetch_posts' });
             }
 
-            media = (result.data || []).map((item: any) => ({
+            const fetchedPosts = result.data || [];
+            const platformPostIds = fetchedPosts
+                .map((item) => item?.id)
+                .filter((id: unknown): id is string => typeof id === 'string' && id.length > 0);
+
+            let sourceByPlatformPostId = new Map<string, PostMediaSource>();
+            if (platformPostIds.length > 0) {
+                const { data: linkedRows, error: linkedRowsError } = await supabase
+                    .from('published_posts')
+                    .select('platform_post_id, post_id')
+                    .eq('social_account_id', decryptedAccount.id)
+                    .eq('platform', 'facebook')
+                    .in('platform_post_id', platformPostIds);
+
+                if (linkedRowsError) {
+                    console.error('[PostsMedia] Failed to load published_posts source mapping:', linkedRowsError);
+                } else {
+                    sourceByPlatformPostId = new Map(
+                        ((linkedRows || []) as PublishedPostLinkRow[])
+                            .filter((row) => typeof row?.platform_post_id === 'string')
+                            .map((row) => [
+                                row.platform_post_id,
+                                row?.post_id ? 'app_managed' : 'native_discovered',
+                            ])
+                    );
+                }
+            }
+
+            media = fetchedPosts.map((item) => ({
                 id: item.id,
                 media_type: item.attachments?.data?.[0]?.media_type === 'video' ? 'VIDEO' : 'IMAGE',
                 media_url: item.full_picture || '',
                 thumbnail_url: item.full_picture || '',
                 caption: item.message || '',
-                timestamp: item.created_time,
-                permalink: item.permalink_url,
+                timestamp: item.created_time || '',
+                permalink: item.permalink_url || '',
                 comments_count: item.comments?.summary?.total_count || 0,
                 like_count: item.likes?.summary?.total_count || 0,
+                source: sourceByPlatformPostId.get(item.id) || 'native_discovered',
             }));
 
             paging = result.paging || null;
@@ -149,10 +282,183 @@ export async function GET(request: NextRequest) {
             }
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Posts media API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to fetch posts' },
+            { error: error instanceof Error ? error.message : 'Failed to fetch posts' },
+            { status: 500 }
+        );
+    }
+}
+
+// PATCH - Update a Facebook Page post message
+export async function PATCH(request: NextRequest) {
+    try {
+        const supabase = await createClient();
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const activeWorkspace = await getActiveWorkspace();
+        if (!activeWorkspace) {
+            return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
+        }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write');
+
+        assertJsonBodySize(request, 128 * 1024);
+        const body = await request.json();
+        const platform = typeof body?.platform === 'string' ? body.platform : 'facebook';
+        const postId = assertMetaGraphNodeId(body?.postId, 'postId');
+        const message = typeof body?.message === 'string' ? body.message.trim() : '';
+
+        if (platform !== 'facebook') {
+            return NextResponse.json({ error: 'Post editing is currently available for Facebook Page posts only' }, { status: 400 });
+        }
+        if (!message) {
+            return NextResponse.json({ error: 'message is required' }, { status: 400 });
+        }
+        if (message.length > 63206) {
+            return NextResponse.json({ error: 'message is too long for a Facebook Page post' }, { status: 400 });
+        }
+
+        const { data: account, error: accountError } = await supabase
+            .from('social_accounts')
+            .select('*')
+            .eq('workspace_id', activeWorkspace.id)
+            .eq('platform', platform)
+            .single();
+        const decryptedAccount = account ? decryptMetaAccountRow(account) : null;
+
+        if (accountError || !decryptedAccount?.access_token) {
+            return NextResponse.json({ error: 'No Facebook account or token available' }, { status: 400 });
+        }
+
+        if (!canPublishWithMetaAccount(decryptedAccount.metadata, 'facebook')) {
+            return postMediaCapabilityErrorResponse(platform, 'manage');
+        }
+
+        const response = await fetch(`${META_GRAPH_URL}/${postId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                message,
+                access_token: decryptedAccount.access_token,
+            }),
+        });
+        const result = await response.json() as { success?: boolean; error?: MetaGraphErrorShape };
+
+        if (!response.ok) {
+            console.error('[PostsMedia] Facebook post update API error:', result?.error);
+            return metaPostErrorResponse(result?.error, { platform: 'facebook', operation: 'update_post' });
+        }
+
+        const supabaseAdmin = createAdminClient();
+        const { error: updateError } = await supabaseAdmin
+            .from('published_posts')
+            .update({ platform_caption: message })
+            .eq('social_account_id', decryptedAccount.id)
+            .eq('platform', 'facebook')
+            .eq('platform_post_id', postId);
+        if (updateError) {
+            console.error('[PostsMedia] Failed to update local Facebook post caption:', updateError);
+        }
+
+        return NextResponse.json({ success: true, postId, message });
+    } catch (error: unknown) {
+        if (error instanceof Error && /Invalid postId|Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json({ error: error instanceof Error ? error.message : 'Forbidden' }, { status: permissionStatus });
+        }
+        console.error('Update Facebook post API error:', error);
+        return NextResponse.json(
+            { error: error instanceof Error ? error.message : 'Failed to update Facebook post' },
+            { status: 500 }
+        );
+    }
+}
+
+// DELETE - Delete a Facebook Page post
+export async function DELETE(request: NextRequest) {
+    try {
+        const supabase = await createClient();
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const activeWorkspace = await getActiveWorkspace();
+        if (!activeWorkspace) {
+            return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
+        }
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write');
+
+        const { searchParams } = new URL(request.url);
+        const platform = searchParams.get('platform') || 'facebook';
+        const rawPostId = searchParams.get('postId');
+
+        if (platform !== 'facebook') {
+            return NextResponse.json({ error: 'Post deletion is currently available for Facebook Page posts only' }, { status: 400 });
+        }
+        if (!rawPostId) {
+            return NextResponse.json({ error: 'postId is required' }, { status: 400 });
+        }
+        const postId = assertMetaGraphNodeId(rawPostId, 'postId');
+
+        const { data: account, error: accountError } = await supabase
+            .from('social_accounts')
+            .select('*')
+            .eq('workspace_id', activeWorkspace.id)
+            .eq('platform', platform)
+            .single();
+        const decryptedAccount = account ? decryptMetaAccountRow(account) : null;
+
+        if (accountError || !decryptedAccount?.access_token) {
+            return NextResponse.json({ error: 'No Facebook account or token available' }, { status: 400 });
+        }
+
+        if (!canPublishWithMetaAccount(decryptedAccount.metadata, 'facebook')) {
+            return postMediaCapabilityErrorResponse(platform, 'manage');
+        }
+
+        const deleteUrl = new URL(`${META_GRAPH_URL}/${postId}`);
+        deleteUrl.searchParams.set('access_token', decryptedAccount.access_token);
+        const response = await fetch(deleteUrl, { method: 'DELETE' });
+        const result = await response.json() as { success?: boolean; error?: MetaGraphErrorShape };
+
+        if (!response.ok) {
+            console.error('[PostsMedia] Facebook post delete API error:', result?.error);
+            return metaPostErrorResponse(result?.error, { platform: 'facebook', operation: 'delete_post' });
+        }
+
+        const supabaseAdmin = createAdminClient();
+        const { error: deleteError } = await supabaseAdmin
+            .from('published_posts')
+            .delete()
+            .eq('social_account_id', decryptedAccount.id)
+            .eq('platform', 'facebook')
+            .eq('platform_post_id', postId);
+        if (deleteError) {
+            console.error('[PostsMedia] Failed to delete local Facebook post record:', deleteError);
+        }
+
+        return NextResponse.json({ success: true, postId });
+    } catch (error: unknown) {
+        if (error instanceof Error && /Invalid postId/i.test(error.message)) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        const permissionStatus = getWorkspacePermissionErrorStatus(error);
+        if (permissionStatus) {
+            return NextResponse.json({ error: error instanceof Error ? error.message : 'Forbidden' }, { status: permissionStatus });
+        }
+        console.error('Delete Facebook post API error:', error);
+        return NextResponse.json(
+            { error: error instanceof Error ? error.message : 'Failed to delete Facebook post' },
             { status: 500 }
         );
     }

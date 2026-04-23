@@ -17,7 +17,11 @@ import {
     MessageCircle,
     ExternalLink,
     CornerDownRight,
-    User
+    User,
+    Pencil,
+    Trash2,
+    X,
+    Check
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { useToast } from "@/components/ui/use-toast"
@@ -33,6 +37,7 @@ interface PostData {
     permalink: string
     comments_count: number
     like_count: number
+    source?: 'app_managed' | 'native_discovered'
 }
 
 interface CommentData {
@@ -60,6 +65,8 @@ interface PostCommentsDrawerProps {
     post: PostData | null
     platform: string
     workspaceId: string
+    onPostUpdated?: (post: PostData) => void
+    onPostDeleted?: (postId: string) => void
 }
 
 const fetcher = async (url: string) => {
@@ -95,12 +102,18 @@ export function PostCommentsDrawer({
     post,
     platform,
     workspaceId,
+    onPostUpdated,
+    onPostDeleted,
 }: PostCommentsDrawerProps) {
     const [replyingTo, setReplyingTo] = useState<string | null>(null)
     const [replyText, setReplyText] = useState("")
     const [sendingReply, setSendingReply] = useState(false)
     const [generatingAI, setGeneratingAI] = useState<string | null>(null)
     const [hidingComment, setHidingComment] = useState<string | null>(null)
+    const [isEditingPost, setIsEditingPost] = useState(false)
+    const [editPostText, setEditPostText] = useState("")
+    const [savingPostEdit, setSavingPostEdit] = useState(false)
+    const [deletingPost, setDeletingPost] = useState(false)
     const [showHiddenComments, setShowHiddenComments] = useState(false)
     const [actionsBlocked, setActionsBlocked] = useState<{
         errorCode: string
@@ -131,6 +144,7 @@ export function PostCommentsDrawer({
     const commentsReadBlocked = commentsErrorCode === 'meta_missing_permission' || commentsErrorCode === 'meta_auth_invalid_token'
     const commentActionsBlocked = !!actionsBlocked
     const roleActionsBlocked = !canWriteContent
+    const canManageFacebookPost = platform === 'facebook' && !!post
 
     useEffect(() => {
         if (!open) {
@@ -138,8 +152,17 @@ export function PostCommentsDrawer({
             setReplyingTo(null)
             setReplyText("")
             setShowHiddenComments(false)
+            setIsEditingPost(false)
+            setEditPostText("")
         }
     }, [open, post?.id, platform])
+
+    useEffect(() => {
+        if (post) {
+            setEditPostText(post.caption || "")
+            setIsEditingPost(false)
+        }
+    }, [post?.id, post])
 
     const handleAIReply = async (comment: CommentData) => {
         if (!canWriteContent) {
@@ -297,6 +320,88 @@ export function PostCommentsDrawer({
         }
     }
 
+    const handleSavePostEdit = async () => {
+        if (!post || !canWriteContent || platform !== 'facebook') return
+        const nextCaption = editPostText.trim()
+        if (!nextCaption) {
+            toast({
+                title: "Caption required",
+                description: "Facebook post text cannot be empty.",
+                variant: "destructive",
+            })
+            return
+        }
+
+        setSavingPostEdit(true)
+        try {
+            const response = await fetch('/api/posts-media', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    postId: post.id,
+                    platform: 'facebook',
+                    message: nextCaption,
+                }),
+            })
+            const result = await response.json()
+
+            if (!response.ok) {
+                throw new Error(result?.error || 'Failed to update Facebook post')
+            }
+
+            const updatedPost = { ...post, caption: nextCaption }
+            onPostUpdated?.(updatedPost)
+            setIsEditingPost(false)
+            toast({
+                title: "Facebook post updated",
+                description: "The Page post text was updated successfully.",
+            })
+        } catch (err: unknown) {
+            console.error('Post update error:', err)
+            toast({
+                title: "Update failed",
+                description: err instanceof Error ? err.message : "Failed to update Facebook post.",
+                variant: "destructive",
+            })
+        } finally {
+            setSavingPostEdit(false)
+        }
+    }
+
+    const handleDeletePost = async () => {
+        if (!post || !canWriteContent || platform !== 'facebook') return
+        const confirmed = window.confirm('Delete this Facebook Page post? This removes it from Facebook and cannot be undone.')
+        if (!confirmed) return
+
+        setDeletingPost(true)
+        try {
+            const response = await fetch(`/api/posts-media?platform=facebook&postId=${encodeURIComponent(post.id)}`, {
+                method: 'DELETE',
+            })
+            const result = await response.json()
+
+            if (!response.ok) {
+                throw new Error(result?.error || 'Failed to delete Facebook post')
+            }
+
+            onPostDeleted?.(post.id)
+            onOpenChange(false)
+            toast({
+                title: "Facebook post deleted",
+                description: "The Page post was removed successfully.",
+            })
+        } catch (err: unknown) {
+            console.error('Post delete error:', err)
+            toast({
+                title: "Delete failed",
+                description: err instanceof Error ? err.message : "Failed to delete Facebook post.",
+                variant: "destructive",
+            })
+        } finally {
+            setDeletingPost(false)
+        }
+    }
+
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent
@@ -312,38 +417,130 @@ export function PostCommentsDrawer({
                     className="px-5 py-4 flex-none space-y-3"
                     style={{ borderBottom: `1px solid ${COMMENTS_THEME.borderSoft}` }}
                 >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-3">
                         <SheetTitle className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }}>
                             Comments
                         </SheetTitle>
-                        {post?.permalink && (
-                            <a
-                                href={post.permalink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1 text-xs transition-colors mr-8"
-                                style={{ color: 'rgba(255,255,255,0.4)' }}
-                            >
-                                View on {platform === 'instagram' ? 'Instagram' : 'Facebook'}
-                                <ExternalLink className="h-3 w-3" />
-                            </a>
-                        )}
+                        <div className="mr-8 flex items-center gap-2">
+                            {post?.permalink && (
+                                <a
+                                    href={post.permalink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1 text-xs transition-colors"
+                                    style={{ color: 'rgba(255,255,255,0.4)' }}
+                                >
+                                    View on {platform === 'instagram' ? 'Instagram' : 'Facebook'}
+                                    <ExternalLink className="h-3 w-3" />
+                                </a>
+                            )}
+                        </div>
                     </div>
 
                     {/* Mini post preview */}
                     {post && (
-                        <div className="flex gap-3 items-start">
-                            {post.media_url && (
-                                <img
-                                    src={post.thumbnail_url || post.media_url}
-                                    alt=""
-                                    className="h-14 w-14 rounded-lg object-cover flex-none"
-                                    style={{ border: `1px solid ${COMMENTS_THEME.border}` }}
-                                />
+                        <div className="space-y-3">
+                            <div className="flex gap-3 items-start">
+                                {post.media_url && (
+                                    <img
+                                        src={post.thumbnail_url || post.media_url}
+                                        alt=""
+                                        className="h-14 w-14 rounded-lg object-cover flex-none"
+                                        style={{ border: `1px solid ${COMMENTS_THEME.border}` }}
+                                    />
+                                )}
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs leading-relaxed line-clamp-3" style={{ color: 'rgba(255,255,255,0.42)' }}>
+                                        {post.caption || 'No caption'}
+                                    </p>
+                                    {canManageFacebookPost && (
+                                        <p className="mt-1 text-[10px] uppercase tracking-[0.18em]" style={{ color: 'rgba(56,189,248,0.55)' }}>
+                                            {post.source === 'app_managed' ? 'App-managed Page post' : 'Native Page post'}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            {canManageFacebookPost && (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEditPostText(post.caption || "")
+                                            setIsEditingPost((prev) => !prev)
+                                        }}
+                                        disabled={roleActionsBlocked || deletingPost}
+                                        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
+                                        style={{
+                                            background: 'rgba(56,189,248,0.10)',
+                                            border: '1px solid rgba(56,189,248,0.18)',
+                                            color: '#dff6ff',
+                                        }}
+                                    >
+                                        <Pencil className="h-3 w-3" />
+                                        Edit Post
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleDeletePost}
+                                        disabled={roleActionsBlocked || deletingPost || savingPostEdit}
+                                        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
+                                        style={{
+                                            background: 'rgba(248,113,113,0.10)',
+                                            border: '1px solid rgba(248,113,113,0.18)',
+                                            color: '#fecdd3',
+                                        }}
+                                    >
+                                        {deletingPost ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                                        Delete
+                                    </button>
+                                </div>
                             )}
-                            <p className="text-xs leading-relaxed line-clamp-3" style={{ color: 'rgba(255,255,255,0.42)' }}>
-                                {post.caption || 'No caption'}
-                            </p>
+
+                            {isEditingPost && (
+                                <div className="space-y-2 rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${COMMENTS_THEME.borderSoft}` }}>
+                                    <textarea
+                                        value={editPostText}
+                                        onChange={(event) => setEditPostText(event.target.value)}
+                                        rows={5}
+                                        disabled={savingPostEdit}
+                                        className="w-full resize-none rounded-lg px-3 py-2 text-sm outline-none"
+                                        style={{
+                                            background: COMMENTS_THEME.panelAlt,
+                                            border: `1px solid ${COMMENTS_THEME.border}`,
+                                            color: 'rgba(255,255,255,0.82)',
+                                        }}
+                                    />
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleSavePostEdit}
+                                            disabled={savingPostEdit || roleActionsBlocked || !editPostText.trim()}
+                                            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50"
+                                            style={{
+                                                background: 'linear-gradient(135deg, #38bdf8, #22c55e)',
+                                                color: '#06131b',
+                                            }}
+                                        >
+                                            {savingPostEdit ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                                            Save
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setIsEditingPost(false)
+                                                setEditPostText(post.caption || "")
+                                            }}
+                                            disabled={savingPostEdit}
+                                            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50"
+                                            style={{ color: 'rgba(255,255,255,0.42)' }}
+                                        >
+                                            <X className="h-3 w-3" />
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </SheetHeader>

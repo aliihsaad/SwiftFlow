@@ -354,22 +354,26 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                             reach: 0,
                             saved: 0,
                             shares: 0,
-                            impressions: 0
+                            impressions: 0,
+                            views: 0
                         };
 
-                        // Try to get additional insights (reach, saved) - these may fail but that's ok
+                        // Try to enrich with additional insights (reach, saves, views) when available.
                         try {
-                            const insightsMetrics = 'reach,saved,shares';
-                            const insightsUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/insights?metric=${insightsMetrics}&access_token=${account.access_token}`;
-                            const insightsResponse = await fetch(insightsUrl);
-                            const insightsData = await insightsResponse.json();
-
-                            if (insightsResponse.ok && insightsData.data) {
-                                insightsData.data.forEach((metric: any) => {
-                                    insights[metric.name] = metric.values?.[0]?.value || 0;
-                                });
-                                console.log(`[Sync] Instagram insights added for ${publishedPost.platform_post_id}`);
-                            }
+                            const igInsights = await fetchInstagramMediaInsightsBestEffort(
+                                publishedPost.platform_post_id,
+                                account.access_token,
+                                basicData.media_type || undefined,
+                            );
+                            insights = {
+                                ...insights,
+                                reach: igInsights.reach || 0,
+                                saved: igInsights.saved || 0,
+                                shares: igInsights.shares || 0,
+                                impressions: igInsights.impressions || 0,
+                                views: igInsights.views || 0,
+                            };
+                            console.log(`[Sync] Instagram insights added for ${publishedPost.platform_post_id}`);
                         } catch (insightsError) {
                             console.log(`[Sync] Could not fetch additional insights, using basic data only`);
                         }
@@ -377,16 +381,57 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                         logMetaGraphWarning(`[Sync] Instagram basic info request failed for ${publishedPost.platform_post_id}`, basicData);
                     }
                 } else if (publishedPost.platform === 'facebook') {
-                    // Facebook post insights require pages_read_engagement which needs Meta App Review
-                    // Skipping until permission is approved
-                    console.log(`[Sync] Skipping Facebook post ${publishedPost.platform_post_id} — pages_read_engagement not approved`);
+                    let likes = 0;
+                    let comments = 0;
+                    let shares = 0;
+                    let views = 0;
+                    let impressions = 0;
+                    let reach = 0;
+
+                    try {
+                        const metricsUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=shares,likes.summary(true),comments.summary(true)&access_token=${account.access_token}`;
+                        const metricsResponse = await fetch(metricsUrl);
+                        const metricsData = await metricsResponse.json();
+
+                        if (metricsResponse.ok) {
+                            likes = metricsData?.likes?.summary?.total_count || 0;
+                            comments = metricsData?.comments?.summary?.total_count || 0;
+                            shares = metricsData?.shares?.count || 0;
+                        } else {
+                            logMetaGraphWarning(`[Sync] Facebook metrics unavailable for ${publishedPost.platform_post_id}`, metricsData);
+                        }
+                    } catch (metricsError) {
+                        console.log(`[Sync] Facebook metrics fetch failed for ${publishedPost.platform_post_id}: ${summarizeError(metricsError)}`);
+                    }
+
+                    try {
+                        const fbInsights = await fetchFacebookPostInsightsBestEffort(
+                            publishedPost.platform_post_id,
+                            account.access_token,
+                        );
+                        views = fbInsights.views || 0;
+                        impressions = fbInsights.impressions || 0;
+                        reach = fbInsights.reach || 0;
+                    } catch (insightsError) {
+                        console.log(`[Sync] Facebook insights fetch failed for ${publishedPost.platform_post_id}: ${summarizeError(insightsError)}`);
+                    }
+
+                    insights = {
+                        likes,
+                        comments,
+                        shares,
+                        views,
+                        impressions,
+                        reach,
+                        saved: 0,
+                    };
                 }
 
                 if (insights) {
                     // Upsert post analytics
                     const analyticsData = {
                         published_post_id: publishedPost.id,
-                        views: insights.impressions || insights.reach || 0,
+                        views: insights.views || insights.impressions || insights.reach || 0,
                         likes: insights.likes || 0,
                         comments: insights.comments || 0,
                         shares: insights.shares || 0,

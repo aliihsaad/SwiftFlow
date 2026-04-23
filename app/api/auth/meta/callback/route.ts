@@ -174,9 +174,10 @@ export async function GET(request: NextRequest) {
         const pagesResponse = await fetch(pagesUrl, { cache: 'no-store' });
 
         if (!pagesResponse.ok) {
-            await pagesResponse.text();
+            const pagesErrorText = await pagesResponse.text();
             log(`ERROR: Pages fetch failed with status ${pagesResponse.status}`);
-            return redirectWithError(`/dashboard/settings/brand?error=pages_fetch_failed&status=${pagesResponse.status}`);
+            const details = encodeURIComponent(pagesErrorText.slice(0, 500));
+            return redirectWithError(`/dashboard/settings/brand?error=pages_fetch_failed&status=${pagesResponse.status}&details=${details}`);
         }
 
         const rawText = await pagesResponse.text();
@@ -196,12 +197,18 @@ export async function GET(request: NextRequest) {
         if (pages.length === 0) {
             log('Step 2b: /me/accounts empty — trying fallback via debug_token target_ids...');
             try {
-                const granularScopes = parsedDebugToken?.data?.granular_scopes || [];
-                const pagesScope = granularScopes.find((s) => s.scope === 'pages_show_list');
-                const targetIds = Array.isArray(pagesScope?.target_ids)
-                    ? pagesScope.target_ids.filter((id): id is string => typeof id === 'string')
-                    : [];
-                log(`Step 2b: Found ${targetIds.length} target page IDs: ${targetIds.join(', ')}`);
+                const pageScopedPermissions = new Set([
+                    'pages_show_list',
+                    'pages_read_engagement',
+                    'pages_manage_posts',
+                ]);
+                const targetIds = Array.from(new Set(
+                    grantedGranularScopes
+                        .filter((scope) => pageScopedPermissions.has(scope.scope))
+                        .flatMap((scope) => scope.target_ids || [])
+                        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+                ));
+                log(`Step 2b: Found ${targetIds.length} target page IDs from page granular scopes: ${targetIds.join(', ')}`);
 
                 for (const pageId of targetIds) {
                     try {
@@ -225,7 +232,11 @@ export async function GET(request: NextRequest) {
 
         if (pages.length === 0) {
             log('WARNING: No pages returned by Meta API');
-            return redirectWithError('/dashboard/settings/brand?error=no_pages');
+            const scopeDetails = encodeURIComponent([
+                `scopes=${grantedScopes.join(',') || 'none'}`,
+                `granular=${grantedGranularScopes.map((scope) => `${scope.scope}:${(scope.target_ids || []).length}`).join(',') || 'none'}`,
+            ].join('; '));
+            return redirectWithError(`/dashboard/settings/brand?error=no_pages&details=${scopeDetails}`);
         }
 
         // Step 3: For each page, check for linked Instagram Business Account

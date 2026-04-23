@@ -207,11 +207,18 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                         <div className="rounded-xl border border-amber-300/20 bg-amber-400/8 p-4 text-amber-100/90">
                             <div className="flex items-center gap-2 font-medium">
                                 <AlertCircle className="h-4 w-4" />
-                                No Pages Found
+                                {status.facebook ? 'Reconnect did not return selectable Pages' : 'No Pages Found'}
                             </div>
                             <div className="mt-2 text-sm">
-                                {errorMessage || 'No Facebook Pages found.'}
+                                {errorMessage || (status.facebook
+                                    ? 'Your existing Page connection is still saved, but Meta did not return selectable Pages during the latest reconnect attempt.'
+                                    : 'No Facebook Pages found.')}
                             </div>
+                            {errorDetails && (
+                                <div className="mt-2 max-h-20 overflow-auto rounded bg-black/20 p-2 text-xs font-mono text-white/70">
+                                    {errorDetails}
+                                </div>
+                            )}
                             <div className="mt-2 text-xs space-y-1">
                                 <p className="font-medium">Make sure:</p>
                                 <ul className="list-disc ml-4">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Facebook, Instagram, CheckCircle, Loader2, AlertCircle, ArrowLeft } from "lucide-react"
 
@@ -56,7 +56,7 @@ export default function SelectPagePage() {
                 if (data.pages_data?.length === 1) {
                     setSelectedPageId(data.pages_data[0].id)
                 }
-            } catch (err) {
+            } catch {
                 setError("Failed to load pages. Please try again.")
             } finally {
                 setLoading(false)
@@ -86,8 +86,9 @@ export default function SelectPagePage() {
             }
 
             // Success — redirect to brand settings
-            router.push("/dashboard/settings/brand?success=page_connected")
-        } catch (err) {
+            const count = session?.pages_data?.length || 1
+            router.push(`/dashboard/settings/brand?success=pages_connected&count=${count}`)
+        } catch {
             setError("An error occurred. Please try again.")
             setSaving(false)
         }

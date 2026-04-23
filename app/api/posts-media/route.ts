@@ -61,16 +61,6 @@ type FacebookPostApiItem = {
             media_type?: string;
         }>;
     };
-    comments?: {
-        summary?: {
-            total_count?: number;
-        };
-    };
-    likes?: {
-        summary?: {
-            total_count?: number;
-        };
-    };
 };
 
 type PublishedPostLinkRow = {
@@ -343,8 +333,10 @@ export async function GET(request: NextRequest) {
                 });
             }
 
-            // Facebook: GET /{page-id}/posts
-            let postsUrl = `${META_GRAPH_URL}/${decryptedAccount.account_id}/posts?fields=id,message,full_picture,created_time,permalink_url,attachments{media_type,media,url},comments.summary(true),likes.summary(true)&limit=${limit}&access_token=${decryptedAccount.access_token}`;
+            // Facebook: keep the discovery request limited to Page-owned post fields.
+            // Engagement summaries are intentionally not requested here because they can
+            // require additional Page/user-content permissions and break the whole list.
+            let postsUrl = `${META_GRAPH_URL}/${decryptedAccount.account_id}/posts?fields=id,message,full_picture,created_time,permalink_url,attachments{media_type}&limit=${limit}&access_token=${decryptedAccount.access_token}`;
             if (after) {
                 postsUrl += `&after=${after}`;
             }
@@ -414,8 +406,8 @@ export async function GET(request: NextRequest) {
                 caption: item.message || '',
                 timestamp: item.created_time || '',
                 permalink: item.permalink_url || '',
-                comments_count: item.comments?.summary?.total_count || 0,
-                like_count: item.likes?.summary?.total_count || 0,
+                comments_count: 0,
+                like_count: 0,
                 source: sourceByPlatformPostId.get(item.id) || 'native_discovered',
             }));
 

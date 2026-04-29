@@ -182,7 +182,7 @@ export function canPublishWithMetaAccount(
   platform: MetaPlatform,
 ): boolean {
   const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return true
+  if (!capabilities) return false
 
   return platform === "facebook"
     ? capabilities.facebook_publish
@@ -193,7 +193,7 @@ export function canReadAnalyticsWithMetaAccount(
   metadata: MetaAccountMetadata | null | undefined,
 ): boolean {
   const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return true
+  if (!capabilities) return false
   return capabilities.analytics_read
 }
 
@@ -202,7 +202,7 @@ export function canManageCommentsWithMetaAccount(
   platform: MetaPlatform,
 ): boolean {
   const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return true
+  if (!capabilities) return false
 
   return platform === "facebook"
     ? capabilities.facebook_comments_manage
@@ -214,7 +214,7 @@ export function canReadCommentsWithMetaAccount(
   platform: MetaPlatform,
 ): boolean {
   const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return true
+  if (!capabilities) return false
 
   return platform === "facebook"
     ? capabilities.facebook_comments_read || capabilities.facebook_comments_manage
@@ -226,7 +226,7 @@ export function canManageMessagesWithMetaAccount(
   platform: MetaPlatform,
 ): boolean {
   const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return true
+  if (!capabilities) return false
 
   return platform === "facebook"
     ? capabilities.pages_messaging
@@ -238,7 +238,7 @@ export function canReadConnectedMediaWithMetaAccount(
   platform: MetaPlatform,
 ): boolean {
   const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return true
+  if (!capabilities) return false
 
   return platform === "facebook"
     ? capabilities.analytics_read

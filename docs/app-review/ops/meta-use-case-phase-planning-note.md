@@ -1,6 +1,6 @@
 # Meta Use Case Phase Planning Note
 
-Last updated: 2026-04-03
+Last updated: 2026-04-29
 
 ## Purpose
 
@@ -85,6 +85,29 @@ The following capabilities should be submitted only after the related product su
 - Instagram and Facebook messaging
 - Facebook and Instagram analytics / insights
 - Messenger-related features
+
+## Phase 2 Before New Permission Review
+
+Phase 2 should begin before preparing the next Meta permission review package.
+
+The first Phase 2 work should use already-approved permissions:
+
+- stabilize approved publishing, scheduling, reconnect, and permission-state behavior
+- improve Facebook Page content and analytics value from `pages_read_engagement`
+- add AI content-generation automation that creates drafts, schedules posts, or auto-publishes only when explicitly enabled by the workspace
+
+Automation must be split into two categories:
+
+- Publishing automation: allowed to launch under the existing publishing permissions when it only generates, schedules, or publishes content for connected accounts.
+- Engagement automation: must stay hidden until comments/messages permissions are approved, because it reacts to or sends comments, DMs, private replies, or message responses.
+
+Do not start the next permission review package until the target surface has:
+
+- deterministic capability checks
+- stable reconnect/missing-scope recovery
+- reviewer-visible UI that matches the requested permission
+- audit logs or operational evidence for any automated action
+- a clean screencast path with no placeholder or gated dead-end surfaces
 
 ## Working Decision
 

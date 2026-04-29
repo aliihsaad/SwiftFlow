@@ -20,6 +20,13 @@ function sanitizeGranularScopes(scopes: unknown) {
     }))
 }
 
+function getEffectiveGrantedScopes(scopes: unknown, granularScopes: unknown): string[] {
+  return Array.from(new Set([
+    ...sanitizeScopes(scopes),
+    ...sanitizeGranularScopes(granularScopes).map((scope) => scope.scope),
+  ]))
+}
+
 export function deriveMetaCapabilities(scopes: readonly string[]) {
   const granted = new Set(scopes)
 
@@ -39,11 +46,11 @@ export function deriveMetaCapabilities(scopes: readonly string[]) {
 
 function getMetaCapabilities(metadata: Record<string, unknown> | null | undefined) {
   if (!metadata || typeof metadata !== "object") return null
-  const explicitCapabilities = metadata.capabilities as Record<string, unknown> | undefined
-  if (explicitCapabilities) return explicitCapabilities
 
-  const grantedScopes = sanitizeScopes(metadata.granted_scopes)
-  return grantedScopes.length > 0 ? deriveMetaCapabilities(grantedScopes) : null
+  const grantedScopes = getEffectiveGrantedScopes(metadata.granted_scopes, metadata.granted_granular_scopes)
+  return grantedScopes.length > 0
+    ? deriveMetaCapabilities(grantedScopes)
+    : (metadata.capabilities as Record<string, unknown> | undefined) || null
 }
 
 export function buildMetaAccountMetadata(input: {
@@ -59,6 +66,7 @@ export function buildMetaAccountMetadata(input: {
 }) {
   const grantedScopes = sanitizeScopes(input.grantedScopes)
   const grantedGranularScopes = sanitizeGranularScopes(input.grantedGranularScopes)
+  const effectiveGrantedScopes = getEffectiveGrantedScopes(grantedScopes, grantedGranularScopes)
   const existingMetadata = input.existingMetadata && typeof input.existingMetadata === "object"
     ? input.existingMetadata
     : {}
@@ -72,7 +80,7 @@ export function buildMetaAccountMetadata(input: {
     user_access_token: input.userAccessToken ?? (typeof existingMetadata.user_access_token === "string" ? existingMetadata.user_access_token : null),
     granted_scopes: grantedScopes,
     granted_granular_scopes: grantedGranularScopes,
-    capabilities: deriveMetaCapabilities(grantedScopes),
+    capabilities: deriveMetaCapabilities(effectiveGrantedScopes),
     last_scope_sync_at: syncedAt,
     scopes_checked_at: syncedAt,
     token_status: input.tokenStatus,
@@ -108,7 +116,7 @@ export function canPublishWithMetaAccount(
   platform: "facebook" | "instagram",
 ): boolean {
   const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return true
+  if (!capabilities) return false
 
   return platform === "facebook"
     ? capabilities.facebook_publish === true
@@ -119,7 +127,7 @@ export function canReadAnalyticsWithMetaAccount(
   metadata: Record<string, unknown> | null | undefined,
 ): boolean {
   const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return true
+  if (!capabilities) return false
   return capabilities.analytics_read === true
 }
 
@@ -128,7 +136,7 @@ export function canManageCommentsWithMetaAccount(
   platform: "facebook" | "instagram",
 ): boolean {
   const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return true
+  if (!capabilities) return false
 
   return platform === "facebook"
     ? capabilities.facebook_comments_manage === true
@@ -140,7 +148,7 @@ export function canReadCommentsWithMetaAccount(
   platform: "facebook" | "instagram",
 ): boolean {
   const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return true
+  if (!capabilities) return false
 
   return platform === "facebook"
     ? capabilities.facebook_comments_read === true || capabilities.facebook_comments_manage === true
@@ -152,7 +160,7 @@ export function canManageMessagesWithMetaAccount(
   platform: "facebook" | "instagram",
 ): boolean {
   const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return true
+  if (!capabilities) return false
 
   return platform === "facebook"
     ? capabilities.pages_messaging === true
@@ -164,9 +172,9 @@ export function canReadConnectedMediaWithMetaAccount(
   platform: "facebook" | "instagram",
 ): boolean {
   const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return true
+  if (!capabilities) return false
 
   return platform === "facebook"
-    ? capabilities.facebook_publish === true || capabilities.facebook_page_selection === true
+    ? capabilities.analytics_read === true
     : capabilities.instagram_basic === true || capabilities.instagram_publish === true
 }

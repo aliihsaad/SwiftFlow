@@ -20,7 +20,7 @@ Status legend:
 | Stage 6: Reviewer-safe UX and compliance | `done` | Stage 3, Stage 4 | reviewer path, public compliance pages, aligned reviewer docs |
 | Stage 7: Reliability hardening | `done` | Stage 4, Stage 5, Stage 6 | stable publish/schedule behavior, health/status surfaces, deploy checks |
 | Stage 8: Submission package finalization | `done` | Stage 7 | submitted reviewer package, final screencast, review answers, evidence bundle |
-| Stage 9: Post-approval expansion | `not_started` | Stage 8 | comments, analytics, messaging, billing added without regressing review-safe core |
+| Stage 9: Post-approval expansion | `in_progress` | Stage 8 | approved-permission stability, AI publishing automation, comments, analytics, messaging, billing added without regressing review-safe core |
 
 ## Implementation Order
 
@@ -98,3 +98,9 @@ Status legend:
     - `instagram_basic`
     - `instagram_content_publish`
   - access verification remains an external Meta review dependency, but it does not block the submission from being in queue
+- Stage 9 is in progress:
+  - Phase 2 starts before the next Meta permission review package
+  - first priority is stability for already-approved permissions and publishing/scheduling flows
+  - Stage 9A is tracked in `docs/meta-app-review-master-plan/stage-9a-approved-permission-stability-checklist.md`
+  - second priority is AI content-generation automation that can create drafts, schedule posts, or auto-publish only when explicitly enabled by the workspace
+  - new comments, insights, messaging, and comment/message automation permission reviews should wait until those surfaces are stable, capability-aware, and ready for a clean reviewer screencast

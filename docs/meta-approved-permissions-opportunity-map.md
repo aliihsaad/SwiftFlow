@@ -1,6 +1,6 @@
 # Approved Meta Permissions Opportunity Map
 
-Last updated: 2026-04-22
+Last updated: 2026-04-29
 
 ## Goal
 
@@ -128,11 +128,13 @@ Additional product value still available:
 - delete published Facebook posts from inside SwiftFlow
 - add safer retry-and-edit flows after publish failures
 - build a post operations panel for app-created and discovered Page posts
+- support explicitly enabled AI publishing automations that schedule or publish Facebook Page posts through the same guarded publishing pipeline
 
 Guardrails:
 
 - Any edit/delete UI should be explicit and auditable.
 - This is a strong operational feature, but not a permission expansion.
+- Automated publishing must be opt-in, account-scoped, capped, auditable, and reversible through pause/disable controls.
 
 Priority:
 
@@ -184,6 +186,7 @@ Additional product value still available:
 - better preflight validation before publish
 - post retry flows with cleaner error handling
 - richer publish-state history for Instagram content operations
+- support explicitly enabled AI publishing automations that generate Instagram drafts and schedule or publish approved content through the existing scheduler
 
 What this is **not**:
 
@@ -225,5 +228,6 @@ If the goal is to maximize value from the approved set before another review cyc
 
 1. Push harder on Facebook analytics and existing-content intelligence with `pages_read_engagement`.
 2. Add Facebook post edit/delete controls with `pages_manage_posts`.
-3. Improve account-switching and account health surfaces with `pages_show_list` and `instagram_basic`.
-4. Treat Instagram publishing improvements as workflow depth, not a major new permission unlock.
+3. Add AI content-generation automation for drafts, scheduling, and explicitly enabled auto-publishing using the approved publishing permissions.
+4. Improve account-switching and account health surfaces with `pages_show_list` and `instagram_basic`.
+5. Treat Instagram publishing improvements as workflow depth, not a major new permission unlock.

@@ -1,12 +1,24 @@
 # Stage 9: Post-Approval Expansion
 
-Status: `planned`
+Status: `in_progress`
 
 Depends on: `Stage 8`
 
 ## Goal
 
 Turn the approved publishing baseline into the full product in a controlled order, using the code that already exists in the repo while keeping permissions, UI claims, and operational behavior aligned.
+
+## Phase 2 Direction
+
+Phase 2 should start before preparing the next Meta permission review package.
+
+The immediate Phase 2 objective is not "request more permissions." It is:
+
+- finish stability work for the permissions already approved
+- add higher-value publishing automation on top of the approved publishing permissions
+- make the app's active product surfaces match the permissions that will be requested next
+
+This keeps the next review package defensible: reviewers should see stable current publishing flows plus clear, production-ready reasons for any new comments, insights, messaging, or automation-related permissions.
 
 ## Current Starting Point
 
@@ -29,11 +41,16 @@ That means Stage 9 is not greenfield feature work. It is mainly capability harde
 
 ## Recommended Execution Order
 
-### 1. Release Cleanup And Safety Baseline
+### 1. Approved-Permission Stability Baseline
+
+Tracking checklist:
+
+- `docs/meta-app-review-master-plan/stage-9a-approved-permission-stability-checklist.md`
 
 Ship first:
 
-- Remove Phase 1 review labels and reviewer-specific copy from the public UI.
+- Verify current approved publishing permissions remain stable across connect, reconnect, publish-now, scheduled publish, failed publish recovery, and account health surfaces.
+- Complete known permission-state fixes so the UI never shows stale counts or unsupported actions after Meta Graph failures.
 - Keep release-channel gating until each module is promoted intentionally.
 - Preserve the approved publishing path as the fallback-safe surface.
 
@@ -41,10 +58,68 @@ Before moving on:
 
 - Decide whether `review_phase_1` remains as a hidden fallback channel or is renamed to a generic limited-release channel.
 - Add a single rollout checklist covering env vars, nav visibility, and scope profile for each upcoming launch slice.
+- Record a short regression checklist for approved permissions before starting any new permission review work.
 
-### 2. Analytics Expansion
+Current Stage 9A work already started:
+
+- CSV export for analytics was implemented.
+- Best-effort Facebook post analytics sync for app-managed published posts was added.
+- Facebook post library source filtering was added for native Page versus app-managed posts.
+- Multiple `pages_read_engagement` and OAuth rerequest fixes were completed.
+
+### 2. Publishing Automation And AI Content Scheduling
 
 Why second:
+
+- This is the user's requested Phase 2 addition and it can provide major product value using the already-approved publish/schedule permissions.
+- It should be implemented before the next permission review so the product has a stronger core workflow, independent of comments or messaging approval.
+
+Initial supported flow:
+
+- User defines an automation goal, content theme, cadence, platforms, and approval mode.
+- AI generates draft content using the workspace's configured provider.
+- Drafts enter the existing post editor/scheduler pipeline.
+- In manual-approval mode, the user reviews and schedules/publishes.
+- In auto-post mode, the system schedules or publishes only within explicit workspace/account/platform limits.
+
+Complete before launch:
+
+- Define the supported automation types separately from comment/DM automations:
+  - generate draft ideas on a cadence
+  - generate posts and queue them for approval
+  - generate posts and schedule them automatically
+  - optionally publish automatically when the user explicitly enables that mode
+- Add account capability checks before every automated schedule or publish action.
+- Add safety controls: workspace opt-in, platform/account limits, daily caps, preview history, pause/disable, and audit logs.
+- Reuse the existing scheduled post worker instead of creating a parallel publisher.
+- Ensure failed automated publishes degrade into reviewable failed posts, not silent retries.
+
+Primary files:
+
+- `app/dashboard/automation/page.tsx`
+- `components/automation/**`
+- `app/dashboard/assistant/**`
+- `app/api/posts/**`
+- `app/api/scheduled/**`
+- `supabase/functions/process-scheduled-posts/index.ts`
+- `supabase/functions/process-scheduled-executions/index.ts`
+- `supabase/functions/automation-worker-*/index.ts`
+
+Permission track:
+
+- Uses already-approved `pages_manage_posts`
+- Uses already-approved `instagram_content_publish`
+- Uses already-approved account discovery scopes for connected account selection
+- Does not require comment, message, or insights permissions unless the automation trigger/action uses those surfaces
+
+Review posture:
+
+- This should be documented as a publishing/scheduling automation feature, not as a DM/comment automation feature.
+- Any automation that reacts to comments, messages, or insights must stay hidden until the corresponding new permission is approved.
+
+### 3. Analytics Expansion
+
+Why third:
 
 - The code is already present and the operational risk is lower than messaging or automation side effects.
 
@@ -67,9 +142,9 @@ Permission track:
 - `pages_read_engagement`
 - `instagram_manage_insights`
 
-### 3. Comments And Post Engagement
+### 4. Comments And Post Engagement
 
-Why third:
+Why fourth:
 
 - Comment moderation is a natural extension of publishing and analytics, but needs a clearer surface than the current redirect from `comments` to `posts`.
 
@@ -92,9 +167,9 @@ Permission track:
 - `instagram_manage_comments`
 - Any related Page engagement permission required by the final comment flow
 
-### 4. Messaging Enablement
+### 5. Messaging Enablement
 
-Why fourth:
+Why fifth:
 
 - Messaging already exists, but it has the highest permission and policy sensitivity after automation.
 
@@ -118,9 +193,9 @@ Permission track:
 - `instagram_manage_messages`
 - `pages_messaging`
 
-### 5. Automation Promotion
+### 6. Comment/Message Automation Promotion
 
-Why fifth:
+Why sixth:
 
 - Automation fans out into comments, messages, scheduling, AI responses, and worker execution. It should only be promoted after the underlying event sources are stable.
 
@@ -143,7 +218,7 @@ Permission track:
 
 - Inherits comment/message permissions from the promoted trigger/action set
 
-### 6. Billing And Entitlements
+### 7. Billing And Entitlements
 
 Why last:
 
@@ -174,14 +249,17 @@ These should run alongside every Stage 9 slice:
 
 ## Suggested Milestones
 
-1. `9A`: UI cleanup + release posture + analytics hardening
-2. `9B`: comments/product engagement launch slice
-3. `9C`: messaging permission and inbox launch slice
-4. `9D`: automation public rollout
-5. `9E`: billing foundation and entitlements
+1. `9A`: approved-permission stability + release posture + current analytics/post-library hardening
+2. `9B`: AI content generation automation + automatic scheduling/publishing using already-approved publish permissions
+3. `9C`: analytics expansion and next insights-permission review prep
+4. `9D`: comments/product engagement launch slice and comments-permission review prep
+5. `9E`: messaging permission and inbox launch slice
+6. `9F`: comment/message automation public rollout after underlying permissions are approved
+7. `9G`: billing foundation and entitlements
 
 ## Exit Gate
 
 - Full product surfaces are re-enabled only when the permission set, UI copy, and live behavior match.
 - The original approved publishing flow still works end to end after each milestone.
 - No surface ships with placeholder claims that the backend cannot actually support.
+- New permission review prep starts only after the related product surface is stable enough to record a clean screencast and explain the exact Meta permission use.

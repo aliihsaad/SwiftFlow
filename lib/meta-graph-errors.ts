@@ -9,7 +9,7 @@ export interface MetaGraphErrorShape {
 }
 
 export interface MetaErrorContext {
-    feature?: 'messages' | 'comments' | 'analytics' | 'posts' | 'generic';
+    feature?: 'messages' | 'comments' | 'analytics' | 'posts' | 'publishing' | 'generic';
     platform?: 'instagram' | 'facebook' | string;
     operation?: string;
 }
@@ -80,11 +80,21 @@ function inferMissingPermissions(ctx?: MetaErrorContext): string[] {
         return ['instagram_basic'];
     }
 
+    if (ctx?.feature === 'publishing') {
+        if (ctx.platform === 'facebook') {
+            return ['pages_manage_posts'];
+        }
+        if (ctx.platform === 'instagram') {
+            return ['instagram_content_publish'];
+        }
+        return ['pages_manage_posts', 'instagram_content_publish'];
+    }
+
     return [];
 }
 
 function buildPermissionMessage(ctx?: MetaErrorContext, missingPermissions: string[] = []): string {
-    const permissionList = missingPermissions.length > 0 ? missingPermissions.join(', ') : 'required messaging permissions';
+    const permissionList = missingPermissions.length > 0 ? missingPermissions.join(', ') : 'additional Meta permissions';
     if (ctx?.feature === 'messages') {
         if (ctx.platform === 'facebook') {
             const base = ctx.operation === 'send_message'
@@ -121,6 +131,9 @@ function buildPermissionMessage(ctx?: MetaErrorContext, missingPermissions: stri
         }
         return `Post access is not available for this connected account. Reconnect with ${permissionList}.`;
     }
+    if (ctx?.feature === 'publishing') {
+        return `Publishing is not enabled for this account. Reconnect with ${permissionList}.`;
+    }
     return `This action requires additional Meta permissions: ${permissionList}.`;
 }
 
@@ -147,7 +160,7 @@ export function normalizeMetaGraphError(
     const isPermissionError =
         code === 10 ||
         code === 200 ||
-        /permission|requires permission|not authorized|appropriate role|pages_messaging|instagram_manage_messages/.test(lower);
+        /permission|requires permission|not authorized|appropriate role|pages_messaging|instagram_manage_messages|pages_manage_posts|instagram_content_publish/.test(lower);
 
     if (isPermissionError) {
         const missingPermissions = inferMissingPermissions(ctx);

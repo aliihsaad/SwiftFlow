@@ -103,4 +103,5 @@ Status legend:
   - first priority is stability for already-approved permissions and publishing/scheduling flows
   - Stage 9A is tracked in `docs/meta-app-review-master-plan/stage-9a-approved-permission-stability-checklist.md`
   - second priority is AI content-generation automation that can create drafts, schedule posts, or auto-publish only when explicitly enabled by the workspace
+  - Stage 9B design is tracked in `docs/meta-app-review-master-plan/stage-9b-ai-publishing-automation-design.md`
   - new comments, insights, messaging, and comment/message automation permission reviews should wait until those surfaces are stable, capability-aware, and ready for a clean reviewer screencast

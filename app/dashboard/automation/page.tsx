@@ -7,6 +7,7 @@ import { AutomationCard } from "@/components/automation/automation-card"
 import { AutomationSetupModal } from "@/components/automation/automation-setup-modal"
 import { ActiveAutomationsList } from "@/components/automation/active-automations-list"
 import { AutomationTemplatePicker } from "@/components/automation/automation-template-picker"
+import { PublishingAutomationsPanel } from "@/components/automation/publishing-automations-panel"
 import { WorkflowCanvas } from "@/components/automation/canvas/workflow-canvas"
 import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
@@ -309,6 +310,8 @@ export default function AutomationPage() {
                     />
                 </div>
             </div>
+
+            <PublishingAutomationsPanel readOnly={!canWriteAutomations} />
 
             {/* Active Automations */}
             <div>

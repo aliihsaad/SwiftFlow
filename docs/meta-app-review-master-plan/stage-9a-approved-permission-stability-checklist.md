@@ -101,7 +101,35 @@ Static verification:
 
 Live verification:
 
-- Pending. Requires connected Meta test accounts and deployed Supabase Edge functions.
+- In progress.
+- 2026-04-30 live domain evidence from `social.swiftdigital-s.com`:
+  - Meta reconnect completed for workspace/account `Alidevlab`.
+  - Publish-now flow succeeded; a new native Page post appeared in the Facebook content library about 6 minutes after posting.
+  - Facebook Page content library loaded native Page posts and showed the connected Page as `Alidevlab`.
+  - Instagram content library loaded owned media for `@alidevlab`.
+  - `published_posts` database rows were present for both Facebook and Instagram with `platform_post_id`, `published_at`, `social_account_id`, and `platform_caption` populated.
+  - Scheduled future publish completed successfully on live.
+  - A test Facebook post was deleted from inside the app after it published, verifying the Facebook post delete operation path.
+
+Passed so far:
+
+- Meta reconnect path.
+- Publish-now path for at least one live post.
+- Facebook Page native post read path.
+- Instagram owned-media read path.
+- Database linkage for successful publish rows.
+- Scheduled future publish path.
+- Facebook post delete operation after publish.
+
+Deferred controlled tests:
+
+- Failure recovery tests for missing token, missing publish permission, Instagram-without-media, and invalid/private media URL.
+
+Observed follow-up:
+
+- The Facebook post comments side panel still showed a comment-access warning for `pages_read_engagement` while native Page posts were visible. Treat this as a separate comments/read-state issue to investigate before marking comments or engagement surfaces stable.
+- `published_posts.permalink` was `NULL` in the database screenshots for the verified Facebook and Instagram rows. Platform IDs and account linkage are present, but permalink capture should be improved later if the UI needs direct provider links.
+- Failure recovery cases are deferred because the live production credentials are healthy. Do not intentionally break the live account; test those cases later in staging or with mocked Meta responses.
 
 ## Exit Gate
 

@@ -74,10 +74,14 @@ Why second:
 - This is the user's requested Phase 2 addition and it can provide major product value using the already-approved publish/schedule permissions.
 - It should be implemented before the next permission review so the product has a stronger core workflow, independent of comments or messaging approval.
 
+Tracking design:
+
+- `docs/meta-app-review-master-plan/stage-9b-ai-publishing-automation-design.md`
+
 Initial supported flow:
 
-- User defines an automation goal, content theme, cadence, platforms, and approval mode.
-- AI generates draft content using the workspace's configured provider.
+- User defines an automation goal, content theme, cadence, platforms, approval mode, and generation workflow.
+- AI uses the existing idea, caption, image, and carousel generation functions through a publishing automation orchestrator.
 - Drafts enter the existing post editor/scheduler pipeline.
 - In manual-approval mode, the user reviews and schedules/publishes.
 - In auto-post mode, the system schedules or publishes only within explicit workspace/account/platform limits.

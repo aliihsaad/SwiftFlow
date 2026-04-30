@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import { AlertTriangle, CalendarClock, CheckCircle2, Facebook, Instagram, Loader2, Palette, PauseCircle, Pencil, Play, Sparkles, Trash2, Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -107,6 +108,7 @@ function buildProfileVisualStyle(profile?: BrandProfileResponse) {
 
 export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutomationsPanelProps) {
     const { toast } = useToast()
+    const router = useRouter()
     const { data, error, isLoading, mutate } = useSWR<PublishingAutomationsResponse>(
         "/api/publishing-automations",
         fetcher,
@@ -338,8 +340,9 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
 
             toast({
                 title: "Draft generated",
-                description: "The generated post was saved as a draft for review.",
+                description: "Opening the Drafts tab for review.",
             })
+            router.push("/dashboard/scheduled?tab=drafts")
             mutate()
         } catch (error: unknown) {
             toast({

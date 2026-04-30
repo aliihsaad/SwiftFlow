@@ -345,28 +345,12 @@ export async function POST(
             const caption = extractCaption(captionResponse, idea.body)
             const mediaUrls: string[] = []
 
-            if (automation.workflow_config.media_mode === 'generated_image') {
-                const imageResponse = await invokeEdgeFunction('generate-image', {
-                    workspaceId: activeWorkspace.id,
-                    messages: [{ role: 'user', content: buildImagePrompt(automation, caption, brandProfile, imageModelRecommendation) }],
-                })
-                const imageUrl = extractImageUrl(imageResponse)
-                if (imageUrl) mediaUrls.push(imageUrl)
-            }
-
-            if (automation.workflow_config.media_mode === 'carousel') {
-                await invokeEdgeFunction('generate-carousel', {
-                    workspaceId: activeWorkspace.id,
-                    messages: [{ role: 'user', content: `${idea.title}\n\n${caption}` }],
-                })
-            }
-
             const { data: post, error: postError } = await admin
                 .from('posts')
                 .insert({
                     workspace_id: activeWorkspace.id,
                     content: caption,
-                    media_urls: mediaUrls,
+                    media_urls: [],
                     platforms: automation.platforms,
                     status: 'draft',
                     scheduled_for: null,
@@ -383,11 +367,66 @@ export async function POST(
 
             if (postError) throw postError
 
+            const postId = isRecord(post) && typeof post.id === 'string' ? post.id : null
+            if (!postId) throw new Error('Failed to create draft post')
+
+            await admin
+                .from('publishing_automation_runs')
+                .update({
+                    generated_post_id: postId,
+                    result_snapshot: {
+                        idea,
+                        caption,
+                        media_urls: [],
+                        post_id: postId,
+                        draft_created_at: new Date().toISOString(),
+                    },
+                })
+                .eq('id', runId)
+
+            await admin
+                .from('publishing_automations')
+                .update({
+                    last_run_at: new Date().toISOString(),
+                    last_error: null,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', automationId)
+
+            if (automation.workflow_config.media_mode === 'generated_image') {
+                const imageResponse = await invokeEdgeFunction('generate-image', {
+                    workspaceId: activeWorkspace.id,
+                    messages: [{ role: 'user', content: buildImagePrompt(automation, caption, brandProfile, imageModelRecommendation) }],
+                })
+                const imageUrl = extractImageUrl(imageResponse)
+                if (imageUrl) mediaUrls.push(imageUrl)
+
+                if (mediaUrls.length > 0) {
+                    const { error: mediaUpdateError } = await admin
+                        .from('posts')
+                        .update({
+                            media_urls: mediaUrls,
+                            updated_at: new Date().toISOString(),
+                        })
+                        .eq('id', postId)
+                        .eq('workspace_id', activeWorkspace.id)
+
+                    if (mediaUpdateError) throw mediaUpdateError
+                }
+            }
+
+            if (automation.workflow_config.media_mode === 'carousel') {
+                await invokeEdgeFunction('generate-carousel', {
+                    workspaceId: activeWorkspace.id,
+                    messages: [{ role: 'user', content: `${idea.title}\n\n${caption}` }],
+                })
+            }
+
             const resultSnapshot = {
                 idea,
                 caption,
                 media_urls: mediaUrls,
-                post_id: isRecord(post) && typeof post.id === 'string' ? post.id : null,
+                post_id: postId,
             }
 
             await admin
@@ -409,7 +448,11 @@ export async function POST(
                 })
                 .eq('id', automationId)
 
-            return NextResponse.json({ success: true, post, run: { id: runId, status: 'completed' } })
+            return NextResponse.json({
+                success: true,
+                post: { ...post, media_urls: mediaUrls },
+                run: { id: runId, status: 'completed' },
+            })
         } catch (generationError: unknown) {
             const message = errorMessage(generationError)
             await admin

@@ -130,17 +130,39 @@ Write one ready-to-review caption that is consistent with the brand voice and do
 
 function buildImagePrompt(automation: CreatePublishingAutomationPayload, caption: string, brandProfile: BrandProfileSummary | null): string {
     const consistency = automation.consistency_config
+    const palette = (consistency?.color_palette || []).join(', ') || 'workspace brand colors'
+    const visualStyle = consistency?.visual_style_prompt || 'Build a consistent branded social poster system.'
+    const typography = consistency?.typography_notes || 'Use expressive editorial typography: a high-contrast serif-style quote face paired with a clean geometric sans-style attribution and CTA. Avoid generic Arial/Roboto-looking text.'
+
     return `Create a social media image for this caption:
 ${caption}
 
 Workspace brand profile:
 ${summarizeBrandProfile(brandProfile)}
 
-Visual consistency rules:
-${consistency?.visual_style_prompt || 'Use a clean branded style aligned with the workspace brand profile.'}
-Colors: ${(consistency?.color_palette || []).join(', ') || 'Use workspace brand colors when available.'}
-Typography/layout notes: ${consistency?.typography_notes || 'Readable, platform-friendly composition.'}
-Avoid visual repetition while keeping the same brand identity.`
+NON-NEGOTIABLE VISUAL DIRECTION:
+- Create a designed brand poster, not a stock-photo scene.
+- Do not use random laptops, tablets, desks, flowers, generic offices, or unrelated backgrounds unless the brand profile explicitly asks for them.
+- Use one repeatable visual system across runs: same composition logic, same type hierarchy, same background language, same motif family.
+- Background must be a custom designed backdrop: abstract gradient, paper grain, subtle geometric pattern, soft light field, or branded shape system.
+- The post should feel creative and intentional, not a generic quote generator.
+- If text is rendered in the image, keep it short, large, centered or editorially composed, and legible on mobile.
+
+BRAND VISUAL SYSTEM:
+${visualStyle}
+
+COLORS:
+Use ${palette}. Keep contrast high and avoid muddy beige/gray photo overlays.
+
+TYPOGRAPHY:
+${typography}
+
+LAYOUT:
+- 1:1 square social image.
+- Strong focal typography or abstract hero mark.
+- Leave safe margins.
+- Use a consistent signature detail such as a small accent line, corner mark, halo shape, or quote badge.
+- Avoid visual repetition while keeping the same brand identity.`
 }
 
 async function invokeEdgeFunction(functionName: string, body: JsonRecord): Promise<JsonRecord> {

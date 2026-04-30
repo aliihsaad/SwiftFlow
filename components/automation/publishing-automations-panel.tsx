@@ -79,9 +79,9 @@ function buildProfileVisualStyle(profile?: BrandProfileResponse) {
         ? [colors.primary, colors.secondary, colors.accent].filter(Boolean).join(", ")
         : ""
     return [
-        "Keep a consistent branded visual system.",
+        "Create a typography-led branded poster system, not stock-photo quote graphics.",
         palette ? `Use brand colors: ${palette}.` : "",
-        "Use clean layouts, readable text overlays, and recurring design motifs so posts feel like one brand series.",
+        "Use custom abstract backgrounds, expressive quote typography, recurring accent shapes, and one repeatable composition language so posts feel like one brand series.",
     ].filter(Boolean).join(" ")
 }
 
@@ -104,6 +104,7 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
     const [contentGoal, setContentGoal] = useState("")
     const [brandVoice, setBrandVoice] = useState("")
     const [visualStyle, setVisualStyle] = useState("")
+    const [typographyNotes, setTypographyNotes] = useState("Editorial serif-style quote typography paired with a geometric sans-style attribution. Avoid generic Arial/Roboto-looking text.")
     const [selectedThemes, setSelectedThemes] = useState<string[]>([])
     const [brandVoiceSource, setBrandVoiceSource] = useState<"workspace_profile" | "custom_override" | "hybrid">("workspace_profile")
     const [platforms, setPlatforms] = useState<Platform[]>(["facebook", "instagram"])
@@ -135,17 +136,24 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
         })
     }
 
-    const applyVisualPreset = (preset: "brand" | "education" | "product" | "community") => {
+    const applyVisualPreset = (preset: "editorial" | "kinetic" | "gradient" | "minimal") => {
         const palette = brandProfile?.brand_colors?.enabled
             ? [brandProfile.brand_colors.primary, brandProfile.brand_colors.secondary, brandProfile.brand_colors.accent].filter(Boolean).join(", ")
             : "the workspace brand colors"
         const presets = {
-            brand: `Consistent branded social graphics using ${palette}. Clean layouts, soft gradients, recurring rounded cards, readable minimal text overlays.`,
-            education: `Educational carousel-style visuals using ${palette}. Clear hierarchy, numbered tips, simple icons, and repeatable title/content layout.`,
-            product: `Product/service spotlight visuals using ${palette}. Premium cards, focused subject area, benefit-led text overlays, and polished CTA space.`,
-            community: `Warm behind-the-scenes/community visuals using ${palette}. Human, approachable, candid composition with subtle branded framing.`,
+            editorial: `Typography-led quote poster series using ${palette}. Custom abstract gradient or paper-grain background, large editorial quote lockup, small attribution, recurring corner accent mark. No stock photos.`,
+            kinetic: `Bold kinetic typography system using ${palette}. Oversized cropped words, dynamic diagonal grid, high-contrast accent shapes, energetic but clean composition. No generic photo backgrounds.`,
+            gradient: `Premium abstract gradient poster using ${palette}. Soft light fields, subtle grain, glassy shape layers, elegant quote typography, consistent small brand signature detail.`,
+            minimal: `Minimal luxury quote card using ${palette}. Deep negative space, refined border or halo motif, high-contrast serif-style quote type, small geometric sans attribution.`,
+        }
+        const typography = {
+            editorial: "High-contrast editorial serif-style quote typography with a compact geometric sans-style attribution.",
+            kinetic: "Bold condensed display typography with a clean sans-style supporting line. Strong hierarchy, no generic default fonts.",
+            gradient: "Elegant serif-style headline with small modern sans-style attribution. Premium magazine feel.",
+            minimal: "Refined serif-style quote typography, generous spacing, small all-caps sans-style attribution.",
         }
         setVisualStyle(presets[preset])
+        setTypographyNotes(typography[preset])
     }
 
     const createAutomation = async () => {
@@ -178,7 +186,7 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
                         color_palette: brandProfile?.brand_colors?.enabled
                             ? [brandProfile.brand_colors.primary, brandProfile.brand_colors.secondary, brandProfile.brand_colors.accent].filter((color): color is string => !!color)
                             : [],
-                        typography_notes: "",
+                        typography_notes: typographyNotes,
                         history_window_days: 45,
                         recent_posts_limit: 12,
                         avoid_repeated_topics: true,
@@ -390,6 +398,7 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
                                             onClick={() => {
                                                 setContentGoal(buildProfileGoal(brandProfile))
                                                 setVisualStyle(buildProfileVisualStyle(brandProfile))
+                                                setTypographyNotes("Editorial serif-style quote typography paired with a geometric sans-style attribution. Avoid generic Arial/Roboto-looking text.")
                                                 setSelectedThemes(profileThemes.slice(0, 3))
                                                 setBrandVoiceSource("workspace_profile")
                                                 setBrandVoice("")
@@ -497,10 +506,10 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
                             <Label>Design Consistency Prompt</Label>
                             <div className="grid gap-2 sm:grid-cols-2">
                                 {([
-                                    ["brand", "Branded clean"],
-                                    ["education", "Educational cards"],
-                                    ["product", "Product spotlight"],
-                                    ["community", "Community style"],
+                                    ["editorial", "Editorial quote poster"],
+                                    ["kinetic", "Bold type system"],
+                                    ["gradient", "Abstract gradient"],
+                                    ["minimal", "Minimal premium"],
                                 ] as const).map(([preset, label]) => (
                                     <button
                                         key={preset}
@@ -517,8 +526,17 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
                             <Textarea
                                 value={visualStyle}
                                 onChange={(event) => setVisualStyle(event.target.value)}
-                                placeholder="Optional. Example: Clean product-led visuals, green/cyan accents, soft gradients, minimal text overlays, consistent rounded cards."
-                                rows={3}
+                                placeholder="Example: Typography-led quote poster series with custom abstract backgrounds, recurring accent shapes, and no stock-photo scenes."
+                                rows={4}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Typography Direction</Label>
+                            <Textarea
+                                value={typographyNotes}
+                                onChange={(event) => setTypographyNotes(event.target.value)}
+                                placeholder="Example: High-contrast editorial serif-style quote typography with a compact geometric sans-style attribution."
+                                rows={2}
                             />
                         </div>
                     </div>

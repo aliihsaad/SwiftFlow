@@ -18,6 +18,22 @@ interface RecentPostSummary {
     published_at: string | null
 }
 
+interface BrandProfileSummary {
+    business_name?: string | null
+    industry?: string | null
+    business_description?: string | null
+    target_audience?: string | null
+    brand_voice?: string | null
+    unique_selling_points?: string[] | null
+    content_themes?: string[] | null
+    brand_colors?: {
+        enabled?: boolean
+        primary?: string
+        secondary?: string
+        accent?: string
+    } | null
+}
+
 function isRecord(value: unknown): value is JsonRecord {
     return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -55,9 +71,30 @@ function summarizeRecentPosts(posts: RecentPostSummary[]): string {
         .join('\n')
 }
 
-function buildIdeaPrompt(automation: CreatePublishingAutomationPayload, recentPosts: RecentPostSummary[]): string {
+function summarizeBrandProfile(profile: BrandProfileSummary | null): string {
+    if (!profile) return 'No workspace brand profile found. Use the automation settings only.'
+    const colors = profile.brand_colors?.enabled
+        ? [profile.brand_colors.primary, profile.brand_colors.secondary, profile.brand_colors.accent].filter(Boolean).join(', ')
+        : ''
+
+    return [
+        profile.business_name ? `Business: ${profile.business_name}` : '',
+        profile.industry ? `Industry: ${profile.industry}` : '',
+        profile.business_description ? `Description: ${profile.business_description}` : '',
+        profile.target_audience ? `Target audience: ${profile.target_audience}` : '',
+        profile.brand_voice ? `Brand voice: ${profile.brand_voice}` : '',
+        profile.unique_selling_points?.length ? `Unique selling points: ${profile.unique_selling_points.join(', ')}` : '',
+        profile.content_themes?.length ? `Content themes: ${profile.content_themes.join(', ')}` : '',
+        colors ? `Brand colors: ${colors}` : '',
+    ].filter(Boolean).join('\n') || 'Workspace brand profile is mostly empty.'
+}
+
+function buildIdeaPrompt(automation: CreatePublishingAutomationPayload, recentPosts: RecentPostSummary[], brandProfile: BrandProfileSummary | null): string {
     const consistency = automation.consistency_config
     return `Create one social media post idea for this automation.
+
+Workspace brand profile:
+${summarizeBrandProfile(brandProfile)}
 
 Goal: ${automation.content_goal}
 Platforms: ${automation.platforms.join(', ')}
@@ -73,9 +110,12 @@ ${summarizeRecentPosts(recentPosts)}
 Return one strong idea with a usable caption draft. Avoid repeating recent hooks, topics, and caption structure.`
 }
 
-function buildCaptionDescription(automation: CreatePublishingAutomationPayload, ideaTitle: string, ideaBody: string, recentPosts: RecentPostSummary[]): string {
+function buildCaptionDescription(automation: CreatePublishingAutomationPayload, ideaTitle: string, ideaBody: string, recentPosts: RecentPostSummary[], brandProfile: BrandProfileSummary | null): string {
     const consistency = automation.consistency_config
-    return `Automation goal: ${automation.content_goal}
+    return `Workspace brand profile:
+${summarizeBrandProfile(brandProfile)}
+
+Automation goal: ${automation.content_goal}
 Idea title: ${ideaTitle}
 Idea draft: ${ideaBody}
 Platforms: ${automation.platforms.join(', ')}
@@ -88,10 +128,13 @@ ${summarizeRecentPosts(recentPosts)}
 Write one ready-to-review caption that is consistent with the brand voice and does not repeat recent posts.`
 }
 
-function buildImagePrompt(automation: CreatePublishingAutomationPayload, caption: string): string {
+function buildImagePrompt(automation: CreatePublishingAutomationPayload, caption: string, brandProfile: BrandProfileSummary | null): string {
     const consistency = automation.consistency_config
     return `Create a social media image for this caption:
 ${caption}
+
+Workspace brand profile:
+${summarizeBrandProfile(brandProfile)}
 
 Visual consistency rules:
 ${consistency?.visual_style_prompt || 'Use a clean branded style aligned with the workspace brand profile.'}
@@ -176,11 +219,21 @@ export async function POST(
 
         if (recentError) throw recentError
         const recentPosts = (recentRows || []) as RecentPostSummary[]
+
+        const { data: brandProfileRow, error: brandProfileError } = await supabase
+            .from('workspace_brand_profiles')
+            .select('business_name, industry, business_description, target_audience, brand_voice, unique_selling_points, content_themes, brand_colors')
+            .eq('workspace_id', activeWorkspace.id)
+            .maybeSingle()
+
+        if (brandProfileError) throw brandProfileError
+        const brandProfile = (brandProfileRow || null) as BrandProfileSummary | null
         const promptSnapshot = {
             automation_id: automationId,
             workflow_config: automation.workflow_config,
             consistency_config: automation.consistency_config,
             platforms: automation.platforms,
+            brand_profile: brandProfile,
             recent_posts: recentPosts,
         }
 
@@ -201,7 +254,7 @@ export async function POST(
         if (!runId) throw new Error('Failed to create publishing automation run')
 
         try {
-            const ideaPrompt = buildIdeaPrompt(automation, recentPosts)
+            const ideaPrompt = buildIdeaPrompt(automation, recentPosts, brandProfile)
             const ideaResponse = await invokeEdgeFunction('generate-ideas', {
                 workspaceId: activeWorkspace.id,
                 messages: [{ role: 'user', content: ideaPrompt }],
@@ -210,7 +263,7 @@ export async function POST(
 
             const captionResponse = await invokeEdgeFunction('generate-caption', {
                 workspaceId: activeWorkspace.id,
-                description: buildCaptionDescription(automation, idea.title, idea.body, recentPosts),
+                description: buildCaptionDescription(automation, idea.title, idea.body, recentPosts, brandProfile),
                 platforms: automation.platforms,
                 tone: 'professional',
             })
@@ -220,7 +273,7 @@ export async function POST(
             if (automation.workflow_config.media_mode === 'generated_image') {
                 const imageResponse = await invokeEdgeFunction('generate-image', {
                     workspaceId: activeWorkspace.id,
-                    messages: [{ role: 'user', content: buildImagePrompt(automation, caption) }],
+                    messages: [{ role: 'user', content: buildImagePrompt(automation, caption, brandProfile) }],
                 })
                 const imageUrl = extractImageUrl(imageResponse)
                 if (imageUrl) mediaUrls.push(imageUrl)

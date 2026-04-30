@@ -190,6 +190,33 @@ export function getModelRecommendationLabel(recommendation: AIModelOption['recom
   return 'Balanced Default'
 }
 
+const TYPOGRAPHY_SAFE_IMAGE_MODEL_IDS = new Set([
+  'openai/gpt-5-image',
+  'openai/gpt-5-image-mini',
+  'gpt-image-1.5',
+  'black-forest-labs/flux.2-flex',
+  'black-forest-labs/flux.2-max',
+  'google/gemini-3-pro-image-preview',
+  'gemini-3-pro-image-preview',
+])
+
+function normalizeModelId(modelId: string | null | undefined): string {
+  return (modelId || '').trim().toLowerCase()
+}
+
+export function getModelLabel(provider: AIProvider, capability: AIModelCapability, modelId: string | null | undefined): string {
+  const normalized = normalizeModelId(modelId)
+  return getCuratedModelsForProvider(provider, capability).find((model) => normalizeModelId(model.id) === normalized)?.label || modelId || 'Default model'
+}
+
+export function isTypographySafeImageModel(modelId: string | null | undefined): boolean {
+  return TYPOGRAPHY_SAFE_IMAGE_MODEL_IDS.has(normalizeModelId(modelId))
+}
+
+export function getTypographySafeImageModels(provider: AIProvider): AIModelOption[] {
+  return getCuratedModelsForProvider(provider, 'image').filter((model) => isTypographySafeImageModel(model.id))
+}
+
 export function isAIProvider(value: string): value is AIProvider {
   return value === 'openrouter' || value === 'gemini' || value === 'openai'
 }

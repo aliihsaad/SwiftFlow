@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { CreatePublishingAutomationPayload } from '@/types/publishing-automation'
+import {
+    getDefaultImageModelForProvider,
+    getModelLabel,
+    getTypographySafeImageModels,
+    isAIProvider,
+    isTypographySafeImageModel,
+    type AIProvider,
+} from '@/lib/ai-models'
 import { sanitizeCreatePublishingAutomationPayload } from '@/lib/publishing-automation-validation'
 import { getActiveWorkspace } from '@/lib/workspace-utils'
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions'
@@ -32,6 +40,16 @@ interface BrandProfileSummary {
         secondary?: string
         accent?: string
     } | null
+}
+
+interface ImageModelRecommendation {
+    provider: AIProvider
+    configuredModel: string | null
+    effectiveModel: string | null
+    effectiveModelLabel: string
+    isRecommendedForText: boolean
+    recommendedModels: Array<{ id: string; label: string }>
+    textRenderingPolicy: 'exact_short_text_allowed' | 'caption_text_only'
 }
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -128,11 +146,35 @@ ${summarizeRecentPosts(recentPosts)}
 Write one ready-to-review caption that is consistent with the brand voice and does not repeat recent posts.`
 }
 
-function buildImagePrompt(automation: CreatePublishingAutomationPayload, caption: string, brandProfile: BrandProfileSummary | null): string {
+function getImageModelRecommendation(settings: JsonRecord | null): ImageModelRecommendation {
+    const provider: AIProvider = isAIProvider(String(settings?.ai_provider || ''))
+        ? settings?.ai_provider as AIProvider
+        : 'openrouter'
+    const configuredModel = typeof settings?.ai_image_model_name === 'string' && settings.ai_image_model_name.trim()
+        ? settings.ai_image_model_name.trim()
+        : null
+    const effectiveModel = configuredModel || getDefaultImageModelForProvider(provider)
+    const isRecommendedForText = isTypographySafeImageModel(effectiveModel)
+
+    return {
+        provider,
+        configuredModel,
+        effectiveModel,
+        effectiveModelLabel: getModelLabel(provider, 'image', effectiveModel),
+        isRecommendedForText,
+        recommendedModels: getTypographySafeImageModels(provider).map((model) => ({ id: model.id, label: model.label })),
+        textRenderingPolicy: isRecommendedForText ? 'exact_short_text_allowed' : 'caption_text_only',
+    }
+}
+
+function buildImagePrompt(automation: CreatePublishingAutomationPayload, caption: string, brandProfile: BrandProfileSummary | null, imageModel: ImageModelRecommendation): string {
     const consistency = automation.consistency_config
     const palette = (consistency?.color_palette || []).join(', ') || 'workspace brand colors'
     const visualStyle = consistency?.visual_style_prompt || 'Build a consistent branded social poster system.'
     const typography = consistency?.typography_notes || 'Use expressive editorial typography: a high-contrast serif-style quote face paired with a clean geometric sans-style attribution and CTA. Avoid generic Arial/Roboto-looking text.'
+    const textPolicy = imageModel.isRecommendedForText
+        ? `- Text rendering is allowed only for one short exact quote phrase or attribution. Do not add extra words, CTA text, hashtags, or invented brand slogans. If unsure, use no text.`
+        : `- The current image model (${imageModel.effectiveModelLabel}) is not recommended for typography-heavy quote images. Do not render body copy, captions, hashtags, CTA text, or full quote text inside the image. Keep the exact text in the post caption only.`
 
     return `Create a social media image for this caption:
 ${caption}
@@ -146,7 +188,7 @@ NON-NEGOTIABLE VISUAL DIRECTION:
 - Use one repeatable visual system across runs: same composition logic, same type hierarchy, same background language, same motif family.
 - Background must be a custom designed backdrop: abstract gradient, paper grain, subtle geometric pattern, soft light field, or branded shape system.
 - The post should feel creative and intentional, not a generic quote generator.
-- If text is rendered in the image, keep it short, large, centered or editorially composed, and legible on mobile.
+${textPolicy}
 
 BRAND VISUAL SYSTEM:
 ${visualStyle}
@@ -156,6 +198,7 @@ Use ${palette}. Keep contrast high and avoid muddy beige/gray photo overlays.
 
 TYPOGRAPHY:
 ${typography}
+For this run: ${imageModel.textRenderingPolicy === 'caption_text_only' ? 'use typography as a visual inspiration only; do not render readable post text in the image.' : 'render any visible words with exact spelling, large size, and no extra generated copy.'}
 
 LAYOUT:
 - 1:1 square social image.
@@ -250,12 +293,22 @@ export async function POST(
 
         if (brandProfileError) throw brandProfileError
         const brandProfile = (brandProfileRow || null) as BrandProfileSummary | null
+
+        const { data: workspaceSettingsRow, error: workspaceSettingsError } = await admin
+            .from('workspace_settings')
+            .select('ai_provider, ai_image_model_name')
+            .eq('workspace_id', activeWorkspace.id)
+            .maybeSingle()
+
+        if (workspaceSettingsError) throw workspaceSettingsError
+        const imageModelRecommendation = getImageModelRecommendation((workspaceSettingsRow || null) as JsonRecord | null)
         const promptSnapshot = {
             automation_id: automationId,
             workflow_config: automation.workflow_config,
             consistency_config: automation.consistency_config,
             platforms: automation.platforms,
             brand_profile: brandProfile,
+            image_model_recommendation: imageModelRecommendation,
             recent_posts: recentPosts,
         }
 
@@ -295,7 +348,7 @@ export async function POST(
             if (automation.workflow_config.media_mode === 'generated_image') {
                 const imageResponse = await invokeEdgeFunction('generate-image', {
                     workspaceId: activeWorkspace.id,
-                    messages: [{ role: 'user', content: buildImagePrompt(automation, caption, brandProfile) }],
+                    messages: [{ role: 'user', content: buildImagePrompt(automation, caption, brandProfile, imageModelRecommendation) }],
                 })
                 const imageUrl = extractImageUrl(imageResponse)
                 if (imageUrl) mediaUrls.push(imageUrl)

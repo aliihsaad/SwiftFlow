@@ -24,6 +24,16 @@ interface BrandProfileRow {
     business_name?: string | null
 }
 
+interface AutomationAttachContext {
+    postId: string
+    runId: string
+    automationId: string
+}
+
+interface PublishingAutomationRunRow {
+    result_snapshot?: Record<string, unknown> | null
+}
+
 interface GoogleErrorDetail {
     reason?: string
 }
@@ -58,8 +68,108 @@ function normalizeApiKey(value: unknown): string {
     return String(value || "").trim().replace(/^['"]|['"]$/g, "")
 }
 
+function normalizeAttachContext(value: {
+    attachToPostId?: unknown
+    automationRunId?: unknown
+    automationId?: unknown
+}): AutomationAttachContext | null {
+    const postId = typeof value.attachToPostId === "string" ? value.attachToPostId.trim() : ""
+    const runId = typeof value.automationRunId === "string" ? value.automationRunId.trim() : ""
+    const automationId = typeof value.automationId === "string" ? value.automationId.trim() : ""
+    return postId && runId && automationId ? { postId, runId, automationId } : null
+}
+
 function asGooglePayload(value: unknown): GoogleErrorPayload | null {
     return value && typeof value === "object" ? (value as GoogleErrorPayload) : null
+}
+
+async function markAutomationImageFailure(params: {
+    supabase: ReturnType<typeof createClient>
+    attachContext: AutomationAttachContext | null
+    message: string
+}) {
+    if (!params.attachContext) return
+
+    await params.supabase
+        .from("publishing_automation_runs")
+        .update({
+            status: "failed",
+            error_message: params.message,
+            finished_at: new Date().toISOString(),
+        })
+        .eq("id", params.attachContext.runId)
+
+    await params.supabase
+        .from("publishing_automations")
+        .update({
+            last_error: params.message,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", params.attachContext.automationId)
+}
+
+async function attachGeneratedImageToAutomationDraft(params: {
+    supabase: ReturnType<typeof createClient>
+    workspaceId: string
+    attachContext: AutomationAttachContext | null
+    imageUrl: string
+}) {
+    if (!params.attachContext) return
+
+    const { data: run, error: runError } = await params.supabase
+        .from("publishing_automation_runs")
+        .select("result_snapshot")
+        .eq("id", params.attachContext.runId)
+        .eq("workspace_id", params.workspaceId)
+        .eq("publishing_automation_id", params.attachContext.automationId)
+        .maybeSingle<PublishingAutomationRunRow>()
+
+    if (runError) throw runError
+
+    const mediaUrls = [params.imageUrl]
+    const { error: postUpdateError } = await params.supabase
+        .from("posts")
+        .update({
+            media_urls: mediaUrls,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", params.attachContext.postId)
+        .eq("workspace_id", params.workspaceId)
+        .eq("source_publishing_automation_run_id", params.attachContext.runId)
+
+    if (postUpdateError) throw postUpdateError
+
+    const currentSnapshot = run?.result_snapshot && typeof run.result_snapshot === "object" && !Array.isArray(run.result_snapshot)
+        ? run.result_snapshot
+        : {}
+
+    const { error: runUpdateError } = await params.supabase
+        .from("publishing_automation_runs")
+        .update({
+            status: "completed",
+            result_snapshot: {
+                ...currentSnapshot,
+                media_urls: mediaUrls,
+                post_id: params.attachContext.postId,
+            },
+            finished_at: new Date().toISOString(),
+        })
+        .eq("id", params.attachContext.runId)
+        .eq("workspace_id", params.workspaceId)
+
+    if (runUpdateError) throw runUpdateError
+
+    const { error: automationUpdateError } = await params.supabase
+        .from("publishing_automations")
+        .update({
+            last_run_at: new Date().toISOString(),
+            last_error: null,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", params.attachContext.automationId)
+        .eq("workspace_id", params.workspaceId)
+
+    if (automationUpdateError) throw automationUpdateError
 }
 
 function getGoogleErrorInfo(payload: unknown): { reason: string; message: string } {
@@ -463,15 +573,20 @@ serve(async (req) => {
         return new Response("ok", { headers: corsHeaders })
     }
 
+    let supabase: ReturnType<typeof createClient> | null = null
+    let attachContext: AutomationAttachContext | null = null
+
     try {
-        const { messages, workspaceId, prompt, style, referenceImages, referenceMode, brandImageMode, transformAction } = await req.json()
+        const requestBody = await req.json()
+        const { messages, workspaceId, prompt, style, referenceImages, referenceMode, brandImageMode, transformAction } = requestBody
+        attachContext = normalizeAttachContext(requestBody)
         const lastMsg = messages ? messages[messages.length - 1] : { content: prompt || "Generate an image" }
 
         if (!workspaceId) {
             throw new Error("workspaceId is required for image generation.")
         }
 
-        const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
+        supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
         const aiConfig = await resolveAIConfig({ supabase, workspaceId, capability: "image" })
         const primaryKey = aiConfig.apiKey
         const envKey = normalizeApiKey(Deno.env.get("GEMINI_API_KEY"))
@@ -557,6 +672,13 @@ serve(async (req) => {
             console.log("Successfully saved to generated_assets")
         }
 
+        await attachGeneratedImageToAutomationDraft({
+            supabase,
+            workspaceId,
+            attachContext,
+            imageUrl: finalAssetUrl,
+        })
+
         return new Response(
             JSON.stringify({
                 result: {
@@ -574,6 +696,13 @@ serve(async (req) => {
         )
     } catch (error: unknown) {
         console.error("[generate-image] fatal error:", error)
+        if (supabase) {
+            await markAutomationImageFailure({
+                supabase,
+                attachContext,
+                message: toUserFriendlyError(error),
+            })
+        }
         return new Response(
             JSON.stringify({ error: toUserFriendlyError(error) }),
             {

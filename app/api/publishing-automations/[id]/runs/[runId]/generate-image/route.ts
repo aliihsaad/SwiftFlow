@@ -130,6 +130,9 @@ export async function POST(
         const imageModelRecommendation = getImageModelRecommendation((workspaceSettingsRow || null) as JsonRecord | null)
         const imageResponse = await invokeEdgeFunction('generate-image', {
             workspaceId: activeWorkspace.id,
+            attachToPostId: generatedPostId,
+            automationRunId: runId,
+            automationId,
             messages: [{
                 role: 'user',
                 content: buildAutomationImagePrompt(automation, caption, brandProfile, imageModelRecommendation),

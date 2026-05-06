@@ -2,13 +2,14 @@
 
 import { useState, useCallback } from "react"
 import useSWR from "swr"
-import { Zap, MessageCircle, Plus, Workflow, ListChecks, Sparkles, ShieldAlert } from "lucide-react"
+import { Zap, MessageCircle, Plus, Workflow, Sparkles, ShieldAlert } from "lucide-react"
 import { AutomationCard } from "@/components/automation/automation-card"
 import { AutomationSetupModal } from "@/components/automation/automation-setup-modal"
 import { ActiveAutomationsList } from "@/components/automation/active-automations-list"
 import { AutomationTemplatePicker } from "@/components/automation/automation-template-picker"
 import { PublishingAutomationsPanel } from "@/components/automation/publishing-automations-panel"
 import { WorkflowCanvas } from "@/components/automation/canvas/workflow-canvas"
+import { AutomationWizard } from "@/components/automation/wizard/automation-wizard"
 import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 import { Automation } from "@/types/automation"
@@ -27,7 +28,7 @@ const fetcher = async (url: string) => {
     return data
 }
 
-type EditorView = 'list' | 'canvas' | 'wizard'
+type EditorView = 'list' | 'canvas' | 'wizard' | 'wizard_graph'
 
 const AUTO_PAGE_THEME = {
     panel: '#151620',
@@ -79,6 +80,16 @@ export default function AutomationPage() {
         setEditingAutomation(null)
         resetCanvasDraftSeed()
         setEditorView('canvas')
+    }
+
+    const handleCreateWizardGraph = () => {
+        if (!canWriteAutomations) {
+            showReadOnlyToast()
+            return
+        }
+        setEditingAutomation(null)
+        resetCanvasDraftSeed()
+        setEditorView('wizard_graph')
     }
 
     const handleOpenTemplatePicker = () => {
@@ -222,6 +233,17 @@ export default function AutomationPage() {
         )
     }
 
+    if (editorView === 'wizard_graph') {
+        return (
+            <AutomationWizard
+                onBack={() => {
+                    setEditorView('list')
+                    setEditingAutomation(null)
+                }}
+            />
+        )
+    }
+
     // List view
     return (
             <div className="space-y-8">
@@ -276,6 +298,19 @@ export default function AutomationPage() {
                         Automate your Instagram and Facebook engagement with smart triggers and actions.
                     </p>
                 </div>
+                <button
+                    onClick={handleCreateWizardGraph}
+                    disabled={!canWriteAutomations}
+                    className="flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{
+                        background: 'linear-gradient(135deg, #38bdf8, #fb7185)',
+                        color: '#fff',
+                        boxShadow: '0 2px 16px rgba(56,189,248,0.2)',
+                    }}
+                >
+                    <Plus className="h-4 w-4" />
+                    New Automation
+                </button>
             </div>
 
             {/* Create New */}
@@ -285,11 +320,19 @@ export default function AutomationPage() {
                 </h2>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <AutomationCard
+                        icon={Plus}
+                        title="New Automation"
+                        description="Create an engagement automation with a guided mobile-friendly setup."
+                        onClick={handleCreateWizardGraph}
+                        badge="Wizard"
+                        disabled={!canWriteAutomations}
+                    />
+                    <AutomationCard
                         icon={Workflow}
-                        title="Visual Workflow Builder"
+                        title="Advanced Visual Builder"
                         description="Build complex automations with a drag-and-drop canvas. Chain triggers, conditions, delays, and actions for powerful multi-step flows."
                         onClick={handleCreateCanvas}
-                        badge="New"
+                        badge="Advanced"
                         disabled={!canWriteAutomations}
                     />
                     <AutomationCard
@@ -322,6 +365,15 @@ export default function AutomationPage() {
                     {data?.automations && data.automations.length > 0 && (
                         <div className="flex flex-wrap gap-2">
                             <button
+                                onClick={handleCreateWizardGraph}
+                                disabled={!canWriteAutomations}
+                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
+                                style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.6)' }}
+                            >
+                                <Plus className="h-3.5 w-3.5" />
+                                New Automation
+                            </button>
+                            <button
                                 onClick={handleOpenTemplatePicker}
                                 disabled={!canWriteAutomations}
                                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
@@ -337,16 +389,7 @@ export default function AutomationPage() {
                                 style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.6)' }}
                             >
                                 <Workflow className="h-3.5 w-3.5" />
-                                Canvas
-                            </button>
-                            <button
-                                onClick={handleCreateWizard}
-                                disabled={!canWriteAutomations}
-                                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
-                                style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.6)' }}
-                            >
-                                <Plus className="h-3.5 w-3.5" />
-                                Simple
+                                Advanced Canvas
                             </button>
                         </div>
                     )}
@@ -415,6 +458,19 @@ export default function AutomationPage() {
                         </p>
                         <div className="flex gap-3 justify-center">
                             <button
+                                onClick={handleCreateWizardGraph}
+                                disabled={!canWriteAutomations}
+                                className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
+                                style={{
+                                    background: 'linear-gradient(135deg, #38bdf8, #fb7185)',
+                                    color: '#fff',
+                                    boxShadow: '0 2px 16px rgba(56,189,248,0.2)',
+                                }}
+                            >
+                                <Plus className="h-4 w-4" />
+                                New Automation
+                            </button>
+                            <button
                                 onClick={handleOpenTemplatePicker}
                                 disabled={!canWriteAutomations}
                                 className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
@@ -427,23 +483,10 @@ export default function AutomationPage() {
                                 onClick={handleCreateCanvas}
                                 disabled={!canWriteAutomations}
                                 className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
-                                style={{
-                                    background: 'linear-gradient(135deg, #38bdf8, #fb7185)',
-                                    color: '#fff',
-                                    boxShadow: '0 2px 16px rgba(56,189,248,0.2)',
-                                }}
-                            >
-                                <Workflow className="h-4 w-4" />
-                                Visual Builder
-                            </button>
-                            <button
-                                onClick={handleCreateWizard}
-                                disabled={!canWriteAutomations}
-                                className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
                                 style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.72)' }}
                             >
-                                <ListChecks className="h-4 w-4" />
-                                Simple Setup
+                                <Workflow className="h-4 w-4" />
+                                Advanced Visual Builder
                             </button>
                         </div>
                     </div>

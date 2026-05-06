@@ -18,6 +18,8 @@ import { createClient } from '@/utils/supabase/server'
 type RouteContext = { params: Promise<{ id: string }> }
 type JsonRecord = Record<string, unknown>
 
+export const maxDuration = 60
+
 interface RecentPostSummary {
     content: string | null
     platforms: unknown
@@ -167,47 +169,6 @@ function getImageModelRecommendation(settings: JsonRecord | null): ImageModelRec
     }
 }
 
-function buildImagePrompt(automation: CreatePublishingAutomationPayload, caption: string, brandProfile: BrandProfileSummary | null, imageModel: ImageModelRecommendation): string {
-    const consistency = automation.consistency_config
-    const palette = (consistency?.color_palette || []).join(', ') || 'workspace brand colors'
-    const visualStyle = consistency?.visual_style_prompt || 'Build a consistent branded social poster system.'
-    const typography = consistency?.typography_notes || 'Use expressive editorial typography: a high-contrast serif-style quote face paired with a clean geometric sans-style attribution and CTA. Avoid generic Arial/Roboto-looking text.'
-    const textPolicy = imageModel.isRecommendedForText
-        ? `- Text rendering is allowed only for one short exact quote phrase or attribution. Do not add extra words, CTA text, hashtags, or invented brand slogans. If unsure, use no text.`
-        : `- The current image model (${imageModel.effectiveModelLabel}) is not recommended for typography-heavy quote images. Do not render body copy, captions, hashtags, CTA text, or full quote text inside the image. Keep the exact text in the post caption only.`
-
-    return `Create a social media image for this caption:
-${caption}
-
-Workspace brand profile:
-${summarizeBrandProfile(brandProfile)}
-
-NON-NEGOTIABLE VISUAL DIRECTION:
-- Create a designed brand poster, not a stock-photo scene.
-- Do not use random laptops, tablets, desks, flowers, generic offices, or unrelated backgrounds unless the brand profile explicitly asks for them.
-- Use one repeatable visual system across runs: same composition logic, same type hierarchy, same background language, same motif family.
-- Background must be a custom designed backdrop: abstract gradient, paper grain, subtle geometric pattern, soft light field, or branded shape system.
-- The post should feel creative and intentional, not a generic quote generator.
-${textPolicy}
-
-BRAND VISUAL SYSTEM:
-${visualStyle}
-
-COLORS:
-Use ${palette}. Keep contrast high and avoid muddy beige/gray photo overlays.
-
-TYPOGRAPHY:
-${typography}
-For this run: ${imageModel.textRenderingPolicy === 'caption_text_only' ? 'use typography as a visual inspiration only; do not render readable post text in the image.' : 'render any visible words with exact spelling, large size, and no extra generated copy.'}
-
-LAYOUT:
-- 1:1 square social image.
-- Strong focal typography or abstract hero mark.
-- Leave safe margins.
-- Use a consistent signature detail such as a small accent line, corner mark, halo shape, or quote badge.
-- Avoid visual repetition while keeping the same brand identity.`
-}
-
 async function invokeEdgeFunction(functionName: string, body: JsonRecord): Promise<JsonRecord> {
     const admin = createAdminClient()
     const { data, error } = await admin.functions.invoke(functionName, { body })
@@ -235,11 +196,6 @@ function extractCaption(response: JsonRecord, fallback: string): string {
     const suggestions = Array.isArray(response.suggestions) ? response.suggestions : []
     const first = suggestions.find((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
     return first?.trim() || fallback
-}
-
-function extractImageUrl(response: JsonRecord): string | null {
-    const result = isRecord(response.result) ? response.result : {}
-    return typeof result.imageUrl === 'string' && result.imageUrl ? result.imageUrl : null
 }
 
 export async function POST(
@@ -394,25 +350,15 @@ export async function POST(
                 .eq('id', automationId)
 
             if (automation.workflow_config.media_mode === 'generated_image') {
-                const imageResponse = await invokeEdgeFunction('generate-image', {
-                    workspaceId: activeWorkspace.id,
-                    messages: [{ role: 'user', content: buildImagePrompt(automation, caption, brandProfile, imageModelRecommendation) }],
+                return NextResponse.json({
+                    success: true,
+                    post: { ...post, media_urls: mediaUrls },
+                    run: { id: runId, status: 'running' },
+                    image_generation: {
+                        status: 'pending',
+                        endpoint: `/api/publishing-automations/${automationId}/runs/${runId}/generate-image`,
+                    },
                 })
-                const imageUrl = extractImageUrl(imageResponse)
-                if (imageUrl) mediaUrls.push(imageUrl)
-
-                if (mediaUrls.length > 0) {
-                    const { error: mediaUpdateError } = await admin
-                        .from('posts')
-                        .update({
-                            media_urls: mediaUrls,
-                            updated_at: new Date().toISOString(),
-                        })
-                        .eq('id', postId)
-                        .eq('workspace_id', activeWorkspace.id)
-
-                    if (mediaUpdateError) throw mediaUpdateError
-                }
             }
 
             if (automation.workflow_config.media_mode === 'carousel') {

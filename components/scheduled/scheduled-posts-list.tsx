@@ -12,7 +12,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { CreatePostModal } from "@/components/create/create-post-modal"
-import { Pencil, CalendarDays, FileText, Trash2, Eye, Heart, MessageCircle, Share2, XCircle, Clock } from "lucide-react"
+import { Pencil, CalendarDays, FileText, Trash2, Eye, Heart, MessageCircle, Share2, XCircle, Clock, ImagePlus, Loader2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/utils/supabase/client"
@@ -51,6 +51,8 @@ type ScheduledPostCard = FailedPostShape & {
     media_urls?: string[] | null
     scheduled_for?: string | null
     published_at?: string | null
+    source_publishing_automation_id?: string | null
+    source_publishing_automation_run_id?: string | null
     published_posts?: PublishedPostRow[] | null
 }
 
@@ -79,6 +81,7 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [deletePostId, setDeletePostId] = useState<string | null>(null)
     const [isDeleting, setIsDeleting] = useState(false)
+    const [generatingImageForPostId, setGeneratingImageForPostId] = useState<string | null>(null)
     const { toast } = useToast()
     const router = useRouter()
     const supabase = createClient()
@@ -93,6 +96,26 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
     const handleDeleteClick = (postId: string) => {
         if (!canWriteContent) return
         setDeletePostId(postId)
+    }
+
+    const handleGenerateImage = async (post: ScheduledPostCard) => {
+        if (!canWriteContent || !post.source_publishing_automation_id || !post.source_publishing_automation_run_id) return
+        setGeneratingImageForPostId(post.id)
+        try {
+            const response = await fetch(
+                `/api/publishing-automations/${post.source_publishing_automation_id}/runs/${post.source_publishing_automation_run_id}/generate-image`,
+                { method: "POST" },
+            )
+            const payload = await response.json().catch(() => null)
+            if (!response.ok) throw new Error(payload?.error || "Failed to generate image")
+            toast({ title: "Image attached", description: "The draft preview has been updated." })
+            router.refresh()
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : "Failed to generate image"
+            toast({ title: "Image failed", description: message, variant: "destructive" })
+        } finally {
+            setGeneratingImageForPostId(null)
+        }
     }
 
     const handleDeleteConfirm = async () => {
@@ -172,6 +195,12 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                     const successfulPlatforms = publishResults.filter((result) => result.success).map((result) => result.platform)
                     const failedResults = publishResults.filter((result) => !result.success)
                     const publishedPosts = post.published_posts ?? []
+                    const canGenerateMissingImage = status === 'draft'
+                        && canWriteContent
+                        && !!post.source_publishing_automation_id
+                        && !!post.source_publishing_automation_run_id
+                        && (!post.media_urls || post.media_urls.length === 0)
+                    const isGeneratingImage = generatingImageForPostId === post.id
 
                     const dateStr = post.scheduled_for
                         ? new Date(post.scheduled_for).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -342,6 +371,17 @@ export function ScheduledPostsList({ posts, workspaceId, status = 'scheduled' }:
                             >
                                 {canWriteContent ? (
                                     <>
+                                        {canGenerateMissingImage && (
+                                            <button
+                                                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                                                style={{ background: 'rgba(34,197,94,0.10)', color: '#bbf7d0', border: '1px solid rgba(34,197,94,0.2)' }}
+                                                onClick={() => handleGenerateImage(post)}
+                                                disabled={isGeneratingImage}
+                                            >
+                                                {isGeneratingImage ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImagePlus className="h-3 w-3" />}
+                                                {isGeneratingImage ? "Generating" : "Generate Image"}
+                                            </button>
+                                        )}
                                         <button
                                             className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all duration-150 hover:brightness-110"
                                             style={{ background: 'rgba(56,189,248,0.10)', color: '#dff6ff', border: '1px solid rgba(56,189,248,0.2)' }}

@@ -329,6 +329,7 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
 
     const runDraft = async (automationId: string) => {
         setRunningIds((current) => current.includes(automationId) ? current : [...current, automationId])
+        let draftCreated = false
         try {
             const response = await fetch(`/api/publishing-automations/${automationId}/run-now`, {
                 method: "POST",
@@ -337,19 +338,38 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
             })
             const payload = await response.json().catch(() => null)
             if (!response.ok) throw new Error(payload?.error || "Failed to generate draft")
+            draftCreated = true
+
+            const imageEndpoint = typeof payload?.image_generation?.endpoint === "string"
+                ? payload.image_generation.endpoint
+                : ""
+
+            if (payload?.image_generation?.status === "pending" && imageEndpoint) {
+                toast({
+                    title: "Draft created",
+                    description: "Generating and attaching the image now.",
+                })
+
+                const imageResponse = await fetch(imageEndpoint, { method: "POST" })
+                const imagePayload = await imageResponse.json().catch(() => null)
+                if (!imageResponse.ok) {
+                    throw new Error(imagePayload?.error || "Draft was created, but image generation failed")
+                }
+            }
 
             toast({
                 title: "Draft generated",
-                description: "Opening the Drafts tab for review.",
+                description: imageEndpoint ? "The image was attached. Opening the Drafts tab for review." : "Opening the Drafts tab for review.",
             })
             router.push("/dashboard/scheduled?tab=drafts")
             mutate()
         } catch (error: unknown) {
             toast({
-                title: "Run failed",
+                title: draftCreated ? "Draft created, image failed" : "Run failed",
                 description: error instanceof Error ? error.message : "Failed to generate draft",
                 variant: "destructive",
             })
+            if (draftCreated) router.push("/dashboard/scheduled?tab=drafts")
         } finally {
             setRunningIds((current) => current.filter((id) => id !== automationId))
         }

@@ -4,7 +4,7 @@ import { createAdminClient } from '@/utils/supabase/admin'
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-type JobName = 'process-scheduled-posts' | 'process-scheduled-executions'
+type JobName = 'process-scheduled-posts' | 'process-scheduled-executions' | 'process-publishing-automations'
 
 function isAuthorizedCronRequest(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET
@@ -44,12 +44,12 @@ async function invokeJob(supabaseAdmin: ReturnType<typeof createAdminClient>, jo
       durationMs,
       data: data ?? null,
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       job: jobName,
       ok: false,
       durationMs: Date.now() - startedAt,
-      error: error?.message || 'Unexpected scheduler invoke error',
+      error: error instanceof Error ? error.message : 'Unexpected scheduler invoke error',
     }
   }
 }
@@ -62,12 +62,13 @@ async function handleSchedulerTick(request: NextRequest) {
   const supabaseAdmin = createAdminClient()
   const tickStartedAt = Date.now()
 
-  const [postsJob, delayedExecutionsJob] = await Promise.all([
+  const [postsJob, delayedExecutionsJob, publishingAutomationsJob] = await Promise.all([
     invokeJob(supabaseAdmin, 'process-scheduled-posts'),
     invokeJob(supabaseAdmin, 'process-scheduled-executions'),
+    invokeJob(supabaseAdmin, 'process-publishing-automations'),
   ])
 
-  const jobs = [postsJob, delayedExecutionsJob]
+  const jobs = [postsJob, delayedExecutionsJob, publishingAutomationsJob]
   const hasFailure = jobs.some((job) => !job.ok)
 
   const payload = {
@@ -92,4 +93,3 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   return handleSchedulerTick(request)
 }
-

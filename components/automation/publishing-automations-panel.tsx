@@ -130,6 +130,7 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
     const [isSaving, setIsSaving] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
     const [runningIds, setRunningIds] = useState<string[]>([])
+    const [togglingIds, setTogglingIds] = useState<string[]>([])
     const [name, setName] = useState("AI weekly content queue")
     const [contentGoal, setContentGoal] = useState("")
     const [brandVoice, setBrandVoice] = useState("")
@@ -327,6 +328,33 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
         }
     }
 
+    const toggleAutomation = async (automation: PublishingAutomation) => {
+        setTogglingIds((current) => current.includes(automation.id) ? current : [...current, automation.id])
+        try {
+            const nextActive = !automation.is_active
+            const response = await fetch(`/api/publishing-automations/${automation.id}/toggle`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ is_active: nextActive }),
+            })
+            const payload = await response.json().catch(() => null)
+            if (!response.ok) throw new Error(payload?.error || "Failed to update automation")
+            toast({
+                title: nextActive ? "Automation active" : "Automation paused",
+                description: nextActive ? "It will generate reviewable drafts automatically." : "Automatic draft generation is paused.",
+            })
+            mutate()
+        } catch (error: unknown) {
+            toast({
+                title: "Automation update failed",
+                description: error instanceof Error ? error.message : "Failed to update automation",
+                variant: "destructive",
+            })
+        } finally {
+            setTogglingIds((current) => current.filter((id) => id !== automation.id))
+        }
+    }
+
     const runDraft = async (automationId: string) => {
         setRunningIds((current) => current.includes(automationId) ? current : [...current, automationId])
         let draftCreated = false
@@ -428,6 +456,7 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
                 )}
                 {automations.map((automation) => {
                     const isRunning = runningIds.includes(automation.id)
+                    const isToggling = togglingIds.includes(automation.id)
                     return (
                         <div
                             key={automation.id}
@@ -466,6 +495,20 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
                                     </div>
                                 </div>
                                 <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        size="sm"
+                                        disabled={readOnly || isRunning || isToggling}
+                                        onClick={() => toggleAutomation(automation)}
+                                        className="gap-2"
+                                        style={{
+                                            background: automation.is_active ? "rgba(245,158,11,0.10)" : "rgba(34,197,94,0.10)",
+                                            border: automation.is_active ? "1px solid rgba(245,158,11,0.22)" : "1px solid rgba(34,197,94,0.22)",
+                                            color: automation.is_active ? "#fde68a" : "#bbf7d0",
+                                        }}
+                                    >
+                                        {isToggling ? <Loader2 className="h-4 w-4 animate-spin" /> : automation.is_active ? <PauseCircle className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                                        {automation.is_active ? "Pause Auto" : "Start Auto"}
+                                    </Button>
                                     <Button
                                         size="sm"
                                         disabled={readOnly}

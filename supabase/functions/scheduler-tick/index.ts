@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck - Deno runtime
 /**
  * Scheduler Tick (Supabase Cron target)
@@ -5,6 +6,7 @@
  * Runs lightweight scheduler jobs on a single cadence:
  * - process-scheduled-posts
  * - process-scheduled-executions (delay node resumes)
+ * - process-publishing-automations (AI draft generation)
  *
  * Configure a Supabase schedule (every minute) to invoke this function.
  */
@@ -17,7 +19,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
-type JobName = "process-scheduled-posts" | "process-scheduled-executions"
+type JobName = "process-scheduled-posts" | "process-scheduled-executions" | "process-publishing-automations"
 
 async function runJob(job: JobName) {
   const startedAt = Date.now()
@@ -63,12 +65,13 @@ serve(async (req) => {
 
   try {
     const tickStartedAt = Date.now()
-    const [scheduledPosts, scheduledExecutions] = await Promise.all([
+    const [scheduledPosts, scheduledExecutions, publishingAutomations] = await Promise.all([
       runJob("process-scheduled-posts"),
       runJob("process-scheduled-executions"),
+      runJob("process-publishing-automations"),
     ])
 
-    const jobs = [scheduledPosts, scheduledExecutions]
+    const jobs = [scheduledPosts, scheduledExecutions, publishingAutomations]
     const hasFailure = jobs.some((job) => !job.ok)
     const payload = {
       success: !hasFailure,
@@ -94,4 +97,3 @@ serve(async (req) => {
     })
   }
 })
-

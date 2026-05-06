@@ -13,10 +13,11 @@ This folder contains all deployed Supabase edge functions used by the app.
 
 ## Publishing / Analytics / Sync
 - `process-scheduled-posts`
+- `process-publishing-automations`
 - `sync-analytics`
 - `sync-comments`
 - `sync-messages`
-- `scheduler-tick` (Supabase cron target that runs scheduled posts + delay resumes)
+- `scheduler-tick` (Supabase cron target that runs scheduled posts + delay resumes + publishing automations)
 
 ## Automation (Wizard + Canvas)
 - `process-automations`:
@@ -51,6 +52,7 @@ Functions invoked internally by the app server, schedulers, or other edge functi
 Reason:
 - `automation-orchestrator` and `process-scheduled-executions` invoke worker functions internally.
 - `process-scheduled-posts` is invoked by the app server for "publish now" and by `scheduler-tick`.
+- `process-publishing-automations` is invoked by `scheduler-tick`.
 - In the current setup, redeploying workers without `--no-verify-jwt` can cause internal dispatch failures (`401 Invalid JWT`) before the worker executes.
 - `process-scheduled-posts` now performs its own internal auth check by requiring the caller `apikey` header to match `SUPABASE_SERVICE_ROLE_KEY`, so it can stay non-public even when deployed without gateway JWT verification.
 - Typical symptom in logs: webhook trigger matches automation, but orchestrator reports `matched > 0`, `dispatched: 0`, `failed > 0`.
@@ -58,6 +60,7 @@ Reason:
 
 Functions that require `--no-verify-jwt`:
 - `process-scheduled-posts`
+- `process-publishing-automations`
 - `automation-worker-run`
 - `automation-worker-ai-response`
 - `automation-worker-condition`
@@ -71,6 +74,7 @@ Recommended deploy commands:
 
 ```bash
 supabase functions deploy process-scheduled-posts --no-verify-jwt
+supabase functions deploy process-publishing-automations --no-verify-jwt
 supabase functions deploy automation-worker-run --no-verify-jwt
 supabase functions deploy automation-worker-ai-response --no-verify-jwt
 supabase functions deploy automation-worker-condition --no-verify-jwt
@@ -92,9 +96,10 @@ supabase functions deploy process-automations
 
 ## Supabase Cron Setup (Recommended for 1-minute Jobs)
 
-Use a single Supabase schedule to invoke `scheduler-tick` every minute. The function runs both:
+Use a single Supabase schedule to invoke `scheduler-tick` every minute. The function runs:
 - `process-scheduled-posts`
 - `process-scheduled-executions` (Delay node resumes)
+- `process-publishing-automations` (AI publishing automation draft generation)
 
 Recommended schedule:
 - `* * * * *`

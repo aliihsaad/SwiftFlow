@@ -69,6 +69,7 @@ export async function POST(
             .from('publishing_automations')
             .update({
                 is_active: isActive,
+                next_run_at: isActive ? new Date().toISOString() : null,
                 updated_at: new Date().toISOString(),
             })
             .eq('id', automationId)

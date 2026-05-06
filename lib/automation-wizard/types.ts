@@ -91,3 +91,7 @@ export interface WizardCompileResult {
   graphNodeTypes: WorkflowNodeType[]
   warnings: WizardValidationIssue[]
 }
+
+export interface WizardGraphCompileOptions {
+  includeVisualPositions?: boolean
+}

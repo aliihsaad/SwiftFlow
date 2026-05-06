@@ -1,5 +1,19 @@
 import {
   getDefaultConfig,
+  type ActionAiResponseConfig,
+  type ActionConditionConfig,
+  type ActionDelayConfig,
+  type ActionHttpRequestConfig,
+  type ActionPrivateReplyConfig,
+  type ActionReplyCommentConfig,
+  type ActionSendDMConfig,
+  type ActionSendEmailConfig,
+  type TriggerCronConfig,
+  type TriggerNewCommentConfig,
+  type TriggerNewFollowerConfig,
+  type TriggerNewMessageConfig,
+  type TriggerStoryMentionConfig,
+  type TriggerStoryReplyConfig,
   type WorkflowEdge,
   type WorkflowGraph,
   type WorkflowNode,
@@ -16,6 +30,42 @@ function edgeId(source: string, target: string, label?: string): string {
     : `wizard-edge-${source}-${target}`
 }
 
+function mergeConfig(
+  type: WorkflowNode["data"]["type"],
+  config: Record<string, unknown>,
+): WorkflowNode["data"]["config"] {
+  switch (type) {
+    case "trigger_new_comment":
+      return { ...getDefaultConfig(type), ...(config as Partial<TriggerNewCommentConfig>) }
+    case "trigger_new_message":
+      return { ...getDefaultConfig(type), ...(config as Partial<TriggerNewMessageConfig>) }
+    case "trigger_new_follower":
+      return { ...getDefaultConfig(type), ...(config as Partial<TriggerNewFollowerConfig>) }
+    case "trigger_cron":
+      return { ...getDefaultConfig(type), ...(config as Partial<TriggerCronConfig>) }
+    case "trigger_story_mention":
+      return { ...getDefaultConfig(type), ...(config as Partial<TriggerStoryMentionConfig>) }
+    case "trigger_story_reply":
+      return { ...getDefaultConfig(type), ...(config as Partial<TriggerStoryReplyConfig>) }
+    case "action_send_dm":
+      return { ...getDefaultConfig(type), ...(config as Partial<ActionSendDMConfig>) }
+    case "action_private_reply":
+      return { ...getDefaultConfig(type), ...(config as Partial<ActionPrivateReplyConfig>) }
+    case "action_reply_comment":
+      return { ...getDefaultConfig(type), ...(config as Partial<ActionReplyCommentConfig>) }
+    case "action_delay":
+      return { ...getDefaultConfig(type), ...(config as Partial<ActionDelayConfig>) }
+    case "action_condition":
+      return { ...getDefaultConfig(type), ...(config as Partial<ActionConditionConfig>) }
+    case "action_send_email":
+      return { ...getDefaultConfig(type), ...(config as Partial<ActionSendEmailConfig>) }
+    case "action_http_request":
+      return { ...getDefaultConfig(type), ...(config as Partial<ActionHttpRequestConfig>) }
+    case "action_ai_response":
+      return { ...getDefaultConfig(type), ...(config as Partial<ActionAiResponseConfig>) }
+  }
+}
+
 function makeNode(
   index: number,
   type: WorkflowNode["data"]["type"],
@@ -29,7 +79,7 @@ function makeNode(
     data: {
       type,
       label,
-      config: { ...(getDefaultConfig(type) as Record<string, unknown>), ...config } as WorkflowNode["data"]["config"],
+      config: mergeConfig(type, config),
     },
   }
 }
@@ -52,19 +102,23 @@ function actionLabel(type: WizardActionConfig["type"]): string {
   return labels[type]
 }
 
-function actionConfig(action: WizardActionConfig): Record<string, unknown> {
+function actionConfig(action: WizardActionConfig, useAiResponse: boolean): Record<string, unknown> {
   switch (action.type) {
     case "action_reply_comment":
       return {
-        use_ai_response: false,
-        messages: action.messages?.length
-          ? action.messages
-          : [action.message || "Thanks for your comment."],
+        use_ai_response: useAiResponse,
+        messages: useAiResponse
+          ? ["{{ai_response}}"]
+          : action.messages?.length
+            ? action.messages
+            : [action.message || "Thanks for your comment."],
       }
     case "action_send_dm":
       return {
-        use_ai_response: false,
-        opening_message: action.openingMessage || action.message || "",
+        use_ai_response: useAiResponse,
+        opening_message: useAiResponse
+          ? "{{ai_response}}"
+          : action.openingMessage || action.message || "",
         button_text: action.buttonText || "",
         link_url: action.linkUrl || "",
         link_message: action.linkMessage || "",
@@ -72,7 +126,10 @@ function actionConfig(action: WizardActionConfig): Record<string, unknown> {
         fallback_message: action.fallbackMessage || "",
       }
     case "action_private_reply":
-      return { use_ai_response: false, message: action.message || "" }
+      return {
+        use_ai_response: useAiResponse,
+        message: useAiResponse ? "{{ai_response}}" : action.message || "",
+      }
     case "action_send_email":
       return {
         recipient_type: "custom",
@@ -148,13 +205,26 @@ export function compileAutomationWizardGraph(state: AutomationWizardState): Work
     if (action.type === "action_delay" || action.type === "action_ai_response") {
       continue
     }
-    nodes.push(makeNode(index, action.type, actionLabel(action.type), actionConfig(action)))
+    nodes.push(makeNode(index, action.type, actionLabel(action.type), actionConfig(action, state.ai.enabled)))
     index += 1
   }
 
   for (let i = 0; i < nodes.length - 1; i += 1) {
-    const source = nodes[i].id
+    const sourceNode = nodes[i]
+    const source = sourceNode.id
     const target = nodes[i + 1].id
+    if (sourceNode.data.type === "action_condition") {
+      edges.push({
+        id: edgeId(source, target, "true"),
+        source,
+        target,
+        sourceHandle: "true",
+        type: "custom",
+        animated: true,
+        data: { label: "true" },
+      })
+      continue
+    }
     edges.push({ id: edgeId(source, target), source, target, type: "custom", animated: true })
   }
 

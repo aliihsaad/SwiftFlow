@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { NODE_CATALOG, type NodeCatalogEntry } from '@/types/automation-graph'
+import { NODE_CATALOG, SUPPORTED_CANVAS_TRIGGER_TYPES, type NodeCatalogEntry } from '@/types/automation-graph'
 import {
   MessageCircle,
   Mail,
@@ -51,10 +51,7 @@ export function WorkflowSidebar({ collapsed = false, onToggleCollapse, onAddNode
     return () => mq.removeListener(update)
   }, [])
 
-  const supportedTriggers = new Set([
-    'trigger_new_comment',
-    'trigger_new_message',
-  ])
+  const supportedTriggers = new Set<string>(SUPPORTED_CANVAS_TRIGGER_TYPES)
   const triggers = NODE_CATALOG.filter(
     n => n.category === 'trigger' && supportedTriggers.has(n.type),
   )

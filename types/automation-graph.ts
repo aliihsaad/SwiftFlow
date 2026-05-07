@@ -226,6 +226,12 @@ export interface NodeCatalogEntry {
   color: string
 }
 
+export const SUPPORTED_CANVAS_TRIGGER_TYPES: TriggerNodeType[] = [
+  'trigger_new_comment',
+  'trigger_new_message',
+  'trigger_story_reply',
+]
+
 export const NODE_CATALOG: NodeCatalogEntry[] = [
   // Triggers
   {

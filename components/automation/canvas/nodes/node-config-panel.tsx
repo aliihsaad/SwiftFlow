@@ -25,6 +25,7 @@ import type {
   TriggerNewMessageConfig,
   TriggerCronConfig,
   TriggerStoryMentionConfig,
+  TriggerStoryReplyConfig,
   ActionSendDMConfig,
   ActionPrivateReplyConfig,
   ActionReplyCommentConfig,
@@ -119,6 +120,8 @@ function renderConfigFields(
       return <TriggerMessageFields config={config as unknown as TriggerNewMessageConfig} onUpdate={updateConfig} />
     case 'trigger_story_mention':
       return <TriggerStoryMentionFields config={config as unknown as TriggerStoryMentionConfig} onUpdate={updateConfig} />
+    case 'trigger_story_reply':
+      return <TriggerStoryMentionFields config={config as unknown as TriggerStoryReplyConfig} onUpdate={updateConfig} />
     case 'trigger_cron':
       return <TriggerCronFields config={config as unknown as TriggerCronConfig} onUpdate={updateConfig} />
     case 'action_send_dm':

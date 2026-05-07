@@ -14,6 +14,7 @@ import {
   AUTOMATION_TEMPLATES,
   type AutomationTemplateDefinition,
 } from "@/lib/automation-templates"
+import { SUPPORTED_CANVAS_TRIGGER_TYPES } from "@/types/automation-graph"
 
 interface AutomationTemplatePickerProps {
   open: boolean
@@ -48,6 +49,12 @@ export function AutomationTemplatePicker({
   onOpenChange,
   onSelectTemplate,
 }: AutomationTemplatePickerProps) {
+  const supportedTriggers = new Set<string>(SUPPORTED_CANVAS_TRIGGER_TYPES)
+  const templates = AUTOMATION_TEMPLATES.filter((template) => {
+    const trigger = template.buildGraph().nodes.find((node) => String(node.data?.type || "").startsWith("trigger_"))
+    return trigger ? supportedTriggers.has(String(trigger.data.type)) : false
+  })
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
@@ -70,7 +77,7 @@ export function AutomationTemplatePicker({
         </DialogHeader>
 
         <div className="p-6 grid gap-4 md:grid-cols-2">
-          {AUTOMATION_TEMPLATES.map((template) => {
+          {templates.map((template) => {
             const CategoryIcon = getCategoryIcon(template.category)
             return (
               <div

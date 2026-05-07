@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import type { WorkflowGraph } from '@/types/automation-graph'
-import { isTriggerNode } from '@/types/automation-graph'
+import type { TriggerNodeType, WorkflowGraph } from '@/types/automation-graph'
+import { isTriggerNode, SUPPORTED_CANVAS_TRIGGER_TYPES } from '@/types/automation-graph'
 import { isMetaGraphNodeId } from '@/lib/security/phase1-validation'
 
 interface ValidationError {
@@ -38,6 +38,20 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
       code: 'MULTIPLE_TRIGGERS',
       message: 'Only one trigger node is allowed.',
       nodeId: triggerNodes[1].id,
+    })
+  }
+
+  const supportedTriggers = new Set(SUPPORTED_CANVAS_TRIGGER_TYPES)
+  const unsupportedTrigger = triggerNodes.find((node) => {
+    const type = String(node.data?.type || '')
+    return !supportedTriggers.has(type as TriggerNodeType)
+  })
+
+  if (unsupportedTrigger) {
+    errors.push({
+      code: 'UNSUPPORTED_TRIGGER',
+      message: `${unsupportedTrigger.data?.label || 'This trigger'} is not enabled for live automations yet.`,
+      nodeId: unsupportedTrigger.id,
     })
   }
 
@@ -249,6 +263,7 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
         break
       case 'trigger_new_message':
       case 'trigger_story_mention':
+      case 'trigger_story_reply':
         if (!config.social_account_id) {
           errors.push({ code: 'MISSING_FIELD', message: 'Trigger requires an account.', nodeId: node.id })
         }
@@ -389,9 +404,10 @@ export async function POST(request: NextRequest) {
       errors: result.errors,
       warnings: result.warnings,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Validation failed'
     return NextResponse.json(
-      { error: error.message || 'Validation failed' },
+      { error: message },
       { status: 500 },
     )
   }

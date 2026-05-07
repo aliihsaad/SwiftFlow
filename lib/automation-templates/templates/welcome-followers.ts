@@ -31,7 +31,7 @@ export const welcomeFollowers: AutomationTemplateDefinition = {
       id: 'opening_message',
       type: 'textarea',
       label: 'Welcome message',
-      defaultValue: 'Welcome aboard! Thanks for following — let me know what you'd like to see more of.',
+      defaultValue: 'Welcome aboard! Thanks for following — let me know what you\'d like to see more of.',
       showWhen: { fieldId: 'use_ai', equals: false },
     },
   ],

@@ -3,6 +3,14 @@ import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
+function summarizeError(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+        return (error as { message: string }).message;
+    }
+    return String(error);
+}
+
 // POST - Toggle automation active status
 export async function POST(
     request: NextRequest,
@@ -25,7 +33,7 @@ export async function POST(
         }
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write');
 
-        const body = await request.json();
+        const body = await request.json() as { is_active?: unknown };
         const { is_active } = body;
 
         if (typeof is_active !== 'boolean') {
@@ -38,7 +46,7 @@ export async function POST(
         // Verify the automation belongs to this workspace
         const { data: existing, error: existingError } = await supabase
             .from('automations')
-            .select('id')
+            .select('id, editor_version, workflow_graph')
             .eq('id', id)
             .eq('workspace_id', activeWorkspace.id)
             .single();
@@ -47,6 +55,15 @@ export async function POST(
             return NextResponse.json(
                 { error: 'Automation not found' },
                 { status: 404 }
+            );
+        }
+
+        if (is_active && existing.editor_version === 'wizard' && existing.workflow_graph) {
+            return NextResponse.json(
+                {
+                    error: 'Graph-backed wizard automations cannot be activated until activation validation is available',
+                },
+                { status: 400 }
             );
         }
 
@@ -69,14 +86,14 @@ export async function POST(
             automation
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
-            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+            return NextResponse.json({ error: summarizeError(error) || 'Forbidden' }, { status: permissionStatus });
         }
         console.error('Toggle automation API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to toggle automation' },
+            { error: summarizeError(error) || 'Failed to toggle automation' },
             { status: 500 }
         );
     }

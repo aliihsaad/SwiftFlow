@@ -180,7 +180,10 @@ export async function POST(request: NextRequest) {
         const isGraphBackedMode = editor_version === 'canvas' || !!workflow_graph;
         const isCanvasMode = isGraphBackedMode;
         const shouldStoreCanvasEditor = editor_version === 'canvas';
-        const requestedIsActive = typeof is_active === 'boolean' ? is_active : true;
+        const isGraphBackedWizard = !!workflow_graph && !shouldStoreCanvasEditor;
+        // Graph-backed wizard activation needs separate validation and executor routing.
+        // Keep all such creates inactive even if a direct API caller asks for active.
+        const requestedIsActive = isGraphBackedWizard ? false : typeof is_active === 'boolean' ? is_active : true;
         const graphTriggerNode = workflow_graph?.nodes?.find((node) => node.data.type.startsWith('trigger_'));
         const graphTriggerType = graphTriggerNode?.data?.type as string | undefined;
         const graphTriggerConfig = (graphTriggerNode?.data?.config || {}) as Record<string, unknown>;

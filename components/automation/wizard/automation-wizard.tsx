@@ -1,6 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
+import type { Dispatch, SetStateAction } from "react"
 
 import { Button } from "@/components/ui/button"
 import { compileAutomationWizardGraph } from "@/lib/automation-wizard/compiler"
@@ -49,6 +50,13 @@ export function AutomationWizard({ onBack }: { onBack: () => void }) {
   const [saveError, setSaveError] = useState<string | null>(null)
   const summary = useMemo(() => summarizeAutomationWizard(state), [state])
   const currentStep = STEPS[step]
+  const isSaveDisabled = saveStatus === "saving" || saveStatus === "saved"
+
+  const updateState: Dispatch<SetStateAction<AutomationWizardState>> = (nextState) => {
+    setSaveStatus((current) => (current === "saved" ? "idle" : current))
+    setSaveError(null)
+    setState(nextState)
+  }
 
   const handleBack = () => {
     if (step === 0) {
@@ -64,6 +72,10 @@ export function AutomationWizard({ onBack }: { onBack: () => void }) {
   }
 
   const handleSaveDraft = async () => {
+    if (isSaveDisabled) {
+      return
+    }
+
     setSaveStatus("saving")
     setSaveError(null)
 
@@ -103,14 +115,15 @@ export function AutomationWizard({ onBack }: { onBack: () => void }) {
         </div>
         <h2 className="mt-2 text-xl font-semibold text-white/90">Automation wizard</h2>
         <p className="mt-2 text-sm leading-relaxed text-white/50">{summary}</p>
-        {currentStep.id === "trigger" ? <TriggerStep state={state} setState={setState} /> : null}
-        {currentStep.id === "actions" ? <ActionStep state={state} setState={setState} /> : null}
+        {currentStep.id === "trigger" ? <TriggerStep state={state} setState={updateState} /> : null}
+        {currentStep.id === "actions" ? <ActionStep state={state} setState={updateState} /> : null}
         {currentStep.id === "review" ? (
           <ReviewStep
             state={state}
             saveStatus={saveStatus}
             saveError={saveError}
             onSaveDraft={handleSaveDraft}
+            saveDisabled={isSaveDisabled}
           />
         ) : null}
       </section>
@@ -121,9 +134,9 @@ export function AutomationWizard({ onBack }: { onBack: () => void }) {
         </Button>
         <Button
           onClick={step === STEPS.length - 1 ? handleSaveDraft : handleContinue}
-          disabled={saveStatus === "saving"}
+          disabled={step === STEPS.length - 1 && isSaveDisabled}
         >
-          {step === STEPS.length - 1 ? "Save Draft" : "Continue"}
+          {step === STEPS.length - 1 && saveStatus === "saved" ? "Saved" : step === STEPS.length - 1 ? "Save Draft" : "Continue"}
         </Button>
       </div>
     </div>

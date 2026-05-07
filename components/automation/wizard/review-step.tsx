@@ -16,11 +16,13 @@ export function ReviewStep({
   saveStatus,
   saveError,
   onSaveDraft,
+  saveDisabled,
 }: {
   state: AutomationWizardState
   saveStatus: WizardSaveStatus
   saveError: string | null
   onSaveDraft: () => void
+  saveDisabled: boolean
 }) {
   const summary = summarizeAutomationWizard(state)
   const permissions = getWizardPermissionRequirements(state)
@@ -95,7 +97,7 @@ export function ReviewStep({
               <p className="text-xs font-medium leading-relaxed text-red-300">{saveError}</p>
             ) : null}
           </div>
-          <Button type="button" onClick={onSaveDraft} disabled={isSaving}>
+          <Button type="button" onClick={onSaveDraft} disabled={saveDisabled}>
             {isSaving ? "Saving..." : saveStatus === "saved" ? "Saved" : "Save Draft"}
           </Button>
         </div>

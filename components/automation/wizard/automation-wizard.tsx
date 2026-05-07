@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { summarizeAutomationWizard } from "@/lib/automation-wizard/summary"
 import type { AutomationWizardState } from "@/lib/automation-wizard/types"
 
+import { ActionStep } from "./action-step"
+import { TriggerStep } from "./trigger-step"
 import { WizardStepper } from "./wizard-stepper"
 
 const STEPS = [
@@ -40,7 +42,7 @@ function initialState(): AutomationWizardState {
 
 export function AutomationWizard({ onBack }: { onBack: () => void }) {
   const [step, setStep] = useState(0)
-  const [state] = useState<AutomationWizardState>(() => initialState())
+  const [state, setState] = useState<AutomationWizardState>(() => initialState())
   const summary = useMemo(() => summarizeAutomationWizard(state), [state])
   const currentStep = STEPS[step]
 
@@ -67,6 +69,8 @@ export function AutomationWizard({ onBack }: { onBack: () => void }) {
         </div>
         <h2 className="mt-2 text-xl font-semibold text-white/90">Automation wizard</h2>
         <p className="mt-2 text-sm leading-relaxed text-white/50">{summary}</p>
+        {currentStep.id === "trigger" ? <TriggerStep state={state} setState={setState} /> : null}
+        {currentStep.id === "actions" ? <ActionStep state={state} setState={setState} /> : null}
       </section>
 
       <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-white/10 bg-[#080912]/95 py-3">

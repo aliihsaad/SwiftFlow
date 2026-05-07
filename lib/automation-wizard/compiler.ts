@@ -169,7 +169,7 @@ export function compileAutomationWizardGraph(state: AutomationWizardState): Work
   const nodes: WorkflowNode[] = []
   const edges: WorkflowEdge[] = []
 
-  nodes.push(makeNode(0, state.triggerType, "Trigger", {
+  const triggerConfig: Record<string, unknown> = {
     platform: state.account.platform,
     social_account_id: state.account.socialAccountId,
     trigger_type: state.filters.triggerType,
@@ -177,7 +177,12 @@ export function compileAutomationWizardGraph(state: AutomationWizardState): Work
     post_id: state.target.postId || "",
     post_thumbnail_url: state.target.postThumbnailUrl || "",
     post_caption: state.target.postCaption || "",
-  }))
+  }
+  if (state.triggerType === "trigger_cron") {
+    triggerConfig.schedule = state.cron.schedule
+    triggerConfig.timezone = state.cron.timezone
+  }
+  nodes.push(makeNode(0, state.triggerType, "Trigger", triggerConfig))
 
   let index = 1
   if (state.delay.enabled) {

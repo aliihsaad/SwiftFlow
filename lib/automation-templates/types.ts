@@ -26,8 +26,6 @@ export interface TemplateField {
   platform?: AutomationTemplatePlatform
   // Simple conditional visibility: show only when another field equals a given value.
   showWhen?: { fieldId: string; equals: unknown }
-  // For 'switch' fields that gate AI mode on another field.
-  toggles?: { fieldId: string; whenTrue: unknown; whenFalse: unknown }
 }
 
 export type TemplateFormValues = Record<string, unknown>

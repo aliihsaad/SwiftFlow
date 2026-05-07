@@ -104,7 +104,7 @@ export async function PUT(
         // Verify the automation belongs to this workspace
         const { data: existing, error: existingError } = await supabase
             .from('automations')
-            .select('id, editor_version, workflow_graph')
+            .select('id, editor_version, workflow_graph, is_active')
             .eq('id', id)
             .eq('workspace_id', activeWorkspace.id)
             .single();
@@ -140,11 +140,23 @@ export async function PUT(
         if (trigger_config !== undefined) updateData.trigger_config = trigger_config;
         if (comment_reply_config !== undefined) updateData.comment_reply_config = comment_reply_config;
         if (dm_config !== undefined) updateData.dm_config = dm_config;
-        if (is_active !== undefined) updateData.is_active = is_active;
+        if (is_active !== undefined) {
+            if (typeof is_active !== 'boolean') {
+                return NextResponse.json(
+                    { error: 'is_active must be a boolean' },
+                    { status: 400 }
+                );
+            }
+            updateData.is_active = is_active;
+        }
         if (workflow_graph !== undefined) updateData.workflow_graph = workflow_graph;
         if (editor_version !== undefined) updateData.editor_version = editor_version;
 
-        if (is_active === true && existing.editor_version === 'wizard' && existing.workflow_graph) {
+        const nextIsActive = typeof is_active === 'boolean' ? is_active : !!existing.is_active;
+        const nextEditorVersion = editor_version !== undefined ? editor_version : existing.editor_version;
+        const nextWorkflowGraph = workflow_graph !== undefined ? workflow_graph : existing.workflow_graph;
+
+        if (nextIsActive && nextEditorVersion === 'wizard' && nextWorkflowGraph) {
             return NextResponse.json(
                 {
                     error: 'Graph-backed wizard automations cannot be activated until activation validation is available',

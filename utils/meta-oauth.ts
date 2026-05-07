@@ -95,6 +95,12 @@ function sanitizeAdditionalScopes(scopes: string[]): string[] {
     return scopes.filter((scope) => VALID_KNOWN_SCOPES.has(scope) && !BLOCKED_LEGACY_SCOPES.has(scope));
 }
 
+function sanitizeOutgoingScopes(scopes: string[]): string[] {
+    const sanitized = sanitizeAdditionalScopes(scopes);
+    if (sanitized.length > 0) return sanitized;
+    return [...COMMON_SCOPES];
+}
+
 export function getMetaScopeProfile(): MetaOAuthScopeProfile {
     const raw = (process.env.META_OAUTH_SCOPE_PROFILE || 'review_phase_1').trim();
     if (raw === 'review_phase_1') return raw;
@@ -164,11 +170,13 @@ export function buildMetaOAuthDialogUrl(params: {
     scope?: string;
     authType?: 'rerequest';
 }): string {
+    const requestedScopes = params.scope ? parseCsvScopes(params.scope) : getMetaOAuthScopes();
+    const scope = sanitizeOutgoingScopes(requestedScopes).join(',');
     const queryParams = new URLSearchParams({
         client_id: params.clientId,
         redirect_uri: params.redirectUri,
         response_type: 'code',
-        scope: params.scope || getMetaOAuthScopeString(),
+        scope,
         return_scopes: 'true',
     });
 

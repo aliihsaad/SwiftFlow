@@ -313,11 +313,39 @@ export default function AutomationPage() {
                 </button>
             </div>
 
-            {/* Create New */}
+            <PublishingAutomationsPanel readOnly={!canWriteAutomations} />
+
+            {/* Engagement Automations */}
             <div>
-                <h2 className="text-sm font-semibold uppercase tracking-wider mb-4" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                    Create New Automation
-                </h2>
+                <div className="flex flex-col gap-1 mb-4">
+                    <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        Engagement Automations
+                    </h2>
+                    <p className="text-xs" style={{ color: AUTO_PAGE_THEME.muted }}>
+                        Draft comment, message, follower, and story automations with the guided builder.
+                    </p>
+                </div>
+
+                <div
+                    className="rounded-xl p-4 mb-4"
+                    style={{
+                        background: 'rgba(245,158,11,0.06)',
+                        border: '1px solid rgba(245,158,11,0.16)',
+                    }}
+                >
+                    <div className="flex items-start gap-2">
+                        <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" style={{ color: '#fbbf24' }} />
+                        <div>
+                            <p className="text-sm font-semibold" style={{ color: '#fbbf24' }}>
+                                Permission-gated drafts
+                            </p>
+                            <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                                New engagement automations save as drafts. Activation stays locked until the required Meta permissions and validation checks are enabled.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <AutomationCard
                         icon={Plus}
@@ -327,6 +355,28 @@ export default function AutomationPage() {
                         badge="Wizard"
                         disabled={!canWriteAutomations}
                     />
+                    <AutomationCard
+                        icon={MessageCircle}
+                        title="Comment Automation"
+                        description="Quick setup: automatically reply to comments and optionally send a DM with a link. Great for lead magnets."
+                        onClick={handleCreateWizard}
+                        badge="Simple"
+                        disabled={!canWriteAutomations}
+                    />
+                </div>
+            </div>
+
+            {/* Advanced Visual Builder */}
+            <div>
+                <div className="flex flex-col gap-1 mb-4">
+                    <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                        Advanced Visual Builder
+                    </h2>
+                    <p className="text-xs" style={{ color: AUTO_PAGE_THEME.muted }}>
+                        Use the desktop canvas for complex workflows, templates, conditions, delays, and multi-step actions.
+                    </p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     <AutomationCard
                         icon={Workflow}
                         title="Advanced Visual Builder"
@@ -343,18 +393,8 @@ export default function AutomationPage() {
                         badge="Templates"
                         disabled={!canWriteAutomations}
                     />
-                    <AutomationCard
-                        icon={MessageCircle}
-                        title="Comment Automation"
-                        description="Quick setup: automatically reply to comments and optionally send a DM with a link. Great for lead magnets."
-                        onClick={handleCreateWizard}
-                        badge="Simple"
-                        disabled={!canWriteAutomations}
-                    />
                 </div>
             </div>
-
-            <PublishingAutomationsPanel readOnly={!canWriteAutomations} />
 
             {/* Active Automations */}
             <div>

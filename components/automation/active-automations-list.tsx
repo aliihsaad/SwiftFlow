@@ -29,10 +29,10 @@ import {
     Trash2,
     Hash,
     Zap,
-    Workflow,
     Layers,
     Activity,
     Loader2,
+    ShieldAlert,
 } from "lucide-react"
 
 const AUTO_THEME = {
@@ -56,27 +56,35 @@ interface ActiveAutomationsListProps {
 
 type PlatformLabel = 'Instagram' | 'Facebook' | 'Meta'
 
-function getCanvasNodes(automation: Automation): WorkflowNode[] {
+function isGraphBackedWizard(automation: Automation): boolean {
+    return automation.editor_version === 'wizard' && !!automation.workflow_graph
+}
+
+function isGraphAutomation(automation: Automation): boolean {
+    return automation.editor_version === 'canvas' || isGraphBackedWizard(automation)
+}
+
+function getGraphNodes(automation: Automation): WorkflowNode[] {
     return (automation.workflow_graph?.nodes ?? []) as WorkflowNode[]
 }
 
-function getCanvasTriggerNode(automation: Automation): WorkflowNode | undefined {
-    return getCanvasNodes(automation).find((node) => {
+function getGraphTriggerNode(automation: Automation): WorkflowNode | undefined {
+    return getGraphNodes(automation).find((node) => {
         const type = (node.data as WorkflowNodeData | undefined)?.type
         return typeof type === 'string' && type.startsWith('trigger_')
     })
 }
 
-function getCanvasActionNodes(automation: Automation): WorkflowNode[] {
-    return getCanvasNodes(automation).filter((node) => {
+function getGraphActionNodes(automation: Automation): WorkflowNode[] {
+    return getGraphNodes(automation).filter((node) => {
         const type = (node.data as WorkflowNodeData | undefined)?.type
         return typeof type === 'string' && type.startsWith('action_')
     })
 }
 
 function getAutomationPlatformLabel(automation: Automation): PlatformLabel {
-    if (automation.editor_version === 'canvas') {
-        const triggerNode = getCanvasTriggerNode(automation)
+    if (isGraphAutomation(automation)) {
+        const triggerNode = getGraphTriggerNode(automation)
         const config = (triggerNode?.data as WorkflowNodeData | undefined)?.config as unknown as Record<string, unknown> | undefined
         const platform = typeof config?.platform === 'string' ? config.platform : null
         if (platform === 'facebook') return 'Facebook'
@@ -118,8 +126,8 @@ function getWizardTriggerSummary(automation: Automation): string {
     return 'Any comment'
 }
 
-function getCanvasTriggerSummary(automation: Automation): string {
-    const triggerNode = getCanvasTriggerNode(automation)
+function getGraphTriggerSummary(automation: Automation): string {
+    const triggerNode = getGraphTriggerNode(automation)
     if (!triggerNode) return 'Trigger not configured'
 
     const data = (triggerNode.data ?? {}) as WorkflowNodeData
@@ -156,8 +164,8 @@ function getCanvasTriggerSummary(automation: Automation): string {
 }
 
 function getAutomationTriggerSummary(automation: Automation): string {
-    return automation.editor_version === 'canvas'
-        ? getCanvasTriggerSummary(automation)
+    return isGraphAutomation(automation)
+        ? getGraphTriggerSummary(automation)
         : getWizardTriggerSummary(automation)
 }
 
@@ -172,8 +180,8 @@ function getWizardActionSummary(automation: Automation): string {
     return parts.length ? parts.join(' • ') : 'No actions configured'
 }
 
-function getCanvasActionSummary(automation: Automation): string {
-    const actionNodes = getCanvasActionNodes(automation)
+function getGraphActionSummary(automation: Automation): string {
+    const actionNodes = getGraphActionNodes(automation)
     if (!actionNodes.length) return 'No actions configured'
 
     const labels = actionNodes
@@ -186,14 +194,14 @@ function getCanvasActionSummary(automation: Automation): string {
 }
 
 function getAutomationActionSummary(automation: Automation): string {
-    return automation.editor_version === 'canvas'
-        ? getCanvasActionSummary(automation)
+    return isGraphAutomation(automation)
+        ? getGraphActionSummary(automation)
         : getWizardActionSummary(automation)
 }
 
 function automationUsesSendDM(automation: Automation): boolean {
-    if (automation.editor_version !== 'canvas') return true
-    return getCanvasActionNodes(automation).some((node) => {
+    if (!isGraphAutomation(automation)) return true
+    return getGraphActionNodes(automation).some((node) => {
         const type = ((node.data ?? {}) as WorkflowNodeData).type
         return type === 'action_send_dm'
     })
@@ -233,14 +241,29 @@ export function ActiveAutomationsList({
                 {automations.map((automation) => (
                     (() => {
                         const isCanvas = automation.editor_version === 'canvas'
+                        const isGraphWizard = isGraphBackedWizard(automation)
+                        const isGraph = isGraphAutomation(automation)
                         const platformLabel = getAutomationPlatformLabel(automation)
                         const platformChipStyles = getPlatformChipStyles(platformLabel)
                         const triggerSummary = getAutomationTriggerSummary(automation)
                         const actionSummary = getAutomationActionSummary(automation)
                         const hasDMAction = automationUsesSendDM(automation)
-                        const canvasNodeCount = isCanvas ? (automation.workflow_graph?.nodes?.length || 0) : 0
+                        const graphNodeCount = isGraph ? (automation.workflow_graph?.nodes?.length || 0) : 0
+                        const graphActionCount = isGraph ? getGraphActionNodes(automation).length : 0
                         const isToggling = togglingSet.has(automation.id)
                         const isDeleting = deletingSet.has(automation.id)
+                        const activationLocked = isGraphWizard && !automation.is_active
+                        const statusLabel = activationLocked
+                            ? 'Draft'
+                            : automation.is_active
+                                ? 'Active'
+                                : 'Paused'
+                        const statusStyles = automation.is_active
+                            ? { background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }
+                            : activationLocked
+                                ? { background: 'rgba(245,158,11,0.10)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.2)' }
+                                : { background: 'rgba(255,255,255,0.05)', color: AUTO_THEME.mutedSoft, border: `1px solid ${AUTO_THEME.border}` }
+                        const editorBadge = isCanvas ? 'Canvas' : isGraphWizard ? 'Draft Wizard' : 'Wizard'
 
                         return (
                             <div
@@ -287,13 +310,9 @@ export function ActiveAutomationsList({
                                             </h3>
                                             <span
                                                 className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide shrink-0"
-                                                style={
-                                                    automation.is_active
-                                                        ? { background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }
-                                                        : { background: 'rgba(255,255,255,0.05)', color: AUTO_THEME.mutedSoft, border: `1px solid ${AUTO_THEME.border}` }
-                                                }
+                                                style={statusStyles}
                                             >
-                                                {automation.is_active ? 'Active' : 'Paused'}
+                                                {statusLabel}
                                             </span>
                                         </div>
 
@@ -308,7 +327,7 @@ export function ActiveAutomationsList({
                                                 className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
                                                 style={{ background: 'rgba(245,158,11,0.10)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.2)' }}
                                             >
-                                                {isCanvas ? 'Canvas' : 'Wizard'}
+                                                {editorBadge}
                                             </span>
                                         </div>
 
@@ -346,14 +365,21 @@ export function ActiveAutomationsList({
                                                 </span>
                                             )}
 
-                                            {isCanvas && (
+                                            {isGraph && (
                                                 <span className="flex items-center gap-1">
-                                                    <Layers className="h-3 w-3" style={{ color: '#fbbf24' }} />
-                                                    {canvasNodeCount} nodes
+                                                    <Zap className="h-3 w-3" style={{ color: '#f59e0b' }} />
+                                                    {graphActionCount} actions
                                                 </span>
                                             )}
 
-                                            {!isCanvas && automation.trigger_config?.trigger_type === 'keywords' && (
+                                            {isCanvas && (
+                                                <span className="flex items-center gap-1">
+                                                    <Layers className="h-3 w-3" style={{ color: '#fbbf24' }} />
+                                                    {graphNodeCount} nodes
+                                                </span>
+                                            )}
+
+                                            {!isGraph && automation.trigger_config?.trigger_type === 'keywords' && (
                                                 <span className="flex items-center gap-1">
                                                     <Hash className="h-3 w-3" style={{ color: '#38bdf8' }} />
                                                     {automation.trigger_config.keywords?.length || 0} keywords
@@ -368,6 +394,22 @@ export function ActiveAutomationsList({
                                             >
                                                 {automation.post_caption}
                                             </p>
+                                        )}
+
+                                        {activationLocked && (
+                                            <div
+                                                className="mt-3 flex items-start gap-1.5 rounded-lg px-2.5 py-2 text-xs"
+                                                style={{
+                                                    background: 'rgba(245,158,11,0.06)',
+                                                    border: '1px solid rgba(245,158,11,0.16)',
+                                                    color: 'rgba(255,255,255,0.58)',
+                                                }}
+                                            >
+                                                <ShieldAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: '#fbbf24' }} />
+                                                <span>
+                                                    Activation locked until required Meta permissions and validation checks are available.
+                                                </span>
+                                            </div>
                                         )}
                                     </div>
 
@@ -384,9 +426,10 @@ export function ActiveAutomationsList({
                                         )}
                                         <Switch
                                             checked={automation.is_active}
-                                            disabled={readOnly || isToggling || isDeleting}
+                                            disabled={readOnly || isToggling || isDeleting || activationLocked}
                                             onCheckedChange={(checked) => {
                                                 if (readOnly) return
+                                                if (activationLocked && checked) return
                                                 onToggle(automation.id, checked)
                                             }}
                                         />

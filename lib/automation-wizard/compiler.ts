@@ -102,12 +102,13 @@ function actionLabel(type: WizardActionConfig["type"]): string {
   return labels[type]
 }
 
-function actionConfig(action: WizardActionConfig, useAiResponse: boolean): Record<string, unknown> {
+function actionConfig(action: WizardActionConfig, aiAvailable: boolean): Record<string, unknown> {
+  const useAi = aiAvailable && action.useAiResponse === true
   switch (action.type) {
     case "action_reply_comment":
       return {
-        use_ai_response: useAiResponse,
-        messages: useAiResponse
+        use_ai_response: useAi,
+        messages: useAi
           ? ["{{ai_response}}"]
           : action.messages?.length
             ? action.messages
@@ -115,8 +116,8 @@ function actionConfig(action: WizardActionConfig, useAiResponse: boolean): Recor
       }
     case "action_send_dm":
       return {
-        use_ai_response: useAiResponse,
-        opening_message: useAiResponse
+        use_ai_response: useAi,
+        opening_message: useAi
           ? "{{ai_response}}"
           : action.openingMessage || action.message || "",
         button_text: action.buttonText || "",
@@ -127,8 +128,8 @@ function actionConfig(action: WizardActionConfig, useAiResponse: boolean): Recor
       }
     case "action_private_reply":
       return {
-        use_ai_response: useAiResponse,
-        message: useAiResponse ? "{{ai_response}}" : action.message || "",
+        use_ai_response: useAi,
+        message: useAi ? "{{ai_response}}" : action.message || "",
       }
     case "action_send_email":
       return {

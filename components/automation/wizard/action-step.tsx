@@ -313,11 +313,29 @@ function ActionDetailFields({
     case "action_delay":
       return <DelayFields state={state} setState={setState} />
     case "action_reply_comment":
-      return <ReplyCommentFields action={findAction(state, type)} setState={setState} />
+      return (
+        <ReplyCommentFields
+          action={findAction(state, type)}
+          setState={setState}
+          aiAvailable={state.ai.enabled}
+        />
+      )
     case "action_send_dm":
-      return <SendDmFields action={findAction(state, type)} setState={setState} />
+      return (
+        <SendDmFields
+          action={findAction(state, type)}
+          setState={setState}
+          aiAvailable={state.ai.enabled}
+        />
+      )
     case "action_private_reply":
-      return <PrivateReplyFields action={findAction(state, type)} setState={setState} />
+      return (
+        <PrivateReplyFields
+          action={findAction(state, type)}
+          setState={setState}
+          aiAvailable={state.ai.enabled}
+        />
+      )
     case "action_send_email":
       return <SendEmailFields action={findAction(state, type)} setState={setState} />
     case "action_http_request":
@@ -325,6 +343,38 @@ function ActionDetailFields({
     case "action_condition":
       return <ConditionFields action={findAction(state, type)} setState={setState} />
   }
+}
+
+function UseAiResponseToggle({
+  action,
+  setState,
+  type,
+}: {
+  action: WizardActionConfig
+  setState: SetWizardState
+  type: WizardActionType
+}) {
+  const enabled = action.useAiResponse === true
+  return (
+    <div className="rounded-md border border-violet-400/25 bg-violet-500/10 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <Label className="text-xs font-semibold text-white/85">Use AI response</Label>
+          <p className="text-[11px] leading-relaxed text-white/55">
+            Insert the AI-generated reply instead of writing your own message.
+          </p>
+        </div>
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={(event) =>
+            updateAction(setState, type, { useAiResponse: event.target.checked })
+          }
+          className="h-4 w-4 accent-violet-400"
+        />
+      </div>
+    </div>
+  )
 }
 
 const AI_TONES: Array<{ value: WizardAiConfig["tone"]; label: string }> = [
@@ -477,18 +527,30 @@ function DelayFields({ state, setState }: { state: AutomationWizardState; setSta
 function ReplyCommentFields({
   action,
   setState,
+  aiAvailable,
 }: {
   action: WizardActionConfig | undefined
   setState: SetWizardState
+  aiAvailable: boolean
 }) {
   if (!action) return null
   const messages = action.messages?.length ? action.messages : [""]
+  const usingAi = aiAvailable && action.useAiResponse === true
 
   const updateMessages = (next: string[]) =>
     updateAction(setState, "action_reply_comment", { messages: next })
 
   return (
     <div className="space-y-2">
+      {aiAvailable ? (
+        <UseAiResponseToggle action={action} setState={setState} type="action_reply_comment" />
+      ) : null}
+      {usingAi ? (
+        <p className="rounded-md bg-white/[0.03] p-2 text-[11px] leading-relaxed text-white/45">
+          The generated AI reply will be posted on the comment.
+        </p>
+      ) : (
+        <>
       <Label className="text-xs text-white/55">Reply messages (random pick)</Label>
       {messages.map((message, index) => (
         <div key={index} className="flex gap-1">
@@ -524,6 +586,8 @@ function ReplyCommentFields({
       >
         <Plus className="mr-1 h-3 w-3" /> Add reply
       </Button>
+        </>
+      )}
     </div>
   )
 }
@@ -531,27 +595,39 @@ function ReplyCommentFields({
 function SendDmFields({
   action,
   setState,
+  aiAvailable,
 }: {
   action: WizardActionConfig | undefined
   setState: SetWizardState
+  aiAvailable: boolean
 }) {
   if (!action) return null
   const fallbackEnabled = action.fallbackToPrivateReplyOnFailure === true
+  const usingAi = aiAvailable && action.useAiResponse === true
 
   return (
     <>
-      <div>
-        <Label className="text-xs text-white/55">Opening message</Label>
-        <Textarea
-          value={action.openingMessage || ""}
-          onChange={(event) =>
-            updateAction(setState, "action_send_dm", { openingMessage: event.target.value })
-          }
-          placeholder="Hey! Thanks for your comment..."
-          className={cn("mt-1", inputClass())}
-          rows={3}
-        />
-      </div>
+      {aiAvailable ? (
+        <UseAiResponseToggle action={action} setState={setState} type="action_send_dm" />
+      ) : null}
+      {usingAi ? (
+        <p className="rounded-md bg-white/[0.03] p-2 text-[11px] leading-relaxed text-white/45">
+          The generated AI reply will be sent as the DM opening message.
+        </p>
+      ) : (
+        <div>
+          <Label className="text-xs text-white/55">Opening message</Label>
+          <Textarea
+            value={action.openingMessage || ""}
+            onChange={(event) =>
+              updateAction(setState, "action_send_dm", { openingMessage: event.target.value })
+            }
+            placeholder="Hey! Thanks for your comment..."
+            className={cn("mt-1", inputClass())}
+            rows={3}
+          />
+        </div>
+      )}
       <div>
         <Label className="text-xs text-white/55">CTA button text (optional)</Label>
         <Input
@@ -626,24 +702,38 @@ function SendDmFields({
 function PrivateReplyFields({
   action,
   setState,
+  aiAvailable,
 }: {
   action: WizardActionConfig | undefined
   setState: SetWizardState
+  aiAvailable: boolean
 }) {
   if (!action) return null
+  const usingAi = aiAvailable && action.useAiResponse === true
   return (
-    <div>
-      <Label className="text-xs text-white/55">Private reply message</Label>
-      <Textarea
-        value={action.message || ""}
-        onChange={(event) =>
-          updateAction(setState, "action_private_reply", { message: event.target.value })
-        }
-        placeholder="Thanks! Check your inbox."
-        className={cn("mt-1", inputClass())}
-        rows={3}
-      />
-      <p className="mt-1 text-[11px] text-white/40">
+    <div className="space-y-2">
+      {aiAvailable ? (
+        <UseAiResponseToggle action={action} setState={setState} type="action_private_reply" />
+      ) : null}
+      {usingAi ? (
+        <p className="rounded-md bg-white/[0.03] p-2 text-[11px] leading-relaxed text-white/45">
+          The generated AI reply will be sent as the private reply.
+        </p>
+      ) : (
+        <>
+          <Label className="text-xs text-white/55">Private reply message</Label>
+          <Textarea
+            value={action.message || ""}
+            onChange={(event) =>
+              updateAction(setState, "action_private_reply", { message: event.target.value })
+            }
+            placeholder="Thanks! Check your inbox."
+            className={cn("mt-1", inputClass())}
+            rows={3}
+          />
+        </>
+      )}
+      <p className="text-[11px] text-white/40">
         Requires a comment trigger and will fail on non-comment triggers.
       </p>
     </div>

@@ -52,6 +52,7 @@ export interface WizardCronConfig {
 export interface WizardActionConfig {
   type: WizardActionType
   enabled: boolean
+  useAiResponse?: boolean
   message?: string
   messages?: string[]
   openingMessage?: string

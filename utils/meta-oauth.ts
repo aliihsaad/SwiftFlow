@@ -31,10 +31,9 @@ const VALID_KNOWN_SCOPES = new Set([
     'instagram_manage_messages',
 ]);
 
-const BLOCKED_LEGACY_SCOPES = new Set([
-    'pages_read_user_content',
-    'read_insights',
-]);
+function isBlockedLegacyScope(scope: string): boolean {
+    return scope === 'read_insights' || scope.startsWith('pages_read_user_');
+}
 
 const COMMON_SCOPES = ['public_profile'] as const;
 const FACEBOOK_SCOPES = [
@@ -82,17 +81,17 @@ function parseCsvScopes(value?: string | null): string[] {
 }
 
 function sanitizeAdditionalScopes(scopes: string[]): string[] {
-    const blocked = scopes.filter((scope) => BLOCKED_LEGACY_SCOPES.has(scope));
+    const blocked = scopes.filter(isBlockedLegacyScope);
     if (blocked.length > 0) {
         console.warn('[META_OAUTH] Ignoring blocked legacy scopes from configuration:', blocked);
     }
 
-    const unknown = scopes.filter((scope) => !BLOCKED_LEGACY_SCOPES.has(scope) && !VALID_KNOWN_SCOPES.has(scope));
+    const unknown = scopes.filter((scope) => !isBlockedLegacyScope(scope) && !VALID_KNOWN_SCOPES.has(scope));
     if (unknown.length > 0) {
         console.warn('[META_OAUTH] Ignoring unknown scopes from configuration:', unknown);
     }
 
-    return scopes.filter((scope) => VALID_KNOWN_SCOPES.has(scope) && !BLOCKED_LEGACY_SCOPES.has(scope));
+    return scopes.filter((scope) => VALID_KNOWN_SCOPES.has(scope) && !isBlockedLegacyScope(scope));
 }
 
 function sanitizeOutgoingScopes(scopes: string[]): string[] {

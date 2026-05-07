@@ -214,7 +214,6 @@ export function getMetaOAuthUrl(state?: string): string {
         redirectUri: getMetaRedirectUri(),
         state: state || undefined,
         scope,
-        authType: 'rerequest',
     });
     console.log('[META_OAUTH] Final URL:', finalUrl);
 

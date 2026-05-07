@@ -357,7 +357,7 @@ const AI_GOALS: Array<{ value: WizardAiConfig["presetGoal"]; label: string }> = 
 ]
 
 function selectClass(): string {
-  return "mt-1 w-full rounded-md border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white/90 focus:outline-none focus:ring-1 focus:ring-violet-400/50"
+  return "mt-1 w-full appearance-none rounded-md border border-white/10 bg-[#1a1b26] px-3 py-2 text-sm text-white/90 focus:outline-none focus:ring-1 focus:ring-violet-400/50 [&>option]:bg-[#1a1b26] [&>option]:text-white"
 }
 
 function inputClass(): string {

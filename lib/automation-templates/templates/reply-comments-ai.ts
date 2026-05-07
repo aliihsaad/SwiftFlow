@@ -84,7 +84,7 @@ export const replyCommentsAi: AutomationTemplateDefinition = {
           position: { x: 670, y: 120 },
           config: {
             use_ai_response: true,
-            messages: ['{{ai_response}}'],
+            messages: ['{{ai_response}}', 'Thanks for your comment!'],
           },
         },
       ],

@@ -9,13 +9,25 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function isTransientAiError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error || '');
+  return /503|Service Unavailable|high demand|rate limit|too many requests|temporar/i.test(message);
+}
+
+function buildTransientFallback(context: Record<string, unknown>): string {
+  const username = String(context.commenter_username || '').trim();
+  return username ? `Thanks for your comment, ${username}!` : 'Thanks for your comment!';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  let body: any = {};
+
   try {
-    const body = await req.json();
+    body = await req.json();
     const config = body?.config || {};
     const context = body?.context || {};
     const workspaceId = body?.workspace_id as string | undefined;
@@ -78,6 +90,23 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
+    const context = body?.context || {};
+    const config = body?.config || {};
+    if (String(config?.preset_goal || '') === 'reply_comment' && isTransientAiError(err)) {
+      return new Response(JSON.stringify({
+        success: true,
+        output: {
+          response: buildTransientFallback(context),
+          provider: 'fallback',
+          model: 'transient-ai-fallback',
+          fallback_reason: toUserFriendlyError(err),
+        },
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     return new Response(JSON.stringify({ success: false, error: toUserFriendlyError(err) }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

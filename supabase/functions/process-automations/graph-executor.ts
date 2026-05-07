@@ -327,6 +327,17 @@ function pickFallbackReply(messages: unknown[], ctx: TriggerContext & { ai_respo
   return usable[Math.floor(Math.random() * usable.length)] || '';
 }
 
+function getDefaultCommentReplyFallback(ctx: TriggerContext): string {
+  return ctx.commenter_username
+    ? `Thanks for your comment, ${ctx.commenter_username}!`
+    : 'Thanks for your comment!';
+}
+
+function isTransientAiError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error || '');
+  return /503|Service Unavailable|high demand|rate limit|too many requests|temporar/i.test(message);
+}
+
 /**
  * Execute a workflow graph for a given trigger context.
  */
@@ -786,7 +797,9 @@ async function executeReplyComment(
   const useAiResponse = config.use_ai_response === true;
   const aiGeneratedMessage = String(ctx.ai_response || '').trim();
   const fallbackMessage = pickFallbackReply(config.messages || [], ctx);
-  let message = useAiResponse ? (aiGeneratedMessage || fallbackMessage) : fallbackMessage;
+  let message = useAiResponse
+    ? (aiGeneratedMessage || fallbackMessage || getDefaultCommentReplyFallback(ctx))
+    : fallbackMessage;
   if (!message) {
     return {
       success: false,
@@ -1128,6 +1141,16 @@ async function executeAiResponse(
     };
   } catch (err) {
     console.error('[GRAPH] AI response error:', err);
+    if (String(config?.preset_goal || '') === 'reply_comment' && isTransientAiError(err)) {
+      return {
+        success: true,
+        output: {
+          response: getDefaultCommentReplyFallback(ctx),
+          model: 'transient-ai-fallback',
+          fallback_reason: toUserFriendlyError(err),
+        },
+      };
+    }
     return { success: false, error: toUserFriendlyError(err) };
   }
 }

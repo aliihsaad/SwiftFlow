@@ -455,6 +455,11 @@ async function generateAiReplyForComment(
     }
 }
 
+function getDefaultCommentReplyFallback(comment: CommentData): string {
+    const username = String(comment.from?.username || '').trim();
+    return username ? `Thanks for your comment, ${username}!` : 'Thanks for your comment!';
+}
+
 /**
  * Process a single comment against an automation: match trigger, reply, DM.
  * Shared by both the webhook fast path and the polling path.
@@ -540,6 +545,8 @@ async function processSingleComment(
                 replyMessage = automation.comment_reply_config.messages[
                     Math.floor(Math.random() * automation.comment_reply_config.messages.length)
                 ];
+            } else if (replyWantsAi) {
+                replyMessage = getDefaultCommentReplyFallback(comment);
             }
 
             if (replyMessage) {

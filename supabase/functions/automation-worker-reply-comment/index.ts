@@ -45,6 +45,11 @@ function pickFallbackMessage(messages: unknown[], context: Record<string, unknow
   return usable[Math.floor(Math.random() * usable.length)] || '';
 }
 
+function getDefaultReplyFallback(context: Record<string, unknown>): string {
+  const username = String(context.commenter_username || '').trim();
+  return username ? `Thanks for your comment, ${username}!` : 'Thanks for your comment!';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -75,7 +80,9 @@ serve(async (req) => {
     const aiGeneratedMessage = String(context.ai_response || '').trim();
     const fallbackMessage = pickFallbackMessage(config.messages as unknown[], context);
 
-    let message = useAiResponse ? (aiGeneratedMessage || fallbackMessage) : fallbackMessage;
+    let message = useAiResponse
+      ? (aiGeneratedMessage || fallbackMessage || getDefaultReplyFallback(context))
+      : fallbackMessage;
     if (!message) {
       return new Response(JSON.stringify({
         success: false,

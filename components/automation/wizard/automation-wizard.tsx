@@ -10,11 +10,12 @@ import type { AutomationWizardState } from "@/lib/automation-wizard/types"
 
 import { ActionStep } from "./action-step"
 import { ReviewStep, type WizardSaveStatus } from "./review-step"
+import { SetupStep } from "./setup-step"
 import { TriggerStep } from "./trigger-step"
 import { WizardStepper } from "./wizard-stepper"
 
 const STEPS = [
-  { id: "family", label: "Type" },
+  { id: "setup", label: "Setup" },
   { id: "trigger", label: "Trigger" },
   { id: "actions", label: "Actions" },
   { id: "review", label: "Review" },
@@ -115,6 +116,7 @@ export function AutomationWizard({ onBack }: { onBack: () => void }) {
         </div>
         <h2 className="mt-2 text-xl font-semibold text-white/90">Automation wizard</h2>
         <p className="mt-2 text-sm leading-relaxed text-white/50">{summary}</p>
+        {currentStep.id === "setup" ? <SetupStep state={state} setState={updateState} /> : null}
         {currentStep.id === "trigger" ? <TriggerStep state={state} setState={updateState} /> : null}
         {currentStep.id === "actions" ? <ActionStep state={state} setState={updateState} /> : null}
         {currentStep.id === "review" ? (

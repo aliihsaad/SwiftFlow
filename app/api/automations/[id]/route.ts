@@ -3,6 +3,30 @@ import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
+import type { WorkflowGraph } from '@/types/automation-graph';
+
+interface UpdateAutomationBody {
+    name?: string;
+    trigger_config?: unknown;
+    comment_reply_config?: unknown;
+    dm_config?: unknown;
+    is_active?: unknown;
+    workflow_graph?: WorkflowGraph;
+    editor_version?: string;
+}
+
+function summarizeError(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'object' && error && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+        return (error as { message: string }).message;
+    }
+    return String(error);
+}
+
+function graphConfigValue(config: Record<string, unknown>, key: string): string {
+    const value = config[key];
+    return typeof value === 'string' ? value : '';
+}
 
 // GET - Get a single automation
 export async function GET(
@@ -42,14 +66,14 @@ export async function GET(
 
         return NextResponse.json({ automation });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
-            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+            return NextResponse.json({ error: summarizeError(error) || 'Forbidden' }, { status: permissionStatus });
         }
         console.error('Get automation API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to fetch automation' },
+            { error: summarizeError(error) || 'Failed to fetch automation' },
             { status: 500 }
         );
     }
@@ -80,7 +104,7 @@ export async function PUT(
         // Verify the automation belongs to this workspace
         const { data: existing, error: existingError } = await supabase
             .from('automations')
-            .select('id')
+            .select('id, editor_version, workflow_graph')
             .eq('id', id)
             .eq('workspace_id', activeWorkspace.id)
             .single();
@@ -93,7 +117,7 @@ export async function PUT(
         }
 
         assertJsonBodySize(request, 256 * 1024);
-        const body = await request.json();
+        const body = await request.json() as UpdateAutomationBody;
         const {
             name,
             trigger_config,
@@ -103,12 +127,12 @@ export async function PUT(
             workflow_graph,
             editor_version,
         } = body;
-        const graphTriggerNode = workflow_graph?.nodes?.find((n: any) => n?.data?.type?.startsWith?.('trigger_'));
+        const graphTriggerNode = workflow_graph?.nodes?.find((node) => node.data.type.startsWith('trigger_'));
         const graphTriggerType = graphTriggerNode?.data?.type as string | undefined;
-        const graphTriggerConfig = (graphTriggerNode?.data?.config || {}) as Record<string, any>;
+        const graphTriggerConfig = (graphTriggerNode?.data?.config || {}) as unknown as Record<string, unknown>;
 
         // Build update object
-        const updateData: Record<string, any> = {
+        const updateData: Record<string, unknown> = {
             updated_at: new Date().toISOString()
         };
 
@@ -120,6 +144,15 @@ export async function PUT(
         if (workflow_graph !== undefined) updateData.workflow_graph = workflow_graph;
         if (editor_version !== undefined) updateData.editor_version = editor_version;
 
+        if (is_active === true && existing.editor_version === 'wizard' && existing.workflow_graph) {
+            return NextResponse.json(
+                {
+                    error: 'Graph-backed wizard automations cannot be activated until activation validation is available',
+                },
+                { status: 400 }
+            );
+        }
+
         // Keep legacy account/post columns in sync for canvas automations.
         if (workflow_graph !== undefined) {
             if (!graphTriggerNode) {
@@ -129,7 +162,7 @@ export async function PUT(
                 );
             }
 
-            const resolvedAccountId = graphTriggerConfig.social_account_id as string | undefined;
+            const resolvedAccountId = graphConfigValue(graphTriggerConfig, 'social_account_id');
             if (!resolvedAccountId) {
                 return NextResponse.json(
                     { error: 'Canvas trigger must include social_account_id' },
@@ -154,16 +187,17 @@ export async function PUT(
             updateData.social_account_id = resolvedAccountId;
 
             if (graphTriggerType === 'trigger_new_comment') {
-                if (!graphTriggerConfig.post_id) {
+                const graphPostId = graphConfigValue(graphTriggerConfig, 'post_id');
+                if (!graphPostId) {
                     return NextResponse.json(
                         { error: 'Comment trigger requires post_id' },
                         { status: 400 }
                     );
                 }
 
-                updateData.platform_post_id = assertMetaGraphNodeId(graphTriggerConfig.post_id, 'post_id');
-                updateData.post_thumbnail_url = graphTriggerConfig.post_thumbnail_url || null;
-                updateData.post_caption = graphTriggerConfig.post_caption || null;
+                updateData.platform_post_id = assertMetaGraphNodeId(graphPostId, 'post_id');
+                updateData.post_thumbnail_url = graphConfigValue(graphTriggerConfig, 'post_thumbnail_url') || null;
+                updateData.post_caption = graphConfigValue(graphTriggerConfig, 'post_caption') || null;
             } else {
                 updateData.platform_post_id = '__canvas__';
             }
@@ -185,7 +219,7 @@ export async function PUT(
             automation
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         if (error instanceof Error && /Invalid post_id|Request payload too large|Invalid content length/i.test(error.message)) {
             return NextResponse.json(
                 { error: error.message },
@@ -194,11 +228,11 @@ export async function PUT(
         }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
-            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+            return NextResponse.json({ error: summarizeError(error) || 'Forbidden' }, { status: permissionStatus });
         }
         console.error('Update automation API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to update automation' },
+            { error: summarizeError(error) || 'Failed to update automation' },
             { status: 500 }
         );
     }
@@ -254,14 +288,14 @@ export async function DELETE(
             success: true
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
-            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+            return NextResponse.json({ error: summarizeError(error) || 'Forbidden' }, { status: permissionStatus });
         }
         console.error('Delete automation API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to delete automation' },
+            { error: summarizeError(error) || 'Failed to delete automation' },
             { status: 500 }
         );
     }

@@ -58,31 +58,31 @@ export function AutomationTemplatePicker({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-4xl p-0 overflow-hidden"
+        className="flex max-h-[88vh] w-[calc(100vw-1.5rem)] max-w-4xl flex-col overflow-hidden p-0 sm:w-[calc(100vw-3rem)]"
         style={{ background: "#151620", border: "1px solid rgba(255,255,255,0.08)" }}
       >
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-white/5">
-          <DialogTitle className="flex items-center gap-2 text-base" style={{ color: "rgba(255,255,255,0.9)" }}>
+        <DialogHeader className="shrink-0 border-b border-white/5 px-4 pb-3 pt-4 sm:px-6 sm:pb-4 sm:pt-6">
+          <DialogTitle className="flex min-w-0 items-center gap-2 text-sm sm:text-base" style={{ color: "rgba(255,255,255,0.9)" }}>
             <div
-              className="flex h-8 w-8 items-center justify-center rounded-lg"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
               style={{ background: "rgba(56,189,248,0.10)", border: "1px solid rgba(56,189,248,0.18)" }}
             >
               <Sparkles className="h-4 w-4" style={{ color: "#67e8f9" }} />
             </div>
-            Automation Templates
+            <span className="truncate">Automation Templates</span>
           </DialogTitle>
-          <DialogDescription style={{ color: "rgba(255,255,255,0.45)" }}>
+          <DialogDescription className="text-xs leading-relaxed sm:text-sm" style={{ color: "rgba(255,255,255,0.45)" }}>
             Templates load ready node sets into the canvas. Select the social account, review the messages, then save when the workflow is correct.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="p-6 grid gap-4 md:grid-cols-2">
+        <div className="grid min-h-0 gap-3 overflow-y-auto p-4 sm:gap-4 sm:p-6 md:grid-cols-2">
           {templates.map((template) => {
             const CategoryIcon = getCategoryIcon(template.category)
             return (
               <div
                 key={template.id}
-                className="rounded-xl p-4 transition-all"
+                className="rounded-lg p-3 transition-all sm:p-4"
                 style={{
                   background: "#1b1d28",
                   border: "1px solid rgba(255,255,255,0.07)",
@@ -99,7 +99,7 @@ export function AutomationTemplatePicker({
                         <CategoryIcon className="h-4 w-4" style={{ color: "#fda4af" }} />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="text-sm font-semibold truncate" style={{ color: "rgba(255,255,255,0.88)" }}>
+                        <h3 className="text-sm font-semibold leading-snug sm:truncate" style={{ color: "rgba(255,255,255,0.88)" }}>
                           {template.name}
                         </h3>
                         <div className="flex flex-wrap gap-1 mt-1">
@@ -153,7 +153,7 @@ export function AutomationTemplatePicker({
                 <div className="mt-4 flex items-center justify-end">
                   <Button
                     size="sm"
-                    className="h-8 text-xs"
+                    className="h-8 w-full text-xs sm:w-auto"
                     style={{
                       background: "linear-gradient(135deg, #38bdf8, #fb7185)",
                       color: "#fff",

@@ -30,12 +30,12 @@ export function DMConfigPanel({ config, onChange }: DMConfigPanelProps) {
             </div>
 
             {/* AI toggle */}
-            <div className="flex items-center justify-between rounded-lg border border-violet-300/40 bg-violet-50 dark:bg-violet-950/20 p-3">
-                <div className="flex items-center gap-3">
-                    <div className="p-1.5 rounded-md bg-violet-100 dark:bg-violet-900/40">
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-violet-300/40 bg-violet-50 dark:bg-violet-950/20 p-3">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className="p-1.5 rounded-md bg-violet-100 dark:bg-violet-900/40 shrink-0">
                         <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-300" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                         <Label className="text-sm font-medium">Use AI response</Label>
                         <p className="text-xs text-muted-foreground">
                             Generate the DM opening message based on the comment.
@@ -45,6 +45,7 @@ export function DMConfigPanel({ config, onChange }: DMConfigPanelProps) {
                 <Switch
                     checked={useAi}
                     onCheckedChange={(checked) => updateField('use_ai_response', checked)}
+                    className="shrink-0"
                 />
             </div>
 

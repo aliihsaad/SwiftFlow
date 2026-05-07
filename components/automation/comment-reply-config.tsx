@@ -36,12 +36,12 @@ export function CommentReplyConfigPanel({ config, onChange }: CommentReplyConfig
             </div>
 
             {/* Toggle */}
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
+            <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border rounded-lg">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <div className="p-2 rounded-lg bg-primary/10 shrink-0">
                         <MessageCircle className="h-5 w-5 text-primary" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                         <Label className="text-base font-medium">Auto-reply to comment</Label>
                         <p className="text-sm text-muted-foreground">
                             Post a reply directing users to check their DMs
@@ -51,26 +51,27 @@ export function CommentReplyConfigPanel({ config, onChange }: CommentReplyConfig
                 <Switch
                     checked={config.enabled}
                     onCheckedChange={handleToggle}
+                    className="shrink-0"
                 />
             </div>
 
             {/* Reply Message */}
             {config.enabled && (
-                <div className="space-y-4 pl-4 border-l-2 border-primary/20">
+                <div className="space-y-4 pl-2 sm:pl-4 border-l-2 border-primary/20">
                     {/* AI toggle */}
-                    <div className="flex items-center justify-between rounded-lg border border-violet-300/40 bg-violet-50 dark:bg-violet-950/20 p-3">
-                        <div className="flex items-center gap-3">
-                            <div className="p-1.5 rounded-md bg-violet-100 dark:bg-violet-900/40">
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-violet-300/40 bg-violet-50 dark:bg-violet-950/20 p-3">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <div className="p-1.5 rounded-md bg-violet-100 dark:bg-violet-900/40 shrink-0">
                                 <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-300" />
                             </div>
-                            <div>
+                            <div className="min-w-0">
                                 <Label className="text-sm font-medium">Use AI response</Label>
                                 <p className="text-xs text-muted-foreground">
                                     Generate the reply automatically based on the comment.
                                 </p>
                             </div>
                         </div>
-                        <Switch checked={useAi} onCheckedChange={handleAiToggle} />
+                        <Switch checked={useAi} onCheckedChange={handleAiToggle} className="shrink-0" />
                     </div>
 
                     {!useAi && (

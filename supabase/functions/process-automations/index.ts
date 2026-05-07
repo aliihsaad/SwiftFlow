@@ -3,6 +3,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { executeWorkflowGraph } from "./graph-executor.ts"
 import { canManageMessagesWithMetaAccount, canReadCommentsWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
+import { resolveAIConfig } from "../_shared/ai-config.ts"
+import { generateText, requireGeneratedText } from "../_shared/generate-text.ts"
+import { buildAutomationAiPrompt } from "../_shared/automation-context.ts"
 
 import { isSafeMetaGraphNodeId, META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 
@@ -26,12 +29,14 @@ interface AutomationRow {
     comment_reply_config: {
         enabled: boolean;
         messages: string[];
+        use_ai_response?: boolean;
     };
     dm_config: {
         opening_message: string;
         button_text: string;
         link_url: string;
         link_message?: string;
+        use_ai_response?: boolean;
     };
     social_accounts: {
         id: string;
@@ -416,6 +421,41 @@ async function processAutomation(
 }
 
 /**
+ * Generate an AI reply for a comment trigger using the workspace's AI provider.
+ * Returns null if generation fails so the caller can fall back gracefully.
+ */
+async function generateAiReplyForComment(
+    supabase: any,
+    workspaceId: string,
+    comment: CommentData,
+): Promise<string | null> {
+    try {
+        const aiConfig = await resolveAIConfig({ supabase, workspaceId, useGlobalSettings: true });
+        const prompt = buildAutomationAiPrompt(
+            { preset_goal: 'reply_comment', tone: 'friendly', length: 'short', emoji_level: 'light' },
+            {
+                comment_id: comment.id,
+                comment_text: comment.text,
+                commenter_username: comment.from.username,
+                commenter_id: comment.from.id,
+            } as any,
+        );
+        const text = await generateText({
+            provider: aiConfig.provider,
+            apiKey: aiConfig.apiKey,
+            modelName: aiConfig.modelName,
+            prompt,
+            temperature: aiConfig.temperature,
+            maxTokens: aiConfig.maxTokens,
+        });
+        return requireGeneratedText(text);
+    } catch (err) {
+        console.error('[AI_REPLY] Generation failed:', err?.message || err);
+        return null;
+    }
+}
+
+/**
  * Process a single comment against an automation: match trigger, reply, DM.
  * Shared by both the webhook fast path and the polling path.
  */
@@ -479,26 +519,50 @@ async function processSingleComment(
     let errorMessage: string | null = null;
 
     try {
-        // Reply to comment (if enabled)
-        if (automation.comment_reply_config.enabled && automation.comment_reply_config.messages.length > 0) {
-            const replyMessage = automation.comment_reply_config.messages[
-                Math.floor(Math.random() * automation.comment_reply_config.messages.length)
-            ];
+        const replyWantsAi = automation.comment_reply_config.enabled === true
+            && automation.comment_reply_config.use_ai_response === true;
+        const dmWantsAi = automation.dm_config?.use_ai_response === true
+            && (automation.dm_config?.opening_message?.trim() || automation.dm_config?.use_ai_response);
 
-            const replyResult = await replyToComment(comment.id, replyMessage, accessToken);
-            commentReplySent = replyResult.success;
-            if (!replyResult.success) {
-                console.warn(`Automation ${automation.id}: Comment reply failed:`, replyResult.error);
+        // Generate AI text once per comment if any branch needs it
+        let aiText: string | null = null;
+        if (replyWantsAi || dmWantsAi) {
+            aiText = await generateAiReplyForComment(supabase, automation.workspace_id, comment);
+        }
+
+        // Reply to comment (if enabled)
+        const hasReplyMessages = automation.comment_reply_config.messages.length > 0;
+        if (automation.comment_reply_config.enabled && (replyWantsAi || hasReplyMessages)) {
+            let replyMessage = '';
+            if (replyWantsAi && aiText) {
+                replyMessage = aiText;
+            } else if (hasReplyMessages) {
+                replyMessage = automation.comment_reply_config.messages[
+                    Math.floor(Math.random() * automation.comment_reply_config.messages.length)
+                ];
+            }
+
+            if (replyMessage) {
+                const replyResult = await replyToComment(comment.id, replyMessage, accessToken);
+                commentReplySent = replyResult.success;
+                if (!replyResult.success) {
+                    console.warn(`Automation ${automation.id}: Comment reply failed:`, replyResult.error);
+                }
             }
         }
 
-        // Send DM (only if dm_config has content)
-        if (automation.dm_config?.opening_message) {
+        // Send DM (only if dm_config has content or AI is enabled)
+        const dmEnabled = !!(automation.dm_config?.opening_message?.trim() || automation.dm_config?.use_ai_response);
+        if (dmEnabled) {
+            const dmConfigForSend = (dmWantsAi && aiText)
+                ? { ...automation.dm_config, opening_message: aiText }
+                : automation.dm_config;
+
             const dmResult = await sendDM(
                 pageId,
                 comment.from.id,
                 comment.id,
-                automation.dm_config,
+                dmConfigForSend,
                 accessToken
             );
 

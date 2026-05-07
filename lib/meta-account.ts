@@ -9,7 +9,9 @@ export interface MetaGrantedGranularScope {
 
 export interface MetaCapabilityMap {
   facebook_page_selection: boolean
+  facebook_page_metadata_manage: boolean
   facebook_publish: boolean
+  business_management: boolean
   instagram_basic: boolean
   instagram_publish: boolean
   analytics_read: boolean
@@ -71,7 +73,9 @@ export function deriveMetaCapabilities(scopes: readonly string[]): MetaCapabilit
 
   return {
     facebook_page_selection: granted.has("pages_show_list"),
+    facebook_page_metadata_manage: granted.has("pages_manage_metadata"),
     facebook_publish: granted.has("pages_manage_posts"),
+    business_management: granted.has("business_management"),
     instagram_basic: granted.has("instagram_basic"),
     instagram_publish: granted.has("instagram_content_publish"),
     analytics_read: granted.has("pages_read_engagement") || granted.has("instagram_manage_insights"),

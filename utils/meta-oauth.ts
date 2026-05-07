@@ -20,7 +20,10 @@ const VALID_KNOWN_SCOPES = new Set([
     'pages_show_list',
     'pages_read_engagement',
     'pages_manage_posts',
+    'pages_manage_metadata',
+    'pages_manage_engagement',
     'pages_messaging',
+    'business_management',
     'instagram_basic',
     'instagram_content_publish',
     'instagram_manage_insights',
@@ -29,13 +32,19 @@ const VALID_KNOWN_SCOPES = new Set([
 ]);
 
 const BLOCKED_LEGACY_SCOPES = new Set([
-    'pages_manage_engagement',
     'pages_read_user_content',
     'read_insights',
 ]);
 
 const COMMON_SCOPES = ['public_profile'] as const;
-const FACEBOOK_SCOPES = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts'] as const;
+const FACEBOOK_SCOPES = [
+    'pages_show_list',
+    'pages_read_engagement',
+    'pages_manage_posts',
+    'pages_manage_metadata',
+    'pages_manage_engagement',
+    'business_management',
+] as const;
 const INSTAGRAM_SCOPES = [
     'instagram_basic',
     'instagram_content_publish',

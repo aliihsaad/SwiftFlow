@@ -17,7 +17,7 @@ import type {
 import { ToneField } from './fields/tone-field'
 import { KeywordsField } from './fields/keywords-field'
 import { SocialAccountField } from './fields/social-account-field'
-import { PostOrAllField } from './fields/post-or-all-field'
+import { PostField } from './fields/post-field'
 
 function initialValuesFor(template: AutomationTemplateDefinition): TemplateFormValues {
   const initial: TemplateFormValues = {}
@@ -25,7 +25,6 @@ function initialValuesFor(template: AutomationTemplateDefinition): TemplateFormV
     if (field.defaultValue !== undefined) initial[field.id] = field.defaultValue
     else if (field.type === 'switch') initial[field.id] = false
     else if (field.type === 'keywords') initial[field.id] = []
-    else if (field.type === 'post_or_all') initial[field.id] = 'all'
     else initial[field.id] = ''
   }
   return initial
@@ -147,19 +146,13 @@ export function TemplateFormModal({
                     required={field.required}
                   />
                 )
-              case 'post_or_all':
+              case 'post':
                 return (
-                  <PostOrAllField
+                  <PostField
                     key={field.id}
                     socialAccountId={String(values.social_account_id || '')}
-                    selection={String(values[field.id] || 'all')}
-                    onChange={({ selection, postId }) => {
-                      setValues((prev) => ({
-                        ...prev,
-                        [field.id]: selection,
-                        post_id: postId,
-                      }))
-                    }}
+                    value={String(values[field.id] || '')}
+                    onChange={(postId) => handleField(field.id, postId)}
                     label={field.label}
                     required={field.required}
                   />

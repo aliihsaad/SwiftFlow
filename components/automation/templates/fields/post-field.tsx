@@ -1,30 +1,32 @@
 "use client"
 
-import { useState } from 'react'
-import { Switch } from '@/components/ui/switch'
+import { useEffect, useState } from 'react'
 import { Label } from '@/components/ui/label'
 import { PostSelector } from '@/components/automation/post-selector'
 import type { InstagramMedia } from '@/types/automation'
 
-export function PostOrAllField({
+export function PostField({
   socialAccountId,
-  selection,
+  value,
   onChange,
   label,
   required,
 }: {
   socialAccountId: string
-  selection: string
-  onChange: (next: { selection: 'all' | string; postId: string }) => void
+  value: string
+  onChange: (postId: string) => void
   label: string
   required?: boolean
 }) {
-  const isAll = selection === 'all' || !selection
   const [selectedPost, setSelectedPost] = useState<InstagramMedia | null>(null)
+
+  useEffect(() => {
+    if (!value) setSelectedPost(null)
+  }, [value])
 
   const handlePostSelect = (post: InstagramMedia) => {
     setSelectedPost(post)
-    onChange({ selection: post.id, postId: post.id })
+    onChange(post.id)
   }
 
   return (
@@ -33,23 +35,13 @@ export function PostOrAllField({
         {label}
         {required && <span className="ml-1 text-rose-300">*</span>}
       </Label>
-      <div className="flex items-center gap-3">
-        <Switch
-          checked={isAll}
-          onCheckedChange={(checked) =>
-            onChange({ selection: checked ? 'all' : '', postId: '' })
-          }
-        />
-        <span className="text-sm text-white/75">Apply to all posts</span>
-      </div>
-      {!isAll && socialAccountId && (
+      {socialAccountId ? (
         <PostSelector
           selectedAccountId={socialAccountId}
           selectedPost={selectedPost}
           onSelect={handlePostSelect}
         />
-      )}
-      {!isAll && !socialAccountId && (
+      ) : (
         <p className="text-xs text-amber-300">Pick an account first to choose a post.</p>
       )}
     </div>

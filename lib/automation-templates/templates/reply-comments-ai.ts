@@ -6,7 +6,7 @@ import { buildGraphFromBlueprint } from '../utils'
 export const replyCommentsAi: AutomationTemplateDefinition = {
   id: 'tpl-reply-comments-ai',
   name: 'Reply to comments with AI',
-  description: 'Auto-generate a friendly reply for every new comment on a post (or all posts).',
+  description: 'Auto-generate a friendly reply for every new comment on a specific post.',
   category: 'comments',
   icon: MessageSquareReply,
   supportedPlatforms: ['instagram', 'facebook'],
@@ -21,10 +21,10 @@ export const replyCommentsAi: AutomationTemplateDefinition = {
     },
     { id: 'social_account_id', type: 'social_account', label: 'Account', required: true },
     {
-      id: 'post_or_all',
-      type: 'post_or_all',
-      label: 'Apply to',
-      helpText: 'Pick a single post, or leave on "All posts" to react to every comment.',
+      id: 'post_id',
+      type: 'post',
+      label: 'Trigger post',
+      required: true,
     },
     {
       id: 'tone',
@@ -59,7 +59,7 @@ export const replyCommentsAi: AutomationTemplateDefinition = {
             trigger_type: triggerType,
             keywords: values.keywords || [],
             social_account_id: String(values.social_account_id || ''),
-            post_id: values.post_or_all === 'all' ? '' : String(values.post_id || ''),
+            post_id: String(values.post_id || ''),
             post_thumbnail_url: '',
             post_caption: '',
           },
@@ -99,7 +99,6 @@ export const replyCommentsAi: AutomationTemplateDefinition = {
     return this.buildGraphFromForm({
       platform: false,
       social_account_id: '',
-      post_or_all: 'all',
       post_id: '',
       tone: 'friendly',
       keywords: [],

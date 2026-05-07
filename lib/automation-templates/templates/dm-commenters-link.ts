@@ -20,8 +20,8 @@ export const dmCommentersLink: AutomationTemplateDefinition = {
       platform: 'instagram',
     },
     {
-      id: 'post_or_all',
-      type: 'post_or_all',
+      id: 'post_id',
+      type: 'post',
       label: 'Trigger post',
       required: true,
     },
@@ -62,7 +62,7 @@ export const dmCommentersLink: AutomationTemplateDefinition = {
             trigger_type: 'any',
             keywords: [],
             social_account_id: String(values.social_account_id || ''),
-            post_id: values.post_or_all === 'all' ? '' : String(values.post_id || ''),
+            post_id: String(values.post_id || ''),
             post_thumbnail_url: '',
             post_caption: '',
           },
@@ -101,7 +101,6 @@ export const dmCommentersLink: AutomationTemplateDefinition = {
   buildGraph: function () {
     return this.buildGraphFromForm({
       social_account_id: '',
-      post_or_all: 'all',
       post_id: '',
       reply_message: 'Thanks for your comment. Check your inbox.',
       opening_message: 'Thanks for commenting. Here is the link you requested.',

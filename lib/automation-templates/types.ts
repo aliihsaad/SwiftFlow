@@ -6,7 +6,7 @@ export type AutomationTemplatePlatform = 'instagram' | 'facebook'
 
 export type TemplateFieldType =
   | 'social_account'
-  | 'post_or_all'
+  | 'post'
   | 'text'
   | 'textarea'
   | 'url'

@@ -24,6 +24,8 @@ const iconMap: Record<string, React.ElementType> = {
 
 function TriggerNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as unknown as WorkflowNodeData
+  const config = nodeData.config as unknown as Record<string, unknown>
+  const postThumbnailUrl = typeof config.post_thumbnail_url === 'string' ? config.post_thumbnail_url : ''
   const Icon = iconMap[nodeData.type] || MessageCircle
   const nodeHelp = getTriggerNodeHelp(nodeData)
 
@@ -60,10 +62,10 @@ function TriggerNodeComponent({ data, selected }: NodeProps) {
 
       {/* Body */}
       <div className="px-3 py-2">
-        {nodeData.type === 'trigger_new_comment' && (nodeData.config as any)?.post_thumbnail_url ? (
+        {nodeData.type === 'trigger_new_comment' && postThumbnailUrl ? (
           <div className="flex items-center gap-2">
             <img
-              src={(nodeData.config as any).post_thumbnail_url}
+              src={postThumbnailUrl}
               alt="Post"
               className="w-8 h-8 rounded object-cover shrink-0"
             />

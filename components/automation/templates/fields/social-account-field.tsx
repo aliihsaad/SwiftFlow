@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from 'react'
 import useSWR from 'swr'
 import { Label } from '@/components/ui/label'
 
@@ -34,6 +35,15 @@ export function SocialAccountField({
     fetcher,
   )
   const accounts = data?.accounts || []
+
+  useEffect(() => {
+    if (!isLoading && accounts.length === 1 && !value) {
+      onChange(accounts[0].id)
+    }
+  }, [isLoading, accounts, value, onChange])
+
+  if (!isLoading && accounts.length === 1) return null
+
   return (
     <div className="space-y-2">
       <Label className="text-sm font-semibold text-white/80">

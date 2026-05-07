@@ -72,8 +72,6 @@ export function TemplateFormModal({
   )
   const valid = template ? isFormValid(template, values) && name.trim().length > 0 : false
 
-  // Re-derive default name when key fields change.
-  // (Keep it simple: only update if user hasn't manually edited yet.)
   const handleField = (id: string, next: unknown) => {
     setValues((prev) => ({ ...prev, [id]: next }))
   }
@@ -119,11 +117,15 @@ export function TemplateFormModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogTitle>{template.name}</DialogTitle>
-        <DialogDescription>{template.description}</DialogDescription>
+      <DialogContent className="flex max-h-[90vh] w-[calc(100vw-2rem)] max-w-xl flex-col gap-0 overflow-hidden p-0 sm:w-full">
+        <div className="border-b border-white/10 px-5 py-4">
+          <DialogTitle className="text-base">{template.name}</DialogTitle>
+          <DialogDescription className="mt-1 text-xs leading-relaxed">
+            {template.description}
+          </DialogDescription>
+        </div>
 
-        <div className="mt-3 space-y-4">
+        <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <div className="space-y-2">
             <Label className="text-sm font-semibold text-white/80">Automation name</Label>
             <Input
@@ -230,7 +232,7 @@ export function TemplateFormModal({
           })}
         </div>
 
-        <div className="mt-4 flex items-center justify-end gap-2">
+        <div className="flex items-center justify-end gap-2 border-t border-white/10 px-5 py-3">
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={isSaving}>
             Cancel
           </Button>

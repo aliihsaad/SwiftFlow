@@ -5,6 +5,21 @@ import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
+import type { WorkflowGraph } from '@/types/automation-graph';
+
+interface CreateAutomationBody {
+    social_account_id?: string;
+    name?: string;
+    platform_post_id?: string;
+    post_thumbnail_url?: string;
+    post_caption?: string;
+    trigger_config?: unknown;
+    comment_reply_config?: unknown;
+    dm_config?: unknown;
+    workflow_graph?: WorkflowGraph;
+    editor_version?: string;
+    is_active?: unknown;
+}
 
 function summarizeError(error: unknown): string {
     if (error instanceof Error) return error.message;
@@ -14,8 +29,24 @@ function summarizeError(error: unknown): string {
     return String(error);
 }
 
+function errorDetail(error: unknown): unknown {
+    if (!error || typeof error !== 'object') return null;
+    const maybeError = error as { details?: unknown; hint?: unknown; code?: unknown };
+    return maybeError.details || maybeError.hint || maybeError.code || null;
+}
+
+function graphConfigValue(config: Record<string, unknown>, key: string): string {
+    const value = config[key];
+    return typeof value === 'string' ? value : '';
+}
+
+function graphKeywords(config: Record<string, unknown>): string[] {
+    const value = config.keywords;
+    return Array.isArray(value) ? value.filter((keyword): keyword is string => typeof keyword === 'string') : [];
+}
+
 // GET - List all automations for the workspace
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         const supabase = await createClient();
 
@@ -94,17 +125,17 @@ export async function GET(request: NextRequest) {
             automations: automationsWithStats
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
-            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+            return NextResponse.json({ error: summarizeError(error) || 'Forbidden' }, { status: permissionStatus });
         }
         console.error('Get automations API error:', error);
         console.error(`Get automations API details: ${summarizeError(error)}`);
         return NextResponse.json(
             {
-                error: error.message || 'Failed to fetch automations',
-                details: error.details || error.hint || error.code || null
+                error: summarizeError(error) || 'Failed to fetch automations',
+                details: errorDetail(error)
             },
             { status: 500 }
         );
@@ -130,7 +161,7 @@ export async function POST(request: NextRequest) {
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write');
 
         assertJsonBodySize(request, 256 * 1024);
-        const body = await request.json();
+        const body = await request.json() as CreateAutomationBody;
         const {
             social_account_id,
             name,
@@ -142,13 +173,22 @@ export async function POST(request: NextRequest) {
             dm_config,
             workflow_graph,
             editor_version,
+            is_active,
         } = body;
 
-        // Canvas mode: workflow_graph is the primary payload
-        const isCanvasMode = editor_version === 'canvas' || !!workflow_graph;
-        const graphTriggerNode = workflow_graph?.nodes?.find((n: any) => n?.data?.type?.startsWith?.('trigger_'));
+        // Graph-backed mode: workflow_graph is the primary payload for canvas and new wizard drafts.
+        const isGraphBackedMode = editor_version === 'canvas' || !!workflow_graph;
+        const isCanvasMode = isGraphBackedMode;
+        const shouldStoreCanvasEditor = editor_version === 'canvas';
+        const requestedIsActive = typeof is_active === 'boolean' ? is_active : true;
+        const graphTriggerNode = workflow_graph?.nodes?.find((node) => node.data.type.startsWith('trigger_'));
         const graphTriggerType = graphTriggerNode?.data?.type as string | undefined;
-        const graphTriggerConfig = (graphTriggerNode?.data?.config || {}) as Record<string, any>;
+        const graphTriggerConfig = (graphTriggerNode?.data?.config || {}) as Record<string, unknown>;
+        const graphPostId = graphConfigValue(graphTriggerConfig, 'post_id');
+        const graphTriggerConfigType = graphConfigValue(graphTriggerConfig, 'trigger_type') === 'keywords'
+            ? 'keywords'
+            : 'any_comment';
+        const graphTriggerKeywords = graphKeywords(graphTriggerConfig);
 
         // Validation: wizard mode requires legacy fields, canvas mode requires graph
         if (isCanvasMode) {
@@ -174,7 +214,9 @@ export async function POST(request: NextRequest) {
 
         // Resolve social_account_id: from body or from graph trigger node
         const resolvedAccountId = social_account_id ||
-            workflow_graph?.nodes?.find((n: any) => n.data?.config?.social_account_id)?.data?.config?.social_account_id;
+            workflow_graph?.nodes?.map((node) => node.data.config as unknown as Record<string, unknown>)
+                .find((config) => typeof config.social_account_id === 'string')
+                ?.social_account_id as string | undefined;
 
         if (isCanvasMode && !resolvedAccountId) {
             return NextResponse.json(
@@ -259,13 +301,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Create the automation
-        const insertData: Record<string, any> = {
+        const insertData: Record<string, unknown> = {
             workspace_id: activeWorkspace.id,
             social_account_id: resolvedAccountId,
             type: 'comment_to_dm',
             name,
-            is_active: true,
-            editor_version: isCanvasMode ? 'canvas' : 'wizard',
+            is_active: requestedIsActive,
+            editor_version: shouldStoreCanvasEditor ? 'canvas' : 'wizard',
         };
 
         if (isCanvasMode) {
@@ -280,23 +322,33 @@ export async function POST(request: NextRequest) {
             insertData.comment_reply_config = { enabled: false, messages: [] };
 
             if (graphTriggerType === 'trigger_new_comment') {
-                if (!graphTriggerConfig.post_id) {
-                    return NextResponse.json(
-                        { error: 'Comment trigger requires post_id' },
-                        { status: 400 }
-                    );
-                }
+                if (!graphPostId) {
+                    if (requestedIsActive) {
+                        return NextResponse.json(
+                            { error: 'Comment trigger requires post_id' },
+                            { status: 400 }
+                        );
+                    }
 
-                insertData.platform_post_id = assertMetaGraphNodeId(graphTriggerConfig.post_id, 'post_id');
-                insertData.post_thumbnail_url = graphTriggerConfig.post_thumbnail_url || null;
-                insertData.post_caption = graphTriggerConfig.post_caption || null;
-                insertData.trigger_config = {
-                    trigger_type: graphTriggerConfig.trigger_type === 'keywords' ? 'keywords' : 'any_comment',
-                    keywords: Array.isArray(graphTriggerConfig.keywords) ? graphTriggerConfig.keywords : []
-                };
+                    insertData.platform_post_id = '__wizard_draft__';
+                    insertData.post_thumbnail_url = null;
+                    insertData.post_caption = null;
+                    insertData.trigger_config = {
+                        trigger_type: graphTriggerConfigType,
+                        keywords: graphTriggerKeywords
+                    };
+                } else {
+                    insertData.platform_post_id = assertMetaGraphNodeId(graphPostId, 'post_id');
+                    insertData.post_thumbnail_url = graphConfigValue(graphTriggerConfig, 'post_thumbnail_url') || null;
+                    insertData.post_caption = graphConfigValue(graphTriggerConfig, 'post_caption') || null;
+                    insertData.trigger_config = {
+                        trigger_type: graphTriggerConfigType,
+                        keywords: graphTriggerKeywords
+                    };
+                }
             } else {
                 // Non-comment triggers don't have a post id; store a sentinel to satisfy legacy NOT NULL.
-                insertData.platform_post_id = '__canvas__';
+                insertData.platform_post_id = shouldStoreCanvasEditor ? '__canvas__' : '__wizard_graph__';
                 insertData.trigger_config = { trigger_type: 'any_comment', keywords: [] };
             }
         } else {
@@ -339,7 +391,7 @@ export async function POST(request: NextRequest) {
             automation
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         if (error instanceof Error && /Invalid platform_post_id|Invalid post_id|Request payload too large|Invalid content length/i.test(error.message)) {
             return NextResponse.json(
                 { error: error.message },
@@ -348,14 +400,14 @@ export async function POST(request: NextRequest) {
         }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
-            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+            return NextResponse.json({ error: summarizeError(error) || 'Forbidden' }, { status: permissionStatus });
         }
         console.error('Create automation API error:', error);
         console.error(`Create automation API details: ${summarizeError(error)}`);
         return NextResponse.json(
             {
-                error: error.message || 'Failed to create automation',
-                details: error.details || error.hint || error.code || null
+                error: summarizeError(error) || 'Failed to create automation',
+                details: errorDetail(error)
             },
             { status: 500 }
         );

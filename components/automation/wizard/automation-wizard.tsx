@@ -3,10 +3,12 @@
 import { useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { compileAutomationWizardGraph } from "@/lib/automation-wizard/compiler"
 import { summarizeAutomationWizard } from "@/lib/automation-wizard/summary"
 import type { AutomationWizardState } from "@/lib/automation-wizard/types"
 
 import { ActionStep } from "./action-step"
+import { ReviewStep, type WizardSaveStatus } from "./review-step"
 import { TriggerStep } from "./trigger-step"
 import { WizardStepper } from "./wizard-stepper"
 
@@ -43,6 +45,8 @@ function initialState(): AutomationWizardState {
 export function AutomationWizard({ onBack }: { onBack: () => void }) {
   const [step, setStep] = useState(0)
   const [state, setState] = useState<AutomationWizardState>(() => initialState())
+  const [saveStatus, setSaveStatus] = useState<WizardSaveStatus>("idle")
+  const [saveError, setSaveError] = useState<string | null>(null)
   const summary = useMemo(() => summarizeAutomationWizard(state), [state])
   const currentStep = STEPS[step]
 
@@ -59,6 +63,36 @@ export function AutomationWizard({ onBack }: { onBack: () => void }) {
     setStep((value) => Math.min(STEPS.length - 1, value + 1))
   }
 
+  const handleSaveDraft = async () => {
+    setSaveStatus("saving")
+    setSaveError(null)
+
+    try {
+      const graph = compileAutomationWizardGraph(state)
+      const response = await fetch("/api/automations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: state.name,
+          editor_version: "wizard",
+          workflow_graph: graph,
+          social_account_id: state.account.socialAccountId,
+          is_active: false,
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Failed to save automation draft")
+      }
+
+      setSaveStatus("saved")
+    } catch (error) {
+      setSaveStatus("error")
+      setSaveError(error instanceof Error ? error.message : "Failed to save automation draft")
+    }
+  }
+
   return (
     <div className="mx-auto flex min-h-[calc(100vh-120px)] w-full max-w-4xl flex-col gap-4 px-3 sm:px-0">
       <WizardStepper steps={STEPS} currentStep={step} />
@@ -71,13 +105,24 @@ export function AutomationWizard({ onBack }: { onBack: () => void }) {
         <p className="mt-2 text-sm leading-relaxed text-white/50">{summary}</p>
         {currentStep.id === "trigger" ? <TriggerStep state={state} setState={setState} /> : null}
         {currentStep.id === "actions" ? <ActionStep state={state} setState={setState} /> : null}
+        {currentStep.id === "review" ? (
+          <ReviewStep
+            state={state}
+            saveStatus={saveStatus}
+            saveError={saveError}
+            onSaveDraft={handleSaveDraft}
+          />
+        ) : null}
       </section>
 
       <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-white/10 bg-[#080912]/95 py-3">
         <Button variant="ghost" onClick={handleBack}>
           {step === 0 ? "Back to automation" : "Back"}
         </Button>
-        <Button onClick={handleContinue}>
+        <Button
+          onClick={step === STEPS.length - 1 ? handleSaveDraft : handleContinue}
+          disabled={saveStatus === "saving"}
+        >
           {step === STEPS.length - 1 ? "Save Draft" : "Continue"}
         </Button>
       </div>

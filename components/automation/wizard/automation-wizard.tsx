@@ -21,6 +21,32 @@ const STEPS = [
   { id: "review", label: "Review" },
 ]
 
+function validateStep(stepId: string, state: AutomationWizardState): string | null {
+  if (stepId === "setup") {
+    if (!state.name.trim()) return "Give your automation a name to continue."
+    return null
+  }
+  if (stepId === "trigger") {
+    if (!state.account.socialAccountId) return "Pick the account this automation runs on."
+    if (state.triggerType === "trigger_new_comment" && !state.target.postId) {
+      return "Pick the post whose comments should trigger this."
+    }
+    if (state.triggerType === "trigger_cron" && !state.cron.schedule.trim()) {
+      return "Set a cron schedule to continue."
+    }
+    return null
+  }
+  if (stepId === "actions") {
+    const hasAction =
+      state.ai.enabled ||
+      state.delay.enabled ||
+      state.actions.some((action) => action.enabled)
+    if (!hasAction) return "Pick at least one action."
+    return null
+  }
+  return null
+}
+
 function initialState(): AutomationWizardState {
   return {
     name: "New automation",
@@ -53,6 +79,17 @@ export function AutomationWizard({ onBack }: { onBack: () => void }) {
   const summary = useMemo(() => summarizeAutomationWizard(state), [state])
   const currentStep = STEPS[step]
   const isSaveDisabled = saveStatus === "saving" || saveStatus === "saved"
+  const stepBlockReason = useMemo(() => {
+    if (currentStep.id === "review") {
+      return (
+        validateStep("setup", state) ||
+        validateStep("trigger", state) ||
+        validateStep("actions", state)
+      )
+    }
+    return validateStep(currentStep.id, state)
+  }, [currentStep.id, state])
+  const isContinueDisabled = stepBlockReason !== null
 
   const updateState: Dispatch<SetStateAction<AutomationWizardState>> = (nextState) => {
     setSaveStatus((current) => (current === "saved" ? "idle" : current))
@@ -126,21 +163,36 @@ export function AutomationWizard({ onBack }: { onBack: () => void }) {
             saveStatus={saveStatus}
             saveError={saveError}
             onSaveDraft={handleSaveDraft}
-            saveDisabled={isSaveDisabled}
+            saveDisabled={isSaveDisabled || isContinueDisabled}
           />
         ) : null}
       </section>
 
-      <div className="sticky bottom-0 flex items-center justify-between gap-3 border-t border-white/10 bg-[#080912]/95 py-3">
-        <Button variant="ghost" onClick={handleBack}>
-          {step === 0 ? "Back to automation" : "Back"}
-        </Button>
-        <Button
-          onClick={step === STEPS.length - 1 ? handleSaveDraft : handleContinue}
-          disabled={step === STEPS.length - 1 && isSaveDisabled}
-        >
-          {step === STEPS.length - 1 && saveStatus === "saved" ? "Saved" : step === STEPS.length - 1 ? "Save Draft" : "Continue"}
-        </Button>
+      <div className="sticky bottom-0 flex flex-col gap-2 border-t border-white/10 bg-[#080912]/95 py-3 sm:flex-row sm:items-center sm:justify-between">
+        {stepBlockReason ? (
+          <p className="text-xs text-amber-300/80 sm:order-2 sm:max-w-[55%] sm:text-right">
+            {stepBlockReason}
+          </p>
+        ) : null}
+        <div className="flex items-center justify-between gap-3 sm:order-1 sm:flex-1">
+          <Button variant="ghost" onClick={handleBack}>
+            {step === 0 ? "Back to automation" : "Back"}
+          </Button>
+          <Button
+            onClick={step === STEPS.length - 1 ? handleSaveDraft : handleContinue}
+            disabled={
+              step === STEPS.length - 1
+                ? isSaveDisabled || isContinueDisabled
+                : isContinueDisabled
+            }
+          >
+            {step === STEPS.length - 1 && saveStatus === "saved"
+              ? "Saved"
+              : step === STEPS.length - 1
+                ? "Save Draft"
+                : "Continue"}
+          </Button>
+        </div>
       </div>
     </div>
   )

@@ -130,6 +130,7 @@ export function TriggerStep({
   const platformLocked = TRIGGERS_INSTAGRAM_ONLY.includes(state.triggerType)
   const showPostPicker = TRIGGERS_WITH_POST_PICKER.includes(state.triggerType)
   const showKeywordFilter = TRIGGERS_WITH_KEYWORDS.includes(state.triggerType)
+  const showCronFields = state.triggerType === "trigger_cron"
 
   const { data: accountsData, isLoading: accountsLoading } = useSWR(
     `/api/automations/social-accounts?platform=${platform}`,
@@ -388,6 +389,49 @@ export function TriggerStep({
               <p className="line-clamp-2 text-xs text-white/55">{state.target.postCaption}</p>
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {showCronFields ? (
+        <div className="space-y-3">
+          <Label className="text-sm font-semibold text-white/80">Schedule</Label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="wizard-cron-schedule" className="text-xs text-white/55">
+                Cron expression
+              </Label>
+              <Input
+                id="wizard-cron-schedule"
+                value={state.cron.schedule}
+                onChange={(event) =>
+                  setState((current) => ({
+                    ...current,
+                    cron: { ...current.cron, schedule: event.target.value },
+                  }))
+                }
+                placeholder="0 9 * * *"
+                className="bg-white/[0.04] font-mono text-white placeholder:text-white/30"
+              />
+              <p className="text-[11px] text-white/40">e.g. <code>0 9 * * *</code> = daily at 9am.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="wizard-cron-timezone" className="text-xs text-white/55">
+                Timezone
+              </Label>
+              <Input
+                id="wizard-cron-timezone"
+                value={state.cron.timezone}
+                onChange={(event) =>
+                  setState((current) => ({
+                    ...current,
+                    cron: { ...current.cron, timezone: event.target.value },
+                  }))
+                }
+                placeholder="UTC"
+                className="bg-white/[0.04] text-white placeholder:text-white/30"
+              />
+            </div>
+          </div>
         </div>
       ) : null}
 

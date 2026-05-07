@@ -44,6 +44,11 @@ export interface WizardDelayConfig {
   durationUnit: "seconds" | "minutes" | "hours" | "days"
 }
 
+export interface WizardCronConfig {
+  schedule: string
+  timezone: string
+}
+
 export interface WizardActionConfig {
   type: WizardActionType
   enabled: boolean
@@ -78,6 +83,7 @@ export interface AutomationWizardState {
   filters: WizardFilterConfig
   ai: WizardAiConfig
   delay: WizardDelayConfig
+  cron: WizardCronConfig
   actions: WizardActionConfig[]
 }
 

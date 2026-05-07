@@ -40,6 +40,7 @@ function initialState(): AutomationWizardState {
       customInstructions: "",
     },
     delay: { enabled: false, durationValue: 5, durationUnit: "minutes" },
+    cron: { schedule: "0 9 * * *", timezone: "UTC" },
     actions: [],
   }
 }

@@ -2,12 +2,14 @@
 
 import { useState, useCallback } from "react"
 import useSWR from "swr"
-import { Zap, MessageCircle, Plus, Workflow, Sparkles, ShieldAlert } from "lucide-react"
+import { Zap, Plus, Workflow, Sparkles, ShieldAlert } from "lucide-react"
 import { AutomationCard } from "@/components/automation/automation-card"
 import { AutomationSetupModal } from "@/components/automation/automation-setup-modal"
 import { ActiveAutomationsList } from "@/components/automation/active-automations-list"
 import { AutomationTemplatePicker } from "@/components/automation/automation-template-picker"
 import { PublishingAutomationsPanel } from "@/components/automation/publishing-automations-panel"
+import { TemplateGallery } from "@/components/automation/templates/template-gallery"
+import { TemplateFormModal } from "@/components/automation/templates/template-form-modal"
 import { WorkflowCanvas } from "@/components/automation/canvas/workflow-canvas"
 import { AutomationWizard } from "@/components/automation/wizard/automation-wizard"
 import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
@@ -48,6 +50,8 @@ export default function AutomationPage() {
     const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false)
     const [togglingAutomationIds, setTogglingAutomationIds] = useState<string[]>([])
     const [deletingAutomationIds, setDeletingAutomationIds] = useState<string[]>([])
+    const [selectedTemplate, setSelectedTemplate] = useState<AutomationTemplateDefinition | null>(null)
+    const [isTemplateFormOpen, setIsTemplateFormOpen] = useState(false)
     const { toast } = useToast()
     const canWriteAutomations = useWorkspacePermission("automation:write")
 
@@ -118,6 +122,21 @@ export default function AutomationPage() {
         setEditingAutomation(null)
         resetCanvasDraftSeed()
         setIsSetupModalOpen(true)
+    }
+
+    const handlePickTemplate = (template: AutomationTemplateDefinition) => {
+        if (!canWriteAutomations) {
+            showReadOnlyToast()
+            return
+        }
+        setSelectedTemplate(template)
+        setIsTemplateFormOpen(true)
+    }
+
+    const handleTemplateSaved = () => {
+        setIsTemplateFormOpen(false)
+        setSelectedTemplate(null)
+        mutate()
     }
 
     const handleEdit = (automation: Automation) => {
@@ -315,55 +334,22 @@ export default function AutomationPage() {
 
             <PublishingAutomationsPanel readOnly={!canWriteAutomations} />
 
-            {/* Engagement Automations */}
+            {/* Templates */}
             <div>
                 <div className="flex flex-col gap-1 mb-4">
                     <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                        Engagement Automations
+                        Templates
                     </h2>
                     <p className="text-xs" style={{ color: AUTO_PAGE_THEME.muted }}>
-                        Draft comment, message, follower, and story automations with the guided builder.
+                        Quick-start your automation from a ready-made scenario. Each template saves as a draft you can refine later.
                     </p>
                 </div>
 
-                <div
-                    className="rounded-xl p-4 mb-4"
-                    style={{
-                        background: 'rgba(245,158,11,0.06)',
-                        border: '1px solid rgba(245,158,11,0.16)',
-                    }}
-                >
-                    <div className="flex items-start gap-2">
-                        <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" style={{ color: '#fbbf24' }} />
-                        <div>
-                            <p className="text-sm font-semibold" style={{ color: '#fbbf24' }}>
-                                Permission-gated drafts
-                            </p>
-                            <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                                New engagement automations save as drafts. Activation stays locked until the required Meta permissions and validation checks are enabled.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    <AutomationCard
-                        icon={Plus}
-                        title="New Automation"
-                        description="Create an engagement automation with a guided mobile-friendly setup."
-                        onClick={handleCreateWizardGraph}
-                        badge="Wizard"
-                        disabled={!canWriteAutomations}
-                    />
-                    <AutomationCard
-                        icon={MessageCircle}
-                        title="Comment Automation"
-                        description="Quick setup: automatically reply to comments and optionally send a DM with a link. Great for lead magnets."
-                        onClick={handleCreateWizard}
-                        badge="Simple"
-                        disabled={!canWriteAutomations}
-                    />
-                </div>
+                <TemplateGallery
+                    onPickTemplate={handlePickTemplate}
+                    onAdvanced={handleCreateCanvas}
+                    disabled={!canWriteAutomations}
+                />
             </div>
 
             {/* Advanced Visual Builder */}
@@ -550,6 +536,16 @@ export default function AutomationPage() {
                 open={canWriteAutomations && isTemplatePickerOpen}
                 onOpenChange={setIsTemplatePickerOpen}
                 onSelectTemplate={handleApplyTemplate}
+            />
+
+            <TemplateFormModal
+                open={isTemplateFormOpen && canWriteAutomations}
+                template={selectedTemplate}
+                onOpenChange={(open) => {
+                    setIsTemplateFormOpen(open)
+                    if (!open) setSelectedTemplate(null)
+                }}
+                onSaved={handleTemplateSaved}
             />
 
             {/* Wizard modal */}

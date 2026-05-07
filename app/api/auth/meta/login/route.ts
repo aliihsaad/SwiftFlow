@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getMetaOAuthUrl, getMetaRedirectUri } from '@/utils/meta-oauth';
+import { getMetaOAuthScopes, getMetaOAuthUrl, getMetaRedirectUri, getMetaScopeProfile } from '@/utils/meta-oauth';
 import { createClient } from '@/utils/supabase/server';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
@@ -46,6 +46,22 @@ export async function GET(request: NextRequest) {
             appId: appId.substring(0, 8) + '...',
             redirectUri: getMetaRedirectUri()
         });
+
+        if (searchParams.get('debug') === '1') {
+            const profile = getMetaScopeProfile();
+            const scopes = getMetaOAuthScopes({ profile });
+
+            return NextResponse.json({
+                profile,
+                scopes,
+                scope: scopes.join(','),
+                includePagesMessaging: String(process.env.META_OAUTH_INCLUDE_PAGES_MESSAGING || '').toLowerCase() === 'true',
+                hasExtraScopesConfigured: Boolean(String(process.env.META_OAUTH_EXTRA_SCOPES || '').trim()),
+                releaseChannel: process.env.NEXT_PUBLIC_APP_RELEASE_CHANNEL || null,
+                deploymentCommit: process.env.VERCEL_GIT_COMMIT_SHA || null,
+                redirectUri: getMetaRedirectUri(),
+            });
+        }
 
         const stateNonce = crypto.randomUUID()
         const statePayload = Buffer.from(JSON.stringify({

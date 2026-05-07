@@ -19,9 +19,14 @@ function triggerPermissions(
     return platform === "facebook"
       ? [
           {
+            permission: "pages_read_user_content",
+            platform,
+            reason: "Read user-generated Facebook Page comments for comment triggers.",
+          },
+          {
             permission: "pages_read_engagement",
             platform,
-            reason: "Read Facebook Page comments for comment triggers.",
+            reason: "Read Facebook Page post context for comment triggers.",
           },
         ]
       : [

@@ -19,6 +19,7 @@ const VALID_KNOWN_SCOPES = new Set([
     'public_profile',
     'pages_show_list',
     'pages_read_engagement',
+    'pages_read_user_content',
     'pages_manage_posts',
     'pages_manage_metadata',
     'pages_manage_engagement',
@@ -32,13 +33,14 @@ const VALID_KNOWN_SCOPES = new Set([
 ]);
 
 function isBlockedLegacyScope(scope: string): boolean {
-    return scope === 'read_insights' || scope.startsWith('pages_read_user_');
+    return scope === 'read_insights';
 }
 
 const COMMON_SCOPES = ['public_profile'] as const;
 const FACEBOOK_SCOPES = [
     'pages_show_list',
     'pages_read_engagement',
+    'pages_read_user_content',
     'pages_manage_posts',
     'pages_manage_metadata',
     'pages_manage_engagement',

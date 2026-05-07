@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import type { Dispatch, SetStateAction } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -67,6 +68,10 @@ function parseKeywords(value: string): string[] {
     .filter(Boolean)
 }
 
+function keywordsInputValue(keywords: string[]): string {
+  return keywords.join(", ")
+}
+
 export function TriggerStep({
   state,
   setState,
@@ -74,6 +79,27 @@ export function TriggerStep({
   state: AutomationWizardState
   setState: Dispatch<SetStateAction<AutomationWizardState>>
 }) {
+  const externalKeywords = keywordsInputValue(state.filters.keywords)
+  const [keywordDraft, setKeywordDraft] = useState(() => ({
+    raw: externalKeywords,
+    source: externalKeywords,
+  }))
+  const rawKeywords =
+    keywordDraft.source === externalKeywords ? keywordDraft.raw : externalKeywords
+
+  const commitKeywords = (value: string) => {
+    const keywords = parseKeywords(value)
+    const nextValue = keywordsInputValue(keywords)
+    setKeywordDraft({ raw: nextValue, source: nextValue })
+    setState((current) => ({
+      ...current,
+      filters: {
+        ...current.filters,
+        keywords,
+      },
+    }))
+  }
+
   return (
     <div className="mt-5 space-y-6">
       <div className="space-y-3">
@@ -140,16 +166,20 @@ export function TriggerStep({
               key={option.type}
               type="button"
               variant={state.filters.triggerType === option.type ? "default" : "outline"}
-              onClick={() =>
+              onClick={() => {
+                const nextKeywords =
+                  option.type === "keywords" ? parseKeywords(rawKeywords) : []
+                const nextValue = keywordsInputValue(nextKeywords)
+                setKeywordDraft({ raw: nextValue, source: nextValue })
                 setState((current) => ({
                   ...current,
                   filters: {
                     ...current.filters,
                     triggerType: option.type,
-                    keywords: option.type === "keywords" ? current.filters.keywords : [],
+                    keywords: nextKeywords,
                   },
                 }))
-              }
+              }}
               className="w-full"
             >
               {option.label}
@@ -164,16 +194,11 @@ export function TriggerStep({
             </Label>
             <Input
               id="wizard-trigger-keywords"
-              value={state.filters.keywords.join(", ")}
+              value={rawKeywords}
               onChange={(event) =>
-                setState((current) => ({
-                  ...current,
-                  filters: {
-                    ...current.filters,
-                    keywords: parseKeywords(event.target.value),
-                  },
-                }))
+                setKeywordDraft({ raw: event.target.value, source: externalKeywords })
               }
+              onBlur={(event) => commitKeywords(event.target.value)}
               placeholder="pricing, demo, support"
               className="bg-white/[0.04] text-white placeholder:text-white/30"
             />

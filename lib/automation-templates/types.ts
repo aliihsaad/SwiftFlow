@@ -5,6 +5,7 @@ import type { WorkflowGraph } from '@/types/automation-graph'
 export type AutomationTemplatePlatform = 'instagram' | 'facebook'
 
 export type TemplateFieldType =
+  | 'platform'
   | 'social_account'
   | 'post'
   | 'text'

@@ -18,6 +18,7 @@ import { ToneField } from './fields/tone-field'
 import { KeywordsField } from './fields/keywords-field'
 import { SocialAccountField } from './fields/social-account-field'
 import { PostField } from './fields/post-field'
+import { PlatformField } from './fields/platform-field'
 
 function initialValuesFor(template: AutomationTemplateDefinition): TemplateFormValues {
   const initial: TemplateFormValues = {}
@@ -137,17 +138,38 @@ export function TemplateFormModal({
 
           {visibleFields.map((field) => {
             switch (field.type) {
-              case 'social_account':
+              case 'platform':
+                return (
+                  <PlatformField
+                    key={field.id}
+                    value={String(values[field.id] || 'instagram')}
+                    onChange={(next) =>
+                      setValues((prev) => ({
+                        ...prev,
+                        [field.id]: next,
+                        social_account_id: '',
+                        post_id: '',
+                      }))
+                    }
+                    label={field.label}
+                  />
+                )
+              case 'social_account': {
+                const platform =
+                  (values.platform as 'instagram' | 'facebook' | undefined) ||
+                  field.platform ||
+                  'instagram'
                 return (
                   <SocialAccountField
-                    key={field.id}
+                    key={`${field.id}-${platform}`}
                     value={String(values[field.id] || '')}
                     onChange={(id) => handleField(field.id, id)}
-                    platform={field.platform || 'instagram'}
+                    platform={platform}
                     label={field.label}
                     required={field.required}
                   />
                 )
+              }
               case 'post':
                 return (
                   <PostField

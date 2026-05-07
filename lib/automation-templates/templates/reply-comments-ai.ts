@@ -14,10 +14,9 @@ export const replyCommentsAi: AutomationTemplateDefinition = {
   fields: [
     {
       id: 'platform',
-      type: 'switch',
-      label: 'Use Facebook instead of Instagram',
-      defaultValue: false,
-      helpText: 'Toggle on to apply the automation to a Facebook page comment.',
+      type: 'platform',
+      label: 'Platform',
+      defaultValue: 'instagram',
     },
     { id: 'social_account_id', type: 'social_account', label: 'Account', required: true },
     {
@@ -41,11 +40,11 @@ export const replyCommentsAi: AutomationTemplateDefinition = {
     },
   ],
   defaultName: (values) => {
-    const platform = values.platform ? 'Facebook' : 'Instagram'
+    const platform = values.platform === 'facebook' ? 'Facebook' : 'Instagram'
     return `${platform} — AI reply to comments`
   },
   buildGraphFromForm: (values) => {
-    const platform = values.platform ? 'facebook' : 'instagram'
+    const platform = values.platform === 'facebook' ? 'facebook' : 'instagram'
     const triggerType = Array.isArray(values.keywords) && values.keywords.length > 0 ? 'keywords' : 'any'
     return buildGraphFromBlueprint(
       [
@@ -97,7 +96,7 @@ export const replyCommentsAi: AutomationTemplateDefinition = {
   },
   buildGraph: function () {
     return this.buildGraphFromForm({
-      platform: false,
+      platform: 'instagram',
       social_account_id: '',
       post_id: '',
       tone: 'friendly',

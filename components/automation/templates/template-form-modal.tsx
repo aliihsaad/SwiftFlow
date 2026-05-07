@@ -170,17 +170,21 @@ export function TemplateFormModal({
                   />
                 )
               }
-              case 'post':
+              case 'post': {
+                const postPlatform =
+                  (values.platform as 'instagram' | 'facebook' | undefined) || 'instagram'
                 return (
                   <PostField
-                    key={field.id}
+                    key={`${field.id}-${postPlatform}-${values.social_account_id || ''}`}
                     socialAccountId={String(values.social_account_id || '')}
+                    platform={postPlatform}
                     value={String(values[field.id] || '')}
                     onChange={(postId) => handleField(field.id, postId)}
                     label={field.label}
                     required={field.required}
                   />
                 )
+              }
               case 'text':
               case 'url':
                 return (

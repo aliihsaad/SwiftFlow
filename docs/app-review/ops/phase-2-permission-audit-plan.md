@@ -150,6 +150,9 @@ Visible proof:
 1. Decide Stage 2A vs 2B as the next submission target. Recommendation: Stage 2A first because analytics is already mostly built and lower risk.
 2. Fix scope/profile consistency before changing Meta dashboard permissions.
 3. Split Automation UI into "Publishing Automations" and "Engagement Automations" gates so publishing automation remains usable without comments/messages permissions.
+
+   Automation builder direction: the default automation builder is now planned as wizard-first and graph-backed (see `docs/superpowers/plans/2026-05-06-mobile-friendly-automation-wizard.md`). Publishing automations remain separate from engagement automations. The visual canvas is advanced/internal and should not be used as the reviewer-facing default path.
+
 4. Clean the permission mismatch around Facebook comment management (`pages_manage_engagement`) before exposing Facebook comment moderation.
 5. Build a reviewer path and screencast script only after the selected stage is stable in production.
 

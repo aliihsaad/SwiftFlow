@@ -46,7 +46,7 @@ export async function POST(
         // Verify the automation belongs to this workspace
         const { data: existing, error: existingError } = await supabase
             .from('automations')
-            .select('id, editor_version, workflow_graph')
+            .select('id')
             .eq('id', id)
             .eq('workspace_id', activeWorkspace.id)
             .single();
@@ -55,15 +55,6 @@ export async function POST(
             return NextResponse.json(
                 { error: 'Automation not found' },
                 { status: 404 }
-            );
-        }
-
-        if (is_active && existing.editor_version === 'wizard' && existing.workflow_graph) {
-            return NextResponse.json(
-                {
-                    error: 'Graph-backed wizard automations cannot be activated until activation validation is available',
-                },
-                { status: 400 }
             );
         }
 

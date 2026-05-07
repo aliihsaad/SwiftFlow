@@ -8,10 +8,48 @@ const META_GRAPH_URL = META_GRAPH_API_BASE_URL
 
 type SupportedPlatform = 'instagram' | 'facebook'
 
+interface MetaGraphError {
+  message?: string
+}
+
+interface InstagramMediaItem {
+  id: string
+  media_type: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM'
+  media_url?: string
+  thumbnail_url?: string
+  caption?: string
+  timestamp: string
+  permalink?: string
+}
+
+interface FacebookAttachment {
+  media_type?: string
+  media?: {
+    image?: { src?: string }
+    source?: string
+  }
+  url?: string
+  subattachments?: { data?: FacebookAttachment[] }
+}
+
+interface FacebookPostItem {
+  id: string
+  message?: string
+  full_picture?: string
+  created_time: string
+  permalink_url?: string
+  attachments?: { data?: FacebookAttachment[] }
+}
+
+interface MetaGraphListResponse<T> {
+  data?: T[]
+  error?: MetaGraphError
+}
+
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-function normalizeFacebookPostMediaType(item: any): 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM' {
+function normalizeFacebookPostMediaType(item: FacebookPostItem): 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM' {
   const firstAttachment = item?.attachments?.data?.[0]
   const mediaType = String(firstAttachment?.media_type || '').toLowerCase()
 
@@ -91,13 +129,13 @@ export async function GET(request: NextRequest) {
         `&limit=${limit}&access_token=${decryptedAccount.access_token}`
 
       const response = await fetch(mediaUrl, { cache: 'no-store' })
-      const result = await response.json()
+      const result = await response.json() as MetaGraphListResponse<InstagramMediaItem>
 
       if (!response.ok) {
         throw new Error(result.error?.message || 'Failed to fetch Instagram media')
       }
 
-      const media = (result.data || []).map((item: any) => ({
+      const media = (result.data || []).map((item) => ({
         id: item.id,
         media_type: item.media_type,
         media_url: item.media_url,
@@ -116,13 +154,13 @@ export async function GET(request: NextRequest) {
       `&limit=${limit}&access_token=${decryptedAccount.access_token}`
 
     const response = await fetch(postsUrl, { cache: 'no-store' })
-    const result = await response.json()
+    const result = await response.json() as MetaGraphListResponse<FacebookPostItem>
 
     if (!response.ok) {
       throw new Error(result.error?.message || 'Failed to fetch Facebook posts')
     }
 
-    const media = (result.data || []).map((item: any) => {
+    const media = (result.data || []).map((item) => {
       const firstAttachment = item?.attachments?.data?.[0]
       const imageFromAttachment =
         firstAttachment?.media?.image?.src ||
@@ -145,10 +183,11 @@ export async function GET(request: NextRequest) {
     })
 
     return NextResponse.json({ media, platform })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Get automation media API error:', error)
+    const message = error instanceof Error ? error.message : 'Failed to fetch posts/media'
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch posts/media' },
+      { error: message },
       { status: 500 },
     )
   }

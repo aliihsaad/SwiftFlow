@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef } from "react"
 import useSWR from "swr"
 import { Zap, Plus, Workflow, Sparkles, ShieldAlert } from "lucide-react"
 import { AutomationCard } from "@/components/automation/automation-card"
@@ -52,6 +52,7 @@ export default function AutomationPage() {
     const [deletingAutomationIds, setDeletingAutomationIds] = useState<string[]>([])
     const [selectedTemplate, setSelectedTemplate] = useState<AutomationTemplateDefinition | null>(null)
     const [isTemplateFormOpen, setIsTemplateFormOpen] = useState(false)
+    const templatesSectionRef = useRef<HTMLDivElement | null>(null)
     const { toast } = useToast()
     const canWriteAutomations = useWorkspacePermission("automation:write")
 
@@ -96,6 +97,15 @@ export default function AutomationPage() {
         setEditorView('wizard_graph')
     }
 
+    const handleOpenTemplateGallery = () => {
+        if (!canWriteAutomations) {
+            showReadOnlyToast()
+            return
+        }
+        setEditorView('list')
+        templatesSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+
     const handleOpenTemplatePicker = () => {
         if (!canWriteAutomations) {
             showReadOnlyToast()
@@ -112,16 +122,6 @@ export default function AutomationPage() {
         setCanvasTemplateName(template.name)
         setIsTemplatePickerOpen(false)
         setEditorView('canvas')
-    }
-
-    const handleCreateWizard = () => {
-        if (!canWriteAutomations) {
-            showReadOnlyToast()
-            return
-        }
-        setEditingAutomation(null)
-        resetCanvasDraftSeed()
-        setIsSetupModalOpen(true)
     }
 
     const handlePickTemplate = (template: AutomationTemplateDefinition) => {
@@ -318,7 +318,7 @@ export default function AutomationPage() {
                     </p>
                 </div>
                 <button
-                    onClick={handleCreateWizardGraph}
+                    onClick={handleOpenTemplateGallery}
                     disabled={!canWriteAutomations}
                     className="flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50"
                     style={{
@@ -335,7 +335,7 @@ export default function AutomationPage() {
             <PublishingAutomationsPanel readOnly={!canWriteAutomations} />
 
             {/* Templates */}
-            <div>
+            <div ref={templatesSectionRef} className="scroll-mt-6">
                 <div className="flex flex-col gap-1 mb-4">
                     <h2 className="text-sm font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.35)' }}>
                         Templates
@@ -372,6 +372,14 @@ export default function AutomationPage() {
                         disabled={!canWriteAutomations}
                     />
                     <AutomationCard
+                        icon={Plus}
+                        title="Guided Workflow Wizard"
+                        description="Build a custom engagement workflow step by step when a fixed template does not match the test case."
+                        onClick={handleCreateWizardGraph}
+                        badge="Wizard"
+                        disabled={!canWriteAutomations}
+                    />
+                    <AutomationCard
                         icon={Sparkles}
                         title="Automation Templates"
                         description="Start from prebuilt canvas workflows for comment and message automations, then customize them for Instagram or Facebook."
@@ -391,7 +399,7 @@ export default function AutomationPage() {
                     {data?.automations && data.automations.length > 0 && (
                         <div className="flex flex-wrap gap-2">
                             <button
-                                onClick={handleCreateWizardGraph}
+                                onClick={handleOpenTemplateGallery}
                                 disabled={!canWriteAutomations}
                                 className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150"
                                 style={{ background: AUTO_PAGE_THEME.panelAlt, border: `1px solid ${AUTO_PAGE_THEME.border}`, color: 'rgba(255,255,255,0.6)' }}
@@ -484,7 +492,7 @@ export default function AutomationPage() {
                         </p>
                         <div className="flex gap-3 justify-center">
                             <button
-                                onClick={handleCreateWizardGraph}
+                                onClick={handleOpenTemplateGallery}
                                 disabled={!canWriteAutomations}
                                 className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150"
                                 style={{

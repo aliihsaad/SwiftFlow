@@ -104,7 +104,7 @@ export async function PUT(
         // Verify the automation belongs to this workspace
         const { data: existing, error: existingError } = await supabase
             .from('automations')
-            .select('id, editor_version, workflow_graph, is_active')
+            .select('id')
             .eq('id', id)
             .eq('workspace_id', activeWorkspace.id)
             .single();
@@ -151,19 +151,6 @@ export async function PUT(
         }
         if (workflow_graph !== undefined) updateData.workflow_graph = workflow_graph;
         if (editor_version !== undefined) updateData.editor_version = editor_version;
-
-        const nextIsActive = typeof is_active === 'boolean' ? is_active : !!existing.is_active;
-        const nextEditorVersion = editor_version !== undefined ? editor_version : existing.editor_version;
-        const nextWorkflowGraph = workflow_graph !== undefined ? workflow_graph : existing.workflow_graph;
-
-        if (nextIsActive && nextEditorVersion === 'wizard' && nextWorkflowGraph) {
-            return NextResponse.json(
-                {
-                    error: 'Graph-backed wizard automations cannot be activated until activation validation is available',
-                },
-                { status: 400 }
-            );
-        }
 
         // Keep legacy account/post columns in sync for canvas automations.
         if (workflow_graph !== undefined) {

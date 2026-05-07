@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import useSWR from 'swr'
 import { Label } from '@/components/ui/label'
 
@@ -34,7 +34,7 @@ export function SocialAccountField({
     `/api/automations/social-accounts?platform=${platform}`,
     fetcher,
   )
-  const accounts = data?.accounts || []
+  const accounts = useMemo(() => data?.accounts || [], [data?.accounts])
 
   useEffect(() => {
     if (!isLoading && accounts.length === 1 && !value) {

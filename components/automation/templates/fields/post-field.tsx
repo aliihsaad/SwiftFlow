@@ -1,6 +1,7 @@
 "use client"
 
 import useSWR from 'swr'
+import Image from 'next/image'
 import { Check, Image as ImageIcon, Video, LayoutGrid } from 'lucide-react'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -79,9 +80,12 @@ export function PostField({
                 )}
               >
                 {post.thumbnail_url || post.media_url ? (
-                  <img
+                  <Image
                     src={post.thumbnail_url || post.media_url || ''}
                     alt={post.caption || `${postLabel}`}
+                    fill
+                    unoptimized
+                    sizes="(max-width: 640px) 33vw, 25vw"
                     className="absolute inset-0 h-full w-full object-cover"
                   />
                 ) : (

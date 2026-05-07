@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { Automation } from "@/types/automation"
 import type { WorkflowNode, WorkflowNodeData } from "@/types/automation-graph"
 import { Switch } from "@/components/ui/switch"
@@ -32,7 +33,6 @@ import {
     Layers,
     Activity,
     Loader2,
-    ShieldAlert,
 } from "lucide-react"
 
 const AUTO_THEME = {
@@ -252,18 +252,18 @@ export function ActiveAutomationsList({
                         const graphActionCount = isGraph ? getGraphActionNodes(automation).length : 0
                         const isToggling = togglingSet.has(automation.id)
                         const isDeleting = deletingSet.has(automation.id)
-                        const activationLocked = isGraphWizard && !automation.is_active
-                        const statusLabel = activationLocked
+                        const isDraftWizard = isGraphWizard && !automation.is_active
+                        const statusLabel = isDraftWizard
                             ? 'Draft'
                             : automation.is_active
                                 ? 'Active'
                                 : 'Paused'
                         const statusStyles = automation.is_active
                             ? { background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }
-                            : activationLocked
+                            : isDraftWizard
                                 ? { background: 'rgba(245,158,11,0.10)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.2)' }
                                 : { background: 'rgba(255,255,255,0.05)', color: AUTO_THEME.mutedSoft, border: `1px solid ${AUTO_THEME.border}` }
-                        const editorBadge = isCanvas ? 'Canvas' : isGraphWizard ? 'Draft Wizard' : 'Wizard'
+                        const editorBadge = isCanvas ? 'Canvas' : isGraphWizard ? 'Graph Wizard' : 'Wizard'
 
                         return (
                             <div
@@ -286,9 +286,12 @@ export function ActiveAutomationsList({
                                 style={{ background: AUTO_THEME.panelAlt, borderRight: `1px solid ${AUTO_THEME.borderSoft}` }}
                             >
                                 {automation.post_thumbnail_url ? (
-                                    <img
+                                    <Image
                                         src={automation.post_thumbnail_url}
                                         alt={automation.name}
+                                        fill
+                                        unoptimized
+                                        sizes="96px"
                                         className="absolute inset-0 w-full h-full object-cover opacity-80"
                                     />
                                 ) : (
@@ -396,21 +399,6 @@ export function ActiveAutomationsList({
                                             </p>
                                         )}
 
-                                        {activationLocked && (
-                                            <div
-                                                className="mt-3 flex items-start gap-1.5 rounded-lg px-2.5 py-2 text-xs"
-                                                style={{
-                                                    background: 'rgba(245,158,11,0.06)',
-                                                    border: '1px solid rgba(245,158,11,0.16)',
-                                                    color: 'rgba(255,255,255,0.58)',
-                                                }}
-                                            >
-                                                <ShieldAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" style={{ color: '#fbbf24' }} />
-                                                <span>
-                                                    Activation locked until required Meta permissions and validation checks are available.
-                                                </span>
-                                            </div>
-                                        )}
                                     </div>
 
                                 {/* Actions */}
@@ -426,10 +414,9 @@ export function ActiveAutomationsList({
                                         )}
                                         <Switch
                                             checked={automation.is_active}
-                                            disabled={readOnly || isToggling || isDeleting || activationLocked}
+                                            disabled={readOnly || isToggling || isDeleting}
                                             onCheckedChange={(checked) => {
                                                 if (readOnly) return
-                                                if (activationLocked && checked) return
                                                 onToggle(automation.id, checked)
                                             }}
                                         />

@@ -34,11 +34,11 @@ export function WorkflowToolbar({
 }: WorkflowToolbarProps) {
   return (
     <div
-      className="flex items-center justify-between h-14 px-4 shrink-0"
+      className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 px-2 py-2 sm:h-14 sm:flex-nowrap sm:px-4 sm:py-0"
       style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: '#151620' }}
     >
       {/* Left */}
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-2">
         <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8" style={{ color: 'rgba(255,255,255,0.72)' }}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -46,14 +46,14 @@ export function WorkflowToolbar({
           type="text"
           value={automationName}
           onChange={(e) => onNameChange(e.target.value)}
-          className="text-sm font-medium bg-transparent border-none outline-none rounded px-2 py-1 w-48"
+          className="w-32 rounded bg-transparent px-2 py-1 text-sm font-medium outline-none sm:w-48"
           style={{ color: 'rgba(255,255,255,0.85)' }}
           placeholder="Automation name"
         />
       </div>
 
       {/* Center */}
-      <div className="flex items-center gap-1">
+      <div className="hidden items-center gap-1 sm:flex">
         <Button variant="ghost" size="icon" onClick={onUndo} disabled={!canUndo} className="h-8 w-8" style={{ color: 'rgba(255,255,255,0.68)' }}>
           <Undo className="h-4 w-4" />
         </Button>
@@ -73,7 +73,7 @@ export function WorkflowToolbar({
       </div>
 
       {/* Right */}
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <Button
           variant={isActive ? "outline" : "secondary"}
           size="sm"
@@ -106,6 +106,24 @@ export function WorkflowToolbar({
         >
           <Save className="h-3.5 w-3.5 mr-1" />
           {isSaving ? 'Saving...' : 'Save'}
+        </Button>
+      </div>
+
+      <div className="flex w-full items-center gap-2 sm:hidden">
+        <Button variant="ghost" size="icon" onClick={onUndo} disabled={!canUndo} className="h-8 w-8" style={{ color: 'rgba(255,255,255,0.68)' }}>
+          <Undo className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="icon" onClick={onRedo} disabled={!canRedo} className="h-8 w-8" style={{ color: 'rgba(255,255,255,0.68)' }}>
+          <Redo className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onAutoLayout}
+          className="h-8 w-8"
+          style={{ background: '#1b1d28', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
+        >
+          <LayoutDashboard className="h-4 w-4" />
         </Button>
       </div>
     </div>

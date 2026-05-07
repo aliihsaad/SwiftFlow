@@ -13,8 +13,10 @@ import {
   useEdgesState,
   type Connection,
   type Edge,
+  type EdgeChange,
   type ReactFlowInstance,
   type Node,
+  type NodeChange,
   type IsValidConnection,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
@@ -86,7 +88,6 @@ function getEdgeStyleFromSourceHandle(handle: string | null | undefined): { stro
 }
 
 export function WorkflowCanvas({
-  automationId,
   automationName: initialName,
   isActive: initialActive,
   initialGraph,
@@ -104,7 +105,10 @@ export function WorkflowCanvas({
   const [automationName, setAutomationName] = useState(initialName)
   const [isActive, setIsActive] = useState(initialActive)
   const [isSaving, setIsSaving] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.innerWidth < 768
+  })
 
 
   // Track undo/redo history
@@ -468,21 +472,21 @@ export function WorkflowCanvas({
 
   // Wrap changes to push history on delete/move
   const handleNodesChange = useCallback(
-    (changes: any[]) => {
+    (changes: NodeChange<Node>[]) => {
       const hasRemoveOrPosition = changes.some(
-        (c: any) => c.type === 'remove' || (c.type === 'position' && c.dragging === false)
+        (c) => c.type === 'remove' || (c.type === 'position' && c.dragging === false)
       )
       if (hasRemoveOrPosition) pushHistory()
-      onNodesChange(changes)
+      onNodesChange(changes as NodeChange<WorkflowNode>[])
     },
     [onNodesChange, pushHistory],
   )
 
   const handleEdgesChange = useCallback(
-    (changes: any[]) => {
-      const hasRemove = changes.some((c: any) => c.type === 'remove')
+    (changes: EdgeChange<Edge>[]) => {
+      const hasRemove = changes.some((c) => c.type === 'remove')
       if (hasRemove) pushHistory()
-      onEdgesChange(changes)
+      onEdgesChange(changes as EdgeChange<WorkflowEdge>[])
     },
     [onEdgesChange, pushHistory],
   )
@@ -665,7 +669,7 @@ export function WorkflowCanvas({
             style={{ background: '#11131c' }}
           >
             <div
-              className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-lg border px-3 py-2 text-xs"
+              className="pointer-events-none absolute left-1/2 top-3 z-20 hidden -translate-x-1/2 rounded-lg border px-3 py-2 text-xs sm:block"
               style={{
                 background: 'rgba(21,22,32,0.92)',
                 borderColor: 'rgba(255,255,255,0.08)',
@@ -673,38 +677,62 @@ export function WorkflowCanvas({
                 boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
               }}
             >
-              Drag from a node&apos;s bottom dot (Next/Alert/True/False) to another node&apos;s top dot to connect. Yellow
-              {' '}`Alert` runs only if that node fails and should connect to a `Send Email` node. Double-click a
-              {' '}connection line to delete only the link.
+              Drag from a node&apos;s bottom dot to another node&apos;s top dot to connect. Alert outputs run only when the node fails.
+            </div>
+            <div
+              className="pointer-events-none absolute left-3 right-3 top-3 z-20 rounded-lg border px-3 py-2 text-[11px] sm:hidden"
+              style={{
+                background: 'rgba(21,22,32,0.92)',
+                borderColor: 'rgba(255,255,255,0.08)',
+                color: 'rgba(255,255,255,0.78)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
+              }}
+            >
+              Tap a node to configure it. Use the side icons to add nodes.
             </div>
             <Controls
               className="shadow-md! automation-canvas-controls"
               style={{ background: '#151620', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.75)' }}
             />
-            <MiniMap
-              className=""
-              style={{ background: '#151620', border: '1px solid rgba(255,255,255,0.08)' }}
-              nodeColor={(n) => {
-                const d = n.data as unknown as WorkflowNodeData
-                if (isTriggerNode(d.type)) return '#38BDF8'
-                if (d.type === 'action_condition') return '#10B981'
-                if (d.type === 'action_delay') return '#F59E0B'
-                if (d.type === 'action_ai_response') return '#FB7185'
-                if (d.type === 'action_send_dm' || d.type === 'action_reply_comment' || d.type === 'action_private_reply') return '#FB7185'
-                return '#38BDF8'
-              }}
-            />
+            <div className="hidden sm:block">
+              <MiniMap
+                className=""
+                style={{ background: '#151620', border: '1px solid rgba(255,255,255,0.08)' }}
+                nodeColor={(n) => {
+                  const d = n.data as unknown as WorkflowNodeData
+                  if (isTriggerNode(d.type)) return '#38BDF8'
+                  if (d.type === 'action_condition') return '#10B981'
+                  if (d.type === 'action_delay') return '#F59E0B'
+                  if (d.type === 'action_ai_response') return '#FB7185'
+                  if (d.type === 'action_send_dm' || d.type === 'action_reply_comment' || d.type === 'action_private_reply') return '#FB7185'
+                  return '#38BDF8'
+                }}
+              />
+            </div>
             <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="rgba(255,255,255,0.08)" />
           </ReactFlow>
         </div>
 
         {selectedNode && (
-          <NodeConfigPanel
-            node={selectedNode}
-            onUpdate={handleNodeUpdate}
-            onClose={() => setSelectedNode(null)}
-            onDelete={handleNodeDelete}
-          />
+          <>
+            <div className="hidden sm:block">
+              <NodeConfigPanel
+                node={selectedNode}
+                onUpdate={handleNodeUpdate}
+                onClose={() => setSelectedNode(null)}
+                onDelete={handleNodeDelete}
+              />
+            </div>
+            <div className="sm:hidden">
+              <NodeConfigPanel
+                mobile
+                node={selectedNode}
+                onUpdate={handleNodeUpdate}
+                onClose={() => setSelectedNode(null)}
+                onDelete={handleNodeDelete}
+              />
+            </div>
+          </>
         )}
       </div>
       <style jsx global>{`

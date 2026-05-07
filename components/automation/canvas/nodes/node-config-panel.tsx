@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import useSWR from 'swr'
 import { X, Check, Image as ImageIcon, Video, LayoutGrid, Instagram, Facebook } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -40,9 +40,10 @@ interface NodeConfigPanelProps {
   onUpdate: (nodeId: string, data: Partial<WorkflowNodeData>) => void
   onClose: () => void
   onDelete: (nodeId: string) => void
+  mobile?: boolean
 }
 
-export function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: NodeConfigPanelProps) {
+export function NodeConfigPanel({ node, onUpdate, onClose, onDelete, mobile = false }: NodeConfigPanelProps) {
   const data = node.data as WorkflowNodeData
   const config = data.config as unknown as Record<string, unknown>
 
@@ -59,7 +60,12 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onDelete }: NodeConfi
 
   return (
     <div
-      className="w-80 h-full overflow-y-auto"
+      className={cn(
+        'overflow-y-auto',
+        mobile
+          ? 'absolute inset-x-0 bottom-0 z-30 max-h-[72vh] rounded-t-xl shadow-2xl'
+          : 'h-full w-80',
+      )}
       style={{ borderLeft: '1px solid rgba(255,255,255,0.08)', background: '#151620' }}
     >
       {/* Header */}
@@ -165,8 +171,8 @@ function PlatformAccountIcon({ platform }: { platform: TriggerPlatform }) {
 }
 
 function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentConfig; onUpdate: (u: Record<string, unknown>) => void }) {
-  const [platform, setPlatform] = useState<TriggerPlatform>(getTriggerPlatformValue(config.platform))
-  const [accountId, setAccountId] = useState(config.social_account_id || '')
+  const platform = getTriggerPlatformValue(config.platform)
+  const accountId = config.social_account_id || ''
 
   // Fetch platform accounts
   const { data: accountsData, isLoading: accountsLoading } = useSWR<{ accounts: SocialAccount[] }>(
@@ -188,22 +194,12 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
   useEffect(() => {
     if (!accountId && platformAccounts.length > 0) {
       const first = platformAccounts[0]
-      setAccountId(first.id)
       onUpdate({ social_account_id: first.id, platform })
     }
   }, [platformAccounts, accountId, onUpdate, platform])
 
-  useEffect(() => {
-    const configPlatform = getTriggerPlatformValue(config.platform)
-    if (configPlatform !== platform) {
-      setPlatform(configPlatform)
-    }
-  }, [config.platform, platform])
-
   const handlePlatformChange = (newPlatformValue: string) => {
     const nextPlatform = getTriggerPlatformValue(newPlatformValue)
-    setPlatform(nextPlatform)
-    setAccountId('')
     onUpdate({
       platform: nextPlatform,
       social_account_id: '',
@@ -214,7 +210,6 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
   }
 
   const handleAccountChange = (newId: string) => {
-    setAccountId(newId)
     onUpdate({
       platform,
       social_account_id: newId,
@@ -401,20 +396,13 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
 }
 
 function TriggerMessageFields({ config, onUpdate }: { config: TriggerNewMessageConfig; onUpdate: (u: Record<string, unknown>) => void }) {
-  const [platform, setPlatform] = useState<TriggerPlatform>(getTriggerPlatformValue(config.platform))
+  const platform = getTriggerPlatformValue(config.platform)
   const { data: accountsData, isLoading: accountsLoading } = useSWR<{ accounts: SocialAccount[] }>(
     `/api/automations/social-accounts?platform=${platform}`,
     configFetcher,
   )
 
   const platformAccounts = (accountsData?.accounts || []).filter((a) => a.platform === platform)
-
-  useEffect(() => {
-    const configPlatform = getTriggerPlatformValue(config.platform)
-    if (configPlatform !== platform) {
-      setPlatform(configPlatform)
-    }
-  }, [config.platform, platform])
 
   useEffect(() => {
     if (!config.social_account_id && platformAccounts.length > 0) {
@@ -430,7 +418,6 @@ function TriggerMessageFields({ config, onUpdate }: { config: TriggerNewMessageC
           value={platform}
           onValueChange={(newPlatformValue) => {
             const nextPlatform = getTriggerPlatformValue(newPlatformValue)
-            setPlatform(nextPlatform)
             onUpdate({ platform: nextPlatform, social_account_id: '' })
           }}
         >

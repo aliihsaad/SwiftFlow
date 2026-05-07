@@ -4,7 +4,7 @@ import { CommentReplyConfig } from "@/types/automation"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
-import { MessageCircle, Info } from "lucide-react"
+import { MessageCircle, Info, Sparkles } from "lucide-react"
 
 interface CommentReplyConfigPanelProps {
     config: CommentReplyConfig
@@ -19,6 +19,12 @@ export function CommentReplyConfigPanel({ config, onChange }: CommentReplyConfig
     const handleMessageChange = (message: string) => {
         onChange({ ...config, messages: [message] })
     }
+
+    const handleAiToggle = (use_ai_response: boolean) => {
+        onChange({ ...config, use_ai_response })
+    }
+
+    const useAi = config.use_ai_response === true
 
     return (
         <div className="space-y-6">
@@ -51,6 +57,24 @@ export function CommentReplyConfigPanel({ config, onChange }: CommentReplyConfig
             {/* Reply Message */}
             {config.enabled && (
                 <div className="space-y-4 pl-4 border-l-2 border-primary/20">
+                    {/* AI toggle */}
+                    <div className="flex items-center justify-between rounded-lg border border-violet-300/40 bg-violet-50 dark:bg-violet-950/20 p-3">
+                        <div className="flex items-center gap-3">
+                            <div className="p-1.5 rounded-md bg-violet-100 dark:bg-violet-900/40">
+                                <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-300" />
+                            </div>
+                            <div>
+                                <Label className="text-sm font-medium">Use AI response</Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Generate the reply automatically based on the comment.
+                                </p>
+                            </div>
+                        </div>
+                        <Switch checked={useAi} onCheckedChange={handleAiToggle} />
+                    </div>
+
+                    {!useAi && (
+                        <>
                     <div className="space-y-2">
                         <Label>Reply Message</Label>
                         <Input
@@ -85,6 +109,8 @@ export function CommentReplyConfigPanel({ config, onChange }: CommentReplyConfig
                             ))}
                         </div>
                     </div>
+                        </>
+                    )}
 
                     {/* Info */}
                     <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm text-blue-700 dark:text-blue-300">

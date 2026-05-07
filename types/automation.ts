@@ -10,6 +10,7 @@ export interface TriggerConfig {
 export interface CommentReplyConfig {
     enabled: boolean
     messages: string[]
+    use_ai_response?: boolean
 }
 
 export interface DMConfig {
@@ -17,6 +18,7 @@ export interface DMConfig {
     button_text: string
     link_url: string
     link_message?: string
+    use_ai_response?: boolean
 }
 
 export interface Automation {

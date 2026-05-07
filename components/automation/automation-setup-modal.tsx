@@ -124,7 +124,10 @@ export function AutomationSetupModal({
                 }
                 return true
             case 'configure-dm':
-                // DM is optional — if user fills opening_message, require the rest too
+                // DM is optional. AI mode replaces the opening message; otherwise require manual text.
+                if (dmConfig.use_ai_response) {
+                    return dmConfig.button_text.trim() !== '' && dmConfig.link_url.trim() !== ''
+                }
                 if (dmConfig.opening_message.trim() === '') return true
                 return dmConfig.button_text.trim() !== '' &&
                     dmConfig.link_url.trim() !== ''
@@ -155,7 +158,7 @@ export function AutomationSetupModal({
         setIsSaving(true)
         setInlineError(null)
         try {
-            const dmEnabled = dmConfig.opening_message.trim() !== ''
+            const dmEnabled = dmConfig.use_ai_response === true || dmConfig.opening_message.trim() !== ''
             const payload: CreateAutomationPayload = {
                 social_account_id: selectedAccountId,
                 name: name.trim(),
@@ -349,14 +352,22 @@ export function AutomationSetupModal({
                                     <div className="flex flex-col sm:flex-row sm:justify-between py-2 border-b gap-1">
                                         <span className="text-muted-foreground">Comment Reply</span>
                                         <span className="font-medium">
-                                            {commentReplyConfig.enabled ? 'Enabled' : 'Disabled'}
+                                            {commentReplyConfig.enabled
+                                                ? commentReplyConfig.use_ai_response
+                                                    ? 'AI-generated'
+                                                    : 'Enabled'
+                                                : 'Disabled'}
                                         </span>
                                     </div>
 
                                     <div className="flex flex-col sm:flex-row sm:justify-between py-2 border-b gap-1">
                                         <span className="text-muted-foreground">DM</span>
                                         <span className="font-medium truncate sm:max-w-xs sm:text-right">
-                                            {dmConfig.opening_message.trim() ? dmConfig.link_url : 'Disabled'}
+                                            {dmConfig.use_ai_response
+                                                ? `AI-generated → ${dmConfig.link_url || 'no link'}`
+                                                : dmConfig.opening_message.trim()
+                                                    ? dmConfig.link_url
+                                                    : 'Disabled'}
                                         </span>
                                     </div>
                                 </div>

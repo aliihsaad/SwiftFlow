@@ -4,7 +4,8 @@ import { DMConfig } from "@/types/automation"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Send, Link as LinkIcon, MessageSquare, MousePointer } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
+import { Send, Link as LinkIcon, MessageSquare, MousePointer, Sparkles } from "lucide-react"
 
 interface DMConfigPanelProps {
     config: DMConfig
@@ -16,6 +17,8 @@ export function DMConfigPanel({ config, onChange }: DMConfigPanelProps) {
         onChange({ ...config, [field]: value })
     }
 
+    const useAi = config.use_ai_response === true
+
     return (
         <div className="space-y-6">
             <div>
@@ -26,23 +29,49 @@ export function DMConfigPanel({ config, onChange }: DMConfigPanelProps) {
                 </p>
             </div>
 
-            {/* Opening Message */}
-            <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                    Opening Message
-                </Label>
-                <Textarea
-                    value={config.opening_message}
-                    onChange={(e) => updateField('opening_message', e.target.value)}
-                    placeholder="Thanks for your interest! Click the button below to get your exclusive link."
-                    rows={3}
-                    maxLength={500}
+            {/* AI toggle */}
+            <div className="flex items-center justify-between rounded-lg border border-violet-300/40 bg-violet-50 dark:bg-violet-950/20 p-3">
+                <div className="flex items-center gap-3">
+                    <div className="p-1.5 rounded-md bg-violet-100 dark:bg-violet-900/40">
+                        <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-300" />
+                    </div>
+                    <div>
+                        <Label className="text-sm font-medium">Use AI response</Label>
+                        <p className="text-xs text-muted-foreground">
+                            Generate the DM opening message based on the comment.
+                        </p>
+                    </div>
+                </div>
+                <Switch
+                    checked={useAi}
+                    onCheckedChange={(checked) => updateField('use_ai_response', checked)}
                 />
-                <p className="text-xs text-muted-foreground">
-                    {config.opening_message.length}/500 characters. This message appears above the link button.
-                </p>
             </div>
+
+            {/* Opening Message */}
+            {!useAi && (
+                <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                        Opening Message
+                    </Label>
+                    <Textarea
+                        value={config.opening_message}
+                        onChange={(e) => updateField('opening_message', e.target.value)}
+                        placeholder="Thanks for your interest! Click the button below to get your exclusive link."
+                        rows={3}
+                        maxLength={500}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                        {config.opening_message.length}/500 characters. This message appears above the link button.
+                    </p>
+                </div>
+            )}
+            {useAi && (
+                <p className="text-xs text-muted-foreground rounded-md bg-muted px-3 py-2">
+                    The AI-generated reply will be used as the opening message.
+                </p>
+            )}
 
             {/* Button Text */}
             <div className="space-y-2">

@@ -9,7 +9,6 @@ import { storyMentionReply } from './templates/story-mention-reply'
 import type { AutomationTemplateDefinition } from './types'
 
 export type { AutomationTemplateDefinition, AutomationTemplatePlatform } from './types'
-export type { TemplateField, TemplateFieldType, TemplateFormValues } from './types'
 export { buildGraphFromBlueprint, templateNode, templateEdge } from './utils'
 
 export const AUTOMATION_TEMPLATES: AutomationTemplateDefinition[] = [

@@ -65,7 +65,7 @@ export function AutomationTemplatePicker({
             Automation Templates
           </DialogTitle>
           <DialogDescription style={{ color: "rgba(255,255,255,0.45)" }}>
-            Start from a prebuilt canvas workflow. After loading a template, select the account/post and review messages before saving.
+            Templates load ready node sets into the canvas. Select the social account, review the messages, then save when the workflow is correct.
           </DialogDescription>
         </DialogHeader>
 
@@ -155,7 +155,7 @@ export function AutomationTemplatePicker({
                     onClick={() => onSelectTemplate(template)}
                   >
                     <Plus className="h-3.5 w-3.5 mr-1" />
-                    Use Template
+                    Load Canvas
                   </Button>
                 </div>
               </div>

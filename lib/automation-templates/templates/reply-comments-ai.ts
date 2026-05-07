@@ -11,41 +11,7 @@ export const replyCommentsAi: AutomationTemplateDefinition = {
   icon: MessageSquareReply,
   supportedPlatforms: ['instagram', 'facebook'],
   tags: ['comments', 'ai', 'engagement'],
-  fields: [
-    {
-      id: 'platform',
-      type: 'platform',
-      label: 'Platform',
-      defaultValue: 'instagram',
-    },
-    { id: 'social_account_id', type: 'social_account', label: 'Account', required: true },
-    {
-      id: 'post_id',
-      type: 'post',
-      label: 'Trigger post',
-      required: true,
-    },
-    {
-      id: 'tone',
-      type: 'tone',
-      label: 'AI tone',
-      defaultValue: 'friendly',
-    },
-    {
-      id: 'keywords',
-      type: 'keywords',
-      label: 'Only reply when comment contains',
-      helpText: 'Leave empty to reply to every comment.',
-      defaultValue: [],
-    },
-  ],
-  defaultName: (values) => {
-    const platform = values.platform === 'facebook' ? 'Facebook' : 'Instagram'
-    return `${platform} — AI reply to comments`
-  },
-  buildGraphFromForm: (values) => {
-    const platform = values.platform === 'facebook' ? 'facebook' : 'instagram'
-    const triggerType = Array.isArray(values.keywords) && values.keywords.length > 0 ? 'keywords' : 'any'
+  buildGraph: () => {
     return buildGraphFromBlueprint(
       [
         {
@@ -54,11 +20,11 @@ export const replyCommentsAi: AutomationTemplateDefinition = {
           label: 'New Comment',
           position: { x: 100, y: 140 },
           config: {
-            platform,
-            trigger_type: triggerType,
-            keywords: values.keywords || [],
-            social_account_id: String(values.social_account_id || ''),
-            post_id: String(values.post_id || ''),
+            platform: 'instagram',
+            trigger_type: 'any',
+            keywords: [],
+            social_account_id: '',
+            post_id: '',
             post_thumbnail_url: '',
             post_caption: '',
           },
@@ -72,7 +38,7 @@ export const replyCommentsAi: AutomationTemplateDefinition = {
             use_global_settings: true,
             max_tokens: 500,
             preset_goal: 'reply_comment',
-            tone: values.tone || 'friendly',
+            tone: 'friendly',
             length: 'short',
             emoji_level: 'light',
           },
@@ -93,14 +59,5 @@ export const replyCommentsAi: AutomationTemplateDefinition = {
         { source: 'ai_response', target: 'reply_comment' },
       ],
     )
-  },
-  buildGraph: function () {
-    return this.buildGraphFromForm({
-      platform: 'instagram',
-      social_account_id: '',
-      post_id: '',
-      tone: 'friendly',
-      keywords: [],
-    })
   },
 }

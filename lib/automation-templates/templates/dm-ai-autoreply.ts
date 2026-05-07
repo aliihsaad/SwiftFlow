@@ -11,18 +11,7 @@ export const dmAiAutoreply: AutomationTemplateDefinition = {
   icon: Sparkles,
   supportedPlatforms: ['instagram'],
   tags: ['dm', 'ai', 'support'],
-  fields: [
-    {
-      id: 'social_account_id',
-      type: 'social_account',
-      label: 'Instagram account',
-      required: true,
-      platform: 'instagram',
-    },
-    { id: 'tone', type: 'tone', label: 'AI tone', defaultValue: 'friendly' },
-  ],
-  defaultName: () => 'IG — AI auto-reply to DMs',
-  buildGraphFromForm: (values) => buildGraphFromBlueprint(
+  buildGraph: () => buildGraphFromBlueprint(
     [
       {
         key: 'trigger_message',
@@ -33,7 +22,7 @@ export const dmAiAutoreply: AutomationTemplateDefinition = {
           platform: 'instagram',
           trigger_type: 'any',
           keywords: [],
-          social_account_id: String(values.social_account_id || ''),
+          social_account_id: '',
         },
       },
       {
@@ -45,7 +34,7 @@ export const dmAiAutoreply: AutomationTemplateDefinition = {
           use_global_settings: true,
           max_tokens: 600,
           preset_goal: 'support_answer',
-          tone: values.tone || 'friendly',
+          tone: 'friendly',
           length: 'medium',
           emoji_level: 'light',
         },
@@ -69,7 +58,4 @@ export const dmAiAutoreply: AutomationTemplateDefinition = {
       { source: 'ai_response', target: 'send_dm' },
     ],
   ),
-  buildGraph: function () {
-    return this.buildGraphFromForm({ social_account_id: '', tone: 'friendly' })
-  },
 }

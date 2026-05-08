@@ -7,7 +7,7 @@ import { resolveAIConfig } from "../_shared/ai-config.ts"
 import { generateText, requireGeneratedText } from "../_shared/generate-text.ts"
 import { buildAutomationAiPrompt } from "../_shared/automation-context.ts"
 
-import { isSafeMetaGraphNodeId, META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
+import { isSafeMetaGraphNodeId, META_GRAPH_API_BASE_URL, toMetaGraphFormBody } from "../_shared/meta-graph.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
@@ -117,11 +117,11 @@ async function replyToComment(
         const url = `${META_GRAPH_URL}/${commentId}/replies`;
         const response = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: await toMetaGraphFormBody({
                 message,
                 access_token: accessToken
-            })
+            }, accessToken)
         });
 
         const result = await response.json();
@@ -186,12 +186,12 @@ async function sendDM(
     try {
         const openingResponse = await fetch(sendUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: await toMetaGraphFormBody({
                 recipient: { id: recipientId },
                 message: { text: dmConfig.opening_message },
                 access_token: accessToken,
-            }),
+            }, accessToken),
         });
 
         const openingResult = await openingResponse.json();
@@ -240,12 +240,12 @@ async function sendPrivateReply(
 
         const response = await fetch(sendUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: await toMetaGraphFormBody({
                 recipient: { comment_id: commentId },
                 message: { text },
                 access_token: accessToken,
-            }),
+            }, accessToken),
         });
 
         const result = await response.json();
@@ -282,8 +282,8 @@ async function sendLinkFollowUp(
     // Try button template
     const linkResponse = await fetch(sendUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: await toMetaGraphFormBody({
             recipient: { id: recipientId },
             message: {
                 attachment: {
@@ -300,7 +300,7 @@ async function sendLinkFollowUp(
                 },
             },
             access_token: accessToken,
-        }),
+        }, accessToken),
     });
 
     const linkResult = await linkResponse.json();
@@ -310,12 +310,12 @@ async function sendLinkFollowUp(
         console.warn('[DM] Button template failed, sending plain text:', linkResult.error?.message);
         await fetch(sendUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: await toMetaGraphFormBody({
                 recipient: { id: recipientId },
                 message: { text: linkMessage },
                 access_token: accessToken,
-            }),
+            }, accessToken),
         });
     }
 }

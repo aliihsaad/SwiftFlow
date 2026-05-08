@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { META_GRAPH_URL, getRecipientId, interpolateTemplate } from "../_shared/automation-context.ts"
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
-import { withMetaAppSecretProof } from "../_shared/meta-graph.ts"
+import { toMetaGraphFormBody } from "../_shared/meta-graph.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -92,12 +92,12 @@ serve(async (req) => {
     const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
     const dmResponse = await fetch(sendUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(await withMetaAppSecretProof({
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: await toMetaGraphFormBody({
         recipient: { id: recipientId },
         message: { text: openingMessage },
         access_token: accessToken,
-      }, accessToken)),
+      }, accessToken),
     });
     const dmResult = await dmResponse.json();
 
@@ -157,18 +157,18 @@ serve(async (req) => {
       if (effectiveCtaMode === 'text') {
         await fetch(sendUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(await withMetaAppSecretProof({
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: await toMetaGraphFormBody({
             recipient: { id: recipientId },
             message: { text: linkMessage },
             access_token: accessToken,
-          }, accessToken)),
+          }, accessToken),
         });
       } else {
         const templateResponse = await fetch(sendUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(await withMetaAppSecretProof({
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: await toMetaGraphFormBody({
             recipient: { id: recipientId },
             message: {
               attachment: {
@@ -181,19 +181,19 @@ serve(async (req) => {
               },
             },
             access_token: accessToken,
-          }, accessToken)),
+          }, accessToken),
         });
         const templateResult = await templateResponse.json();
 
         if ((!templateResponse.ok || templateResult?.error) && buttonFallbackToText) {
           await fetch(sendUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(await withMetaAppSecretProof({
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: await toMetaGraphFormBody({
               recipient: { id: recipientId },
               message: { text: linkMessage },
               access_token: accessToken,
-            }, accessToken)),
+            }, accessToken),
           });
         }
       }

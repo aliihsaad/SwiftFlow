@@ -17,7 +17,7 @@ import {
   decryptMetaAccountRow,
 } from "../_shared/meta-account.ts"
 
-import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
+import { META_GRAPH_API_BASE_URL, toMetaGraphFormBody } from "../_shared/meta-graph.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
@@ -815,8 +815,8 @@ async function executeReplyComment(
   const url = `${META_GRAPH_URL}/${ctx.comment_id}/${replyPath}`;
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, access_token: accessToken }),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: await toMetaGraphFormBody({ message, access_token: accessToken }, accessToken),
   });
 
   const result = await response.json();
@@ -878,12 +878,12 @@ async function executeSendDM(
   // Try normal DM
   const openingResponse = await fetch(sendUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: await toMetaGraphFormBody({
       recipient: { id: recipientId },
       message: { text: openingMessage },
       access_token: accessToken,
-    }),
+    }, accessToken),
   });
 
   const openingResult = await openingResponse.json();
@@ -940,18 +940,18 @@ async function executeSendDM(
     if (effectiveCtaMode === 'text') {
       await fetch(sendUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: await toMetaGraphFormBody({
           recipient: { id: recipientId },
           message: { text: linkMessage },
           access_token: accessToken,
-        }),
+        }, accessToken),
       });
     } else {
       const linkResp = await fetch(sendUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: await toMetaGraphFormBody({
           recipient: { id: recipientId },
           message: {
             attachment: {
@@ -964,19 +964,19 @@ async function executeSendDM(
             },
           },
           access_token: accessToken,
-        }),
+        }, accessToken),
       });
 
       const linkResult = await linkResp.json();
       if ((!linkResp.ok || linkResult.error) && buttonFallbackToText) {
         await fetch(sendUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: await toMetaGraphFormBody({
             recipient: { id: recipientId },
             message: { text: linkMessage },
             access_token: accessToken,
-          }),
+          }, accessToken),
         });
       }
     }
@@ -1013,12 +1013,12 @@ async function executePrivateReply(
   const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
   const response = await fetch(sendUrl, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: await toMetaGraphFormBody({
       recipient: { comment_id: ctx.comment_id },
       message: { text: message },
       access_token: accessToken,
-    }),
+    }, accessToken),
   });
 
   const result = await response.json();

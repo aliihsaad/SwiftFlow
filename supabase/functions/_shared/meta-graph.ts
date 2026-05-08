@@ -40,3 +40,18 @@ export async function withMetaAppSecretProof<T extends Record<string, unknown>>(
     appsecret_proof: await createMetaAppSecretProof(accessToken, appSecret),
   }
 }
+
+export async function toMetaGraphFormBody(
+  payload: Record<string, unknown>,
+  accessToken: string,
+): Promise<URLSearchParams> {
+  const signedPayload = await withMetaAppSecretProof(payload, accessToken)
+  const body = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(signedPayload)) {
+    if (value == null) continue
+    body.set(key, typeof value === 'string' ? value : JSON.stringify(value))
+  }
+
+  return body
+}

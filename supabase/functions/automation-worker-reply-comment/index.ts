@@ -1,7 +1,7 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { META_GRAPH_URL, interpolateTemplate } from "../_shared/automation-context.ts"
-import { withMetaAppSecretProof } from "../_shared/meta-graph.ts"
+import { toMetaGraphFormBody } from "../_shared/meta-graph.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -108,8 +108,8 @@ serve(async (req) => {
     const url = `${META_GRAPH_URL}/${context.comment_id}/${replyPath}`;
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(await withMetaAppSecretProof({ message, access_token: accessToken }, accessToken)),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: await toMetaGraphFormBody({ message, access_token: accessToken }, accessToken),
     });
     const result = await response.json();
 

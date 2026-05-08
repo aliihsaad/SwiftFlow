@@ -161,12 +161,13 @@ async function fetchFacebookPostInsightsBestEffort(postId: string, accessToken: 
  * Sync post insights for published posts
  */
 async function syncPostInsights(supabase: any, workspaceId: string) {
-    // Get published posts from last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    // Match the analytics dashboard's widest range so the health checks and charts stay aligned.
+    const analyticsLookbackDays = 90;
+    const lookbackStart = new Date();
+    lookbackStart.setDate(lookbackStart.getDate() - analyticsLookbackDays);
 
     console.log(`[Sync] Looking for posts in workspace: ${workspaceId}`);
-    console.log(`[Sync] Date filter: >= ${thirtyDaysAgo.toISOString()}`);
+    console.log(`[Sync] Date filter: >= ${lookbackStart.toISOString()}`);
 
     // Fetch posts separately (avoiding nested query issues with PostgREST foreign keys)
     const { data: allPosts, error: allPostsError } = await supabase
@@ -223,12 +224,12 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
         // Check if any published_post is within the date range
         return post.published_posts.some((pp: any) => {
             const publishedAt = new Date(pp.published_at);
-            return publishedAt >= thirtyDaysAgo;
+            return publishedAt >= lookbackStart;
         });
     });
 
     console.log(`[Sync] Found ${posts.length} posts with published_posts`);
-    console.log(`[Sync] Found ${recentPosts.length} posts with recent published_posts (last 30 days)`);
+    console.log(`[Sync] Found ${recentPosts.length} posts with recent published_posts (last ${analyticsLookbackDays} days)`);
 
     if (!recentPosts || recentPosts.length === 0) {
         console.log('[Sync] No recent app-managed published posts; continuing with direct/native post sync');

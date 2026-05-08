@@ -224,15 +224,6 @@ function buildAnalyticsMeta(params: {
 
     const totalPublishedPosts = (publishedPosts || []).length
     const postsWithAnalyticsRows = new Set((postAnalytics || []).map((row) => row.published_post_id)).size
-    const rowsWithAnyEngagement = (postAnalytics || []).filter((row) => {
-        const likes = Number(row?.likes || 0)
-        const comments = Number(row?.comments || 0)
-        const shares = Number(row?.shares || 0)
-        const saves = Number(row?.saves || 0)
-        return likes + comments + shares + saves > 0
-    }).length
-    const rowsWithViews = (postAnalytics || []).filter((row) => Number(row?.views || 0) > 0).length
-    const rowsWithSaves = (postAnalytics || []).filter((row) => Number(row?.saves || 0) > 0).length
     let postStatus: MetricStatus =
         totalPublishedPosts === 0
             ? 'unavailable'
@@ -248,38 +239,10 @@ function buildAnalyticsMeta(params: {
         if (platformsWithPublishedPosts.has('facebook')) noteRequiredPermission('facebook', 'pages_read_engagement')
     }
 
-    // Heuristic: analytics rows exist, but key insights metrics are missing.
-    // This commonly happens when posts are ingested but reach/views/saves insights are unavailable.
-    if (postsWithAnalyticsRows > 0 && rowsWithAnyEngagement > 0 && rowsWithViews === 0) {
-        if (postStatus === 'available') postStatus = 'partial';
-        const igScopeState = getPlatformScopeState('instagram', 'instagram_manage_insights')
-        const fbScopeState = getPlatformScopeState('facebook', 'pages_read_engagement')
-        const hasExactGrantedInsights =
-            (platformsWithPublishedPosts.has('instagram') && igScopeState === 'granted') ||
-            (platformsWithPublishedPosts.has('facebook') && fbScopeState === 'granted')
-
-        warnings.push(
-            hasExactGrantedInsights
-                ? 'Post engagement counts are available, but view/reach metrics are still missing for some posts (API/media-type limitations or unsupported metrics).'
-                : 'Post engagement counts are available, but view/reach metrics are missing or zero. Insights permissions may be unavailable.'
-        )
-        if (platformsWithPublishedPosts.has('instagram')) noteRequiredPermission('instagram', 'instagram_manage_insights')
-        if (platformsWithPublishedPosts.has('facebook')) noteRequiredPermission('facebook', 'pages_read_engagement')
-    }
-
-    if (platformsWithPublishedPosts.has('instagram') && postsWithAnalyticsRows > 0 && rowsWithSaves === 0) {
-        if (postStatus === 'available') postStatus = 'partial';
-        const igScopeState = getPlatformScopeState('instagram', 'instagram_manage_insights')
-        warnings.push(
-            igScopeState === 'granted'
-                ? 'Instagram save/reach-style insights are still unavailable for current synced posts (likely media-type or API limitations).'
-                : 'Instagram save/reach-style insights appear unavailable for current synced posts.'
-        )
-        noteRequiredPermission('instagram', 'instagram_manage_insights')
-    }
-
     if (reason === 'no_published_posts') {
         warnings.push('No published posts were found for the selected workspace. Account analytics may still be available.')
+    } else if (reason === 'no_published_posts_in_range') {
+        warnings.push('No published posts were found for the selected date range. Account analytics may still be available.')
     }
 
     const analyticsRowsByPlatform = new Map<string, any[]>()
@@ -297,15 +260,6 @@ function buildAnalyticsMeta(params: {
 
         const platformPublishedRows = (publishedPosts || []).filter((pp) => pp?.platform === platform)
         const platformAnalyticsRows = analyticsRowsByPlatform.get(platform) || []
-        const platformRowsWithAnyEngagement = platformAnalyticsRows.filter((row) => {
-            const likes = Number(row?.likes || 0)
-            const comments = Number(row?.comments || 0)
-            const shares = Number(row?.shares || 0)
-            const saves = Number(row?.saves || 0)
-            return likes + comments + shares + saves > 0
-        }).length
-        const platformRowsWithViews = platformAnalyticsRows.filter((row) => Number(row?.views || 0) > 0).length
-        const platformRowsWithSaves = platformAnalyticsRows.filter((row) => Number(row?.saves || 0) > 0).length
         const platformAccountMetricsRows = (accountAnalytics || []).filter((row) => accountIdToPlatform.get(row.social_account_id) === platform)
 
         const accountMetricsStatus: MetricStatus =
@@ -328,22 +282,6 @@ function buildAnalyticsMeta(params: {
             const scopeState = getPlatformScopeState('instagram', 'instagram_manage_insights')
             if (scopeState === 'missing') missingPermissions.push('instagram_manage_insights')
 
-            if (platformPublishedRows.length > 0 && platformRowsWithAnyEngagement > 0 && platformRowsWithViews === 0) {
-                if (postMetricsStatus === 'available') postMetricsStatus = 'partial'
-                platformWarnings.push(
-                    scopeState === 'granted'
-                        ? 'Views/reach are missing for some Instagram posts (Meta API/media-type limitation).'
-                        : 'Views/reach may require Instagram insights permission.'
-                )
-            }
-            if (platformPublishedRows.length > 0 && platformAnalyticsRows.length > 0 && platformRowsWithSaves === 0) {
-                if (postMetricsStatus === 'available') postMetricsStatus = 'partial'
-                platformWarnings.push(
-                    scopeState === 'granted'
-                        ? 'Save metrics are unavailable for current Instagram posts.'
-                        : 'Save metrics may require Instagram insights permission.'
-                )
-            }
             if (accountMetricsStatus === 'unavailable') {
                 platformWarnings.push(
                     scopeState === 'granted'
@@ -355,14 +293,6 @@ function buildAnalyticsMeta(params: {
             const scopeState = getPlatformScopeState('facebook', 'pages_read_engagement')
             if (scopeState === 'missing') missingPermissions.push('pages_read_engagement')
 
-            if (platformPublishedRows.length > 0 && platformRowsWithAnyEngagement > 0 && platformRowsWithViews === 0) {
-                if (postMetricsStatus === 'available') postMetricsStatus = 'partial'
-                platformWarnings.push(
-                    scopeState === 'granted'
-                        ? 'Facebook post view/reach metrics are unavailable for current synced posts.'
-                        : 'Facebook post view/reach metrics may require pages_read_engagement.'
-                )
-            }
             if (accountMetricsStatus === 'unavailable') {
                 platformWarnings.push(
                     scopeState === 'granted'
@@ -431,6 +361,29 @@ function calculatePeriodChangePct(current: number, previous: number): number {
         return 0
     }
     return roundPct(((curr - prev) / Math.abs(prev)) * 100)
+}
+
+function getRangeStartDate(range: DateRange): Date {
+    const daysCount = range === 'last_7_days' ? 7 : range === 'last_30_days' ? 30 : 90
+    return subDays(new Date(), daysCount)
+}
+
+function filterPublishedPostsForRange(publishedPosts: any[], range: DateRange): any[] {
+    const startDate = getRangeStartDate(range)
+    const startTime = startDate.getTime()
+
+    return (publishedPosts || []).filter((publishedPost) => {
+        const rawDate = publishedPost?.published_at || publishedPost?.created_at
+        if (!rawDate) return false
+
+        const publishedTime = new Date(rawDate).getTime()
+        return Number.isFinite(publishedTime) && publishedTime >= startTime
+    })
+}
+
+function filterPostAnalyticsForPublishedPosts(postAnalytics: any[], publishedPosts: any[]): any[] {
+    const publishedPostIds = new Set((publishedPosts || []).map((post) => post?.id).filter(Boolean))
+    return (postAnalytics || []).filter((row) => publishedPostIds.has(row?.published_post_id))
 }
 
 // Transform database data into analytics response format
@@ -995,20 +948,21 @@ export async function GET(request: NextRequest) {
             granularity
         )
 
-        // Add metadata to indicate if analytics need syncing
-        const hasAnalytics = publishedPosts.some(p =>
-            p.published_posts?.some((pp: any) => pp.post_analytics?.length > 0)
-        )
+        const metaPublishedPostsData = filterPublishedPostsForRange(publishedPostsData, range)
+        const metaPostAnalyticsData = filterPostAnalyticsForPublishedPosts(postAnalyticsData, metaPublishedPostsData)
+
+        const hasRangePublishedPosts = metaPublishedPostsData.length > 0
+        const hasRangeAnalytics = metaPostAnalyticsData.length > 0
 
         const analyticsMeta = buildAnalyticsMeta({
             socialAccounts: selectedSocialAccounts,
             accountAnalytics: accountAnalytics || [],
-            publishedPosts: publishedPostsData,
-            postAnalytics: postAnalyticsData,
-            hasAnalytics,
-            hasPublishedPosts,
-            needsSync: !hasAnalytics,
-            reason: hasPublishedPosts ? null : 'no_published_posts',
+            publishedPosts: metaPublishedPostsData,
+            postAnalytics: metaPostAnalyticsData,
+            hasAnalytics: hasRangeAnalytics,
+            hasPublishedPosts: hasRangePublishedPosts,
+            needsSync: hasRangePublishedPosts && !hasRangeAnalytics,
+            reason: hasRangePublishedPosts ? null : (hasPublishedPosts ? 'no_published_posts_in_range' : 'no_published_posts'),
             selectedPlatform: platformFilter,
         })
         analyticsMeta.contentDiscovery = buildContentDiscoveryMeta({

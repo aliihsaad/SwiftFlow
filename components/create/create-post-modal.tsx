@@ -553,14 +553,17 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
 
             {/* Preview sub-dialog */}
             <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
-                <DialogContent showCloseButton={false} className="max-w-md bg-transparent border-none shadow-none p-0 overflow-visible flex items-center justify-center">
+                <DialogContent
+                    showCloseButton={false}
+                    className="w-[calc(100vw-1rem)] max-w-[430px] max-h-[94dvh] bg-transparent border-none shadow-none p-0 overflow-visible flex items-center justify-center"
+                >
                     <DialogTitle className="sr-only">Instagram Post Preview</DialogTitle>
                     <DialogDescription className="sr-only">Preview your post</DialogDescription>
-                    <div className="relative w-full">
+                    <div className="relative flex w-full justify-center px-2 py-4 sm:p-0">
                         <Button
                             variant="secondary"
                             size="icon"
-                            className="absolute -right-4 -top-4 rounded-full h-8 w-8 z-50 shadow-md bg-white hover:bg-zinc-100 text-black border"
+                            className="absolute right-3 top-3 rounded-full h-8 w-8 z-50 shadow-md bg-white hover:bg-zinc-100 text-black border sm:-right-4 sm:-top-4"
                             onClick={() => setIsPreviewOpen(false)}
                         >
                             <X className="h-4 w-4" />
@@ -570,6 +573,7 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
                             mediaUrls={globalMedia}
                             username="instagram_user"
                             date={scheduledAt || new Date()}
+                            className="shrink-0"
                         />
                     </div>
                 </DialogContent>

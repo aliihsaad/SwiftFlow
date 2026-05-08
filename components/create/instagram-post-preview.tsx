@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight, Battery, Wifi, Signal, ArrowLeft, Home, Search, PlusSquare, Clapperboard, User } from "lucide-react"
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight, Battery, Wifi, Signal, Home, Search, PlusSquare, Clapperboard } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface InstagramPostPreviewProps {
@@ -12,9 +12,10 @@ interface InstagramPostPreviewProps {
     userImage?: string
     location?: string
     date?: Date
+    className?: string
 }
 
-export function InstagramPostPreview({ caption, mediaUrls, username = "you", userImage, location, date }: InstagramPostPreviewProps) {
+export function InstagramPostPreview({ caption, mediaUrls, username = "you", userImage, location, date, className }: InstagramPostPreviewProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0)
 
     const hasMultipleImages = mediaUrls.length > 1
@@ -40,7 +41,10 @@ export function InstagramPostPreview({ caption, mediaUrls, username = "you", use
     }
 
     return (
-        <div className="w-[380px] mx-auto bg-black rounded-[3rem] border-8 border-zinc-800 overflow-hidden shadow-2xl font-sans relative aspect-9/19 select-none text-white">
+        <div className={cn(
+            "w-[min(380px,calc(100vw-2rem),calc((92dvh-2rem)*9/19))] mx-auto bg-black rounded-[3rem] border-8 border-zinc-800 overflow-hidden shadow-2xl font-sans relative aspect-9/19 select-none text-white",
+            className,
+        )}>
 
             {/* Dynamic Island / Notch Area */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-black rounded-b-2xl z-50"></div>

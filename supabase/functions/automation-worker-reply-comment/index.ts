@@ -1,6 +1,7 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { META_GRAPH_URL, interpolateTemplate } from "../_shared/automation-context.ts"
+import { withMetaAppSecretProof } from "../_shared/meta-graph.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -108,7 +109,7 @@ serve(async (req) => {
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, access_token: accessToken }),
+      body: JSON.stringify(await withMetaAppSecretProof({ message, access_token: accessToken }, accessToken)),
     });
     const result = await response.json();
 

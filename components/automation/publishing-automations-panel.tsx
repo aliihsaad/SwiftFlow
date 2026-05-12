@@ -547,10 +547,10 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
             </div>
 
             <Dialog open={open} onOpenChange={(nextOpen) => nextOpen ? setOpen(true) : closeDialog()}>
-                <DialogContent className="max-w-2xl" style={{ background: PANEL_THEME.panel, border: `1px solid ${PANEL_THEME.border}` }}>
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2" style={{ color: "rgba(255,255,255,0.9)" }}>
-                            <Sparkles className="h-5 w-5" style={{ color: "#86efac" }} />
+                <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-h-[90vh]" style={{ background: PANEL_THEME.panel, border: `1px solid ${PANEL_THEME.border}` }}>
+                    <DialogHeader className="border-b border-white/10 px-4 py-4 pr-12 text-left sm:px-6">
+                        <DialogTitle className="flex min-w-0 items-center gap-2 text-base leading-snug sm:text-lg" style={{ color: "rgba(255,255,255,0.9)" }}>
+                            <Sparkles className="h-5 w-5 shrink-0" style={{ color: "#86efac" }} />
                             {editingAutomation ? "Edit AI Publishing Automation" : "New AI Publishing Automation"}
                         </DialogTitle>
                         <DialogDescription style={{ color: PANEL_THEME.muted }}>
@@ -558,11 +558,11 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4">
+                    <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
                         {hasBrandProfile && (
                             <div className="rounded-xl p-4" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.18)" }}>
                                 <div className="flex items-start gap-3">
-                                    <div className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.20)" }}>
+                                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.20)" }}>
                                         <Sparkles className="h-4 w-4" style={{ color: "#86efac" }} />
                                     </div>
                                     <div className="min-w-0">
@@ -630,7 +630,7 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
                             >
                                 <div className="flex items-start gap-3">
                                     <div
-                                        className="flex h-9 w-9 items-center justify-center rounded-lg"
+                                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                                         style={{
                                             background: imageModelRecommendation.isRecommendedForText ? "rgba(34,197,94,0.12)" : "rgba(245,158,11,0.12)",
                                             border: imageModelRecommendation.isRecommendedForText ? "1px solid rgba(34,197,94,0.20)" : "1px solid rgba(245,158,11,0.24)",
@@ -760,11 +760,11 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
                         </div>
                     </div>
 
-                    <div className="flex justify-end gap-2 pt-2">
-                        <Button variant="outline" onClick={closeDialog} disabled={isSaving}>
+                    <div className="flex flex-col-reverse gap-2 border-t border-white/10 px-4 py-3 sm:flex-row sm:justify-end sm:px-6">
+                        <Button variant="outline" onClick={closeDialog} disabled={isSaving} className="w-full sm:w-auto">
                             Cancel
                         </Button>
-                        <Button onClick={saveAutomation} disabled={isSaving || !name.trim() || !contentGoal.trim()} className="gap-2">
+                        <Button onClick={saveAutomation} disabled={isSaving || !name.trim() || !contentGoal.trim()} className="w-full gap-2 sm:w-auto">
                             {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
                             {editingAutomation ? "Save Changes" : "Create"}
                         </Button>

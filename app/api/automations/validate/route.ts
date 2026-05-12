@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { TriggerNodeType, WorkflowGraph } from '@/types/automation-graph'
 import { isTriggerNode, SUPPORTED_CANVAS_TRIGGER_TYPES } from '@/types/automation-graph'
+import { validateSendEmailNodeConfigs } from '@/lib/automation-send-email-validation'
 import { isMetaGraphNodeId } from '@/lib/security/phase1-validation'
 
 interface ValidationError {
@@ -383,6 +384,10 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
         })
       }
     }
+  }
+
+  for (const issue of validateSendEmailNodeConfigs(graph)) {
+    errors.push(issue)
   }
 
   return { errors, warnings }

@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
+import { validateSendEmailNodeConfigs } from '@/lib/automation-send-email-validation';
 import type { WorkflowGraph } from '@/types/automation-graph';
 
 interface UpdateAutomationBody {
@@ -157,6 +158,14 @@ export async function PUT(
             if (!graphTriggerNode) {
                 return NextResponse.json(
                     { error: 'Canvas workflow must include a trigger node' },
+                    { status: 400 }
+                );
+            }
+
+            const sendEmailIssues = validateSendEmailNodeConfigs(workflow_graph);
+            if (sendEmailIssues.length > 0) {
+                return NextResponse.json(
+                    { error: sendEmailIssues[0].message, validationErrors: sendEmailIssues },
                     { status: 400 }
                 );
             }

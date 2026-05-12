@@ -5,6 +5,7 @@ import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
+import { validateSendEmailNodeConfigs } from '@/lib/automation-send-email-validation';
 import type { WorkflowGraph } from '@/types/automation-graph';
 
 interface CreateAutomationBody {
@@ -201,6 +202,14 @@ export async function POST(request: NextRequest) {
             if (!graphTriggerNode) {
                 return NextResponse.json(
                     { error: 'Canvas workflow must include a trigger node' },
+                    { status: 400 }
+                );
+            }
+
+            const sendEmailIssues = validateSendEmailNodeConfigs(workflow_graph);
+            if (sendEmailIssues.length > 0) {
+                return NextResponse.json(
+                    { error: sendEmailIssues[0].message, validationErrors: sendEmailIssues },
                     { status: 400 }
                 );
             }

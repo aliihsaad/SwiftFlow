@@ -60,6 +60,7 @@ Reason:
 
 Functions that require `--no-verify-jwt`:
 - `process-scheduled-posts`
+- `process-scheduled-executions`
 - `process-publishing-automations`
 - `automation-worker-run`
 - `automation-worker-ai-response`
@@ -74,6 +75,7 @@ Recommended deploy commands:
 
 ```bash
 supabase functions deploy process-scheduled-posts --no-verify-jwt
+supabase functions deploy process-scheduled-executions --no-verify-jwt
 supabase functions deploy process-publishing-automations --no-verify-jwt
 supabase functions deploy automation-worker-run --no-verify-jwt
 supabase functions deploy automation-worker-ai-response --no-verify-jwt
@@ -90,7 +92,6 @@ Cron target / orchestration entrypoints (normal deploy):
 ```bash
 supabase functions deploy scheduler-tick
 supabase functions deploy automation-orchestrator
-supabase functions deploy process-scheduled-executions
 supabase functions deploy process-automations
 ```
 

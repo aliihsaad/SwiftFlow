@@ -19,9 +19,28 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+function isAuthorizedInternalInvoke(req: Request): boolean {
+  const expectedApiKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  const providedApiKey = req.headers.get('apikey') || '';
+
+  if (!expectedApiKey) {
+    console.error('[process-scheduled-executions] Missing SUPABASE_SERVICE_ROLE_KEY for internal auth check');
+    return false;
+  }
+
+  return providedApiKey === expectedApiKey;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  if (!isAuthorizedInternalInvoke(req)) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Unauthorized' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
+    );
   }
 
   try {
@@ -67,13 +86,19 @@ serve(async (req) => {
 
         // Resume execution
         const result = await resumeFromDelay(supabase, exec);
+        const executedAt = new Date().toISOString();
 
         // Mark as completed
         await supabase
           .from('automation_scheduled_executions')
           .update({
             status: result.errors > 0 ? 'failed' : 'completed',
-            executed_at: new Date().toISOString(),
+            executed_at: executedAt,
+            execution_context: {
+              ...(exec.execution_context || {}),
+              resume_result: result,
+              resumed_at: executedAt,
+            },
           })
           .eq('id', exec.id);
 
@@ -102,10 +127,19 @@ serve(async (req) => {
       } catch (err) {
         errors++;
         console.error(`[SCHEDULED] Execution ${exec.id} failed:`, err);
+        const executedAt = new Date().toISOString();
 
         await supabase
           .from('automation_scheduled_executions')
-          .update({ status: 'failed', executed_at: new Date().toISOString() })
+          .update({
+            status: 'failed',
+            executed_at: executedAt,
+            execution_context: {
+              ...(exec.execution_context || {}),
+              resume_error: err?.message || 'Unknown error',
+              resumed_at: executedAt,
+            },
+          })
           .eq('id', exec.id);
       }
     }

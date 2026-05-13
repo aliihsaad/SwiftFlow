@@ -385,7 +385,7 @@ export default function AnalyticsPage() {
 
             {showAnalyticsRefreshingHint && (
                 <InlineLoadingHint
-                    label={isSyncing ? 'Syncing analytics and refreshing data…' : 'Refreshing analytics…'}
+                    label={isSyncing ? 'Analyzing your data and refreshing insights…' : 'Refreshing analytics insights…'}
                 />
             )}
 
@@ -638,6 +638,7 @@ export default function AnalyticsPage() {
                         data={intelligenceData}
                         isLoading={isIntelligenceLoading}
                         error={intelligenceError as Error | undefined}
+                        platform={platformView}
                     />
 
                     {/* KPI Cards */}

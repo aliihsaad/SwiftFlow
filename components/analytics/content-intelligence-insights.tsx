@@ -1,12 +1,14 @@
 "use client"
 
 import { BarChart3, Clock3, FlaskConical, Hash, Lightbulb, ListChecks, Sparkles, TrendingUp } from "lucide-react"
-import type { AnalyticsInsightsResult, AnalyticsPatternCard, IntelligenceConfidence } from "@/lib/content-intelligence/types"
+import { ContentIntelligenceTrendReport } from "./content-intelligence-trend-report"
+import type { AnalyticsInsightsResult, AnalyticsPatternCard, ContentPlatform, IntelligenceConfidence } from "@/lib/content-intelligence/types"
 
 interface ContentIntelligenceInsightsProps {
     data?: AnalyticsInsightsResult
     isLoading?: boolean
     error?: Error
+    platform?: ContentPlatform | "all"
 }
 
 const confidenceStyles: Record<IntelligenceConfidence, { label: string; className: string }> = {
@@ -63,7 +65,7 @@ function PatternCard({ pattern }: { pattern: AnalyticsPatternCard }) {
     )
 }
 
-export function ContentIntelligenceInsights({ data, isLoading, error }: ContentIntelligenceInsightsProps) {
+export function ContentIntelligenceInsights({ data, isLoading, error, platform = "all" }: ContentIntelligenceInsightsProps) {
     if (isLoading && !data) {
         return (
             <section className="rounded-xl border border-white/8 bg-[#151620] p-5">
@@ -186,6 +188,8 @@ export function ContentIntelligenceInsights({ data, isLoading, error }: ContentI
                     </div>
                 </div>
             )}
+
+            <ContentIntelligenceTrendReport data={data} platform={platform} />
         </section>
     )
 }

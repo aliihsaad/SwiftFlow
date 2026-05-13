@@ -12,6 +12,27 @@ function DarkSkeleton({ className }: { className?: string }) {
 export function AnalyticsLoadingSkeleton() {
     return (
         <div className="space-y-6">
+            <div
+                className="overflow-hidden rounded-xl p-4"
+                style={{ background: 'rgba(34,211,238,0.055)', border: '1px solid rgba(34,211,238,0.16)' }}
+            >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                        <div className="text-sm font-semibold text-cyan-100">Analyzing your data</div>
+                        <div className="mt-1 text-xs leading-relaxed text-white/45">
+                            Syncing posts, ranking patterns, and building Content Intelligence.
+                        </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-100/70">
+                        <span className="h-2 w-2 animate-pulse rounded-full bg-cyan-300" />
+                        Live analysis
+                    </div>
+                </div>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/24">
+                    <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-cyan-300 via-emerald-300 to-amber-200" />
+                </div>
+            </div>
+
             {/* Header skeleton */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="space-y-2">

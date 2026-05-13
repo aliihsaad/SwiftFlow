@@ -8,12 +8,14 @@ import { KPICards } from "@/components/analytics/kpi-cards"
 import { FollowerGrowthChart } from "@/components/analytics/engagement-chart"
 import { LatestPostCard } from "@/components/analytics/latest-post-card"
 import { AccountAnalyticsCard } from "@/components/analytics/account-analytics-card"
+import { ContentIntelligenceInsights } from "@/components/analytics/content-intelligence-insights"
 import { OtherPostsList } from "@/components/analytics/other-posts-list"
 import { AnalyticsLoadingSkeleton } from "@/components/analytics/analytics-loading"
 import { useToast } from "@/components/ui/use-toast"
 import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 import { AlertTriangle, Eye, Heart, Info, Link2, MessageCircle, ShieldAlert, Share2 } from "lucide-react"
+import type { AnalyticsInsightsResult } from "@/lib/content-intelligence/types"
 
 const fetcher = async (url: string) => {
     const res = await fetch(url, { cache: "no-store" })
@@ -107,14 +109,28 @@ export default function AnalyticsPage() {
     const [initialSyncDone, setInitialSyncDone] = useState(false)
     const { toast } = useToast()
     const canSyncAnalytics = useWorkspacePermission("analytics:sync")
+    const analyticsFetchReady = initialSyncDone || !canSyncAnalytics
 
     // Fetch analytics data
     const { data, error, isLoading, isValidating, mutate } = useSWR<AnalyticsResponse>(
-        initialSyncDone ? `/api/analytics?range=${dateRange}&granularity=${granularity}&platform=${platformView}` : null,
+        analyticsFetchReady ? `/api/analytics?range=${dateRange}&granularity=${granularity}&platform=${platformView}` : null,
         fetcher,
         {
             revalidateOnFocus: false,
             dedupingInterval: 60000, // 1 minute
+            keepPreviousData: true,
+        }
+    )
+    const {
+        data: intelligenceData,
+        error: intelligenceError,
+        isLoading: isIntelligenceLoading,
+    } = useSWR<AnalyticsInsightsResult>(
+        analyticsFetchReady ? `/api/content-intelligence/analytics-insights?range=${dateRange}&platform=${platformView}` : null,
+        fetcher,
+        {
+            revalidateOnFocus: false,
+            dedupingInterval: 60000,
             keepPreviousData: true,
         }
     )
@@ -125,7 +141,6 @@ export default function AnalyticsPage() {
         if (hasSynced.current) return
         hasSynced.current = true
         if (!canSyncAnalytics) {
-            setInitialSyncDone(true)
             return
         }
 
@@ -316,8 +331,8 @@ export default function AnalyticsPage() {
             : dateRange === 'last_30_days'
                 ? 'vs previous 30 days'
                 : 'vs previous 90 days'
-    const showInitialAnalyticsLoading = (!initialSyncDone || (isLoading && !data))
-    const showAnalyticsRefreshingHint = initialSyncDone && !!data && (isValidating || isSyncing)
+    const showInitialAnalyticsLoading = (!analyticsFetchReady || (isLoading && !data))
+    const showAnalyticsRefreshingHint = analyticsFetchReady && !!data && (isValidating || isSyncing)
 
     const getStatusChipStyle = (status: 'available' | 'partial' | 'unavailable') => {
         if (status === 'available') {
@@ -396,7 +411,7 @@ export default function AnalyticsPage() {
             )}
 
             {/* Data loaded */}
-            {data && initialSyncDone && !showInitialAnalyticsLoading && (
+            {data && analyticsFetchReady && !showInitialAnalyticsLoading && (
                 <>
                     {/* Platform-specific analytics status badges (mixed dashboard clarity) */}
                     {analyticsPlatformStatuses.length > 0 && (
@@ -614,6 +629,12 @@ export default function AnalyticsPage() {
                             )}
                         </div>
                     )}
+
+                    <ContentIntelligenceInsights
+                        data={intelligenceData}
+                        isLoading={isIntelligenceLoading}
+                        error={intelligenceError as Error | undefined}
+                    />
 
                     {/* KPI Cards */}
                     <KPICards

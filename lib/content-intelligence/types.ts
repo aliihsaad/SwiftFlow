@@ -152,3 +152,45 @@ export interface PostIntelligenceResult {
   generatedAt: string
   fallbackLevel: "personalized" | "mixed" | "benchmark"
 }
+
+export type AnalyticsInsightKind = "what_is_working" | "growth" | "risk"
+export type AnalyticsPatternType = "topic" | "format" | "time" | "caption" | "hashtag"
+
+export interface AnalyticsInsightCard {
+  id: string
+  kind: AnalyticsInsightKind
+  title: string
+  summary: string
+  confidence: IntelligenceConfidence
+  metricLabel?: string
+  metricValue?: string
+  evidence: IntelligenceEvidence[]
+}
+
+export interface AnalyticsPatternCard {
+  id: string
+  type: AnalyticsPatternType
+  title: string
+  value: string
+  summary: string
+  confidence: IntelligenceConfidence
+  evidence: IntelligenceEvidence[]
+}
+
+export interface AnalyticsExperiment {
+  id: string
+  title: string
+  description: string
+  confidence: IntelligenceConfidence
+  evidence: IntelligenceEvidence[]
+}
+
+export interface AnalyticsInsightsResult {
+  whatIsWorking: AnalyticsInsightCard[]
+  whatToTryNext: AnalyticsExperiment[]
+  patterns: AnalyticsPatternCard[]
+  growthInsights: AnalyticsInsightCard[]
+  evidence: IntelligenceEvidence[]
+  generatedAt: string
+  fallbackLevel: "personalized" | "mixed" | "benchmark"
+}

@@ -12,9 +12,21 @@ export type EvidenceSourceType =
   | "ai_inference"
   | "fallback"
 
+export type ResearchProviderId =
+  | "openrouter"
+  | "gemini"
+  | "openai"
+  | "dataforseo"
+  | "serpapi"
+  | "google_trends"
+  | "social_intelligence"
+  | "benchmark"
+
+export type SourceQualityTier = "primary" | "reputable" | "mixed" | "low"
+
 export interface IntelligenceEvidence {
   sourceType: EvidenceSourceType
-  provider?: "openrouter" | "gemini" | "openai" | "meta" | "internal" | "benchmark"
+  provider?: ResearchProviderId | "meta" | "internal"
   title: string
   url?: string
   observedAt: string
@@ -140,8 +152,39 @@ export interface ResearchFinding {
   title: string
   summary: string
   url?: string
-  provider?: "openrouter" | "gemini" | "openai" | "benchmark"
+  provider?: ResearchProviderId
+  publishedAt?: string
   confidence: IntelligenceConfidence
+  sourceQuality?: SourceQuality
+}
+
+export interface SourceQuality {
+  score: number
+  tier: SourceQualityTier
+  reasons: string[]
+  checkedAt: string
+}
+
+export interface TrendReportGating {
+  allowed: boolean
+  tier: string
+  requiredTier?: "pro" | "business"
+  reason?: "billing_not_live" | "upgrade_required" | "allowed"
+}
+
+export interface TrendReportResult {
+  topic: string
+  platform: ContentPlatform | "all"
+  depth: "standard" | "deep"
+  findings: ResearchFinding[]
+  evidence: IntelligenceEvidence[]
+  providerStatus: {
+    selected: ResearchProviderId
+    configured: boolean
+    unavailableReason?: string
+  }
+  gating: TrendReportGating
+  generatedAt: string
 }
 
 export interface PostIntelligenceResult {

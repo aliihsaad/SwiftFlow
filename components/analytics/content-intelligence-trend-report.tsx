@@ -29,6 +29,7 @@ const providerOptions: Array<{ value: ProviderChoice; label: string }> = [
 
 function statusLabel(report: TrendReportResult): string {
     if (!report.gating.allowed) return "Paid plan required"
+    if (report.providerStatus.selected === "benchmark" && report.findings.length > 0) return "Benchmark guidance"
     if (!report.providerStatus.configured) return "Provider unavailable"
     return report.findings.length > 0 ? "Report ready" : "No findings"
 }
@@ -155,19 +156,26 @@ export function ContentIntelligenceTrendReport({ data, platform }: ContentIntell
                             </div>
                         </div>
                     ) : report.findings.length > 0 ? (
-                        <div className="grid gap-2 md:grid-cols-3">
-                            {report.findings.slice(0, 3).map((finding) => (
-                                <div key={`${finding.provider}-${finding.url || finding.title}`} className="min-w-0 rounded-lg bg-black/16 p-3">
-                                    <p className="line-clamp-2 text-sm font-semibold text-white/82">{finding.title}</p>
-                                    <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-white/46">{finding.summary}</p>
-                                    {finding.sourceQuality && (
-                                        <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-100/70">
-                                            Quality {finding.sourceQuality.score}/100
-                                        </p>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
+                        <>
+                            {report.providerStatus.selected === "benchmark" && (
+                                <p className="mb-3 text-xs leading-relaxed text-white/42">
+                                    Live trend providers are not enabled yet, so this uses conservative benchmark guidance instead of current web data.
+                                </p>
+                            )}
+                            <div className="grid gap-2 md:grid-cols-3">
+                                {report.findings.slice(0, 3).map((finding) => (
+                                    <div key={`${finding.provider}-${finding.url || finding.title}`} className="min-w-0 rounded-lg bg-black/16 p-3">
+                                        <p className="line-clamp-2 text-sm font-semibold text-white/82">{finding.title}</p>
+                                        <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-white/46">{finding.summary}</p>
+                                        {finding.sourceQuality && (
+                                            <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-100/70">
+                                                Quality {finding.sourceQuality.score}/100
+                                            </p>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </>
                     ) : (
                         <p className="text-xs leading-relaxed text-white/48">
                             {report.evidence[0]?.summary || "No trend findings returned."}

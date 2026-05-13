@@ -99,10 +99,6 @@ const REPUTABLE_SOURCE_DOMAINS = [
 
 const LOW_QUALITY_DOMAIN_HINTS = ["social-feed", "forum", "thread", "example", "localhost"]
 
-function hasEnv(name: string): boolean {
-  return typeof process !== "undefined" && Boolean(process.env?.[name]?.trim())
-}
-
 function hostFromUrl(url?: string): string {
   if (!url) return ""
   try {
@@ -138,14 +134,37 @@ function tierFromScore(score: number): SourceQualityTier {
 function dormantAdapter(
   id: ResearchProviderId,
   label: string,
-  isConfigured: () => boolean,
 ): ResearchProviderAdapter {
   return {
     id,
     label,
-    isConfigured,
+    isConfigured: () => false,
     search: async () => [],
   }
+}
+
+function benchmarkFindings(topic: string): ProviderResearchFinding[] {
+  const cleanTopic = topic.trim() || "your content topic"
+  return [
+    {
+      title: `Test a practical ${cleanTopic} explainer`,
+      summary: `Use ${cleanTopic} as the anchor for a clear educational post, then compare saves, comments, and shares against your current top format before scaling the angle.`,
+      provider: "benchmark",
+      confidence: "low",
+    },
+    {
+      title: `Turn ${cleanTopic} into a comparison post`,
+      summary: `Frame ${cleanTopic} as a before/after, myth/fact, or tool comparison. This gives the analytics layer a repeatable pattern to measure once live trend providers are connected.`,
+      provider: "benchmark",
+      confidence: "low",
+    },
+    {
+      title: `Ask one specific ${cleanTopic} question`,
+      summary: `Use a caption question tied to ${cleanTopic} so comments can reveal audience demand. Treat this as a benchmark fallback, not live market validation.`,
+      provider: "benchmark",
+      confidence: "low",
+    },
+  ]
 }
 
 export function assessResearchSourceQuality(source: SourceQualityInput): SourceQuality {
@@ -205,22 +224,18 @@ export function assessResearchSourceQuality(source: SourceQualityInput): SourceQ
 
 export function createDefaultResearchAdapters(): Record<ResearchProviderId, ResearchProviderAdapter> {
   return {
-    dataforseo: dormantAdapter(
-      "dataforseo",
-      "DataForSEO",
-      () => hasEnv("DATAFORSEO_API_KEY") || (hasEnv("DATAFORSEO_LOGIN") && hasEnv("DATAFORSEO_PASSWORD")),
-    ),
-    serpapi: dormantAdapter("serpapi", "SerpApi", () => hasEnv("SERPAPI_API_KEY")),
-    google_trends: dormantAdapter("google_trends", "Google Trends", () => hasEnv("GOOGLE_TRENDS_API_KEY")),
-    openrouter: dormantAdapter("openrouter", "OpenRouter", () => hasEnv("OPENROUTER_API_KEY")),
-    gemini: dormantAdapter("gemini", "Gemini", () => hasEnv("GEMINI_API_KEY")),
-    openai: dormantAdapter("openai", "OpenAI", () => hasEnv("OPENAI_API_KEY")),
-    social_intelligence: dormantAdapter("social_intelligence", "Social intelligence", () => hasEnv("SOCIAL_INTELLIGENCE_API_KEY")),
+    dataforseo: dormantAdapter("dataforseo", "DataForSEO"),
+    serpapi: dormantAdapter("serpapi", "SerpApi"),
+    google_trends: dormantAdapter("google_trends", "Google Trends"),
+    openrouter: dormantAdapter("openrouter", "OpenRouter"),
+    gemini: dormantAdapter("gemini", "Gemini"),
+    openai: dormantAdapter("openai", "OpenAI"),
+    social_intelligence: dormantAdapter("social_intelligence", "Social intelligence"),
     benchmark: {
       id: "benchmark",
       label: "Benchmark fallback",
       isConfigured: () => true,
-      search: async () => [],
+      search: async (request) => benchmarkFindings(request.topic),
     },
   }
 }
@@ -273,6 +288,17 @@ function normalizeFindings(
   adapter: ResearchProviderAdapter,
 ): ResearchFinding[] {
   return rawFindings.slice(0, 8).map((finding) => {
+    if (finding.provider === "benchmark") {
+      return {
+        title: finding.title,
+        summary: finding.summary,
+        url: finding.url,
+        provider: "benchmark",
+        publishedAt: finding.publishedAt,
+        confidence: finding.confidence || "low",
+      }
+    }
+
     const sourceQuality = assessResearchSourceQuality(finding)
     return {
       title: finding.title,
@@ -310,6 +336,18 @@ export async function researchContentTopic(request: ResearchRequest): Promise<Re
 
   if (!adapter.isConfigured()) {
     const unavailableReason = "research_provider_not_configured"
+    if (!request.provider || request.provider === "auto") {
+      const benchmark = adapters.benchmark
+      const findings = normalizeFindings(await benchmark.search(request), benchmark)
+      return {
+        findings,
+        evidence: findings.map((finding) => evidenceForFinding(finding, benchmark)),
+        providerStatus: {
+          selected: benchmark.id,
+          configured: true,
+        },
+      }
+    }
     return {
       findings: [],
       evidence: [providerUnavailableEvidence(request.topic, adapter, unavailableReason)],

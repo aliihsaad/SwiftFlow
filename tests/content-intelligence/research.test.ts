@@ -60,4 +60,18 @@ describe("content intelligence research", () => {
     expect(result.findings[0].sourceQuality?.tier).toBe("primary")
     expect(result.evidence[0].sourceType).toBe("trend_provider")
   })
+
+  it("falls back to benchmark guidance when auto research providers are not live", async () => {
+    const report = await buildTrendReport({
+      workspaceId: "workspace-1",
+      topic: "Claude Code",
+      platform: "all",
+      depth: "standard",
+    })
+
+    expect(report.gating.allowed).toBe(true)
+    expect(report.providerStatus.selected).toBe("benchmark")
+    expect(report.findings.length).toBeGreaterThan(0)
+    expect(report.findings[0].summary).toContain("Claude Code")
+  })
 })

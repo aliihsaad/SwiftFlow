@@ -134,6 +134,8 @@ export interface RecommendedSlot {
   evidence: IntelligenceEvidence[]
 }
 
+export type SlotStrengthLabel = "strong" | "okay" | "weak"
+
 export interface ResearchFinding {
   title: string
   summary: string

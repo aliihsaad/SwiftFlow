@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createDeveloperOAuthCode, getDeveloperOAuthScope } from "@/lib/developer-api/oauth"
+import { createDeveloperOAuthCode, getDeveloperOAuthScope, normalizeDeveloperOAuthResource } from "@/lib/developer-api/oauth"
 import { getDeveloperApiKeyPepper } from "@/lib/developer-api/key-format"
 
 export const runtime = "nodejs"
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
     redirectUri,
     codeChallenge: params.get("code_challenge") || "",
     scope: params.get("scope") || getDeveloperOAuthScope(),
-    resource: params.get("resource") || `${request.nextUrl.origin}/api/developer/mcp`,
+    resource: normalizeDeveloperOAuthResource(params.get("resource") || `${request.nextUrl.origin}/api/developer/mcp`),
     pepper: getDeveloperApiKeyPepper(),
   }))
   const state = params.get("state")

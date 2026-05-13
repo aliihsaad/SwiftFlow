@@ -5,6 +5,7 @@ import {
 } from "@/lib/developer-api/mcp"
 import {
   buildDeveloperMcpAuthChallenge,
+  normalizeDeveloperOAuthResource,
   verifyDeveloperOAuthAccessToken,
 } from "@/lib/developer-api/oauth"
 import { getDeveloperApiKeyPepper } from "@/lib/developer-api/key-format"
@@ -83,7 +84,7 @@ function resolveDeveloperApiAuthorization(authorization: string | null, origin: 
 
   try {
     const payload = verifyDeveloperOAuthAccessToken(token, getDeveloperApiKeyPepper())
-    if (payload.resource !== `${origin.replace(/\/$/, "")}/api/developer/mcp`) {
+    if (normalizeDeveloperOAuthResource(payload.resource) !== normalizeDeveloperOAuthResource(`${origin}/api/developer/mcp`)) {
       throw new Error("Invalid OAuth resource")
     }
     return `Bearer ${payload.apiKey}`

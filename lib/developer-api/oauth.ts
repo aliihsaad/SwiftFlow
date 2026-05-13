@@ -62,10 +62,14 @@ function decryptPayload<T>(token: string, expectedPrefix: string, pepper: string
   return payload
 }
 
+export function normalizeDeveloperOAuthResource(resource: string) {
+  return resource.replace(/\/$/, "")
+}
+
 export function buildDeveloperOAuthProtectedResourceMetadata(origin: string) {
   const baseUrl = origin.replace(/\/$/, "")
   return {
-    resource: `${baseUrl}/api/developer/mcp`,
+    resource: normalizeDeveloperOAuthResource(`${baseUrl}/api/developer/mcp`),
     authorization_servers: [baseUrl],
     scopes_supported: [OAUTH_SCOPE],
     bearer_methods_supported: ["header"],
@@ -100,7 +104,7 @@ export function createDeveloperOAuthCode(input: CreateOAuthCodeInput): string {
     redirectUri: input.redirectUri,
     codeChallenge: input.codeChallenge,
     scope: input.scope,
-    resource: input.resource,
+    resource: normalizeDeveloperOAuthResource(input.resource),
     exp: (input.now ?? Math.floor(Date.now() / 1000)) + CODE_TTL_SECONDS,
   }, input.pepper)
 }
@@ -113,7 +117,7 @@ export function createDeveloperOAuthAccessToken(input: CreateOAuthAccessTokenInp
   return encryptPayload("sf_oauth_access", {
     apiKey: input.apiKey,
     scope: input.scope,
-    resource: input.resource,
+    resource: normalizeDeveloperOAuthResource(input.resource),
     exp: (input.now ?? Math.floor(Date.now() / 1000)) + ACCESS_TOKEN_TTL_SECONDS,
   }, input.pepper)
 }

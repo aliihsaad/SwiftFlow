@@ -12,7 +12,7 @@ describe("generateAnalyticsInsights", () => {
           {
             id: "post-1",
             platform: "instagram",
-            caption: "Launch checklist for founders #StartupTips #ContentStrategy",
+            caption: "AI is your coding assistant, not your replacement. You're the architect, it's the builder. #AIAgents #FutureOfCoding",
             publishedAt: "2026-05-07T09:00:00.000Z",
             likes: 40,
             comments: 12,
@@ -20,7 +20,7 @@ describe("generateAnalyticsInsights", () => {
             views: 1200,
             saves: 9,
             score: 115,
-            hashtags: ["#StartupTips", "#ContentStrategy"],
+            hashtags: ["#AIAgents", "#FutureOfCoding"],
           },
           {
             id: "post-2",
@@ -59,6 +59,7 @@ describe("generateAnalyticsInsights", () => {
     expect(result.whatIsWorking[0].evidence[0].sourceType).toBe("internal_analytics")
     expect(result.patterns.map((pattern) => pattern.type)).toContain("hashtag")
     expect(result.patterns.map((pattern) => pattern.type)).toContain("time")
+    expect(result.patterns.find((pattern) => pattern.type === "topic")?.value).toBe("AI agents")
   })
 
   it("returns low-confidence experiments when history is sparse", () => {

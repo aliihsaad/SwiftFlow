@@ -78,7 +78,38 @@ function collectEvidence(cards: Array<{ evidence: IntelligenceEvidence[] }>): In
   return evidence
 }
 
+function humanizeHashtag(tag: string): string {
+  const cleaned = tag.replace(/^#/, "")
+  const spaced = cleaned
+    .replace(/^AI(?=[A-Z])/, "AI ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim()
+
+  if (!spaced) return cleaned
+
+  return spaced
+    .split(/\s+/)
+    .map((word, index) => {
+      if (/^ai$/i.test(word)) return "AI"
+      if (index === 0) return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      return word.toLowerCase()
+    })
+    .join(" ")
+}
+
 function extractTopic(posts: HistoricalPostSignal[]): string | null {
+  const hashtagCounts = new Map<string, number>()
+  for (const post of posts) {
+    for (const tag of post.hashtags) {
+      const label = humanizeHashtag(tag)
+      if (label.length >= 3) hashtagCounts.set(label, (hashtagCounts.get(label) || 0) + 1)
+    }
+  }
+
+  const topHashtagTopic = Array.from(hashtagCounts.entries()).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0]
+  if (topHashtagTopic) return topHashtagTopic
+
   const counts = new Map<string, number>()
 
   for (const post of posts) {

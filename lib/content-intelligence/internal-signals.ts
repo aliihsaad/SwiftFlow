@@ -57,6 +57,22 @@ function normalizeBrand(row: UnknownRow | null): BrandSignal | null {
   }
 }
 
+function selectTopPostsWithPlatformCoverage(posts: HistoricalPostSignal[]): HistoricalPostSignal[] {
+  const selected = new Map<string, HistoricalPostSignal>()
+
+  for (const post of posts.slice(0, 10)) {
+    selected.set(post.id, post)
+  }
+
+  for (const platform of ["instagram", "facebook"] as const) {
+    for (const post of posts.filter((item) => item.platform === platform).slice(0, 5)) {
+      selected.set(post.id, post)
+    }
+  }
+
+  return Array.from(selected.values()).sort((a, b) => b.score - a.score).slice(0, 20)
+}
+
 export function buildContentIntelligenceSignals(params: {
   brandProfile: UnknownRow | null
   publishedPosts: UnknownRow[]
@@ -149,7 +165,7 @@ export function buildContentIntelligenceSignals(params: {
     brand: normalizeBrand(params.brandProfile),
     history: {
       totalPublishedPosts: historicalPosts.length,
-      topPosts: historicalPosts.slice(0, 10),
+      topPosts: selectTopPostsWithPlatformCoverage(historicalPosts),
       hashtagPerformance,
       hourlyPerformance,
     },

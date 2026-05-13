@@ -333,6 +333,10 @@ export default function AnalyticsPage() {
                 : 'vs previous 90 days'
     const showInitialAnalyticsLoading = (!analyticsFetchReady || (isLoading && !data))
     const showAnalyticsRefreshingHint = analyticsFetchReady && !!data && (isValidating || isSyncing)
+    const partialAnalyticsTitle =
+        selectedAnalyticsPlatform === 'all'
+            ? 'Analytics is partially available (combined view)'
+            : `${selectedAnalyticsPlatform === 'instagram' ? 'Instagram' : 'Facebook'} analytics is partially available`
 
     const getStatusChipStyle = (status: 'available' | 'partial' | 'unavailable') => {
         if (status === 'available') {
@@ -470,9 +474,9 @@ export default function AnalyticsPage() {
                                             ? (selectedAnalyticsPlatform === 'all'
                                                 ? 'Connect accounts to start analytics sync'
                                                 : `Connect ${selectedAnalyticsPlatform === 'instagram' ? 'Instagram' : 'Facebook'} to view analytics`)
-                                            : 'Analytics is partially available (combined view)'}
+                                            : partialAnalyticsTitle}
                                     </p>
-                                    {!isNoConnectedAccounts && analyticsPlatformStatuses.length > 0 && (
+                                    {!isNoConnectedAccounts && selectedAnalyticsPlatform === 'all' && analyticsPlatformStatuses.length > 0 && (
                                         <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.38)' }}>
                                             This dashboard combines Instagram and Facebook. A warning can appear when only one platform is partial.
                                         </p>

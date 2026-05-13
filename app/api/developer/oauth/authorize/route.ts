@@ -118,5 +118,5 @@ export async function POST(request: NextRequest) {
   }))
   const state = params.get("state")
   if (state) redirect.searchParams.set("state", state)
-  return NextResponse.redirect(redirect)
+  return NextResponse.redirect(redirect, 303)
 }

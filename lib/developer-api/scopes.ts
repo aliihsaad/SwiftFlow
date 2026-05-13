@@ -7,6 +7,9 @@ import {
 } from "./types"
 
 const SCOPE_SET = new Set<string>(DEVELOPER_API_SCOPE_VALUES)
+const SCOPE_ALIASES: Record<string, DeveloperApiScope> = {
+  "posts:draft:create": "posts:create",
+}
 
 const SCOPE_CAPABILITIES: Record<DeveloperApiScope, { label: string; capability: DeveloperApiCapability }> = {
   "workspace:read": {
@@ -150,10 +153,11 @@ export function canRoleCreateDeveloperApiKey(role: WorkspaceRole | null | undefi
 export function normalizeDeveloperApiScopes(values: unknown[]): DeveloperApiScope[] {
   const scopes: DeveloperApiScope[] = []
   for (const value of values) {
-    if (typeof value !== "string" || !isDeveloperApiScope(value)) {
+    const scope = typeof value === "string" && !isDeveloperApiScope(value) ? SCOPE_ALIASES[value] : value
+    if (typeof scope !== "string" || !isDeveloperApiScope(scope)) {
       throw new Error(`Unsupported developer API scope: ${String(value)}`)
     }
-    if (!scopes.includes(value)) scopes.push(value)
+    if (!scopes.includes(scope)) scopes.push(scope)
   }
   if (scopes.length === 0) {
     throw new Error("At least one developer API scope is required")

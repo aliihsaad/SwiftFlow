@@ -22,6 +22,7 @@ describe("developer API scope and capability model", () => {
       "brand:read",
       "brand:write",
     ])
+    expect(normalizeDeveloperApiScopes(["posts:draft:create"])).toEqual(["posts:create"])
     expect(() => normalizeDeveloperApiScopes(["billing:write"])).toThrow("Unsupported developer API scope: billing:write")
   })
 

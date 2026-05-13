@@ -9,6 +9,7 @@ import { WorkspaceSettings } from "@/types/settings"
 import { TeamMembersPanel } from "@/components/settings/team-members-panel"
 import { AccountSettingsSection } from "@/components/settings/account-settings-section"
 import { TeamMemberRow, WorkspaceInviteRow } from "@/types/team"
+import { DeveloperApiView } from "@/components/settings/developer-api-view"
 
 interface SettingsViewProps {
     workspaces: (Workspace & { role: WorkspaceRole })[]
@@ -53,6 +54,7 @@ export function SettingsView({
                 <TabsList className={tabListClass}>
                     <TabsTrigger value="workspaces" className={tabTriggerClass}>Workspaces</TabsTrigger>
                     <TabsTrigger value="api" className={tabTriggerClass}>AI Provider</TabsTrigger>
+                    <TabsTrigger value="developer-api" className={tabTriggerClass}>Developer API</TabsTrigger>
                     <TabsTrigger value="members" className={tabTriggerClass}>Members</TabsTrigger>
                     <TabsTrigger value="account" className={tabTriggerClass}>Account</TabsTrigger>
                 </TabsList>
@@ -75,7 +77,9 @@ export function SettingsView({
                     <ApiSettingsForm settings={settings} />
                 </TabsContent>
 
-
+                <TabsContent value="developer-api" className="space-y-4">
+                    <DeveloperApiView />
+                </TabsContent>
 
                 <TabsContent value="members">
                     <Card className={panelClass}>

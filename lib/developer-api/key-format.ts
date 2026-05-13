@@ -1,0 +1,43 @@
+import { createHmac, randomBytes, timingSafeEqual } from "crypto"
+
+export interface DeveloperApiToken {
+  plaintext: string
+  prefix: string
+}
+
+function base64Url(bytes: Buffer): string {
+  return bytes.toString("base64url")
+}
+
+export function createDeveloperApiToken(): DeveloperApiToken {
+  const publicId = base64Url(randomBytes(12))
+  const secret = base64Url(randomBytes(32))
+  const prefix = `sf_live_${publicId}`
+  return {
+    plaintext: `${prefix}_${secret}`,
+    prefix,
+  }
+}
+
+export function parseDeveloperApiTokenPrefix(token: string): string | null {
+  const match = token.match(/^(sf_live_[A-Za-z0-9_-]{10,})_[A-Za-z0-9_-]{32,}$/)
+  return match?.[1] ?? null
+}
+
+export function hashDeveloperApiToken(token: string, pepper: string): string {
+  if (!pepper.trim()) throw new Error("DEVELOPER_API_KEY_PEPPER is required")
+  return createHmac("sha256", pepper).update(token, "utf8").digest("hex")
+}
+
+export function timingSafeStringEqual(a: string, b: string): boolean {
+  const left = Buffer.from(a)
+  const right = Buffer.from(b)
+  if (left.byteLength !== right.byteLength) return false
+  return timingSafeEqual(left, right)
+}
+
+export function getDeveloperApiKeyPepper(): string {
+  const pepper = process.env.DEVELOPER_API_KEY_PEPPER || process.env.NEXTAUTH_SECRET || process.env.SUPABASE_SERVICE_KEY || ""
+  if (!pepper.trim()) throw new Error("DEVELOPER_API_KEY_PEPPER is required")
+  return pepper
+}

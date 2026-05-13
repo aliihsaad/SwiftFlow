@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config"
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["tests/content-intelligence/**/*.test.ts"],
+    include: ["tests/content-intelligence/**/*.test.ts", "tests/developer-api/**/*.test.ts"],
     globals: false,
     passWithNoTests: true,
   },

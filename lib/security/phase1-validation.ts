@@ -540,6 +540,61 @@ export function sanitizeBrandProfilePayload(body: unknown) {
     }
 }
 
+export function sanitizePartialBrandProfilePayload(body: unknown) {
+    if (!isPlainObject(body)) {
+        throw new Error('Invalid brand profile payload')
+    }
+
+    const payload: Record<string, unknown> = {}
+    if ('business_name' in body) payload.business_name = clampString(body.business_name, 160)
+    if ('owner_name' in body) payload.owner_name = clampString(body.owner_name, 120)
+    if ('email' in body) payload.email = clampString(body.email, 160)
+    if ('phone' in body) payload.phone = clampString(body.phone, 60)
+    if ('website' in body) payload.website = sanitizeHttpUrl(body.website) || ''
+    if ('industry' in body) payload.industry = clampString(body.industry, 120)
+    if ('business_description' in body) payload.business_description = clampString(body.business_description, 2000)
+    if ('target_audience' in body) payload.target_audience = clampString(body.target_audience, 1200)
+    if ('brand_voice' in body) {
+        payload.brand_voice = typeof body.brand_voice === 'string' && (ALLOWED_BRAND_VOICES as readonly string[]).includes(body.brand_voice)
+            ? body.brand_voice
+            : 'professional'
+    }
+    if ('language' in body) {
+        payload.language = typeof body.language === 'string' && (ALLOWED_BRAND_LANGUAGES as readonly string[]).includes(body.language)
+            ? body.language
+            : 'en'
+    }
+    if ('services' in body) payload.services = sanitizeServices(body.services)
+    if ('unique_selling_points' in body) payload.unique_selling_points = sanitizeStringArray(body.unique_selling_points, 25, 200)
+    if ('logo_url' in body) payload.logo_url = sanitizeHttpUrl(body.logo_url) || ''
+    if ('brand_colors' in body) {
+        const rawColors = isPlainObject(body.brand_colors) ? body.brand_colors : {}
+        const colors: Record<string, unknown> = {}
+        if ('enabled' in rawColors) colors.enabled = rawColors.enabled !== false
+        if (typeof rawColors.primary === 'string' && HEX_COLOR_RE.test(rawColors.primary.trim())) {
+            colors.primary = rawColors.primary.trim()
+        }
+        if (typeof rawColors.secondary === 'string' && HEX_COLOR_RE.test(rawColors.secondary.trim())) {
+            colors.secondary = rawColors.secondary.trim()
+        }
+        if (typeof rawColors.accent === 'string' && HEX_COLOR_RE.test(rawColors.accent.trim())) {
+            colors.accent = rawColors.accent.trim()
+        }
+        payload.brand_colors = colors
+    }
+    if ('reference_image_urls' in body) {
+        payload.reference_image_urls = (Array.isArray(body.reference_image_urls) ? body.reference_image_urls : [])
+            .map((value) => sanitizeHttpUrl(value))
+            .filter((value): value is string => Boolean(value))
+            .slice(0, 20)
+    }
+    if ('instagram_handle' in body) payload.instagram_handle = clampString(body.instagram_handle, 120)
+    if ('facebook_page' in body) payload.facebook_page = clampString(body.facebook_page, 160)
+    if ('content_themes' in body) payload.content_themes = sanitizeStringArray(body.content_themes, 25, 120)
+
+    return payload
+}
+
 export function sanitizeWorkspaceSettingsPayload(body: unknown): {
     workspaceId: string
     settings: Record<string, unknown>

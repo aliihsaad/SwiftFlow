@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/utils/supabase/admin"
-import { sanitizeBrandProfilePayload, assertJsonBodySize } from "@/lib/security/phase1-validation"
+import {
+  assertJsonBodySize,
+  sanitizeBrandProfilePayload,
+  sanitizePartialBrandProfilePayload,
+} from "@/lib/security/phase1-validation"
 import { withDeveloperApiAuth } from "@/lib/developer-api/http"
 
 export const runtime = "nodejs"
@@ -34,6 +38,26 @@ function emptyBrandProfile(workspaceId: string) {
   }
 }
 
+type BrandProfileRow = ReturnType<typeof emptyBrandProfile> & {
+  id?: string
+  created_at?: string
+  updated_at?: string
+}
+
+function mergePartialBrandProfile(existing: BrandProfileRow, partial: Record<string, unknown>) {
+  return {
+    ...existing,
+    ...partial,
+    brand_colors: "brand_colors" in partial
+      ? {
+        ...(existing.brand_colors || {}),
+        ...(typeof partial.brand_colors === "object" && partial.brand_colors !== null ? partial.brand_colors : {}),
+      }
+      : existing.brand_colors,
+    workspace_id: existing.workspace_id,
+  }
+}
+
 export async function GET(request: NextRequest) {
   return withDeveloperApiAuth(
     request,
@@ -58,6 +82,14 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  return writeBrandProfile(request, "replace")
+}
+
+export async function PATCH(request: NextRequest) {
+  return writeBrandProfile(request, "partial")
+}
+
+function writeBrandProfile(request: NextRequest, mode: "replace" | "partial") {
   return withDeveloperApiAuth(
     request,
     {
@@ -68,13 +100,17 @@ export async function PUT(request: NextRequest) {
     },
     async (context) => {
       assertJsonBodySize(request, 256 * 1024)
-      const body = sanitizeBrandProfilePayload(await request.json())
+      const rawBody = await request.json()
       const admin = createAdminClient()
       const { data: existing } = await admin
         .from("workspace_brand_profiles")
-        .select("id")
+        .select("*")
         .eq("workspace_id", context.workspaceId)
         .maybeSingle()
+      const current = existing || emptyBrandProfile(context.workspaceId)
+      const body = mode === "partial"
+        ? mergePartialBrandProfile(current, sanitizePartialBrandProfilePayload(rawBody))
+        : sanitizeBrandProfilePayload(rawBody)
 
       const result = existing
         ? await admin

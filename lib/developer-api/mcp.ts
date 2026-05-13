@@ -99,7 +99,7 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
   secureTool({
     name: "swiftflow_update_brand_profile",
     title: "Update brand profile",
-    description: "Replace the workspace brand profile fields. Read the existing profile first if you only want to change one field.",
+    description: "Partially update the workspace brand profile. Omitted fields are preserved.",
     inputSchema: {
       type: "object",
       properties: {
@@ -325,7 +325,7 @@ function mapToolCall(name: string, rawArgs: unknown): DeveloperMcpApiRequest {
     case "swiftflow_get_brand_profile":
       return { method: "GET", path: "/api/developer/v1/brand-profile" }
     case "swiftflow_update_brand_profile":
-      return { method: "PUT", path: "/api/developer/v1/brand-profile", body: args }
+      return { method: "PATCH", path: "/api/developer/v1/brand-profile", body: args }
     case "swiftflow_list_posts":
       return { method: "GET", path: "/api/developer/v1/posts" }
     case "swiftflow_create_post":

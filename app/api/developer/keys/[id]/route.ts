@@ -95,6 +95,30 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const revokedReason = typeof body?.reason === "string" ? body.reason.trim().slice(0, 240) : "revoked_by_admin"
     const admin = createAdminClient()
 
+    if (body?.permanent === true) {
+      const { data: existing, error: existingError } = await admin
+        .from("workspace_api_keys")
+        .select("id, status")
+        .eq("id", keyId)
+        .eq("workspace_id", manager.activeWorkspace.id)
+        .maybeSingle()
+
+      if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 })
+      if (!existing) return NextResponse.json({ error: "Developer API key not found" }, { status: 404 })
+      if (existing.status !== "revoked") {
+        return NextResponse.json({ error: "Only revoked API keys can be permanently deleted" }, { status: 400 })
+      }
+
+      const { error: deleteError } = await admin
+        .from("workspace_api_keys")
+        .delete()
+        .eq("id", keyId)
+        .eq("workspace_id", manager.activeWorkspace.id)
+
+      if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
+      return NextResponse.json({ success: true, deleted: true })
+    }
+
     const { error } = await admin
       .from("workspace_api_keys")
       .update({

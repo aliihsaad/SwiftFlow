@@ -38,23 +38,87 @@ const SCOPE_CAPABILITIES: Record<DeveloperApiScope, { label: string; capability:
     capability: {
       area: "Posts",
       level: "read",
-      description: "List draft and scheduled post metadata for the workspace.",
+      description: "List draft, scheduled, published, and failed post metadata for the workspace.",
     },
   },
-  "posts:draft:create": {
-    label: "Create draft posts",
+  "posts:create": {
+    label: "Create posts",
     capability: {
       area: "Posts",
       level: "write",
-      description: "Create draft posts without publishing or scheduling externally.",
+      description: "Create draft posts for later editing or review.",
+    },
+  },
+  "posts:schedule": {
+    label: "Schedule posts",
+    capability: {
+      area: "Posts",
+      level: "write",
+      description: "Create or update scheduled posts that the publishing worker can publish later.",
+    },
+  },
+  "posts:publish_now": {
+    label: "Post now",
+    capability: {
+      area: "Posts",
+      level: "write",
+      description: "Queue a post for immediate publishing through connected social accounts.",
     },
   },
   "posts:update": {
-    label: "Edit draft posts",
+    label: "Edit posts",
     capability: {
       area: "Posts",
       level: "write",
-      description: "Update existing draft or scheduled post content without publishing now.",
+      description: "Update existing draft or scheduled post content.",
+    },
+  },
+  "posts:delete": {
+    label: "Delete draft posts",
+    capability: {
+      area: "Posts",
+      level: "write",
+      description: "Delete draft or scheduled posts before they are published.",
+    },
+  },
+  "automations:read": {
+    label: "Read automations",
+    capability: {
+      area: "Automations",
+      level: "read",
+      description: "List workspace automations and inspect their active state and configuration.",
+    },
+  },
+  "automations:create": {
+    label: "Create automations",
+    capability: {
+      area: "Automations",
+      level: "write",
+      description: "Create workspace automations for connected social accounts.",
+    },
+  },
+  "automations:update": {
+    label: "Edit automations",
+    capability: {
+      area: "Automations",
+      level: "write",
+      description: "Update automation names, triggers, replies, DMs, and workflow graphs.",
+    },
+  },
+  "automations:toggle": {
+    label: "Activate or disable automations",
+    capability: {
+      area: "Automations",
+      level: "write",
+      description: "Turn automations on or off without changing their configuration.",
+    },
+  },
+  "automations:delete": {
+    label: "Delete automations",
+    capability: {
+      area: "Automations",
+      level: "write",
+      description: "Delete workspace automations.",
     },
   },
   "analytics:read": {

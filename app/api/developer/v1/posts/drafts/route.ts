@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   return withDeveloperApiAuth(
     request,
     {
-      requiredScopes: ["posts:draft:create"],
+      requiredScopes: ["posts:create"],
       rateLimit: "write",
       action: "posts.drafts.create",
       route: "/api/developer/v1/posts/drafts",

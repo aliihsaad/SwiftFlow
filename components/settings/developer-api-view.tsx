@@ -70,7 +70,14 @@ type AuditLog = {
   created_at: string
 }
 
-const defaultScopes: DeveloperApiScope[] = ["workspace:read", "brand:read", "posts:read", "analytics:read"]
+const defaultScopes: DeveloperApiScope[] = [
+  "workspace:read",
+  "brand:read",
+  "posts:read",
+  "posts:create",
+  "automations:read",
+  "analytics:read",
+]
 
 function formatDate(value: string | null) {
   if (!value) return "Never"
@@ -158,6 +165,22 @@ export function DeveloperApiView() {
       await Promise.all([reloadKeys(), reloadAudit()])
     } catch (revokeError) {
       setError(revokeError instanceof Error ? revokeError.message : "Failed to revoke key")
+    }
+  }
+
+  async function deleteRevokedKey(id: string) {
+    setError(null)
+    try {
+      const response = await fetch(`/api/developer/keys/${id}`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ permanent: true }),
+      })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json?.error || "Failed to delete key")
+      await Promise.all([reloadKeys(), reloadAudit()])
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Failed to delete key")
     }
   }
 
@@ -298,6 +321,12 @@ export function DeveloperApiView() {
                   <Button type="button" variant="outline" size="sm" onClick={() => revokeKey(key.id)}>
                     <Trash2 className="size-4" />
                     Revoke
+                  </Button>
+                )}
+                {key.status === "revoked" && (
+                  <Button type="button" variant="destructive" size="sm" onClick={() => deleteRevokedKey(key.id)}>
+                    <Trash2 className="size-4" />
+                    Delete
                   </Button>
                 )}
               </div>

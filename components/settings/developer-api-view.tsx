@@ -233,7 +233,7 @@ export function DeveloperApiView() {
             </div>
           )}
         </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
+        <CardContent className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,360px)]">
           <div className="space-y-3">
             <div className="grid gap-2">
               <Label htmlFor="developer-api-key-name" className="text-white/75">Key name</Label>
@@ -282,7 +282,7 @@ export function DeveloperApiView() {
                 })}
               </div>
             </div>
-            <Button type="button" onClick={createKey} disabled={saving || selectedScopes.length === 0}>
+            <Button type="button" onClick={createKey} disabled={saving || selectedScopes.length === 0} className="w-full sm:w-auto">
               <Plus className="size-4" />
               Create API Key
             </Button>
@@ -324,36 +324,36 @@ export function DeveloperApiView() {
             <Badge variant="outline" className="border-emerald-300/25 bg-emerald-300/10 text-emerald-100">MCP ready</Badge>
           </div>
         </CardHeader>
-        <CardContent className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,520px)]">
-          <div className="grid gap-3">
+        <CardContent className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,520px)]">
+          <div className="grid min-w-0 gap-3">
             {[
               { label: "Base URL", value: guide.baseUrl },
               { label: "MCP endpoint", value: guide.mcpUrl },
               { label: "OpenAPI schema", value: guide.openApiUrl },
               { label: "Auth header", value: DEVELOPER_API_AUTH_HEADER_EXAMPLE },
             ].map((item) => (
-              <div key={item.label} className="grid gap-2 rounded-md border border-white/10 bg-white/[0.03] p-3 sm:grid-cols-[130px_minmax(0,1fr)_auto] sm:items-center">
+              <div key={item.label} className="grid min-w-0 gap-2 rounded-md border border-white/10 bg-white/[0.03] p-3 sm:grid-cols-[130px_minmax(0,1fr)_auto] sm:items-center">
                 <span className="text-xs font-semibold uppercase text-white/45">{item.label}</span>
                 <code className="min-w-0 break-all rounded bg-black/25 px-2 py-1 text-xs text-cyan-50/80">{item.value}</code>
-                <Button type="button" variant="outline" size="sm" onClick={() => copyText(item.value)} aria-label={`Copy ${item.label}`}>
+                <Button type="button" variant="outline" size="sm" onClick={() => copyText(item.value)} aria-label={`Copy ${item.label}`} className="w-full sm:w-auto">
                   <Clipboard className="size-4" />
                 </Button>
               </div>
             ))}
           </div>
 
-          <div className="rounded-md border border-white/10 bg-black/25 p-3">
-            <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="min-w-0 rounded-md border border-white/10 bg-black/25 p-3">
+            <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-sm font-semibold text-white/85">
                 <Link2 className="size-4 text-cyan-300" />
                 Codex MCP config
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => copyText(DEVELOPER_API_CODEX_CONFIG_TEMPLATE)}>
+              <Button type="button" variant="outline" size="sm" onClick={() => copyText(DEVELOPER_API_CODEX_CONFIG_TEMPLATE)} className="w-full sm:w-auto">
                 <Clipboard className="size-4" />
                 Copy
               </Button>
             </div>
-            <pre className="overflow-x-auto rounded-md border border-white/10 bg-[#0b0c12] p-3 text-xs leading-5 text-white/70">
+            <pre className="max-w-full overflow-x-auto rounded-md border border-white/10 bg-[#0b0c12] p-3 text-xs leading-5 text-white/70">
               <code>{DEVELOPER_API_CODEX_CONFIG_TEMPLATE}</code>
             </pre>
             <div className="mt-3 grid gap-2 text-xs text-white/55">
@@ -374,23 +374,23 @@ export function DeveloperApiView() {
           {!loading && (data?.keys || []).length === 0 && <p className="text-sm text-white/50">No API keys created yet.</p>}
           {(data?.keys || []).map((key) => (
             <div key={key.id} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className="font-semibold text-white/90">{key.name}</p>
+                  <p className="font-semibold text-white/90">{key.name}</p>
                     <Badge variant="outline" className="border-white/15 text-white/65">{key.status}</Badge>
                   </div>
                   <p className="mt-1 font-mono text-xs text-white/45">{key.keyPrefix}...</p>
                   <p className="mt-2 text-xs text-white/45">Expires {formatDate(key.expiresAt)} · Last used {formatDate(key.lastUsedAt)}</p>
                 </div>
                 {key.status === "active" && (
-                  <Button type="button" variant="outline" size="sm" onClick={() => revokeKey(key.id)}>
+                  <Button type="button" variant="outline" size="sm" onClick={() => revokeKey(key.id)} className="w-full sm:w-auto">
                     <Trash2 className="size-4" />
                     Revoke
                   </Button>
                 )}
                 {key.status === "revoked" && (
-                  <Button type="button" variant="destructive" size="sm" onClick={() => deleteRevokedKey(key.id)}>
+                  <Button type="button" variant="destructive" size="sm" onClick={() => deleteRevokedKey(key.id)} className="w-full sm:w-auto">
                     <Trash2 className="size-4" />
                     Delete
                   </Button>
@@ -416,7 +416,7 @@ export function DeveloperApiView() {
           {auditLogs.slice(0, 12).map((log) => (
             <div key={log.id} className="grid gap-2 rounded-md border border-white/10 bg-white/[0.03] p-3 text-xs text-white/60 sm:grid-cols-[120px_1fr_70px]">
               <span>{formatDate(log.created_at)}</span>
-              <span className="font-mono">{log.method} {log.route}</span>
+              <span className="break-all font-mono">{log.method} {log.route}</span>
               <span className={log.status_code >= 400 ? "text-red-200" : "text-emerald-200"}>{log.status_code}</span>
             </div>
           ))}

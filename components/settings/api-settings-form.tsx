@@ -114,6 +114,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
 
     useEffect(() => {
         if (!textModelOptions.length) return
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setFormData((prev) => {
             if (textModelOptions.includes(prev.ai_text_model_name)) return prev
             return { ...prev, ai_text_model_name: textModelOptions[0] }
@@ -122,6 +123,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
 
     useEffect(() => {
         if (!imageModelOptions.length) return
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setFormData((prev) => {
             if (imageModelOptions.includes(prev.ai_image_model_name)) return prev
             return { ...prev, ai_image_model_name: imageModelOptions[0] }
@@ -262,7 +264,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                     key={option.id}
                     className={`rounded-xl border p-3 text-xs ${recommendationClassMap[option.recommendation]}`}
                 >
-                    <div className="mb-1 flex items-center justify-between gap-2">
+                    <div className="mb-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                         <span className="font-medium">{option.label}</span>
                         <span className="rounded-full border border-current/20 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em]">
                             {getModelRecommendationLabel(option.recommendation)}
@@ -366,7 +368,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                 </Button>
                             </div>
                             {hasSavedOpenRouterKey && (
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                <div className="flex flex-col gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
                                     <p className={helperClass}>
                                         An OpenRouter key is already saved securely. Leave this blank to keep it, or enter a new key to replace it.
                                     </p>
@@ -374,7 +376,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                         type="button"
                                         variant="ghost"
                                         size="sm"
-                                        className="shrink-0 border border-red-500/25 bg-red-500/10 text-red-300 hover:bg-red-500/15 hover:text-red-200"
+                                        className="w-full shrink-0 border border-red-500/25 bg-red-500/10 text-red-300 hover:bg-red-500/15 hover:text-red-200 sm:w-auto"
                                         onClick={() => setRemovingProvider('openrouter')}
                                     >
                                         Remove saved key
@@ -444,7 +446,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                 </Button>
                             </div>
                             {hasSavedGeminiKey && (
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                <div className="flex flex-col gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
                                     <p className={helperClass}>
                                         A Gemini key is already saved securely. Leave this blank to keep it, or enter a new key to replace it.
                                     </p>
@@ -452,7 +454,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                         type="button"
                                         variant="ghost"
                                         size="sm"
-                                        className="shrink-0 border border-red-500/25 bg-red-500/10 text-red-300 hover:bg-red-500/15 hover:text-red-200"
+                                        className="w-full shrink-0 border border-red-500/25 bg-red-500/10 text-red-300 hover:bg-red-500/15 hover:text-red-200 sm:w-auto"
                                         onClick={() => setRemovingProvider('gemini')}
                                     >
                                         Remove saved key
@@ -522,7 +524,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                 </Button>
                             </div>
                             {hasSavedOpenAIKey && (
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2">
+                                <div className="flex flex-col gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
                                     <p className={helperClass}>
                                         An OpenAI key is already saved securely. Leave this blank to keep it, or enter a new key to replace it.
                                     </p>
@@ -530,7 +532,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                         type="button"
                                         variant="ghost"
                                         size="sm"
-                                        className="shrink-0 border border-red-500/25 bg-red-500/10 text-red-300 hover:bg-red-500/15 hover:text-red-200"
+                                        className="w-full shrink-0 border border-red-500/25 bg-red-500/10 text-red-300 hover:bg-red-500/15 hover:text-red-200 sm:w-auto"
                                         onClick={() => setRemovingProvider('openai')}
                                     >
                                         Remove saved key

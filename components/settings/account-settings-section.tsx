@@ -110,7 +110,7 @@ function ChangePasswordForm() {
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+                <form onSubmit={handleSubmit} className="max-w-md space-y-4">
                     <div className="space-y-1.5">
                         <Label htmlFor="current-pw" className={labelClass}>Current Password</Label>
                         <Input
@@ -162,7 +162,7 @@ function ChangePasswordForm() {
                     <Button
                         type="submit"
                         disabled={isLoading}
-                        className="border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/30 hover:via-cyan-300/20 hover:to-amber-300/25"
+                        className="w-full border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/30 hover:via-cyan-300/20 hover:to-amber-300/25 sm:w-auto"
                     >
                         {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Updating…</> : "Update Password"}
                     </Button>
@@ -219,11 +219,11 @@ function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
             </CardHeader>
             <CardContent>
                 {sent ? (
-                    <div className="rounded-lg border border-emerald-300/20 bg-emerald-300/8 p-3 text-sm text-emerald-100 max-w-md">
+                    <div className="max-w-md rounded-lg border border-emerald-300/20 bg-emerald-300/8 p-3 text-sm text-emerald-100">
                         Check both inboxes for confirmation links. Your email won&apos;t change until both the current and new email addresses are confirmed.
                     </div>
                 ) : (
-                    <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+                    <form onSubmit={handleSubmit} className="max-w-md space-y-4">
                         <div className="space-y-1.5">
                             <Label htmlFor="new-email" className={labelClass}>New Email</Label>
                             <Input
@@ -242,7 +242,7 @@ function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
                         <Button
                             type="submit"
                             disabled={isLoading}
-                            className="border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/30 hover:via-cyan-300/20 hover:to-amber-300/25"
+                            className="w-full border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/30 hover:via-cyan-300/20 hover:to-amber-300/25 sm:w-auto"
                         >
                             {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Sending…</> : "Update Email"}
                         </Button>
@@ -298,7 +298,7 @@ function DeleteAccountSection() {
                     <AlertDialogTrigger asChild>
                         <Button
                             variant="destructive"
-                            className="bg-red-500/15 border border-red-400/20 text-red-200 hover:bg-red-500/25 hover:text-red-100"
+                            className="w-full border border-red-400/20 bg-red-500/15 text-red-200 hover:bg-red-500/25 hover:text-red-100 sm:w-auto"
                         >
                             Delete My Account
                         </Button>

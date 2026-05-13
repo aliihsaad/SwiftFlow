@@ -151,6 +151,7 @@ export function TeamMembersPanel({
                 nextDrafts[member.id] = member.role
             }
         }
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setMemberRoleDrafts(nextDrafts)
     }, [teamMembers])
 
@@ -362,12 +363,12 @@ export function TeamMembersPanel({
             )}
 
             <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <h4 className="text-sm font-semibold tracking-wide text-white/85">Current Members</h4>
                     <span className="text-xs text-white/45">{teamMembers.length} total</span>
                 </div>
                 <div className="overflow-hidden rounded-xl border border-white/10 bg-[#151620]">
-                    <Table>
+                    <Table className="min-w-[760px]">
                         <TableHeader>
                             <TableRow className="border-white/10 hover:bg-transparent">
                                 <TableHead className="text-white/45">Member</TableHead>
@@ -396,7 +397,7 @@ export function TeamMembersPanel({
                                             <TableCell className="align-top">
                                                 <div className="flex flex-col">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="font-medium text-white/85">
+                                                        <span className="max-w-[220px] truncate font-medium text-white/85">
                                                             {member.display_name || member.email || "Workspace Member"}
                                                         </span>
                                                         {isSelf && (
@@ -405,7 +406,7 @@ export function TeamMembersPanel({
                                                             </Badge>
                                                         )}
                                                     </div>
-                                                    <span className="text-xs text-white/50">
+                                                    <span className="max-w-[260px] truncate text-xs text-white/50">
                                                         {member.email || member.user_id}
                                                     </span>
                                                 </div>
@@ -482,7 +483,7 @@ export function TeamMembersPanel({
             </div>
 
             <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <h4 className="text-sm font-semibold tracking-wide text-white/85">Invites</h4>
                     <span className="text-xs text-white/45">
                         {pendingInvites.length} pending{inviteHistory.length ? ` • ${inviteHistory.length} history` : ""}
@@ -500,7 +501,7 @@ export function TeamMembersPanel({
                 ) : (
                     <div className="space-y-3">
                         <div className="overflow-hidden rounded-xl border border-white/10 bg-[#151620]">
-                            <Table>
+                            <Table className="min-w-[820px]">
                                 <TableHeader>
                                     <TableRow className="border-white/10 hover:bg-transparent">
                                         <TableHead className="text-white/45">Email</TableHead>
@@ -524,7 +525,7 @@ export function TeamMembersPanel({
 
                                             return (
                                                 <TableRow key={invite.id} className="border-white/5 hover:bg-white/5">
-                                                    <TableCell className="font-medium text-white/85">{invite.email}</TableCell>
+                                                    <TableCell className="max-w-[240px] truncate font-medium text-white/85">{invite.email}</TableCell>
                                                     <TableCell>
                                                         <Badge className={`border ${roleBadgeClass(invite.role)}`}>
                                                             {roleLabel(invite.role)}
@@ -589,7 +590,7 @@ export function TeamMembersPanel({
 
                                 {showInviteHistory && (
                                     <div className="border-t border-white/10">
-                                        <Table>
+                                        <Table className="min-w-[820px]">
                                             <TableHeader>
                                                 <TableRow className="border-white/10 hover:bg-transparent">
                                                     <TableHead className="text-white/45">Email</TableHead>
@@ -608,7 +609,7 @@ export function TeamMembersPanel({
                                                     return (
                                                         <TableRow key={invite.id} className="border-white/5 hover:bg-white/5">
                                                             <TableCell className="align-top">
-                                                                <div className="font-medium text-white/85">{invite.email}</div>
+                                                                <div className="max-w-[240px] truncate font-medium text-white/85">{invite.email}</div>
                                                                 <div className="mt-1 text-xs text-white/45">
                                                                     Created {formatDate(invite.created_at)}
                                                                 </div>

@@ -47,6 +47,10 @@ interface ManageWorkspacesListProps {
     workspaces: (Workspace & { role: WorkspaceRole })[]
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+    return error instanceof Error && error.message ? error.message : fallback
+}
+
 export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) {
     const [isAddOpen, setIsAddOpen] = useState(false)
     const [isRenameOpen, setIsRenameOpen] = useState(false)
@@ -84,8 +88,8 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
             toast.success(`Workspace renamed to "${newName}"`)
             setIsRenameOpen(false)
             router.refresh()
-        } catch (error: any) {
-            toast.error(error.message || "Failed to rename workspace")
+        } catch (error: unknown) {
+            toast.error(getErrorMessage(error, "Failed to rename workspace"))
         } finally {
             setIsLoading(false)
         }
@@ -101,8 +105,8 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
             setIsDeleteOpen(false)
             router.refresh()
             router.push('/dashboard')
-        } catch (error: any) {
-            toast.error(error.message || "Failed to delete workspace")
+        } catch (error: unknown) {
+            toast.error(getErrorMessage(error, "Failed to delete workspace"))
         } finally {
             setIsLoading(false)
         }
@@ -118,8 +122,8 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
             setIsLeaveOpen(false)
             router.refresh()
             router.push('/dashboard')
-        } catch (error: any) {
-            toast.error(error.message || "Failed to leave workspace")
+        } catch (error: unknown) {
+            toast.error(getErrorMessage(error, "Failed to leave workspace"))
         } finally {
             setIsLoading(false)
         }
@@ -130,18 +134,18 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="text-lg font-medium text-white/85">Workspaces</h3>
                 <Button
                     onClick={() => setIsAddOpen(true)}
-                    className="border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
+                    className="w-full border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20 sm:w-auto"
                 >
                     Add Workspace
                 </Button>
             </div>
 
             <div className={`overflow-hidden rounded-xl border ${subtleBorder} bg-[#151620]`}>
-                <Table>
+                <Table className="min-w-[560px]">
                     <TableHeader>
                         <TableRow className="border-white/10 hover:bg-transparent">
                             <TableHead className="text-white/45">Name</TableHead>
@@ -153,7 +157,7 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
                     <TableBody>
                         {workspaces.map((ws) => (
                             <TableRow key={ws.id} className="border-white/5 hover:bg-white/5">
-                                <TableCell className="font-medium text-white/85">{ws.name}</TableCell>
+                                <TableCell className="max-w-[220px] truncate font-medium text-white/85">{ws.name}</TableCell>
                                 <TableCell className="capitalize text-white/60">{ws.role}</TableCell>
                                 <TableCell suppressHydrationWarning className="text-white/55">{new Date(ws.created_at).toLocaleDateString("en-US")}</TableCell>
                                 <TableCell>
@@ -203,7 +207,7 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
                     <DialogHeader>
                         <DialogTitle className="text-white/90">Rename Workspace</DialogTitle>
                         <DialogDescription className="text-white/50">
-                            Enter a new name for "{selectedWorkspace?.name}"
+                            Enter a new name for &quot;{selectedWorkspace?.name}&quot;
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleRenameSubmit}>
@@ -249,7 +253,7 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
                     <AlertDialogHeader>
                         <AlertDialogTitle className="text-white/90">Delete Workspace?</AlertDialogTitle>
                         <AlertDialogDescription className="text-white/55">
-                            Are you sure you want to delete "{selectedWorkspace?.name}"? This action cannot be undone.
+                            Are you sure you want to delete &quot;{selectedWorkspace?.name}&quot;? This action cannot be undone.
                             All posts, analytics, and social connections will be permanently deleted.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
@@ -272,7 +276,7 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
                     <AlertDialogHeader>
                         <AlertDialogTitle className="text-white/90">Leave Workspace?</AlertDialogTitle>
                         <AlertDialogDescription className="text-white/55">
-                            Are you sure you want to leave "{selectedWorkspace?.name}"?
+                            Are you sure you want to leave &quot;{selectedWorkspace?.name}&quot;?
                             You will lose access to all workspace content and will need to be re-invited by the owner.
                         </AlertDialogDescription>
                     </AlertDialogHeader>

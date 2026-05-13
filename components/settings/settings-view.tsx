@@ -37,8 +37,8 @@ export function SettingsView({
     userEmail,
 }: SettingsViewProps) {
     const panelClass = "border-white/10 bg-[#151620] text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]"
-    const tabListClass = "h-auto w-full sm:w-fit rounded-xl border border-white/10 bg-[#1b1d28] p-1"
-    const tabTriggerClass = "rounded-lg px-4 py-2.5 text-sm font-medium text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-none"
+    const tabListClass = "inline-flex h-auto min-w-max rounded-xl border border-white/10 bg-[#1b1d28] p-1"
+    const tabTriggerClass = "shrink-0 rounded-lg px-3 py-2.5 text-sm font-medium text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-none sm:px-4"
 
     return (
         <div className="space-y-6">
@@ -51,13 +51,15 @@ export function SettingsView({
             </div>
 
             <Tabs defaultValue="workspaces" className="space-y-4">
-                <TabsList className={tabListClass}>
-                    <TabsTrigger value="workspaces" className={tabTriggerClass}>Workspaces</TabsTrigger>
-                    <TabsTrigger value="api" className={tabTriggerClass}>AI Provider</TabsTrigger>
-                    <TabsTrigger value="developer-api" className={tabTriggerClass}>Developer API</TabsTrigger>
-                    <TabsTrigger value="members" className={tabTriggerClass}>Members</TabsTrigger>
-                    <TabsTrigger value="account" className={tabTriggerClass}>Account</TabsTrigger>
-                </TabsList>
+                <div className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+                    <TabsList className={tabListClass}>
+                        <TabsTrigger value="workspaces" className={tabTriggerClass}>Workspaces</TabsTrigger>
+                        <TabsTrigger value="api" className={tabTriggerClass}>AI Provider</TabsTrigger>
+                        <TabsTrigger value="developer-api" className={tabTriggerClass}>Developer API</TabsTrigger>
+                        <TabsTrigger value="members" className={tabTriggerClass}>Members</TabsTrigger>
+                        <TabsTrigger value="account" className={tabTriggerClass}>Account</TabsTrigger>
+                    </TabsList>
+                </div>
 
                 <TabsContent value="workspaces" className="space-y-4">
                     <Card className={panelClass}>

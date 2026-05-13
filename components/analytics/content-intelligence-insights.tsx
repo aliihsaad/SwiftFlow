@@ -34,6 +34,8 @@ const patternIcons = {
     hashtag: Hash,
 }
 
+const trendResearchPanelEnabled = process.env.NEXT_PUBLIC_ENABLE_TREND_RESEARCH_PANEL === "true"
+
 function confidenceBadge(confidence: IntelligenceConfidence) {
     const style = confidenceStyles[confidence]
     return (
@@ -189,7 +191,7 @@ export function ContentIntelligenceInsights({ data, isLoading, error, platform =
                 </div>
             )}
 
-            <ContentIntelligenceTrendReport data={data} platform={platform} />
+            {trendResearchPanelEnabled && <ContentIntelligenceTrendReport data={data} platform={platform} />}
         </section>
     )
 }

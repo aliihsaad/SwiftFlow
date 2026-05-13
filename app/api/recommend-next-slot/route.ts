@@ -1,11 +1,24 @@
 import { NextResponse } from 'next/server'
-import { addHours, startOfHour, format } from 'date-fns'
+import { recommendSlots } from '@/lib/content-intelligence/timing'
 
 export async function GET() {
-    // Simple logic: Recommend next hour start
-    // In a real app, this would analyze engagement metrics to find optimal time
-    const now = new Date()
-    const nextSlot = startOfHour(addHours(now, 1)).toISOString()
+    const [nextSlot] = recommendSlots({
+        platform: 'all',
+        now: new Date(),
+        signals: {
+            brand: null,
+            history: {
+                totalPublishedPosts: 0,
+                topPosts: [],
+                hashtagPerformance: [],
+                hourlyPerformance: [],
+            },
+            capabilities: {
+                hasMetaInsights: false,
+                hasFacebookEngagement: false,
+            },
+        },
+    })
 
-    return NextResponse.json({ nextSlot })
+    return NextResponse.json({ nextSlot: nextSlot?.startsAt || new Date().toISOString() })
 }

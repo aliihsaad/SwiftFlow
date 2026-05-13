@@ -14,12 +14,12 @@ export interface ResearchResult {
   unavailableReason?: string
 }
 
-export async function researchContentTopic(_request: ResearchRequest): Promise<ResearchResult> {
+export async function researchContentTopic(request: ResearchRequest): Promise<ResearchResult> {
   return {
     findings: [],
     evidence: [
       fallbackEvidence(
-        "Live trend research is provider-neutral by design and will be enabled after the local scoring flow is stable.",
+        `Live trend research for "${request.topic}" is provider-neutral by design and will be enabled after the local scoring flow is stable.`,
         "low",
       ),
     ],

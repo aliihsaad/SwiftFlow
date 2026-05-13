@@ -330,6 +330,7 @@ export function DeveloperApiView() {
               { label: "Base URL", value: guide.baseUrl },
               { label: "MCP endpoint", value: guide.mcpUrl },
               { label: "OpenAPI schema", value: guide.openApiUrl },
+              { label: "OAuth metadata", value: guide.oauthMetadataUrl },
               { label: "Auth header", value: DEVELOPER_API_AUTH_HEADER_EXAMPLE },
             ].map((item) => (
               <div key={item.label} className="grid min-w-0 gap-2 rounded-md border border-white/10 bg-white/[0.03] p-3 sm:grid-cols-[130px_minmax(0,1fr)_auto] sm:items-center">
@@ -358,7 +359,7 @@ export function DeveloperApiView() {
             </pre>
             <div className="mt-3 grid gap-2 text-xs text-white/55">
               <p>Store the key in the local environment as SWIFTFLOW_API_KEY. Do not paste the secret into config files or source control.</p>
-              <p>ChatGPT connector support needs OAuth before it should manage private workspace data. Until then, use the MCP endpoint with Codex or use REST/OpenAPI clients.</p>
+              <p>ChatGPT connector support uses the same MCP endpoint with OAuth linking. In ChatGPT, add the connector URL, then link it by pasting a Developer API key on the SwiftFlow consent screen.</p>
             </div>
           </div>
         </CardContent>

@@ -20,7 +20,7 @@ export function createDeveloperApiToken(): DeveloperApiToken {
 }
 
 export function parseDeveloperApiTokenPrefix(token: string): string | null {
-  const match = token.match(/^(sf_live_[A-Za-z0-9_-]{10,})_[A-Za-z0-9_-]{32,}$/)
+  const match = token.match(/^(sf_live_[A-Za-z0-9_-]{16})_[A-Za-z0-9_-]{43}$/)
   return match?.[1] ?? null
 }
 

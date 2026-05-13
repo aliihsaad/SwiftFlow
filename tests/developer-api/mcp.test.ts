@@ -27,10 +27,26 @@ describe("developer API MCP bridge", () => {
           expect.objectContaining({
             name: "swiftflow_get_workspace",
             inputSchema: expect.objectContaining({ type: "object" }),
+            securitySchemes: [{ type: "oauth2", scopes: ["swiftflow.developer_api"] }],
+            _meta: {
+              securitySchemes: [{ type: "oauth2", scopes: ["swiftflow.developer_api"] }],
+            },
           }),
         ]),
       },
     })
+  })
+
+  it("marks every tool with auth and ChatGPT safety annotations", () => {
+    for (const tool of DEVELOPER_MCP_TOOLS) {
+      expect(tool.securitySchemes).toEqual([{ type: "oauth2", scopes: ["swiftflow.developer_api"] }])
+      expect(tool._meta?.securitySchemes).toEqual([{ type: "oauth2", scopes: ["swiftflow.developer_api"] }])
+      expect(tool.annotations).toMatchObject({
+        readOnlyHint: expect.any(Boolean),
+        destructiveHint: expect.any(Boolean),
+        openWorldHint: expect.any(Boolean),
+      })
+    }
   })
 
   it("turns tool calls into authenticated developer API requests", async () => {

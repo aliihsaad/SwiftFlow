@@ -12,5 +12,6 @@ export function buildDeveloperApiGuide(origin: string) {
     baseUrl,
     mcpUrl: `${baseUrl}/api/developer/mcp`,
     openApiUrl: `${baseUrl}/api/developer/openapi.json`,
+    oauthMetadataUrl: `${baseUrl}/.well-known/oauth-protected-resource`,
   }
 }

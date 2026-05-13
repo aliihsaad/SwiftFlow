@@ -3,6 +3,11 @@ import {
   handleDeveloperMcpJsonRpc,
   type DeveloperMcpApiRequest,
 } from "@/lib/developer-api/mcp"
+import {
+  buildDeveloperMcpAuthChallenge,
+  verifyDeveloperOAuthAccessToken,
+} from "@/lib/developer-api/oauth"
+import { getDeveloperApiKeyPepper } from "@/lib/developer-api/key-format"
 
 export const runtime = "nodejs"
 
@@ -18,11 +23,12 @@ class DeveloperMcpApiError extends Error {
   }
 }
 
-function jsonResponse(payload: unknown, status = 200) {
+function jsonResponse(payload: unknown, status = 200, headers: HeadersInit = {}) {
   return NextResponse.json(payload, {
     status,
     headers: {
       "Mcp-Protocol-Version": "2025-03-26",
+      ...headers,
     },
   })
 }
@@ -41,7 +47,7 @@ async function callDeveloperApi(
   request: NextRequest,
   apiRequest: DeveloperMcpApiRequest,
 ): Promise<unknown> {
-  const authorization = request.headers.get("authorization")
+  const authorization = resolveDeveloperApiAuthorization(request.headers.get("authorization"), request.nextUrl.origin)
   if (!authorization) {
     throw new DeveloperMcpApiError("Missing Authorization bearer token", 401, {
       error: "Missing Authorization bearer token",
@@ -68,12 +74,33 @@ async function callDeveloperApi(
   return payload
 }
 
+function resolveDeveloperApiAuthorization(authorization: string | null, origin: string): string | null {
+  if (!authorization) return null
+  const match = authorization.match(/^Bearer\s+(.+)$/i)
+  if (!match) return authorization
+  const token = match[1]
+  if (!token.startsWith("sf_oauth_access.")) return authorization
+
+  try {
+    const payload = verifyDeveloperOAuthAccessToken(token, getDeveloperApiKeyPepper())
+    if (payload.resource !== `${origin.replace(/\/$/, "")}/api/developer/mcp`) {
+      throw new Error("Invalid OAuth resource")
+    }
+    return `Bearer ${payload.apiKey}`
+  } catch {
+    throw new DeveloperMcpApiError("Invalid or expired SwiftFlow OAuth token", 401, {
+      error: "Invalid or expired SwiftFlow OAuth token",
+    })
+  }
+}
+
 export async function GET() {
   return jsonResponse({
     name: "swiftflow-developer-api",
     transport: "streamable-http",
     endpoint: "/api/developer/mcp",
-    authentication: "Bearer token",
+    authentication: "OAuth 2.1 or Developer API Bearer token",
+    protectedResource: "/.well-known/oauth-protected-resource",
   })
 }
 
@@ -113,6 +140,7 @@ export async function POST(request: NextRequest) {
     return response ? jsonResponse(response) : new Response(null, { status: 204 })
   } catch (error) {
     const status = error instanceof DeveloperMcpApiError ? error.status : 500
+    const authChallenge = status === 401 ? buildDeveloperMcpAuthChallenge(request.nextUrl.origin) : null
     return jsonResponse({
       jsonrpc: "2.0",
       id: null,
@@ -121,6 +149,6 @@ export async function POST(request: NextRequest) {
         message: error instanceof Error ? error.message : "MCP bridge error",
         data: error instanceof DeveloperMcpApiError ? error.payload : undefined,
       },
-    }, status)
+    }, status, authChallenge ? { "WWW-Authenticate": authChallenge } : {})
   }
 }

@@ -11,6 +11,7 @@ describe("developer API guide", () => {
       baseUrl: "https://social.swiftdigital-s.com",
       mcpUrl: "https://social.swiftdigital-s.com/api/developer/mcp",
       openApiUrl: "https://social.swiftdigital-s.com/api/developer/openapi.json",
+      oauthMetadataUrl: "https://social.swiftdigital-s.com/.well-known/oauth-protected-resource",
     })
   })
 

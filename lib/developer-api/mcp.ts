@@ -1,3 +1,5 @@
+import { getDeveloperOAuthScope } from "./oauth"
+
 type JsonRpcId = string | number | null
 
 type JsonRpcRequest = {
@@ -23,6 +25,11 @@ type DeveloperMcpTool = {
   title: string
   description: string
   inputSchema: JsonSchema
+  securitySchemes?: { type: "oauth2"; scopes: string[] }[]
+  _meta?: {
+    securitySchemes?: { type: "oauth2"; scopes: string[] }[]
+    [key: string]: unknown
+  }
   annotations?: {
     readOnlyHint?: boolean
     destructiveHint?: boolean
@@ -56,22 +63,40 @@ const ID_INPUT_SCHEMA: JsonSchema = {
   additionalProperties: false,
 }
 
+const OAUTH_SECURITY_SCHEMES = [{ type: "oauth2" as const, scopes: [getDeveloperOAuthScope()] }]
+
+function secureTool(tool: Omit<DeveloperMcpTool, "securitySchemes" | "_meta">): DeveloperMcpTool {
+  return {
+    ...tool,
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+      ...tool.annotations,
+    },
+    securitySchemes: OAUTH_SECURITY_SCHEMES,
+    _meta: {
+      securitySchemes: OAUTH_SECURITY_SCHEMES,
+    },
+  }
+}
+
 export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
-  {
+  secureTool({
     name: "swiftflow_get_workspace",
     title: "Get workspace",
     description: "Read the current SwiftFlow workspace metadata for this API key.",
     inputSchema: EMPTY_INPUT_SCHEMA,
     annotations: { readOnlyHint: true, openWorldHint: false },
-  },
-  {
+  }),
+  secureTool({
     name: "swiftflow_get_brand_profile",
     title: "Get brand profile",
     description: "Read the workspace brand profile used for content and automation generation.",
     inputSchema: EMPTY_INPUT_SCHEMA,
     annotations: { readOnlyHint: true, openWorldHint: false },
-  },
-  {
+  }),
+  secureTool({
     name: "swiftflow_update_brand_profile",
     title: "Update brand profile",
     description: "Replace the workspace brand profile fields. Read the existing profile first if you only want to change one field.",
@@ -96,15 +121,15 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
       additionalProperties: true,
     },
     annotations: { idempotentHint: true, openWorldHint: false },
-  },
-  {
+  }),
+  secureTool({
     name: "swiftflow_list_posts",
     title: "List posts",
     description: "List recent draft, scheduled, published, and failed posts in the workspace.",
     inputSchema: EMPTY_INPUT_SCHEMA,
     annotations: { readOnlyHint: true, openWorldHint: false },
-  },
-  {
+  }),
+  secureTool({
     name: "swiftflow_create_post",
     title: "Create post",
     description: "Create a draft, scheduled post, or immediate publish request. Use status draft, scheduled, or published.",
@@ -132,8 +157,8 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
       additionalProperties: false,
     },
     annotations: { openWorldHint: false },
-  },
-  {
+  }),
+  secureTool({
     name: "swiftflow_update_draft_post",
     title: "Update draft post",
     description: "Update an existing draft or scheduled post by id.",
@@ -151,29 +176,29 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
       additionalProperties: false,
     },
     annotations: { idempotentHint: true, openWorldHint: false },
-  },
-  {
+  }),
+  secureTool({
     name: "swiftflow_delete_draft_post",
     title: "Delete draft post",
     description: "Delete a draft or scheduled post by id. Ask the user before using this tool.",
     inputSchema: ID_INPUT_SCHEMA,
     annotations: { destructiveHint: true, openWorldHint: false },
-  },
-  {
+  }),
+  secureTool({
     name: "swiftflow_list_automations",
     title: "List automations",
     description: "List workspace automations and their active state.",
     inputSchema: EMPTY_INPUT_SCHEMA,
     annotations: { readOnlyHint: true, openWorldHint: false },
-  },
-  {
+  }),
+  secureTool({
     name: "swiftflow_get_automation",
     title: "Get automation",
     description: "Read one automation by id.",
     inputSchema: ID_INPUT_SCHEMA,
     annotations: { readOnlyHint: true, openWorldHint: false },
-  },
-  {
+  }),
+  secureTool({
     name: "swiftflow_create_automation",
     title: "Create automation",
     description: "Create a workspace automation for a connected social account.",
@@ -194,8 +219,8 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
       additionalProperties: true,
     },
     annotations: { openWorldHint: false },
-  },
-  {
+  }),
+  secureTool({
     name: "swiftflow_update_automation",
     title: "Update automation",
     description: "Update an existing automation by id.",
@@ -214,8 +239,8 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
       additionalProperties: true,
     },
     annotations: { idempotentHint: true, openWorldHint: false },
-  },
-  {
+  }),
+  secureTool({
     name: "swiftflow_toggle_automation",
     title: "Activate or disable automation",
     description: "Turn an automation on or off by id.",
@@ -229,22 +254,22 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
       additionalProperties: false,
     },
     annotations: { idempotentHint: true, openWorldHint: false },
-  },
-  {
+  }),
+  secureTool({
     name: "swiftflow_delete_automation",
     title: "Delete automation",
     description: "Delete an automation by id. Ask the user before using this tool.",
     inputSchema: ID_INPUT_SCHEMA,
     annotations: { destructiveHint: true, openWorldHint: false },
-  },
-  {
+  }),
+  secureTool({
     name: "swiftflow_get_analytics_summary",
     title: "Get analytics summary",
     description: "Read aggregate workspace analytics and recent account analytics.",
     inputSchema: EMPTY_INPUT_SCHEMA,
     annotations: { readOnlyHint: true, openWorldHint: false },
-  },
-  {
+  }),
+  secureTool({
     name: "swiftflow_analyze_post_content",
     title: "Analyze post content",
     description: "Run content intelligence on a caption and optional media/schedule context.",
@@ -260,7 +285,7 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
       additionalProperties: false,
     },
     annotations: { readOnlyHint: true, openWorldHint: false },
-  },
+  }),
 ]
 
 const TOOL_BY_NAME = new Map(DEVELOPER_MCP_TOOLS.map((tool) => [tool.name, tool]))

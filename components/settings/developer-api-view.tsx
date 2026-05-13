@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import useSWR from "swr"
-import { CheckCircle2, Clipboard, KeyRound, Lock, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react"
+import { CheckCircle2, Clipboard, Code2, KeyRound, Link2, Lock, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,6 +16,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import type { DeveloperApiScope } from "@/lib/developer-api/types"
+import {
+  buildDeveloperApiGuide,
+  DEVELOPER_API_AUTH_HEADER_EXAMPLE,
+  DEVELOPER_API_CODEX_CONFIG_TEMPLATE,
+} from "@/lib/developer-api/guide"
 
 const fetcher = async <T,>(url: string): Promise<T> => {
   const response = await fetch(url, { cache: "no-store" })
@@ -90,6 +95,11 @@ function buildExpiry(days: number) {
   return date.toISOString()
 }
 
+function copyText(value: string) {
+  if (typeof navigator === "undefined") return
+  void navigator.clipboard.writeText(value)
+}
+
 export function DeveloperApiView() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -113,6 +123,7 @@ export function DeveloperApiView() {
   const auditLogs = auditData?.logs || []
   const loading = keysLoading
   const loadError = keysError || auditError
+  const guide = buildDeveloperApiGuide(typeof window === "undefined" ? "https://social.swiftdigital-s.com" : window.location.origin)
 
   const selectedCapabilities = useMemo(() => {
     const options = data?.scopeOptions || []
@@ -293,6 +304,61 @@ export function DeveloperApiView() {
                 </div>
               ))}
               {selectedCapabilities.length === 0 && <p className="text-sm text-white/45">Select scopes to preview what this key can access.</p>}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-white/10 bg-[#151620] text-white/85">
+        <CardHeader>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-white/90">
+                <Code2 className="size-4 text-cyan-300" />
+                Connection Guide
+              </CardTitle>
+              <CardDescription className="text-white/50">
+                Use scoped keys with REST, OpenAPI clients, or the hosted MCP connector.
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className="border-emerald-300/25 bg-emerald-300/10 text-emerald-100">MCP ready</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(340px,520px)]">
+          <div className="grid gap-3">
+            {[
+              { label: "Base URL", value: guide.baseUrl },
+              { label: "MCP endpoint", value: guide.mcpUrl },
+              { label: "OpenAPI schema", value: guide.openApiUrl },
+              { label: "Auth header", value: DEVELOPER_API_AUTH_HEADER_EXAMPLE },
+            ].map((item) => (
+              <div key={item.label} className="grid gap-2 rounded-md border border-white/10 bg-white/[0.03] p-3 sm:grid-cols-[130px_minmax(0,1fr)_auto] sm:items-center">
+                <span className="text-xs font-semibold uppercase text-white/45">{item.label}</span>
+                <code className="min-w-0 break-all rounded bg-black/25 px-2 py-1 text-xs text-cyan-50/80">{item.value}</code>
+                <Button type="button" variant="outline" size="sm" onClick={() => copyText(item.value)} aria-label={`Copy ${item.label}`}>
+                  <Clipboard className="size-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <div className="rounded-md border border-white/10 bg-black/25 p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-sm font-semibold text-white/85">
+                <Link2 className="size-4 text-cyan-300" />
+                Codex MCP config
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => copyText(DEVELOPER_API_CODEX_CONFIG_TEMPLATE)}>
+                <Clipboard className="size-4" />
+                Copy
+              </Button>
+            </div>
+            <pre className="overflow-x-auto rounded-md border border-white/10 bg-[#0b0c12] p-3 text-xs leading-5 text-white/70">
+              <code>{DEVELOPER_API_CODEX_CONFIG_TEMPLATE}</code>
+            </pre>
+            <div className="mt-3 grid gap-2 text-xs text-white/55">
+              <p>Store the key in the local environment as SWIFTFLOW_API_KEY. Do not paste the secret into config files or source control.</p>
+              <p>ChatGPT connector support needs OAuth before it should manage private workspace data. Until then, use the MCP endpoint with Codex or use REST/OpenAPI clients.</p>
             </div>
           </div>
         </CardContent>

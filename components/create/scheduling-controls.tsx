@@ -11,15 +11,23 @@ import { cn } from "@/lib/utils"
 interface SchedulingControlsProps {
     scheduledAt: Date | undefined
     onChange: (date: Date) => void
+    caption?: string
+    platforms?: string[]
 }
 
-export function SchedulingControls({ scheduledAt, onChange }: SchedulingControlsProps) {
+export function SchedulingControls({ scheduledAt, onChange, platforms }: SchedulingControlsProps) {
     const [isTimeslotsOpen, setIsTimeslotsOpen] = useState(false)
 
     const handleNextSlot = async () => {
         try {
-            const res = await fetch('/api/recommend-next-slot')
+            const params = new URLSearchParams()
+            if (platforms?.length === 1) params.set('platform', platforms[0])
+            const res = await fetch(`/api/content-intelligence/recommend-slots?${params.toString()}`)
             const data = await res.json()
+            if (data.slots?.[0]?.startsAt) {
+                onChange(new Date(data.slots[0].startsAt))
+                return
+            }
             if (data.nextSlot) onChange(new Date(data.nextSlot))
         } catch (e) {
             console.error(e)

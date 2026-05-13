@@ -18,6 +18,8 @@ import {
 import { MediaUploadZone } from "./media-upload-zone"
 import { SchedulingControls } from "./scheduling-controls"
 import { InstagramPostPreview } from "./instagram-post-preview"
+import { ContentIntelligencePanel } from "./content-intelligence-panel"
+import { ContentIntelligenceSummary } from "./content-intelligence-summary"
 import {
     X, Info, Plus, Instagram, Facebook, Monitor,
     RefreshCw, Smile,
@@ -29,6 +31,7 @@ import { cn } from "@/lib/utils"
 import EmojiPicker, { Theme } from "emoji-picker-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
+import type { PostIntelligenceResult } from "@/lib/content-intelligence/types"
 
 interface CreatePostModalProps {
     open: boolean
@@ -120,47 +123,61 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
     const [isPreviewOpen, setIsPreviewOpen] = useState(false)
     const [inlineError, setInlineError] = useState<string | null>(null)
     const [suggestedHashtags, setSuggestedHashtags] = useState(SUGGESTED_HASHTAGS)
+    const [intelligence, setIntelligence] = useState<PostIntelligenceResult | null>(null)
+    const [isAnalyzingIntelligence, setIsAnalyzingIntelligence] = useState(false)
 
     useEffect(() => {
         if (open && !scheduledAt && !postToEdit && !initialDate) {
-            setScheduledAt(new Date())
+            const nextDate = new Date()
+            queueMicrotask(() => setScheduledAt(nextDate))
         }
     }, [open, scheduledAt, postToEdit, initialDate])
 
     useEffect(() => {
         if (!open) return
-        setInlineError(null)
+        let cancelled = false
 
-        if (postToEdit) {
-            setGlobalCaption(postToEdit.content || '')
-            setGlobalMedia(postToEdit.media_urls || [])
-            if (postToEdit.scheduled_for) setScheduledAt(new Date(postToEdit.scheduled_for))
-            return
-        }
+        queueMicrotask(() => {
+            if (cancelled) return
+            setInlineError(null)
+            setIntelligence(null)
 
-        if (initialCaption || (initialMedia && initialMedia.length > 0) || initialDate) {
-            if (initialCaption) setGlobalCaption(initialCaption)
-            if (initialMedia && initialMedia.length > 0) setGlobalMedia(initialMedia)
-            if (initialDate) setScheduledAt(initialDate)
-            return
-        }
-
-        if (typeof window !== 'undefined') {
-            const draftMedia = sessionStorage.getItem('draft_post_media')
-            if (draftMedia) {
-                try {
-                    const parsed = JSON.parse(draftMedia)
-                    if (Array.isArray(parsed) && parsed.length > 0) setGlobalMedia(parsed)
-                } catch { }
-                sessionStorage.removeItem('draft_post_media')
+            if (postToEdit) {
+                setGlobalCaption(postToEdit.content || '')
+                setGlobalMedia(postToEdit.media_urls || [])
+                if (postToEdit.scheduled_for) setScheduledAt(new Date(postToEdit.scheduled_for))
+                return
             }
-            const draftCaption = sessionStorage.getItem('draft_post_caption')
-            if (draftCaption) {
-                setGlobalCaption(draftCaption)
-                sessionStorage.removeItem('draft_post_caption')
+
+            if (initialCaption || (initialMedia && initialMedia.length > 0) || initialDate) {
+                if (initialCaption) setGlobalCaption(initialCaption)
+                if (initialMedia && initialMedia.length > 0) setGlobalMedia(initialMedia)
+                if (initialDate) setScheduledAt(initialDate)
+                return
+            }
+
+            if (typeof window !== 'undefined') {
+                const draftMedia = sessionStorage.getItem('draft_post_media')
+                if (draftMedia) {
+                    try {
+                        const parsed = JSON.parse(draftMedia)
+                        if (Array.isArray(parsed) && parsed.length > 0) setGlobalMedia(parsed)
+                    } catch { }
+                    sessionStorage.removeItem('draft_post_media')
+                }
+                const draftCaption = sessionStorage.getItem('draft_post_caption')
+                if (draftCaption) {
+                    setGlobalCaption(draftCaption)
+                    sessionStorage.removeItem('draft_post_caption')
+                }
             }
         }
-    }, [open])
+        )
+
+        return () => {
+            cancelled = true
+        }
+    }, [open, postToEdit, initialCaption, initialMedia, initialDate])
 
     const handleGenerateImage = async (prompt: string) => {
         setIsGeneratingAI(true)
@@ -236,6 +253,45 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
         } finally {
             setIsRefreshingHashtags(false)
         }
+    }
+
+    const selectedPlatforms = () => (
+        activeTab === 'all'
+            ? ['instagram', 'facebook']
+            : [activeTab === 'facebook' ? 'facebook' : 'instagram']
+    )
+
+    const handleAnalyzeIntelligence = async () => {
+        setIsAnalyzingIntelligence(true)
+        setInlineError(null)
+        try {
+            const res = await fetch('/api/content-intelligence/analyze-post', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    caption: globalCaption,
+                    platforms: selectedPlatforms(),
+                    mediaUrls: globalMedia,
+                    scheduledAt: scheduledAt?.toISOString() || null,
+                }),
+            })
+            const data = await res.json().catch(() => ({}))
+            if (!res.ok) throw new Error(data?.error || 'Failed to analyze post')
+            setIntelligence(data as PostIntelligenceResult)
+        } catch (error) {
+            setInlineError(error instanceof Error ? error.message : 'Failed to analyze post.')
+        } finally {
+            setIsAnalyzingIntelligence(false)
+        }
+    }
+
+    const handleApplyHashtag = (tag: string) => {
+        setGlobalCaption((value) => value.includes(tag) ? value : `${value.trim()} ${tag}`.trim())
+    }
+
+    const handleApplySlot = (iso: string) => {
+        const date = new Date(iso)
+        if (Number.isFinite(date.getTime())) setScheduledAt(date)
     }
 
     const base64ToBlob = (base64: string): Blob => {
@@ -430,6 +486,20 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
                     </div>
                 </div>
 
+                {/* Content Intelligence */}
+                <ContentIntelligenceSummary
+                    result={intelligence}
+                    loading={isAnalyzingIntelligence}
+                    onAnalyze={handleAnalyzeIntelligence}
+                />
+                <ContentIntelligencePanel
+                    result={intelligence}
+                    loading={isAnalyzingIntelligence}
+                    onAnalyze={handleAnalyzeIntelligence}
+                    onApplyHashtag={handleApplyHashtag}
+                    onApplySlot={handleApplySlot}
+                />
+
                 {/* Hashtags */}
                 <div>
                     <div className="flex items-center gap-2 mb-1.5">
@@ -467,7 +537,12 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
             {/* ── Footer ── */}
             <div className="shrink-0 border-t border-white/10 bg-[#1b1d28]/60 px-3 sm:px-4 py-3 space-y-2.5 pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
                 {/* Scheduling */}
-                <SchedulingControls scheduledAt={scheduledAt} onChange={setScheduledAt} />
+                <SchedulingControls
+                    scheduledAt={scheduledAt}
+                    onChange={setScheduledAt}
+                    caption={globalCaption}
+                    platforms={selectedPlatforms()}
+                />
 
                 {/* Validation warnings */}
                 {instagramNeedsMedia && (

@@ -1,21 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { Facebook, Instagram, ChevronLeft, ChevronRight, GripVertical, Plus } from "lucide-react"
+import { Facebook, Instagram, ChevronLeft, ChevronRight, GripVertical, Plus, Clock, Sparkles } from "lucide-react"
+import { classifySlotStrength } from "@/lib/content-intelligence/timing"
+import type { RecommendedSlot } from "@/lib/content-intelligence/types"
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip"
 import {
     DndContext,
     DragOverlay,
@@ -25,6 +21,7 @@ import {
     useSensor,
     useSensors,
     DragEndEvent,
+    DragOverEvent,
     DragStartEvent,
     useDroppable,
     useDraggable
@@ -58,8 +55,8 @@ const CAL_THEME = {
 }
 
 // Draggable Post Badge Component
-function DraggablePostBadge({ post, index }: { post: CalendarPost, index: number }) {
-    const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+function DraggablePostBadge({ post }: { post: CalendarPost }) {
+    const { attributes, listeners, setNodeRef, transform } = useDraggable({
         id: `post-${post.id}`,
         data: { post }
     })
@@ -132,7 +129,9 @@ function DroppableCalendarCell({
     currentYear,
     currentMonth,
     isOver,
-    onAddPost
+    onAddPost,
+    recommendedSlots = [],
+    onAddRecommendedPost
 }: {
     day: number | null
     cellIndex: number
@@ -144,6 +143,8 @@ function DroppableCalendarCell({
     currentMonth: number
     isOver: boolean
     onAddPost?: (date: Date) => void
+    recommendedSlots?: RecommendedSlot[]
+    onAddRecommendedPost?: (slot: RecommendedSlot) => void
 }) {
     // Only make cell droppable if it's not a past date
     const { setNodeRef } = useDroppable({
@@ -151,6 +152,16 @@ function DroppableCalendarCell({
         data: { day, month: currentMonth, year: currentYear },
         disabled: isPast
     })
+    const topSlot = recommendedSlots[0] || null
+    const slotTone = topSlot?.score && topSlot.score >= 80 ? "strong" : topSlot?.score && topSlot.score >= 60 ? "okay" : topSlot ? "weak" : null
+    const slotAccent =
+        slotTone === "strong"
+            ? "rgba(16,185,129,0.28)"
+            : slotTone === "okay"
+                ? "rgba(245,158,11,0.22)"
+                : slotTone === "weak"
+                    ? "rgba(255,255,255,0.12)"
+                    : "transparent"
 
     return (
         <div
@@ -159,7 +170,11 @@ function DroppableCalendarCell({
                 "min-h-[60px] sm:min-h-[100px] p-1 sm:p-2 relative transition-colors flex flex-col gap-1 group"
             )}
             style={{
-                background: !isCurrentMonth ? "rgba(255,255,255,0.015)" : CAL_THEME.panelAlt,
+                background: !isCurrentMonth
+                    ? "rgba(255,255,255,0.015)"
+                    : topSlot
+                        ? `linear-gradient(180deg, ${slotAccent}, rgba(16,17,26,0.98) 42%)`
+                        : CAL_THEME.panelAlt,
                 opacity: isPast ? 0.6 : 1,
                 cursor: isPast ? "not-allowed" : undefined,
                 boxShadow: isToday ? "inset 0 0 0 1px rgba(34,211,238,0.35)" : undefined,
@@ -180,6 +195,63 @@ function DroppableCalendarCell({
                             {day}
                         </span>
                         <div className="flex items-center gap-1">
+                            {topSlot && (
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                        <button
+                                            type="button"
+                                            className="flex h-5 max-w-[72px] items-center gap-1 rounded px-1 text-[10px] font-medium"
+                                            style={{
+                                                background: slotTone === "strong" ? "rgba(16,185,129,0.12)" : "rgba(245,158,11,0.10)",
+                                                color: slotTone === "strong" ? "#86efac" : "#fbbf24",
+                                            }}
+                                            onClick={(event) => {
+                                                event.preventDefault()
+                                                event.stopPropagation()
+                                            }}
+                                            title="Recommended time"
+                                        >
+                                            <Clock className="h-3 w-3 shrink-0" />
+                                            <span className="hidden sm:inline">
+                                                {new Date(topSlot.startsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                                            </span>
+                                        </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-64 p-0 text-sm">
+                                        <div className="space-y-3 p-3" style={{ background: CAL_THEME.panel }}>
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-semibold" style={{ color: CAL_THEME.text }}>Recommended window</p>
+                                                    <p className="text-xs capitalize" style={{ color: CAL_THEME.textMuted }}>{topSlot.confidence} confidence</p>
+                                                </div>
+                                                <span className="rounded px-2 py-1 text-xs font-semibold" style={{ background: "rgba(16,185,129,0.12)", color: "#86efac" }}>
+                                                    {topSlot.score}
+                                                </span>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {recommendedSlots.slice(0, 2).map((slot) => (
+                                                    <button
+                                                        key={slot.startsAt}
+                                                        type="button"
+                                                        className="w-full rounded border px-2 py-2 text-left transition-colors hover:bg-white/[0.04]"
+                                                        style={{ borderColor: CAL_THEME.border }}
+                                                        onClick={(event) => {
+                                                            event.preventDefault()
+                                                            event.stopPropagation()
+                                                            onAddRecommendedPost?.(slot)
+                                                        }}
+                                                    >
+                                                        <span className="block text-xs font-medium" style={{ color: CAL_THEME.text }}>
+                                                            {new Date(slot.startsAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                                                        </span>
+                                                        <span className="line-clamp-2 text-[11px]" style={{ color: CAL_THEME.textMuted }}>{slot.reason}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                            )}
                             {posts.length > 0 && (
                                 <span
                                     className="text-[10px] px-1 rounded-sm font-medium"
@@ -208,8 +280,8 @@ function DroppableCalendarCell({
                     </div>
 
                     <div className="flex flex-wrap content-start gap-1 mt-1">
-                        {posts.map((post, idx) => (
-                            <DraggablePostBadge key={post.id} post={post} index={idx} />
+                        {posts.map((post) => (
+                            <DraggablePostBadge key={post.id} post={post} />
                         ))}
                     </div>
                 </>
@@ -224,6 +296,9 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
     const [overId, setOverId] = useState<string | null>(null)
     const [localPosts, setLocalPosts] = useState<CalendarPost[]>(posts)
     const [today, setToday] = useState<Date | null>(null)
+    const [recommendedSlots, setRecommendedSlots] = useState<RecommendedSlot[]>([])
+    const [isLoadingSlots, setIsLoadingSlots] = useState(false)
+    const [slotsError, setSlotsError] = useState<string | null>(null)
 
     // Modal State
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -234,15 +309,70 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
 
     // Initialize date client-side only to avoid hydration mismatch
     useEffect(() => {
-        const now = new Date()
-        setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1))
-        setToday(now)
+        const frame = window.requestAnimationFrame(() => {
+            const now = new Date()
+            setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1))
+            setToday(now)
+        })
+        return () => window.cancelAnimationFrame(frame)
     }, [])
 
     // Sync local state when props change (e.g., after router.refresh())
     useEffect(() => {
-        setLocalPosts(posts)
+        queueMicrotask(() => setLocalPosts(posts))
     }, [posts])
+
+    const visibleRange = useMemo(() => {
+        if (!currentDate) return null
+        const start = new Date(Date.UTC(currentDate.getFullYear(), currentDate.getMonth(), 1, 0, 0, 0, 0))
+        const end = new Date(Date.UTC(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999))
+        return { start, end }
+    }, [currentDate])
+
+    const slotsByDay = useMemo(() => {
+        const map = new Map<string, RecommendedSlot[]>()
+        for (const slot of recommendedSlots) {
+            const date = new Date(slot.startsAt)
+            const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+            const existing = map.get(key) || []
+            existing.push(slot)
+            map.set(key, existing.sort((a, b) => b.score - a.score))
+        }
+        return map
+    }, [recommendedSlots])
+
+    useEffect(() => {
+        if (!visibleRange) return
+
+        let cancelled = false
+        const loadSlots = async () => {
+            setIsLoadingSlots(true)
+            setSlotsError(null)
+            try {
+                const params = new URLSearchParams({
+                    start: visibleRange.start.toISOString(),
+                    end: visibleRange.end.toISOString(),
+                    limitPerDay: "2",
+                })
+                const response = await fetch(`/api/content-intelligence/recommend-slots?${params.toString()}`)
+                const data = await response.json().catch(() => ({}))
+                if (!response.ok) throw new Error(data?.error || "Failed to load recommended slots")
+                if (!cancelled) setRecommendedSlots(Array.isArray(data?.slots) ? data.slots : [])
+            } catch (error) {
+                if (!cancelled) {
+                    setRecommendedSlots([])
+                    setSlotsError(error instanceof Error ? error.message : "Failed to load recommended slots")
+                }
+            } finally {
+                if (!cancelled) setIsLoadingSlots(false)
+            }
+        }
+
+        loadSlots()
+        return () => {
+            cancelled = true
+        }
+    }, [visibleRange])
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -276,6 +406,10 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
 
     const currentYear = currentDate.getFullYear()
     const currentMonth = currentDate.getMonth()
+    const getSlotsForDay = (day: number | null) => {
+        if (!day) return []
+        return slotsByDay.get(`${currentYear}-${currentMonth}-${day}`) || []
+    }
 
     // Get first day of month (0-6, Sun-Sat)
     const firstDay = new Date(currentYear, currentMonth, 1).getDay()
@@ -333,8 +467,8 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
         setActiveId(event.active.id as string)
     }
 
-    const handleDragOver = (event: any) => {
-        setOverId(event.over?.id || null)
+    const handleDragOver = (event: DragOverEvent) => {
+        setOverId(event.over?.id == null ? null : String(event.over.id))
     }
 
     const handleDragEnd = async (event: DragEndEvent) => {
@@ -369,6 +503,7 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
         newDate.setHours(originalDate.getHours())
         newDate.setMinutes(originalDate.getMinutes())
         newDate.setSeconds(originalDate.getSeconds())
+        const slotStrength = classifySlotStrength(newDate, recommendedSlots)
 
         // Store original posts for potential rollback
         const previousPosts = [...localPosts]
@@ -395,12 +530,17 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
 
             toast({
                 title: "Post rescheduled",
-                description: `Moved to ${newDate.toLocaleDateString()}`,
+                description:
+                    slotStrength.label === "strong"
+                        ? `Moved to a strong recommended window (${slotStrength.score}/100).`
+                        : slotStrength.label === "okay"
+                            ? `Moved to an okay posting window (${slotStrength.score}/100).`
+                            : "Moved outside the strongest recommended windows.",
             })
 
             // Refresh in background to sync with server
             router.refresh()
-        } catch (error) {
+        } catch {
             // Revert optimistic update on error
             setLocalPosts(previousPosts)
             toast({
@@ -418,6 +558,13 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
         setIsCreateModalOpen(true)
     }
 
+    const handleAddRecommendedPost = (slot: RecommendedSlot) => {
+        const date = new Date(slot.startsAt)
+        if (!Number.isFinite(date.getTime())) return
+        setSelectedDate(date)
+        setIsCreateModalOpen(true)
+    }
+
     return (
         <>
             <DndContext
@@ -429,8 +576,16 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
             >
                 <Card style={{ background: CAL_THEME.panel, border: `1px solid ${CAL_THEME.border}`, boxShadow: "0 14px 34px rgba(0,0,0,0.16)" }}>
                     <CardHeader style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                            <CardTitle className="font-bold text-lg sm:text-xl" style={{ color: CAL_THEME.text }}>Content Calendar</CardTitle>
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0 space-y-1">
+                                <CardTitle className="font-bold text-lg sm:text-xl" style={{ color: CAL_THEME.text }}>Content Calendar</CardTitle>
+                                <div className="flex min-w-0 items-center gap-2 text-xs" style={{ color: slotsError ? CAL_THEME.coral : CAL_THEME.textMuted }}>
+                                    <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="min-w-0">
+                                        {slotsError ? "Recommendations unavailable" : isLoadingSlots ? "Loading recommended windows" : "Recommended windows shown by score"}
+                                    </span>
+                                </div>
+                            </div>
                             <div className="flex items-center gap-2">
                                 <Button
                                     variant="outline"
@@ -507,6 +662,8 @@ export function CalendarView({ posts, workspaceId }: CalendarViewProps) {
                                     currentMonth={currentMonth}
                                     isOver={overId === (cell.day ? `cell-${currentYear}-${currentMonth}-${cell.day}` : '')}
                                     onAddPost={handleAddPost}
+                                    recommendedSlots={getSlotsForDay(cell.day)}
+                                    onAddRecommendedPost={handleAddRecommendedPost}
                                 />
                             ))}
                         </div>

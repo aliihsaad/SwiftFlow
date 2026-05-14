@@ -93,6 +93,7 @@ type KeyActionTarget = {
 const defaultScopes: DeveloperApiScope[] = [
   "workspace:read",
   "brand:read",
+  "media:upload",
   "posts:read",
   "posts:create",
   "automations:read",

@@ -36,6 +36,14 @@ const SCOPE_CAPABILITIES: Record<DeveloperApiScope, { label: string; capability:
       description: "Read and update workspace brand profile fields.",
     },
   },
+  "media:upload": {
+    label: "Upload media",
+    capability: {
+      area: "Media",
+      level: "write",
+      description: "Upload image or video media into the public post media bucket and return a URL for post mediaUrls.",
+    },
+  },
   "posts:read": {
     label: "Read posts",
     capability: {

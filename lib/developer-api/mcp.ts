@@ -191,6 +191,22 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
     annotations: { destructiveHint: true, openWorldHint: false },
   }),
   secureTool({
+    name: "swiftflow_upload_media",
+    title: "Upload media",
+    description: "Upload base64 image or video media into SwiftFlow post_media storage and return a public URL that can be used in post mediaUrls.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        base64: { type: "string", description: "Raw base64 media or a data URL like data:image/png;base64,..." },
+        mimeType: { type: "string", description: "Required for raw base64. Supported examples: image/png, image/jpeg, image/webp, image/gif, video/mp4, video/webm." },
+        fileName: { type: "string", description: "Optional original filename for context." },
+      },
+      required: ["base64"],
+      additionalProperties: false,
+    },
+    annotations: { openWorldHint: false },
+  }),
+  secureTool({
     name: "swiftflow_list_automations",
     title: "List automations",
     description: "List workspace automations and their active state.",
@@ -370,6 +386,8 @@ function mapToolCall(name: string, rawArgs: unknown): DeveloperMcpApiRequest {
       const id = encodeURIComponent(requiredString(args, "id"))
       return { method: "DELETE", path: `/api/developer/v1/posts/drafts/${id}` }
     }
+    case "swiftflow_upload_media":
+      return { method: "POST", path: "/api/developer/v1/media", body: args }
     case "swiftflow_list_automations":
       return { method: "GET", path: "/api/developer/v1/automations" }
     case "swiftflow_list_social_accounts": {

@@ -4,6 +4,7 @@ export const DEVELOPER_API_SCOPE_VALUES = [
   "workspace:read",
   "brand:read",
   "brand:write",
+  "media:upload",
   "posts:read",
   "posts:create",
   "posts:schedule",

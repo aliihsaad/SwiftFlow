@@ -90,6 +90,30 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
           responses: { "200": { description: "Post deleted" }, "404": { description: "Draft or scheduled post not found" } },
         },
       },
+      "/media": {
+        post: {
+          summary: "Upload post media",
+          description: "Required scope: media:upload. Uploads raw base64 or data URL media into the public post_media bucket and returns a public URL for post mediaUrls.",
+          "x-required-scopes": ["media:upload"],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["base64"],
+                  properties: {
+                    base64: { type: "string", description: "Raw base64 media or data URL." },
+                    mimeType: { type: "string", description: "Required for raw base64." },
+                    fileName: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+          responses: { "201": { description: "Media uploaded" }, "400": { description: "Invalid media payload" }, "401": { description: "Unauthorized" }, "403": { description: "Forbidden" } },
+        },
+      },
       "/social-accounts": {
         get: {
           summary: "List connected social accounts",

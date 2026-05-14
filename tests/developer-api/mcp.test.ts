@@ -61,6 +61,21 @@ describe("developer API MCP bridge", () => {
     }))
   })
 
+  it("advertises media upload for post media URLs", () => {
+    expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
+      name: "swiftflow_upload_media",
+      title: "Upload media",
+      inputSchema: expect.objectContaining({
+        properties: expect.objectContaining({
+          base64: expect.objectContaining({ type: "string" }),
+          mimeType: expect.objectContaining({ type: "string" }),
+          fileName: expect.objectContaining({ type: "string" }),
+        }),
+        required: ["base64"],
+      }),
+    }))
+  })
+
   it("advertises automation discovery helpers and workflow graph fields", () => {
     expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
       name: "swiftflow_list_social_accounts",
@@ -151,6 +166,45 @@ describe("developer API MCP bridge", () => {
       id: "automation-discovery",
       result: {
         structuredContent: { accounts: [{ id: "account-1", platform: "instagram" }] },
+      },
+    })
+  })
+
+  it("maps media uploads to the developer API media endpoint", async () => {
+    const calls: DeveloperMcpApiRequest[] = []
+    const response = await handleDeveloperMcpJsonRpc({
+      jsonrpc: "2.0",
+      id: "media-upload",
+      method: "tools/call",
+      params: {
+        name: "swiftflow_upload_media",
+        arguments: {
+          base64: "aGVsbG8=",
+          mimeType: "image/png",
+          fileName: "post.png",
+        },
+      },
+    }, {
+      callDeveloperApi: async (request) => {
+        calls.push(request)
+        return { publicUrl: "https://cdn.example.test/post_media/post.png" }
+      },
+    })
+
+    expect(calls).toEqual([{
+      method: "POST",
+      path: "/api/developer/v1/media",
+      body: {
+        base64: "aGVsbG8=",
+        mimeType: "image/png",
+        fileName: "post.png",
+      },
+    }])
+    expect(response).toMatchObject({
+      jsonrpc: "2.0",
+      id: "media-upload",
+      result: {
+        structuredContent: { publicUrl: "https://cdn.example.test/post_media/post.png" },
       },
     })
   })

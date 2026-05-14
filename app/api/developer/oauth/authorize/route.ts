@@ -73,8 +73,8 @@ export async function GET(request: NextRequest) {
 </head>
 <body style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:#090a12;color:#fff;margin:0;display:grid;min-height:100vh;place-items:center">
   <main style="width:min(520px,calc(100vw - 32px));border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#151620;padding:24px">
-    <h1 style="margin:0 0 8px">Connect SwiftFlow to ChatGPT</h1>
-    <p style="color:rgba(255,255,255,.68);line-height:1.5">Paste a SwiftFlow Developer API key. ChatGPT will receive a short-lived OAuth token, not the original API key.</p>
+    <h1 style="margin:0 0 8px">Connect SwiftFlow</h1>
+    <p style="color:rgba(255,255,255,.68);line-height:1.5">Paste a SwiftFlow Developer API key. Your connector will receive a short-lived OAuth token, not the original API key.</p>
     <form method="post" style="display:grid;gap:14px;margin-top:18px">
       ${hiddenFields}
       <label style="display:grid;gap:6px;font-size:14px;color:rgba(255,255,255,.75)">

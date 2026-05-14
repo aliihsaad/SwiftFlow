@@ -393,7 +393,7 @@ export function DeveloperApiView() {
             </pre>
             <div className="mt-3 grid gap-2 text-xs text-white/55">
               <p>Store the key in the local environment as SWIFTFLOW_API_KEY. Do not paste the secret into config files or source control.</p>
-              <p>ChatGPT connector support uses the same MCP endpoint with OAuth linking. For the smoothest setup, add or reconnect SwiftFlow from ChatGPT in a desktop browser, then use it on desktop or mobile after it is linked.</p>
+              <p>Claude Desktop and ChatGPT use the same MCP endpoint with OAuth linking. For the smoothest setup, add or reconnect SwiftFlow from the desktop browser experience first, then use it on desktop or mobile after it is linked.</p>
             </div>
           </div>
         </CardContent>
@@ -507,7 +507,7 @@ export function DeveloperApiView() {
             <AlertDialogDescription className="text-white/55">
               {confirmKeyAction?.action === "delete"
                 ? "This removes the revoked key record from Settings. Existing requests using this key are already blocked."
-                : "This immediately blocks Codex, ChatGPT, scripts, and other clients using this key."}
+                : "This immediately blocks Codex, Claude, ChatGPT, scripts, and other clients using this key."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {confirmKeyAction && (

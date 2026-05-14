@@ -66,7 +66,7 @@ describe("developer API OAuth routes", () => {
 
     expect(response.status).toBe(201)
     await expect(response.json()).resolves.toMatchObject({
-      client_id: expect.stringMatching(/^chatgpt-swiftflow-/),
+      client_id: expect.stringMatching(/^swiftflow-mcp-/),
       client_name: "SwiftFlow Test",
       redirect_uris: ["https://chatgpt.com/connector/oauth/callback-test"],
       token_endpoint_auth_method: "none",

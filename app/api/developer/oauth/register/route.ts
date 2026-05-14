@@ -23,9 +23,9 @@ async function readRegistrationMetadata(request: NextRequest): Promise<Registrat
 export async function POST(request: NextRequest) {
   const metadata = await readRegistrationMetadata(request)
   return NextResponse.json({
-    client_id: `chatgpt-swiftflow-${randomUUID()}`,
+    client_id: `swiftflow-mcp-${randomUUID()}`,
     client_id_issued_at: Math.floor(Date.now() / 1000),
-    client_name: metadata.client_name || "ChatGPT SwiftFlow Connector",
+    client_name: metadata.client_name || "SwiftFlow MCP Connector",
     redirect_uris: Array.isArray(metadata.redirect_uris) ? metadata.redirect_uris : [],
     scope: metadata.scope || getDeveloperOAuthScope(),
     token_endpoint_auth_method: metadata.token_endpoint_auth_method === "none" ? "none" : "none",

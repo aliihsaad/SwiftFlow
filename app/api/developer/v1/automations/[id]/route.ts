@@ -3,6 +3,7 @@ import { createAdminClient } from "@/utils/supabase/admin"
 import { assertJsonBodySize, assertUuid } from "@/lib/security/phase1-validation"
 import { withDeveloperApiAuth } from "@/lib/developer-api/http"
 import { validateDeveloperAutomationGraph } from "@/lib/developer-api/automation-graph"
+import { buildDeveloperAutomationGraphFromTemplate } from "@/lib/developer-api/automation-templates"
 
 export const runtime = "nodejs"
 
@@ -12,6 +13,10 @@ function text(value: unknown, max = 240): string | undefined {
 
 function objectValue(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : undefined
+}
+
+function bodyRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -70,8 +75,40 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (body?.editor_version !== undefined && text(body.editor_version, 40) !== "canvas") {
         return NextResponse.json({ error: "Developer API automations must use editor_version canvas." }, { status: 400 })
       }
-      if (body?.workflow_graph !== undefined) {
-        const graphValidation = validateDeveloperAutomationGraph(body.workflow_graph, { requirePostId: true })
+      const admin = createAdminClient()
+      const { data: existing, error: existingError } = await admin
+        .from("automations")
+        .select("id, social_account_id")
+        .eq("id", automationId)
+        .eq("workspace_id", context.workspaceId)
+        .maybeSingle()
+
+      if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 })
+      if (!existing) return NextResponse.json({ error: "Automation not found" }, { status: 404 })
+
+      let workflowGraph = body?.workflow_graph
+      if (workflowGraph === undefined && text(body?.template_id, 120)) {
+        const socialAccountId = text(body?.social_account_id, 80) || text(existing.social_account_id, 80) || ""
+        const { data: account, error: accountError } = await admin
+          .from("social_accounts")
+          .select("id, platform")
+          .eq("id", socialAccountId)
+          .eq("workspace_id", context.workspaceId)
+          .maybeSingle()
+
+        if (accountError) return NextResponse.json({ error: accountError.message }, { status: 500 })
+        if (!account) return NextResponse.json({ error: "Invalid social account for this workspace" }, { status: 400 })
+
+        const templateResult = buildDeveloperAutomationGraphFromTemplate(bodyRecord(body), {
+          socialAccountId,
+          platform: account.platform === "facebook" ? "facebook" : "instagram",
+        })
+        if (templateResult.error) return NextResponse.json({ error: templateResult.error }, { status: 400 })
+        workflowGraph = templateResult.graph
+      }
+
+      if (workflowGraph !== undefined) {
+        const graphValidation = validateDeveloperAutomationGraph(workflowGraph, { requirePostId: true })
         if (graphValidation.errors.length > 0 || !graphValidation.summary) {
           return NextResponse.json({
             error: "Invalid workflow_graph",
@@ -90,7 +127,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         update.editor_version = "canvas"
       }
 
-      const admin = createAdminClient()
       if (graphSocialAccountId) {
         const { data: account, error: accountError } = await admin
           .from("social_accounts")
@@ -130,14 +166,21 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       const { id } = await params
       const automationId = assertUuid(id, "automation id")
       const admin = createAdminClient()
-      const { error } = await admin
+      const { data, error } = await admin
         .from("automations")
         .delete()
         .eq("id", automationId)
         .eq("workspace_id", context.workspaceId)
+        .select()
+        .single()
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-      return NextResponse.json({ success: true })
+      if (error) {
+        if (/No rows|not found|PGRST116/i.test(error.message)) {
+          return NextResponse.json({ error: "Automation not found" }, { status: 404 })
+        }
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+      return NextResponse.json({ success: true, deleted: true, automation: data })
     },
   )
 }

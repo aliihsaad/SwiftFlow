@@ -34,6 +34,12 @@ function tableRows(table: string) {
 function createQuery(table: string) {
   const filters: Record<string, unknown> = {}
   let insertPayload: Record<string, unknown> | null = null
+  let updatePayload: Record<string, unknown> | null = null
+  let operation: "select" | "insert" | "update" | "delete" = "select"
+
+  const findIndex = () => tableRows(table).findIndex((candidate) => (
+    Object.entries(filters).every(([key, value]) => candidate[key] === value)
+  ))
 
   const query = {
     select: vi.fn(() => query),
@@ -42,17 +48,26 @@ function createQuery(table: string) {
       return query
     }),
     maybeSingle: vi.fn(async () => {
-      const row = tableRows(table).find((candidate) => (
-        Object.entries(filters).every(([key, value]) => candidate[key] === value)
-      ))
+      const index = findIndex()
+      const row = index >= 0 ? tableRows(table)[index] : null
       return { data: row ? { ...row } : null, error: null }
     }),
     insert: vi.fn((payload: Record<string, unknown>) => {
+      operation = "insert"
       insertPayload = payload
       return query
     }),
+    update: vi.fn((payload: Record<string, unknown>) => {
+      operation = "update"
+      updatePayload = payload
+      return query
+    }),
+    delete: vi.fn(() => {
+      operation = "delete"
+      return query
+    }),
     single: vi.fn(async () => {
-      if (insertPayload) {
+      if (operation === "insert" && insertPayload) {
         const row = {
           id: "33333333-3333-4333-8333-333333333333",
           created_at: "2026-05-14T00:00:00.000Z",
@@ -61,6 +76,16 @@ function createQuery(table: string) {
         }
         state.automations.unshift(row)
         return { data: row, error: null }
+      }
+      const index = findIndex()
+      if (index < 0) return { data: null, error: { message: "No rows found" } }
+      if (operation === "update" && updatePayload) {
+        state.automations[index] = { ...state.automations[index], ...updatePayload }
+        return { data: { ...state.automations[index] }, error: null }
+      }
+      if (operation === "delete") {
+        const [deleted] = state.automations.splice(index, 1)
+        return { data: { ...deleted }, error: null }
       }
       return { data: null, error: { message: "Unsupported query" } }
     }),
@@ -137,6 +162,8 @@ async function createAutomation(body: Record<string, unknown>) {
 }
 
 import * as automationRoutes from "@/app/api/developer/v1/automations/route"
+import * as automationDetailRoutes from "@/app/api/developer/v1/automations/[id]/route"
+import * as automationToggleRoutes from "@/app/api/developer/v1/automations/[id]/toggle/route"
 
 describe("developer API automation routes", () => {
   beforeEach(() => {
@@ -336,5 +363,116 @@ describe("developer API automation routes", () => {
         }),
       ]),
     })
+  })
+
+  it("updates existing automations by recompiling stable templates", async () => {
+    const createResponse = await createAutomation({
+      template_id: "tpl-reply-comments-ai",
+      social_account_id: accountId,
+      name: "Template AI reply",
+      post_id: postId,
+      delay_seconds: 30,
+    })
+    expect(createResponse.status).toBe(201)
+    const automationId = String(state.automations[0].id)
+
+    const response = await automationDetailRoutes.PATCH(new NextRequest(`${origin}/api/developer/v1/automations/${automationId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        template_id: "tpl-reply-comments-ai",
+        name: "Updated template automation",
+        post_id: "17895695668004551",
+        delay_seconds: 45,
+        ai_tone: "playful",
+      }),
+    }), { params: Promise.resolve({ id: automationId }) })
+
+    expect(response.status).toBe(200)
+    expect(state.automations[0]).toMatchObject({
+      id: automationId,
+      name: "Updated template automation",
+      platform_post_id: "17895695668004551",
+      editor_version: "canvas",
+    })
+    expect(state.automations[0].workflow_graph).toMatchObject({
+      nodes: expect.arrayContaining([
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: "action_delay",
+            config: expect.objectContaining({
+              duration_value: 45,
+              duration_unit: "seconds",
+            }),
+          }),
+        }),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: "action_ai_response",
+            config: expect.objectContaining({ tone: "playful" }),
+          }),
+        }),
+      ]),
+    })
+  })
+
+  it("returns 404 when updating, toggling, or deleting missing automations", async () => {
+    const missingId = "44444444-4444-4444-8444-444444444444"
+
+    const updateResponse = await automationDetailRoutes.PATCH(new NextRequest(`${origin}/api/developer/v1/automations/${missingId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: "Missing" }),
+    }), { params: Promise.resolve({ id: missingId }) })
+    expect(updateResponse.status).toBe(404)
+
+    const toggleResponse = await automationToggleRoutes.POST(new NextRequest(`${origin}/api/developer/v1/automations/${missingId}/toggle`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ is_active: false }),
+    }), { params: Promise.resolve({ id: missingId }) })
+    expect(toggleResponse.status).toBe(404)
+
+    const deleteResponse = await automationDetailRoutes.DELETE(new NextRequest(`${origin}/api/developer/v1/automations/${missingId}`, {
+      method: "DELETE",
+    }), { params: Promise.resolve({ id: missingId }) })
+    expect(deleteResponse.status).toBe(404)
+  })
+
+  it("toggles and deletes existing automations with confirmation-friendly responses", async () => {
+    const createResponse = await createAutomation({
+      social_account_id: accountId,
+      name: "Comment AI reply",
+      workflow_graph: validCommentAiGraph(),
+    })
+    expect(createResponse.status).toBe(201)
+    const automationId = String(state.automations[0].id)
+
+    const toggleResponse = await automationToggleRoutes.POST(new NextRequest(`${origin}/api/developer/v1/automations/${automationId}/toggle`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ is_active: false }),
+    }), { params: Promise.resolve({ id: automationId }) })
+
+    expect(toggleResponse.status).toBe(200)
+    await expect(toggleResponse.json()).resolves.toMatchObject({
+      automation: {
+        id: automationId,
+        is_active: false,
+      },
+    })
+
+    const deleteResponse = await automationDetailRoutes.DELETE(new NextRequest(`${origin}/api/developer/v1/automations/${automationId}`, {
+      method: "DELETE",
+    }), { params: Promise.resolve({ id: automationId }) })
+
+    expect(deleteResponse.status).toBe(200)
+    await expect(deleteResponse.json()).resolves.toMatchObject({
+      deleted: true,
+      automation: {
+        id: automationId,
+      },
+    })
+    expect(state.automations).toHaveLength(0)
   })
 })

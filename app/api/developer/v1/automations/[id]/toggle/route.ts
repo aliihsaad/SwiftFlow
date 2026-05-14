@@ -23,6 +23,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
 
       const admin = createAdminClient()
+      const { data: existing, error: existingError } = await admin
+        .from("automations")
+        .select("id")
+        .eq("id", automationId)
+        .eq("workspace_id", context.workspaceId)
+        .maybeSingle()
+
+      if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 })
+      if (!existing) return NextResponse.json({ error: "Automation not found" }, { status: 404 })
+
       const { data, error } = await admin
         .from("automations")
         .update({ is_active: body.is_active, updated_at: new Date().toISOString() })

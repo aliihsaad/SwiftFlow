@@ -324,6 +324,80 @@ describe("developer API MCP bridge", () => {
     })
   })
 
+  it("maps automation update, toggle, and delete tools to developer API requests", async () => {
+    const calls: DeveloperMcpApiRequest[] = []
+    const context = {
+      callDeveloperApi: async (request: DeveloperMcpApiRequest) => {
+        calls.push(request)
+        return { ok: true }
+      },
+    }
+
+    await handleDeveloperMcpJsonRpc({
+      jsonrpc: "2.0",
+      id: "automation-update",
+      method: "tools/call",
+      params: {
+        name: "swiftflow_update_automation",
+        arguments: {
+          id: "33333333-3333-4333-8333-333333333333",
+          template_id: "tpl-reply-comments-ai",
+          name: "Updated template automation",
+          post_id: "17895695668004551",
+          delay_seconds: 45,
+        },
+      },
+    }, context)
+
+    await handleDeveloperMcpJsonRpc({
+      jsonrpc: "2.0",
+      id: "automation-toggle",
+      method: "tools/call",
+      params: {
+        name: "swiftflow_toggle_automation",
+        arguments: {
+          id: "33333333-3333-4333-8333-333333333333",
+          is_active: false,
+        },
+      },
+    }, context)
+
+    await handleDeveloperMcpJsonRpc({
+      jsonrpc: "2.0",
+      id: "automation-delete",
+      method: "tools/call",
+      params: {
+        name: "swiftflow_delete_automation",
+        arguments: {
+          id: "33333333-3333-4333-8333-333333333333",
+        },
+      },
+    }, context)
+
+    expect(calls).toEqual([
+      {
+        method: "PATCH",
+        path: "/api/developer/v1/automations/33333333-3333-4333-8333-333333333333",
+        body: {
+          template_id: "tpl-reply-comments-ai",
+          name: "Updated template automation",
+          post_id: "17895695668004551",
+          delay_seconds: 45,
+          editor_version: "canvas",
+        },
+      },
+      {
+        method: "POST",
+        path: "/api/developer/v1/automations/33333333-3333-4333-8333-333333333333/toggle",
+        body: { is_active: false },
+      },
+      {
+        method: "DELETE",
+        path: "/api/developer/v1/automations/33333333-3333-4333-8333-333333333333",
+      },
+    ])
+  })
+
   it("maps media uploads to the developer API media endpoint", async () => {
     const calls: DeveloperMcpApiRequest[] = []
     const response = await handleDeveloperMcpJsonRpc({

@@ -3,6 +3,7 @@ import crypto from "node:crypto"
 const OAUTH_SCOPE = "swiftflow.developer_api"
 const CODE_TTL_SECONDS = 10 * 60
 const ACCESS_TOKEN_TTL_SECONDS = 60 * 60
+const REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60
 
 type DeveloperOAuthPayload = {
   apiKey: string
@@ -17,12 +18,21 @@ type DeveloperOAuthCodePayload = DeveloperOAuthPayload & {
   codeChallenge: string
 }
 
+type DeveloperOAuthRefreshPayload = DeveloperOAuthPayload & {
+  clientId: string
+}
+
 type CreateOAuthCodeInput = Omit<DeveloperOAuthCodePayload, "exp"> & {
   pepper: string
   now?: number
 }
 
 type CreateOAuthAccessTokenInput = Omit<DeveloperOAuthPayload, "exp"> & {
+  pepper: string
+  now?: number
+}
+
+type CreateOAuthRefreshTokenInput = Omit<DeveloperOAuthRefreshPayload, "exp"> & {
   pepper: string
   now?: number
 }
@@ -85,7 +95,7 @@ export function buildDeveloperOAuthAuthorizationServerMetadata(origin: string) {
     token_endpoint: `${baseUrl}/api/developer/oauth/token`,
     registration_endpoint: `${baseUrl}/api/developer/oauth/register`,
     response_types_supported: ["code"],
-    grant_types_supported: ["authorization_code"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
     code_challenge_methods_supported: ["S256"],
     token_endpoint_auth_methods_supported: ["none"],
     scopes_supported: [OAUTH_SCOPE],
@@ -126,6 +136,20 @@ export function verifyDeveloperOAuthAccessToken(token: string, pepper: string): 
   return decryptPayload<DeveloperOAuthPayload>(token, "sf_oauth_access", pepper)
 }
 
+export function createDeveloperOAuthRefreshToken(input: CreateOAuthRefreshTokenInput): string {
+  return encryptPayload("sf_oauth_refresh", {
+    apiKey: input.apiKey,
+    clientId: input.clientId,
+    scope: input.scope,
+    resource: normalizeDeveloperOAuthResource(input.resource),
+    exp: (input.now ?? Math.floor(Date.now() / 1000)) + REFRESH_TOKEN_TTL_SECONDS,
+  }, input.pepper)
+}
+
+export function verifyDeveloperOAuthRefreshToken(token: string, pepper: string): DeveloperOAuthRefreshPayload {
+  return decryptPayload<DeveloperOAuthRefreshPayload>(token, "sf_oauth_refresh", pepper)
+}
+
 export function verifyPkceChallenge(verifier: string, challenge: string): boolean {
   if (!verifier || !challenge) return false
   const digest = crypto.createHash("sha256").update(verifier).digest("base64url")
@@ -139,4 +163,8 @@ export function getDeveloperOAuthScope() {
 
 export function getDeveloperOAuthAccessTokenTtlSeconds() {
   return ACCESS_TOKEN_TTL_SECONDS
+}
+
+export function getDeveloperOAuthRefreshTokenTtlSeconds() {
+  return REFRESH_TOKEN_TTL_SECONDS
 }

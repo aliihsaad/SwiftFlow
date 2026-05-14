@@ -5,8 +5,10 @@ import {
   buildDeveloperMcpAuthChallenge,
   createDeveloperOAuthCode,
   createDeveloperOAuthAccessToken,
+  createDeveloperOAuthRefreshToken,
   verifyDeveloperOAuthAccessToken,
   verifyDeveloperOAuthCode,
+  verifyDeveloperOAuthRefreshToken,
   verifyPkceChallenge,
 } from "@/lib/developer-api/oauth"
 
@@ -26,6 +28,7 @@ describe("developer API OAuth connector helpers", () => {
       token_endpoint: `${origin}/api/developer/oauth/token`,
       registration_endpoint: `${origin}/api/developer/oauth/register`,
       code_challenge_methods_supported: ["S256"],
+      grant_types_supported: ["authorization_code", "refresh_token"],
     })
     expect(buildDeveloperMcpAuthChallenge(origin)).toContain(`${origin}/.well-known/oauth-protected-resource`)
   })
@@ -67,6 +70,25 @@ describe("developer API OAuth connector helpers", () => {
       apiKey: "sf_live_test_key",
       scope: "swiftflow.developer_api",
       resource: `${origin}/api/developer/mcp`,
+    })
+  })
+
+  it("creates refresh tokens that can preserve the connector grant beyond access token expiry", () => {
+    const refreshToken = createDeveloperOAuthRefreshToken({
+      apiKey: "sf_live_test_key",
+      scope: "swiftflow.developer_api",
+      resource: `${origin}/api/developer/mcp`,
+      clientId: "chatgpt-test-client",
+      pepper,
+    })
+
+    expect(refreshToken).toMatch(/^sf_oauth_refresh\./)
+    expect(refreshToken).not.toContain("sf_live_test_key")
+    expect(verifyDeveloperOAuthRefreshToken(refreshToken, pepper)).toMatchObject({
+      apiKey: "sf_live_test_key",
+      scope: "swiftflow.developer_api",
+      resource: `${origin}/api/developer/mcp`,
+      clientId: "chatgpt-test-client",
     })
   })
 })

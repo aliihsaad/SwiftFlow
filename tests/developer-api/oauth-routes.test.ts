@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { POST as authorizePost } from "@/app/api/developer/oauth/authorize/route"
 import { POST as tokenPost } from "@/app/api/developer/oauth/token/route"
 import { POST as registerPost } from "@/app/api/developer/oauth/register/route"
-import { createDeveloperOAuthCode } from "@/lib/developer-api/oauth"
+import { createDeveloperOAuthCode, createDeveloperOAuthRefreshToken } from "@/lib/developer-api/oauth"
 
 const origin = "https://social.swiftdigital-s.com"
 const pepper = "test-pepper"
@@ -18,6 +18,16 @@ function createCode() {
     clientId: "chatgpt-test-client",
     redirectUri: "https://chatgpt.com/connector/oauth/callback-test",
     codeChallenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+    scope: "swiftflow.developer_api",
+    resource: `${origin}/api/developer/mcp/`,
+    pepper,
+  })
+}
+
+function createRefreshToken() {
+  return createDeveloperOAuthRefreshToken({
+    apiKey: "sf_live_test_key",
+    clientId: "chatgpt-test-client",
     scope: "swiftflow.developer_api",
     resource: `${origin}/api/developer/mcp/`,
     pepper,
@@ -71,7 +81,7 @@ describe("developer API OAuth routes", () => {
       redirect_uris: ["https://chatgpt.com/connector/oauth/callback-test"],
       token_endpoint_auth_method: "none",
       response_types: ["code"],
-      grant_types: ["authorization_code"],
+      grant_types: ["authorization_code", "refresh_token"],
     })
   })
 
@@ -94,6 +104,7 @@ describe("developer API OAuth routes", () => {
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toMatchObject({
       access_token: expect.stringMatching(/^sf_oauth_access\./),
+      refresh_token: expect.stringMatching(/^sf_oauth_refresh\./),
       token_type: "Bearer",
       expires_in: 3600,
       scope: "swiftflow.developer_api",
@@ -115,5 +126,52 @@ describe("developer API OAuth routes", () => {
     }))
 
     expect(response.status).toBe(200)
+  })
+
+  it("refreshes connector access tokens without requiring a new API key", async () => {
+    setPepper()
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 200 }))
+    const body = new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: createRefreshToken(),
+      client_id: "chatgpt-test-client",
+      resource: `${origin}/api/developer/mcp`,
+    })
+
+    const response = await tokenPost(new NextRequest(`${origin}/api/developer/oauth/token`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+    }))
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({
+      access_token: expect.stringMatching(/^sf_oauth_access\./),
+      refresh_token: expect.stringMatching(/^sf_oauth_refresh\./),
+      token_type: "Bearer",
+      expires_in: 3600,
+      scope: "swiftflow.developer_api",
+    })
+  })
+
+  it("rejects refresh when the backing Developer API key is no longer valid", async () => {
+    setPepper()
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 401 }))
+
+    const response = await tokenPost(new NextRequest(`${origin}/api/developer/oauth/token`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        grant_type: "refresh_token",
+        refresh_token: createRefreshToken(),
+        client_id: "chatgpt-test-client",
+      }),
+    }))
+
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({
+      error: "invalid_grant",
+      error_description: "Backing Developer API key is invalid, expired, or revoked",
+    })
   })
 })

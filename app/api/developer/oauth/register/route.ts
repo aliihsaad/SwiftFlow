@@ -9,6 +9,7 @@ type RegistrationMetadata = {
   redirect_uris?: string[]
   scope?: string
   token_endpoint_auth_method?: string
+  grant_types?: string[]
 }
 
 async function readRegistrationMetadata(request: NextRequest): Promise<RegistrationMetadata> {
@@ -30,6 +31,8 @@ export async function POST(request: NextRequest) {
     scope: metadata.scope || getDeveloperOAuthScope(),
     token_endpoint_auth_method: metadata.token_endpoint_auth_method === "none" ? "none" : "none",
     response_types: ["code"],
-    grant_types: ["authorization_code"],
+    grant_types: Array.isArray(metadata.grant_types) && metadata.grant_types.includes("refresh_token")
+      ? Array.from(new Set(["authorization_code", ...metadata.grant_types])).filter((grant) => grant === "authorization_code" || grant === "refresh_token")
+      : ["authorization_code", "refresh_token"],
   }, { status: 201 })
 }

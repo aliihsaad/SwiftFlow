@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import {
   createDeveloperOAuthAccessToken,
+  createDeveloperOAuthRefreshToken,
   getDeveloperOAuthAccessTokenTtlSeconds,
+  getDeveloperOAuthRefreshTokenTtlSeconds,
   normalizeDeveloperOAuthResource,
   verifyDeveloperOAuthCode,
+  verifyDeveloperOAuthRefreshToken,
   verifyPkceChallenge,
 } from "@/lib/developer-api/oauth"
 import { getDeveloperApiKeyPepper } from "@/lib/developer-api/key-format"
@@ -34,11 +37,91 @@ async function readTokenParams(request: NextRequest) {
   return form
 }
 
+async function verifyBackingDeveloperApiKey(origin: string, apiKey: string): Promise<boolean> {
+  const response = await fetch(`${origin}/api/developer/v1/workspace`, {
+    headers: { authorization: `Bearer ${apiKey}` },
+    cache: "no-store",
+  })
+  return response.ok
+}
+
+function tokenResponse(payload: {
+  apiKey: string
+  scope: string
+  resource: string
+  clientId: string
+}) {
+  const pepper = getDeveloperApiKeyPepper()
+  const normalizedResource = normalizeDeveloperOAuthResource(payload.resource)
+  return NextResponse.json({
+    access_token: createDeveloperOAuthAccessToken({
+      apiKey: payload.apiKey,
+      scope: payload.scope,
+      resource: normalizedResource,
+      pepper,
+    }),
+    refresh_token: createDeveloperOAuthRefreshToken({
+      apiKey: payload.apiKey,
+      clientId: payload.clientId,
+      scope: payload.scope,
+      resource: normalizedResource,
+      pepper,
+    }),
+    token_type: "Bearer",
+    expires_in: getDeveloperOAuthAccessTokenTtlSeconds(),
+    refresh_token_expires_in: getDeveloperOAuthRefreshTokenTtlSeconds(),
+    scope: payload.scope,
+  }, {
+    headers: {
+      "cache-control": "no-store",
+    },
+  })
+}
+
 export async function POST(request: NextRequest) {
   const form = await readTokenParams(request)
   const grantType = form.get("grant_type")
-  if (grantType !== "authorization_code") {
-    return tokenError("unsupported_grant_type", "Only authorization_code is supported")
+  if (grantType !== "authorization_code" && grantType !== "refresh_token") {
+    return tokenError("unsupported_grant_type", "Only authorization_code and refresh_token are supported")
+  }
+
+  if (grantType === "refresh_token") {
+    const refreshToken = form.get("refresh_token")
+    const clientId = form.get("client_id")
+    const resource = form.get("resource")
+    if (typeof refreshToken !== "string") {
+      return tokenError("invalid_request", "refresh_token is required")
+    }
+
+    let payload
+    try {
+      payload = verifyDeveloperOAuthRefreshToken(refreshToken, getDeveloperApiKeyPepper())
+    } catch {
+      return tokenError("invalid_grant", "Refresh token is invalid or expired")
+    }
+
+    if (typeof clientId === "string" && clientId && payload.clientId !== clientId) {
+      return tokenError("invalid_grant", "client_id does not match the refresh token")
+    }
+    if (
+      typeof resource === "string"
+      && resource
+      && normalizeDeveloperOAuthResource(payload.resource) !== normalizeDeveloperOAuthResource(resource)
+    ) {
+      return tokenError("invalid_target", "resource does not match the refresh token")
+    }
+
+    const keyWorks = await verifyBackingDeveloperApiKey(request.nextUrl.origin, payload.apiKey)
+    if (!keyWorks) {
+      return tokenError("invalid_grant", "Backing Developer API key is invalid, expired, or revoked")
+    }
+
+    return tokenResponse({
+      apiKey: payload.apiKey,
+      clientId: payload.clientId,
+      scope: payload.scope,
+      resource: payload.resource,
+    })
   }
 
   const code = form.get("code")
@@ -74,21 +157,10 @@ export async function POST(request: NextRequest) {
     return tokenError("invalid_grant", "PKCE verification failed")
   }
 
-  const accessToken = createDeveloperOAuthAccessToken({
+  return tokenResponse({
     apiKey: payload.apiKey,
+    clientId: payload.clientId,
     scope: payload.scope,
-    resource: normalizeDeveloperOAuthResource(payload.resource),
-    pepper: getDeveloperApiKeyPepper(),
-  })
-
-  return NextResponse.json({
-    access_token: accessToken,
-    token_type: "Bearer",
-    expires_in: getDeveloperOAuthAccessTokenTtlSeconds(),
-    scope: payload.scope,
-  }, {
-    headers: {
-      "cache-control": "no-store",
-    },
+    resource: payload.resource,
   })
 }

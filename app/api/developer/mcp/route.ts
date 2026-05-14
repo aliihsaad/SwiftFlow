@@ -11,6 +11,7 @@ import {
 import { getDeveloperApiKeyPepper } from "@/lib/developer-api/key-format"
 
 export const runtime = "nodejs"
+export const maxDuration = 120
 
 type McpJsonRpcRequest = Parameters<typeof handleDeveloperMcpJsonRpc>[0]
 const MCP_PROTOCOL_VERSION = "2025-03-26"

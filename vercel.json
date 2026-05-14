@@ -2,6 +2,12 @@
   "framework": "nextjs",
   "regions": ["iad1"],
   "functions": {
+    "app/api/developer/mcp/route.ts": {
+      "maxDuration": 120
+    },
+    "app/api/developer/v1/media/generate/route.ts": {
+      "maxDuration": 120
+    },
     "app/api/**": {
       "maxDuration": 30
     }

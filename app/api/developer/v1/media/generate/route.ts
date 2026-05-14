@@ -7,6 +7,7 @@ import { getExistingMediaUrls, isJsonRecord } from "@/lib/publishing-automation-
 import { createAdminClient } from "@/utils/supabase/admin"
 
 export const runtime = "nodejs"
+export const maxDuration = 120
 
 const BUCKET = "post_media"
 const POST_SELECT = "id, content, media_urls, platforms, status, scheduled_for, published_at, created_at, updated_at"

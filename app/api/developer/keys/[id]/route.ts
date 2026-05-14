@@ -4,7 +4,10 @@ import { createAdminClient } from "@/utils/supabase/admin"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
 import { assertJsonBodySize, assertUuid } from "@/lib/security/phase1-validation"
-import { canRoleCreateDeveloperApiKey } from "@/lib/developer-api/scopes"
+import {
+  canRoleCreateDeveloperApiKey,
+  normalizeDeveloperApiScopes,
+} from "@/lib/developer-api/scopes"
 
 export const runtime = "nodejs"
 
@@ -54,11 +57,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const keyId = assertUuid(id, "API key id")
     assertJsonBodySize(request, 32 * 1024)
     const body = await request.json().catch(() => ({}))
-    const name = normalizeKeyName(body?.name)
+    const name = body?.name === undefined ? null : normalizeKeyName(body.name)
     const expiresAt = normalizeExpiresAt(body?.expiresAt)
     const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
     if (name !== null) update.name = name
     if (expiresAt !== undefined) update.expires_at = expiresAt
+    if (Array.isArray(body?.scopes)) update.scopes = normalizeDeveloperApiScopes(body.scopes)
 
     const admin = createAdminClient()
     const { data, error } = await admin
@@ -72,7 +76,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ key: data })
   } catch (error) {
-    if (error instanceof Error && /API key name is required|Invalid expiration date|Expiration date must be in the future|Invalid API key id|Request payload too large|Invalid content length/i.test(error.message)) {
+    if (error instanceof Error && /API key name is required|Unsupported developer API scope|At least one developer API scope|Invalid expiration date|Expiration date must be in the future|Invalid API key id|Request payload too large|Invalid content length/i.test(error.message)) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
     const permissionStatus = getWorkspacePermissionErrorStatus(error)

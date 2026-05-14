@@ -77,7 +77,7 @@ const SCOPE_CAPABILITIES: Record<DeveloperApiScope, { label: string; capability:
     },
   },
   "posts:delete": {
-    label: "Delete draft posts",
+    label: "Delete draft or scheduled posts",
     capability: {
       area: "Posts",
       level: "write",
@@ -89,7 +89,7 @@ const SCOPE_CAPABILITIES: Record<DeveloperApiScope, { label: string; capability:
     capability: {
       area: "Automations",
       level: "read",
-      description: "List workspace automations and inspect their active state and configuration.",
+      description: "List workspace automations, connected social account ids, supported node types, and automation configuration.",
     },
   },
   "automations:create": {

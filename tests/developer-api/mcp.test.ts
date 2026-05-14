@@ -61,6 +61,30 @@ describe("developer API MCP bridge", () => {
     }))
   })
 
+  it("advertises automation discovery helpers and workflow graph fields", () => {
+    expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
+      name: "swiftflow_list_social_accounts",
+      title: "List connected social accounts",
+    }))
+    expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
+      name: "swiftflow_get_automation_node_catalog",
+      title: "Get automation node catalog",
+    }))
+    expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
+      name: "swiftflow_create_automation",
+      inputSchema: expect.objectContaining({
+        properties: expect.objectContaining({
+          post_thumbnail_url: expect.objectContaining({ type: "string" }),
+          post_caption: expect.objectContaining({ type: "string" }),
+          workflow_graph: expect.objectContaining({
+            description: expect.stringContaining("Trigger config must include social_account_id"),
+          }),
+          editor_version: expect.objectContaining({ enum: ["wizard", "canvas"] }),
+        }),
+      }),
+    }))
+  })
+
   it("turns tool calls into authenticated developer API requests", async () => {
     const calls: DeveloperMcpApiRequest[] = []
     const response = await handleDeveloperMcpJsonRpc({
@@ -97,6 +121,36 @@ describe("developer API MCP bridge", () => {
       result: {
         structuredContent: { post: { id: "post-1", status: "draft" } },
         content: [{ type: "text", text: expect.stringContaining("post-1") }],
+      },
+    })
+  })
+
+  it("maps automation discovery tools to developer API requests", async () => {
+    const calls: DeveloperMcpApiRequest[] = []
+    const response = await handleDeveloperMcpJsonRpc({
+      jsonrpc: "2.0",
+      id: "automation-discovery",
+      method: "tools/call",
+      params: {
+        name: "swiftflow_list_social_accounts",
+        arguments: { platform: "instagram" },
+      },
+    }, {
+      callDeveloperApi: async (request) => {
+        calls.push(request)
+        return { accounts: [{ id: "account-1", platform: "instagram" }] }
+      },
+    })
+
+    expect(calls).toEqual([{
+      method: "GET",
+      path: "/api/developer/v1/social-accounts?platform=instagram",
+    }])
+    expect(response).toMatchObject({
+      jsonrpc: "2.0",
+      id: "automation-discovery",
+      result: {
+        structuredContent: { accounts: [{ id: "account-1", platform: "instagram" }] },
       },
     })
   })

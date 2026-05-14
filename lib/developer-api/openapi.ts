@@ -39,6 +39,12 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
           "x-required-scopes": ["brand:write"],
           responses: { "200": { description: "Updated brand profile" }, "400": { description: "Invalid payload" }, "401": { description: "Unauthorized" }, "403": { description: "Forbidden" } },
         },
+        patch: {
+          summary: "Partially update brand profile",
+          description: "Required scope: brand:write. Omitted fields are preserved.",
+          "x-required-scopes": ["brand:write"],
+          responses: { "200": { description: "Updated brand profile" }, "400": { description: "Invalid payload" }, "401": { description: "Unauthorized" }, "403": { description: "Forbidden" } },
+        },
       },
       "/posts/drafts": {
         get: {
@@ -75,6 +81,29 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
           "x-required-scopes": ["posts:update"],
           parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
           responses: { "200": { description: "Post updated" }, "400": { description: "Invalid payload" } },
+        },
+        delete: {
+          summary: "Delete draft or scheduled post",
+          description: "Required scope: posts:delete. Published posts cannot be deleted through this endpoint.",
+          "x-required-scopes": ["posts:delete"],
+          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+          responses: { "200": { description: "Post deleted" }, "404": { description: "Draft or scheduled post not found" } },
+        },
+      },
+      "/social-accounts": {
+        get: {
+          summary: "List connected social accounts",
+          description: "Required scope: automations:read. Returns connected Instagram/Facebook ids for automation social_account_id and trigger node config.",
+          "x-required-scopes": ["automations:read"],
+          responses: { "200": { description: "Connected social account list" } },
+        },
+      },
+      "/automation-node-catalog": {
+        get: {
+          summary: "Read automation node catalog",
+          description: "Required scope: automations:read. Returns supported automation node types, graph shape guidance, and temporarily disabled nodes.",
+          "x-required-scopes": ["automations:read"],
+          responses: { "200": { description: "Automation node catalog" } },
         },
       },
       "/analytics/summary": {

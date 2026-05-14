@@ -35,7 +35,7 @@ describe("developer API scope and capability model", () => {
   })
 
   it("turns scopes into readable access capabilities for owners and admins", () => {
-    const capabilities = getDeveloperApiCapabilities(["brand:read", "brand:write", "posts:create", "posts:schedule", "posts:publish_now"])
+    const capabilities = getDeveloperApiCapabilities(["brand:read", "brand:write", "posts:create", "posts:schedule", "posts:publish_now", "posts:delete", "automations:read"])
 
     expect(capabilities.summary).toEqual([
       "Read brand profile",
@@ -43,6 +43,8 @@ describe("developer API scope and capability model", () => {
       "Create posts",
       "Schedule posts",
       "Post now",
+      "Delete draft or scheduled posts",
+      "Read automations",
     ])
     expect(capabilities.access).toContainEqual({
       area: "Brand profile",
@@ -58,6 +60,11 @@ describe("developer API scope and capability model", () => {
       area: "Posts",
       level: "write",
       description: "Queue a post for immediate publishing through connected social accounts.",
+    })
+    expect(capabilities.access).toContainEqual({
+      area: "Automations",
+      level: "read",
+      description: "List workspace automations, connected social account ids, supported node types, and automation configuration.",
     })
   })
 })

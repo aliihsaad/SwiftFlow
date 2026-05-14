@@ -64,6 +64,11 @@ const ID_INPUT_SCHEMA: JsonSchema = {
 }
 
 const OAUTH_SECURITY_SCHEMES = [{ type: "oauth2" as const, scopes: [getDeveloperOAuthScope()] }]
+const WORKFLOW_GRAPH_SCHEMA = {
+  type: "object",
+  description: "Automation workflow graph with { nodes, edges }. Each node data must include type, label, and config. Supported live trigger types are trigger_new_comment, trigger_new_message, and trigger_story_reply. Trigger config must include social_account_id; trigger_new_comment also needs post_id. Supported action node types include action_send_dm, action_private_reply, action_reply_comment, action_delay, action_condition, action_send_email, and action_ai_response. action_http_request and trigger_story_mention are currently disabled for live automations.",
+  additionalProperties: true,
+}
 
 function secureTool(tool: Omit<DeveloperMcpTool, "securitySchemes" | "_meta">): DeveloperMcpTool {
   return {
@@ -193,6 +198,26 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
     annotations: { readOnlyHint: true, openWorldHint: false },
   }),
   secureTool({
+    name: "swiftflow_list_social_accounts",
+    title: "List connected social accounts",
+    description: "List connected Instagram and Facebook account ids that can be used in automation trigger nodes and social_account_id fields.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        platform: { type: "string", enum: ["instagram", "facebook"], description: "Optional platform filter." },
+      },
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  }),
+  secureTool({
+    name: "swiftflow_get_automation_node_catalog",
+    title: "Get automation node catalog",
+    description: "Read the supported automation node types, graph shape, and disabled node types before creating or editing workflow_graph.",
+    inputSchema: EMPTY_INPUT_SCHEMA,
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  }),
+  secureTool({
     name: "swiftflow_get_automation",
     title: "Get automation",
     description: "Read one automation by id.",
@@ -211,10 +236,13 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
         type: { type: "string" },
         is_active: { type: "boolean" },
         platform_post_id: { type: "string" },
+        post_thumbnail_url: { type: "string" },
+        post_caption: { type: "string" },
         trigger_config: { type: "object", additionalProperties: true },
         comment_reply_config: { type: "object", additionalProperties: true },
         dm_config: { type: "object", additionalProperties: true },
-        workflow_graph: { type: "object", additionalProperties: true },
+        workflow_graph: WORKFLOW_GRAPH_SCHEMA,
+        editor_version: { type: "string", enum: ["wizard", "canvas"] },
       },
       required: ["social_account_id", "name"],
       additionalProperties: true,
@@ -231,10 +259,13 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
         id: { type: "string" },
         name: { type: "string" },
         platform_post_id: { type: "string" },
+        post_thumbnail_url: { type: "string" },
+        post_caption: { type: "string" },
         trigger_config: { type: "object", additionalProperties: true },
         comment_reply_config: { type: "object", additionalProperties: true },
         dm_config: { type: "object", additionalProperties: true },
-        workflow_graph: { type: "object", additionalProperties: true },
+        workflow_graph: WORKFLOW_GRAPH_SCHEMA,
+        editor_version: { type: "string", enum: ["wizard", "canvas"] },
       },
       required: ["id"],
       additionalProperties: true,
@@ -341,6 +372,14 @@ function mapToolCall(name: string, rawArgs: unknown): DeveloperMcpApiRequest {
     }
     case "swiftflow_list_automations":
       return { method: "GET", path: "/api/developer/v1/automations" }
+    case "swiftflow_list_social_accounts": {
+      const platform = typeof args.platform === "string" && ["instagram", "facebook"].includes(args.platform)
+        ? `?platform=${encodeURIComponent(args.platform)}`
+        : ""
+      return { method: "GET", path: `/api/developer/v1/social-accounts${platform}` }
+    }
+    case "swiftflow_get_automation_node_catalog":
+      return { method: "GET", path: "/api/developer/v1/automation-node-catalog" }
     case "swiftflow_get_automation": {
       const id = encodeURIComponent(requiredString(args, "id"))
       return { method: "GET", path: `/api/developer/v1/automations/${id}` }

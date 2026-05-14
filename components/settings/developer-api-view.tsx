@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react"
 import useSWR from "swr"
-import { CheckCircle2, Clipboard, Code2, KeyRound, Link2, Lock, Plus, RefreshCw, ShieldCheck, Trash2 } from "lucide-react"
+import { CheckCircle2, Clipboard, Code2, KeyRound, Link2, Lock, Pencil, Plus, RefreshCw, ShieldCheck, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -124,6 +124,9 @@ export function DeveloperApiView() {
   const [createdSecret, setCreatedSecret] = useState<string | null>(null)
   const [confirmKeyAction, setConfirmKeyAction] = useState<KeyActionTarget | null>(null)
   const [pendingKeyAction, setPendingKeyAction] = useState<KeyActionTarget | null>(null)
+  const [editingScopesKeyId, setEditingScopesKeyId] = useState<string | null>(null)
+  const [editingScopes, setEditingScopes] = useState<DeveloperApiScope[]>([])
+  const [savingScopesKeyId, setSavingScopesKeyId] = useState<string | null>(null)
   const {
     data: keysData,
     error: keysError,
@@ -156,6 +159,23 @@ export function DeveloperApiView() {
       : [...current, scope])
   }
 
+  function beginScopeEdit(key: DeveloperApiKey) {
+    setError(null)
+    setEditingScopesKeyId(key.id)
+    setEditingScopes(key.scopes)
+  }
+
+  function cancelScopeEdit() {
+    setEditingScopesKeyId(null)
+    setEditingScopes([])
+  }
+
+  function toggleEditingScope(scope: DeveloperApiScope) {
+    setEditingScopes((current) => current.includes(scope)
+      ? current.filter((item) => item !== scope)
+      : [...current, scope])
+  }
+
   async function createKey() {
     setSaving(true)
     setError(null)
@@ -177,6 +197,26 @@ export function DeveloperApiView() {
       setError(createError instanceof Error ? createError.message : "Failed to create Developer API key")
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function saveKeyScopes(key: DeveloperApiKey) {
+    setSavingScopesKeyId(key.id)
+    setError(null)
+    try {
+      const response = await fetch(`/api/developer/keys/${key.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ scopes: editingScopes }),
+      })
+      const json = await response.json()
+      if (!response.ok) throw new Error(json?.error || "Failed to update key scopes")
+      await Promise.all([reloadKeys(), reloadAudit()])
+      cancelScopeEdit()
+    } catch (scopeError) {
+      setError(scopeError instanceof Error ? scopeError.message : "Failed to update key scopes")
+    } finally {
+      setSavingScopesKeyId(null)
     }
   }
 
@@ -412,24 +452,37 @@ export function DeveloperApiView() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                  <p className="font-semibold text-white/90">{key.name}</p>
+                    <p className="font-semibold text-white/90">{key.name}</p>
                     <Badge variant="outline" className="border-white/15 text-white/65">{key.status}</Badge>
                   </div>
                   <p className="mt-1 font-mono text-xs text-white/45">{key.keyPrefix}...</p>
                   <p className="mt-2 text-xs text-white/45">Expires {formatDate(key.expiresAt)} · Last used {formatDate(key.lastUsedAt)}</p>
                 </div>
                 {key.status === "active" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setConfirmKeyAction({ action: "revoke", key })}
-                    disabled={pendingKeyAction?.key.id === key.id}
-                    className="w-full sm:w-auto"
-                  >
-                    {pendingKeyAction?.key.id === key.id ? <RefreshCw className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
-                    {pendingKeyAction?.key.id === key.id ? "Revoking..." : "Revoke"}
-                  </Button>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => beginScopeEdit(key)}
+                      disabled={pendingKeyAction?.key.id === key.id || savingScopesKeyId === key.id}
+                      className="w-full sm:w-auto"
+                    >
+                      <Pencil className="size-4" />
+                      Edit scopes
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setConfirmKeyAction({ action: "revoke", key })}
+                      disabled={pendingKeyAction?.key.id === key.id || savingScopesKeyId === key.id}
+                      className="w-full sm:w-auto"
+                    >
+                      {pendingKeyAction?.key.id === key.id ? <RefreshCw className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                      {pendingKeyAction?.key.id === key.id ? "Revoking..." : "Revoke"}
+                    </Button>
+                  </div>
                 )}
                 {key.status === "revoked" && (
                   <Button
@@ -450,6 +503,46 @@ export function DeveloperApiView() {
                   <Badge key={item} variant="outline" className="border-cyan-300/20 bg-cyan-300/5 text-cyan-50/75">{item}</Badge>
                 ))}
               </div>
+              {editingScopesKeyId === key.id && (
+                <div className="mt-4 rounded-md border border-cyan-300/20 bg-cyan-300/[0.04] p-3">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-white/90">Edit access scopes</p>
+                      <p className="text-xs text-white/50">Changes apply to this active key on the next API request.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={cancelScopeEdit} disabled={savingScopesKeyId === key.id}>
+                        <X className="size-4" />
+                        Cancel
+                      </Button>
+                      <Button type="button" size="sm" onClick={() => void saveKeyScopes(key)} disabled={savingScopesKeyId === key.id || editingScopes.length === 0}>
+                        {savingScopesKeyId === key.id ? <RefreshCw className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                        {savingScopesKeyId === key.id ? "Saving..." : "Save scopes"}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {(data?.scopeOptions || []).map((option) => {
+                      const selected = editingScopes.includes(option.scope)
+                      return (
+                        <button
+                          key={`${key.id}-${option.scope}`}
+                          type="button"
+                          onClick={() => toggleEditingScope(option.scope)}
+                          disabled={savingScopesKeyId === key.id}
+                          className={`rounded-md border p-3 text-left transition ${selected ? "border-cyan-300/40 bg-cyan-300/10" : "border-white/10 bg-black/20 hover:bg-white/[0.06]"}`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm font-semibold text-white/90">{option.label}</span>
+                            {selected && <CheckCircle2 className="size-4 text-cyan-200" />}
+                          </div>
+                          <p className="mt-1 text-xs text-white/50">{option.scope}</p>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </CardContent>

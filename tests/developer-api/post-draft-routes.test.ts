@@ -187,4 +187,28 @@ describe("developer API draft post routes", () => {
     expect(response.status).toBe(404)
     expect(state.posts).toHaveLength(1)
   })
+
+  it("returns 400 for invalid post ids instead of a generic server error", async () => {
+    const updateResponse = await draftPostRoute.PATCH(new NextRequest(`${origin}/api/developer/v1/posts/drafts/not-a-uuid`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ content: "Updated" }),
+    }), { params: Promise.resolve({ id: "not-a-uuid" }) })
+
+    expect(updateResponse.status).toBe(400)
+    await expect(updateResponse.json()).resolves.toMatchObject({
+      error: "Invalid post id",
+    })
+
+    const deleteResponse = await (draftPostRoute as typeof draftPostRoute & {
+      DELETE: typeof draftPostRoute.PATCH
+    }).DELETE(new NextRequest(`${origin}/api/developer/v1/posts/drafts/not-a-uuid`, {
+      method: "DELETE",
+    }), { params: Promise.resolve({ id: "not-a-uuid" }) })
+
+    expect(deleteResponse.status).toBe(400)
+    await expect(deleteResponse.json()).resolves.toMatchObject({
+      error: "Invalid post id",
+    })
+  })
 })

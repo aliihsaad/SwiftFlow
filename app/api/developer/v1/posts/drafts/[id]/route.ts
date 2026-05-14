@@ -27,6 +27,22 @@ function mergeDraftPostPayload(existing: Record<string, unknown>, raw: Record<st
   }
 }
 
+function parsePostId(id: unknown): { postId: string } | { response: NextResponse } {
+  try {
+    return { postId: assertUuid(id, "post id") }
+  } catch (error) {
+    return {
+      response: NextResponse.json({
+        error: error instanceof Error ? error.message : "Invalid post id",
+      }, { status: 400 }),
+    }
+  }
+}
+
+function isMissingRowError(error: { message?: string } | null): boolean {
+  return Boolean(error?.message && /not found|No rows|PGRST116/i.test(error.message))
+}
+
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return withDeveloperApiAuth(
     request,
@@ -38,7 +54,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     },
     async (context) => {
       const { id } = await params
-      const postId = assertUuid(id, "post id")
+      const parsed = parsePostId(id)
+      if ("response" in parsed) return parsed.response
+      const { postId } = parsed
       assertJsonBodySize(request, 256 * 1024)
       const rawBody = await request.json().catch(() => ({}))
       const raw = isRecord(rawBody) ? rawBody : {}
@@ -78,8 +96,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         .select(POST_SELECT)
         .single()
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-      return NextResponse.json({ post: data })
+      if (error) {
+        if (isMissingRowError(error)) return NextResponse.json({ error: "Draft or scheduled post not found" }, { status: 404 })
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+      return NextResponse.json({ success: true, post: data })
     },
   )
 }
@@ -95,7 +116,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     },
     async (context) => {
       const { id } = await params
-      const postId = assertUuid(id, "post id")
+      const parsed = parsePostId(id)
+      if ("response" in parsed) return parsed.response
+      const { postId } = parsed
       const admin = createAdminClient()
       const { data: existing, error: fetchError } = await admin
         .from("posts")
@@ -117,8 +140,11 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
         .select(POST_SELECT)
         .single()
 
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-      return NextResponse.json({ deleted: true, post: data })
+      if (error) {
+        if (isMissingRowError(error)) return NextResponse.json({ error: "Draft or scheduled post not found" }, { status: 404 })
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+      return NextResponse.json({ success: true, deleted: true, post: data })
     },
   )
 }

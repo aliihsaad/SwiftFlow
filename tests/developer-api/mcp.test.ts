@@ -217,6 +217,59 @@ describe("developer API MCP bridge", () => {
     })
   })
 
+  it("maps draft and scheduled post update/delete tools to developer API requests", async () => {
+    const calls: DeveloperMcpApiRequest[] = []
+    const context = {
+      callDeveloperApi: async (request: DeveloperMcpApiRequest) => {
+        calls.push(request)
+        return { ok: true }
+      },
+    }
+
+    await handleDeveloperMcpJsonRpc({
+      jsonrpc: "2.0",
+      id: "post-update",
+      method: "tools/call",
+      params: {
+        name: "swiftflow_update_draft_post",
+        arguments: {
+          id: "22222222-2222-4222-8222-222222222222",
+          content: "Updated scheduled post",
+          status: "scheduled",
+          scheduledAt: "2026-05-16T09:00:00.000Z",
+        },
+      },
+    }, context)
+
+    await handleDeveloperMcpJsonRpc({
+      jsonrpc: "2.0",
+      id: "post-delete",
+      method: "tools/call",
+      params: {
+        name: "swiftflow_delete_draft_post",
+        arguments: {
+          id: "22222222-2222-4222-8222-222222222222",
+        },
+      },
+    }, context)
+
+    expect(calls).toEqual([
+      {
+        method: "PATCH",
+        path: "/api/developer/v1/posts/drafts/22222222-2222-4222-8222-222222222222",
+        body: {
+          content: "Updated scheduled post",
+          status: "scheduled",
+          scheduledAt: "2026-05-16T09:00:00.000Z",
+        },
+      },
+      {
+        method: "DELETE",
+        path: "/api/developer/v1/posts/drafts/22222222-2222-4222-8222-222222222222",
+      },
+    ])
+  })
+
   it("maps automation discovery tools to developer API requests", async () => {
     const calls: DeveloperMcpApiRequest[] = []
     const response = await handleDeveloperMcpJsonRpc({

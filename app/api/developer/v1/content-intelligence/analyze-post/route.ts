@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { loadContentIntelligenceSignals } from "@/app/api/content-intelligence/_shared"
+import { maybeSyncWorkspaceAnalytics } from "@/lib/analytics/read-through-sync"
 import { recommendHashtags } from "@/lib/content-intelligence/hashtags"
 import { scorePostStrength } from "@/lib/content-intelligence/scoring"
 import { recommendSlots } from "@/lib/content-intelligence/timing"
@@ -7,6 +8,7 @@ import { withDeveloperApiAuth } from "@/lib/developer-api/http"
 import type { ContentPlatform, PostIntelligenceInput, PostIntelligenceResult } from "@/lib/content-intelligence/types"
 
 export const runtime = "nodejs"
+export const maxDuration = 60
 
 function normalizePlatforms(value: unknown): ContentPlatform[] {
   const raw = Array.isArray(value) ? value : []
@@ -38,6 +40,8 @@ export async function POST(request: NextRequest) {
         mediaUrls: normalizeMediaUrls(body?.mediaUrls),
         scheduledAt: typeof body?.scheduledAt === "string" ? body.scheduledAt : null,
       }
+
+      await maybeSyncWorkspaceAnalytics({ workspaceId: context.workspaceId })
 
       const signals = await loadContentIntelligenceSignals(context.workspaceId)
       const strength = scorePostStrength(input, signals)

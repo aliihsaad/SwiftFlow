@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
+import { maybeSyncWorkspaceAnalytics } from "@/lib/analytics/read-through-sync"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { withDeveloperApiAuth } from "@/lib/developer-api/http"
 
 export const runtime = "nodejs"
+export const maxDuration = 60
 
 function sum(rows: Record<string, unknown>[], key: string): number {
   return rows.reduce((total, row) => total + Number(row[key] || 0), 0)
@@ -27,6 +29,12 @@ export async function GET(request: NextRequest) {
       if (accountsError) return NextResponse.json({ error: accountsError.message }, { status: 500 })
 
       const accountIds = (accounts || []).map((account: { id: string }) => account.id)
+      const analyticsSync = await maybeSyncWorkspaceAnalytics({
+        workspaceId: context.workspaceId,
+        accountIds,
+        admin,
+      })
+
       const { data: posts, error: postsError } = await admin
         .from("posts")
         .select("id, status")
@@ -77,6 +85,9 @@ export async function GET(request: NextRequest) {
         accounts: accounts || [],
         latestAccountAnalytics: accountAnalytics || [],
         generatedAt: new Date().toISOString(),
+        _meta: {
+          analyticsSync,
+        },
       })
     },
   )

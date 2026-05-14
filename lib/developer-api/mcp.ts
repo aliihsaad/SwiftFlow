@@ -408,14 +408,14 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
   secureTool({
     name: "swiftflow_get_analytics_summary",
     title: "Get analytics summary",
-    description: "Read aggregate workspace analytics and recent account analytics.",
+    description: "Read aggregate workspace analytics and recent account analytics. SwiftFlow refreshes stale analytics cache first when possible.",
     inputSchema: EMPTY_INPUT_SCHEMA,
     annotations: { readOnlyHint: true, openWorldHint: false },
   }),
   secureTool({
     name: "swiftflow_analyze_post_content",
     title: "Analyze post content",
-    description: "Run content intelligence on a caption and optional media/schedule context.",
+    description: "Run content intelligence on a caption and optional media/schedule context. SwiftFlow refreshes stale analytics signals first when possible.",
     inputSchema: {
       type: "object",
       properties: {

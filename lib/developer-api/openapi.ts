@@ -196,7 +196,7 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
       "/analytics/summary": {
         get: {
           summary: "Read analytics summary",
-          description: "Required scope: analytics:read",
+          description: "Required scope: analytics:read. Refreshes stale analytics cache before reading when possible.",
           "x-required-scopes": ["analytics:read"],
           responses: { "200": { description: "Analytics summary" } },
         },
@@ -279,7 +279,7 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
       "/content-intelligence/analyze-post": {
         post: {
           summary: "Analyze draft content",
-          description: "Required scope: content_intelligence:run",
+          description: "Required scope: content_intelligence:run. Refreshes stale analytics signals before analysis when possible.",
           "x-required-scopes": ["content_intelligence:run"],
           responses: { "200": { description: "Content intelligence result" }, "429": { description: "Rate limited" } },
         },

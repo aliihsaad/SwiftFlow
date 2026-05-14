@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { assertJsonBodySize, assertUuid } from "@/lib/security/phase1-validation"
 import { withDeveloperApiAuth } from "@/lib/developer-api/http"
+import { validateDeveloperAutomationGraph } from "@/lib/developer-api/automation-graph"
 
 export const runtime = "nodejs"
 
@@ -60,9 +61,23 @@ export async function POST(request: NextRequest) {
       }
 
       const requestedActive = body?.is_active === true
-      const platformPostId = text(body?.platform_post_id, requestedActive ? "" : "__api_draft__", 255)
-      if (requestedActive && !platformPostId) {
-        return NextResponse.json({ error: "Active automations require platform_post_id" }, { status: 400 })
+      const workflowGraph = body?.workflow_graph
+      if (!workflowGraph) {
+        return NextResponse.json({ error: "Developer API automations require a configured workflow_graph." }, { status: 400 })
+      }
+      if (body?.editor_version !== undefined && text(body.editor_version, "", 40) !== "canvas") {
+        return NextResponse.json({ error: "Developer API automations must use editor_version canvas." }, { status: 400 })
+      }
+
+      const graphValidation = validateDeveloperAutomationGraph(workflowGraph, {
+        expectedSocialAccountId: socialAccountId,
+        requirePostId: true,
+      })
+      if (graphValidation.errors.length > 0 || !graphValidation.summary) {
+        return NextResponse.json({
+          error: "Invalid workflow_graph",
+          validationErrors: graphValidation.errors,
+        }, { status: 400 })
       }
 
       const admin = createAdminClient()
@@ -76,6 +91,7 @@ export async function POST(request: NextRequest) {
       if (accountError) return NextResponse.json({ error: accountError.message }, { status: 500 })
       if (!account) return NextResponse.json({ error: "Invalid social account for this workspace" }, { status: 400 })
 
+      const graphSummary = graphValidation.summary
       const { data, error } = await admin
         .from("automations")
         .insert({
@@ -84,14 +100,14 @@ export async function POST(request: NextRequest) {
           type: text(body?.type, "comment_to_dm", 80),
           name,
           is_active: requestedActive,
-          platform_post_id: platformPostId,
-          post_thumbnail_url: text(body?.post_thumbnail_url, "", 2048) || null,
-          post_caption: text(body?.post_caption, "", 4000) || null,
-          trigger_config: objectValue(body?.trigger_config, { trigger_type: "any_comment", keywords: [] }),
+          platform_post_id: graphSummary.platformPostId,
+          post_thumbnail_url: graphSummary.postThumbnailUrl,
+          post_caption: graphSummary.postCaption,
+          trigger_config: graphSummary.triggerConfig,
           comment_reply_config: objectValue(body?.comment_reply_config, { enabled: false, messages: [] }),
           dm_config: objectValue(body?.dm_config, { opening_message: "", button_text: "", link_url: "", link_message: "" }),
-          workflow_graph: body?.workflow_graph || null,
-          editor_version: text(body?.editor_version, "wizard", 40),
+          workflow_graph: graphValidation.graph,
+          editor_version: "canvas",
         })
         .select()
         .single()

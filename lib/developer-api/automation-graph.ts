@@ -1,0 +1,196 @@
+import type { WorkflowGraph } from "@/types/automation-graph"
+import {
+  isActionNode,
+  isTriggerNode,
+  SUPPORTED_CANVAS_TRIGGER_TYPES,
+} from "@/types/automation-graph"
+import { isMetaGraphNodeId } from "@/lib/security/phase1-validation"
+
+export type DeveloperAutomationGraphError = {
+  code: string
+  message: string
+  nodeId?: string
+}
+
+export type DeveloperAutomationGraphSummary = {
+  triggerNode: {
+    id: string
+    type: string
+    config: Record<string, unknown>
+  } | null
+  socialAccountId: string
+  platformPostId: string
+  postThumbnailUrl: string | null
+  postCaption: string | null
+  triggerConfig: {
+    trigger_type: "any_comment" | "keywords"
+    keywords: string[]
+  }
+}
+
+const TEMP_DISABLED_NODE_TYPES = new Set([
+  "trigger_story_mention",
+  "action_http_request",
+])
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value.trim() : ""
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(text).filter(Boolean) : []
+}
+
+function hasMeaningfulMessage(value: unknown): boolean {
+  const message = text(value)
+  if (!message) return false
+  return !/^reply\s*\d+$/i.test(message)
+}
+
+function graphShape(value: unknown): WorkflowGraph | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null
+  const maybeGraph = value as Partial<WorkflowGraph>
+  if (!Array.isArray(maybeGraph.nodes) || !Array.isArray(maybeGraph.edges)) return null
+  return maybeGraph as WorkflowGraph
+}
+
+export function summarizeDeveloperAutomationGraph(graph: unknown): DeveloperAutomationGraphSummary | null {
+  const workflowGraph = graphShape(graph)
+  if (!workflowGraph) return null
+  const triggerNode = workflowGraph.nodes.find((node) => isTriggerNode(String(node.data?.type || "")))
+  if (!triggerNode) return null
+  const config = record(triggerNode.data?.config)
+  const triggerType = String(triggerNode.data?.type || "")
+  const triggerConfigType = text(config.trigger_type) === "keywords" ? "keywords" : "any_comment"
+
+  return {
+    triggerNode: {
+      id: triggerNode.id,
+      type: triggerType,
+      config,
+    },
+    socialAccountId: text(config.social_account_id),
+    platformPostId: triggerType === "trigger_new_comment" ? text(config.post_id) : "__canvas__",
+    postThumbnailUrl: text(config.post_thumbnail_url) || null,
+    postCaption: text(config.post_caption) || null,
+    triggerConfig: {
+      trigger_type: triggerConfigType,
+      keywords: stringList(config.keywords),
+    },
+  }
+}
+
+export function validateDeveloperAutomationGraph(
+  graph: unknown,
+  options: {
+    expectedSocialAccountId?: string
+    requirePostId?: boolean
+  } = {},
+): { graph: WorkflowGraph | null; errors: DeveloperAutomationGraphError[]; summary: DeveloperAutomationGraphSummary | null } {
+  const workflowGraph = graphShape(graph)
+  const errors: DeveloperAutomationGraphError[] = []
+  if (!workflowGraph) {
+    return {
+      graph: null,
+      summary: null,
+      errors: [{ code: "INVALID_GRAPH", message: "workflow_graph must include nodes and edges arrays." }],
+    }
+  }
+
+  const triggerNodes = workflowGraph.nodes.filter((node) => isTriggerNode(String(node.data?.type || "")))
+  if (triggerNodes.length !== 1) {
+    errors.push({
+      code: triggerNodes.length === 0 ? "NO_TRIGGER" : "MULTIPLE_TRIGGERS",
+      message: "workflow_graph must include exactly one trigger node.",
+      nodeId: triggerNodes[1]?.id,
+    })
+  }
+
+  const summary = summarizeDeveloperAutomationGraph(workflowGraph)
+  const supportedTriggers = new Set(SUPPORTED_CANVAS_TRIGGER_TYPES)
+
+  for (const node of workflowGraph.nodes) {
+    const nodeType = String(node.data?.type || "")
+    const config = record(node.data?.config)
+    if (!nodeType || (!isTriggerNode(nodeType) && !isActionNode(nodeType))) {
+      errors.push({ code: "INVALID_NODE_TYPE", message: "Each node must include a supported data.type.", nodeId: node.id })
+      continue
+    }
+    if (TEMP_DISABLED_NODE_TYPES.has(nodeType)) {
+      errors.push({ code: "NODE_TEMPORARILY_DISABLED", message: `${node.data?.label || nodeType} is temporarily disabled.`, nodeId: node.id })
+      continue
+    }
+    if (isTriggerNode(nodeType) && !supportedTriggers.has(nodeType as typeof SUPPORTED_CANVAS_TRIGGER_TYPES[number])) {
+      errors.push({ code: "UNSUPPORTED_TRIGGER", message: `${node.data?.label || nodeType} is not enabled for live automations yet.`, nodeId: node.id })
+    }
+
+    switch (nodeType) {
+      case "trigger_new_comment":
+        if (!text(config.social_account_id)) {
+          errors.push({ code: "MISSING_FIELD", message: "Comment trigger requires social_account_id.", nodeId: node.id })
+        }
+        if (options.expectedSocialAccountId && text(config.social_account_id) !== options.expectedSocialAccountId) {
+          errors.push({ code: "ACCOUNT_MISMATCH", message: "Trigger social_account_id must match the automation social_account_id.", nodeId: node.id })
+        }
+        if (options.requirePostId && !text(config.post_id)) {
+          errors.push({ code: "MISSING_FIELD", message: "Comment trigger requires post_id before the automation can be saved.", nodeId: node.id })
+        }
+        if (text(config.post_id) && !isMetaGraphNodeId(text(config.post_id))) {
+          errors.push({ code: "INVALID_POST_ID", message: "Comment trigger post_id must be a valid Meta object ID.", nodeId: node.id })
+        }
+        break
+      case "trigger_new_message":
+      case "trigger_story_reply":
+        if (!text(config.social_account_id)) {
+          errors.push({ code: "MISSING_FIELD", message: "Trigger requires social_account_id.", nodeId: node.id })
+        }
+        if (options.expectedSocialAccountId && text(config.social_account_id) !== options.expectedSocialAccountId) {
+          errors.push({ code: "ACCOUNT_MISMATCH", message: "Trigger social_account_id must match the automation social_account_id.", nodeId: node.id })
+        }
+        break
+      case "action_send_dm":
+        if (config.use_ai_response !== true && !hasMeaningfulMessage(config.opening_message)) {
+          errors.push({ code: "MISSING_FIELD", message: "Send DM requires opening_message or use_ai_response: true.", nodeId: node.id })
+        }
+        break
+      case "action_private_reply":
+        if (config.use_ai_response !== true && !hasMeaningfulMessage(config.message)) {
+          errors.push({ code: "MISSING_FIELD", message: "Private Reply requires message or use_ai_response: true.", nodeId: node.id })
+        }
+        break
+      case "action_reply_comment": {
+        const messages = Array.isArray(config.messages) ? config.messages : []
+        if (config.use_ai_response !== true && !messages.some(hasMeaningfulMessage)) {
+          errors.push({ code: "MISSING_FIELD", message: "Reply to Comment requires at least one real reply message or use_ai_response: true.", nodeId: node.id })
+        }
+        break
+      }
+      case "action_condition":
+        if (!text(config.condition_type)) {
+          errors.push({ code: "MISSING_FIELD", message: "Condition requires condition_type.", nodeId: node.id })
+        }
+        break
+      case "action_delay":
+        if (typeof config.duration_value !== "number" || config.duration_value <= 0) {
+          errors.push({ code: "MISSING_FIELD", message: "Delay requires a positive duration_value.", nodeId: node.id })
+        }
+        break
+      case "action_send_email":
+        if (!text(config.subject) || !text(config.body)) {
+          errors.push({ code: "MISSING_FIELD", message: "Send Email requires subject and body.", nodeId: node.id })
+        }
+        break
+      case "action_ai_response":
+        if (config.max_tokens !== undefined && (typeof config.max_tokens !== "number" || config.max_tokens <= 0)) {
+          errors.push({ code: "INVALID_FIELD", message: "AI Response max_tokens must be a positive number.", nodeId: node.id })
+        }
+        break
+    }
+  }
+
+  return { graph: workflowGraph, errors, summary }
+}

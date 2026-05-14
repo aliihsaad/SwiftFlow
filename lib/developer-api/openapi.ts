@@ -147,8 +147,29 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
         },
         post: {
           summary: "Create automation",
-          description: "Required scope: automations:create",
+          description: "Required scope: automations:create. Developer API automations must be graph-backed canvas automations with a fully configured workflow_graph; wizard/legacy mode is not accepted.",
           "x-required-scopes": ["automations:create"],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: ["social_account_id", "name", "workflow_graph"],
+                  properties: {
+                    social_account_id: { type: "string", format: "uuid" },
+                    name: { type: "string" },
+                    is_active: { type: "boolean" },
+                    editor_version: { type: "string", enum: ["canvas"] },
+                    workflow_graph: {
+                      type: "object",
+                      description: "React Flow graph with nodes and edges. Trigger config must include social_account_id; trigger_new_comment also requires post_id.",
+                    },
+                  },
+                },
+              },
+            },
+          },
           responses: { "201": { description: "Automation created" }, "400": { description: "Invalid payload" } },
         },
       },
@@ -162,7 +183,7 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
         },
         patch: {
           summary: "Update automation",
-          description: "Required scope: automations:update",
+          description: "Required scope: automations:update. workflow_graph updates are validated and remain graph-backed canvas automations.",
           "x-required-scopes": ["automations:update"],
           parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
           responses: { "200": { description: "Automation updated" } },

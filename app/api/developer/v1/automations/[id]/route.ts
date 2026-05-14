@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { assertJsonBodySize, assertUuid } from "@/lib/security/phase1-validation"
 import { withDeveloperApiAuth } from "@/lib/developer-api/http"
+import { validateDeveloperAutomationGraph } from "@/lib/developer-api/automation-graph"
 
 export const runtime = "nodejs"
 
@@ -62,13 +63,46 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const triggerConfig = objectValue(body?.trigger_config)
       const commentReplyConfig = objectValue(body?.comment_reply_config)
       const dmConfig = objectValue(body?.dm_config)
+      let graphSocialAccountId: string | null = null
       if (triggerConfig !== undefined) update.trigger_config = triggerConfig
       if (commentReplyConfig !== undefined) update.comment_reply_config = commentReplyConfig
       if (dmConfig !== undefined) update.dm_config = dmConfig
-      if (body?.workflow_graph !== undefined) update.workflow_graph = body.workflow_graph
-      if (body?.editor_version !== undefined) update.editor_version = text(body.editor_version, 40)
+      if (body?.editor_version !== undefined && text(body.editor_version, 40) !== "canvas") {
+        return NextResponse.json({ error: "Developer API automations must use editor_version canvas." }, { status: 400 })
+      }
+      if (body?.workflow_graph !== undefined) {
+        const graphValidation = validateDeveloperAutomationGraph(body.workflow_graph, { requirePostId: true })
+        if (graphValidation.errors.length > 0 || !graphValidation.summary) {
+          return NextResponse.json({
+            error: "Invalid workflow_graph",
+            validationErrors: graphValidation.errors,
+          }, { status: 400 })
+        }
+        update.workflow_graph = graphValidation.graph
+        update.editor_version = "canvas"
+        update.social_account_id = graphValidation.summary.socialAccountId
+        graphSocialAccountId = graphValidation.summary.socialAccountId
+        update.platform_post_id = graphValidation.summary.platformPostId
+        update.post_thumbnail_url = graphValidation.summary.postThumbnailUrl
+        update.post_caption = graphValidation.summary.postCaption
+        update.trigger_config = graphValidation.summary.triggerConfig
+      } else if (body?.editor_version !== undefined) {
+        update.editor_version = "canvas"
+      }
 
       const admin = createAdminClient()
+      if (graphSocialAccountId) {
+        const { data: account, error: accountError } = await admin
+          .from("social_accounts")
+          .select("id")
+          .eq("id", graphSocialAccountId)
+          .eq("workspace_id", context.workspaceId)
+          .maybeSingle()
+
+        if (accountError) return NextResponse.json({ error: accountError.message }, { status: 500 })
+        if (!account) return NextResponse.json({ error: "Invalid social account for this workspace" }, { status: 400 })
+      }
+
       const { data, error } = await admin
         .from("automations")
         .update(update)

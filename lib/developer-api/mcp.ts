@@ -66,7 +66,7 @@ const ID_INPUT_SCHEMA: JsonSchema = {
 const OAUTH_SECURITY_SCHEMES = [{ type: "oauth2" as const, scopes: [getDeveloperOAuthScope()] }]
 const WORKFLOW_GRAPH_SCHEMA = {
   type: "object",
-  description: "Automation workflow graph with { nodes, edges }. Each node data must include type, label, and config. Supported live trigger types are trigger_new_comment, trigger_new_message, and trigger_story_reply. Trigger config must include social_account_id; trigger_new_comment also needs post_id. Supported action node types include action_send_dm, action_private_reply, action_reply_comment, action_delay, action_condition, action_send_email, and action_ai_response. action_http_request and trigger_story_mention are currently disabled for live automations.",
+  description: "Required graph-backed automation workflow with { nodes, edges }. Each node data must include type, label, and a fully configured config object. Supported live trigger types are trigger_new_comment, trigger_new_message, and trigger_story_reply. Trigger config must include social_account_id; trigger_new_comment also needs post_id. Supported action node types include action_send_dm, action_private_reply, action_reply_comment, action_delay, action_condition, action_send_email, and action_ai_response. action_reply_comment must set use_ai_response true or include a real fallback message. action_http_request and trigger_story_mention are currently disabled for live automations.",
   additionalProperties: true,
 }
 
@@ -243,7 +243,7 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
   secureTool({
     name: "swiftflow_create_automation",
     title: "Create automation",
-    description: "Create a workspace automation for a connected social account.",
+    description: "Create a graph-backed canvas automation for a connected social account. Call swiftflow_list_social_accounts and swiftflow_get_automation_node_catalog first, then send a fully configured workflow_graph. Wizard/legacy automations are not accepted through MCP.",
     inputSchema: {
       type: "object",
       properties: {
@@ -258,9 +258,9 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
         comment_reply_config: { type: "object", additionalProperties: true },
         dm_config: { type: "object", additionalProperties: true },
         workflow_graph: WORKFLOW_GRAPH_SCHEMA,
-        editor_version: { type: "string", enum: ["wizard", "canvas"] },
+        editor_version: { type: "string", enum: ["canvas"] },
       },
-      required: ["social_account_id", "name"],
+      required: ["social_account_id", "name", "workflow_graph"],
       additionalProperties: true,
     },
     annotations: { openWorldHint: false },
@@ -268,7 +268,7 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
   secureTool({
     name: "swiftflow_update_automation",
     title: "Update automation",
-    description: "Update an existing automation by id.",
+    description: "Update an existing graph-backed canvas automation by id. Send a fully configured workflow_graph when changing nodes. Wizard/legacy editor mode is not accepted through MCP.",
     inputSchema: {
       type: "object",
       properties: {
@@ -281,7 +281,7 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
         comment_reply_config: { type: "object", additionalProperties: true },
         dm_config: { type: "object", additionalProperties: true },
         workflow_graph: WORKFLOW_GRAPH_SCHEMA,
-        editor_version: { type: "string", enum: ["wizard", "canvas"] },
+        editor_version: { type: "string", enum: ["canvas"] },
       },
       required: ["id"],
       additionalProperties: true,
@@ -364,6 +364,10 @@ function bodyWithoutId(args: Record<string, unknown>): Record<string, unknown> {
   return body
 }
 
+function automationBody(args: Record<string, unknown>): Record<string, unknown> {
+  return { ...args, editor_version: "canvas" }
+}
+
 function mapToolCall(name: string, rawArgs: unknown): DeveloperMcpApiRequest {
   const args = objectArgs(rawArgs)
 
@@ -403,10 +407,10 @@ function mapToolCall(name: string, rawArgs: unknown): DeveloperMcpApiRequest {
       return { method: "GET", path: `/api/developer/v1/automations/${id}` }
     }
     case "swiftflow_create_automation":
-      return { method: "POST", path: "/api/developer/v1/automations", body: args }
+      return { method: "POST", path: "/api/developer/v1/automations", body: automationBody(args) }
     case "swiftflow_update_automation": {
       const id = encodeURIComponent(requiredString(args, "id"))
-      return { method: "PATCH", path: `/api/developer/v1/automations/${id}`, body: bodyWithoutId(args) }
+      return { method: "PATCH", path: `/api/developer/v1/automations/${id}`, body: automationBody(bodyWithoutId(args)) }
     }
     case "swiftflow_toggle_automation": {
       const id = encodeURIComponent(requiredString(args, "id"))

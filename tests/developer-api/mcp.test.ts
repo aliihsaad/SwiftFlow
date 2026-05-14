@@ -88,16 +88,72 @@ describe("developer API MCP bridge", () => {
     expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
       name: "swiftflow_create_automation",
       inputSchema: expect.objectContaining({
+        required: ["social_account_id", "name", "workflow_graph"],
         properties: expect.objectContaining({
           post_thumbnail_url: expect.objectContaining({ type: "string" }),
           post_caption: expect.objectContaining({ type: "string" }),
           workflow_graph: expect.objectContaining({
             description: expect.stringContaining("Trigger config must include social_account_id"),
           }),
-          editor_version: expect.objectContaining({ enum: ["wizard", "canvas"] }),
+          editor_version: expect.objectContaining({ enum: ["canvas"] }),
         }),
       }),
     }))
+  })
+
+  it("forces MCP-created automations into graph-backed canvas mode", async () => {
+    const calls: DeveloperMcpApiRequest[] = []
+    const workflowGraph = {
+      nodes: [
+        {
+          id: "trigger-1",
+          type: "trigger",
+          position: { x: 0, y: 0 },
+          data: {
+            type: "trigger_new_comment",
+            label: "New Comment",
+            config: {
+              social_account_id: "11111111-1111-4111-8111-111111111111",
+              post_id: "17895695668004550",
+              trigger_type: "any",
+              keywords: [],
+            },
+          },
+        },
+      ],
+      edges: [],
+    }
+
+    await handleDeveloperMcpJsonRpc({
+      jsonrpc: "2.0",
+      id: "automation-create",
+      method: "tools/call",
+      params: {
+        name: "swiftflow_create_automation",
+        arguments: {
+          social_account_id: "11111111-1111-4111-8111-111111111111",
+          name: "Comment AI reply",
+          editor_version: "wizard",
+          workflow_graph: workflowGraph,
+        },
+      },
+    }, {
+      callDeveloperApi: async (request) => {
+        calls.push(request)
+        return { automation: { id: "automation-1" } }
+      },
+    })
+
+    expect(calls).toEqual([{
+      method: "POST",
+      path: "/api/developer/v1/automations",
+      body: {
+        social_account_id: "11111111-1111-4111-8111-111111111111",
+        name: "Comment AI reply",
+        editor_version: "canvas",
+        workflow_graph: workflowGraph,
+      },
+    }])
   })
 
   it("turns tool calls into authenticated developer API requests", async () => {

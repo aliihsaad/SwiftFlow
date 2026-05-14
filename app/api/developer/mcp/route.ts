@@ -95,7 +95,19 @@ function resolveDeveloperApiAuthorization(authorization: string | null, origin: 
   }
 }
 
-export async function GET() {
+function unauthorizedMcpResponse(origin: string) {
+  return jsonResponse({
+    error: "Authentication required",
+    authentication: "OAuth 2.1 or Developer API Bearer token",
+    protectedResource: "/.well-known/oauth-protected-resource",
+  }, 401, { "WWW-Authenticate": buildDeveloperMcpAuthChallenge(origin, "invalid_token", "Authenticate SwiftFlow to continue") })
+}
+
+export async function GET(request: NextRequest) {
+  if (!request.headers.get("authorization")) {
+    return unauthorizedMcpResponse(request.nextUrl.origin)
+  }
+
   return jsonResponse({
     name: "swiftflow-developer-api",
     transport: "streamable-http",
@@ -116,6 +128,10 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: NextRequest) {
+  if (!request.headers.get("authorization")) {
+    return unauthorizedMcpResponse(request.nextUrl.origin)
+  }
+
   let body: unknown
   try {
     body = await request.json()

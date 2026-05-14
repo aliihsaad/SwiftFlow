@@ -49,6 +49,18 @@ describe("developer API MCP bridge", () => {
     }
   })
 
+  it("advertises content updates for draft or scheduled posts", () => {
+    expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
+      name: "swiftflow_update_draft_post",
+      title: "Update draft or scheduled post",
+      inputSchema: expect.objectContaining({
+        properties: expect.objectContaining({
+          content: expect.objectContaining({ type: "string" }),
+        }),
+      }),
+    }))
+  })
+
   it("turns tool calls into authenticated developer API requests", async () => {
     const calls: DeveloperMcpApiRequest[] = []
     const response = await handleDeveloperMcpJsonRpc({

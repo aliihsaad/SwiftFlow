@@ -160,12 +160,13 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
   }),
   secureTool({
     name: "swiftflow_update_draft_post",
-    title: "Update draft post",
-    description: "Update an existing draft or scheduled post by id.",
+    title: "Update draft or scheduled post",
+    description: "Update an existing draft or scheduled post by id. Use content as a shortcut for the main caption, or captionByPlatform for per-platform captions.",
     inputSchema: {
       type: "object",
       properties: {
         id: { type: "string" },
+        content: { type: "string", description: "Shortcut for updating the main post caption." },
         platforms: { type: "array", items: { type: "string", enum: ["instagram", "facebook"] } },
         captionByPlatform: { type: "object", additionalProperties: true },
         mediaUrls: { type: "array", items: { type: "string" } },
@@ -179,7 +180,7 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
   }),
   secureTool({
     name: "swiftflow_delete_draft_post",
-    title: "Delete draft post",
+    title: "Delete draft or scheduled post",
     description: "Delete a draft or scheduled post by id. Ask the user before using this tool.",
     inputSchema: ID_INPUT_SCHEMA,
     annotations: { destructiveHint: true, openWorldHint: false },

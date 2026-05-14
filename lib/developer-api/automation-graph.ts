@@ -45,6 +45,77 @@ function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.map(text).filter(Boolean) : []
 }
 
+function numberValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
+
+function booleanValue(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value
+  if (typeof value === "string") {
+    if (value.trim().toLowerCase() === "true") return true
+    if (value.trim().toLowerCase() === "false") return false
+  }
+  return null
+}
+
+function durationUnit(value: unknown): string {
+  const unit = text(value).toLowerCase()
+  if (unit === "second" || unit === "seconds") return "seconds"
+  if (unit === "minute" || unit === "minutes") return "minutes"
+  if (unit === "hour" || unit === "hours") return "hours"
+  if (unit === "day" || unit === "days") return "days"
+  return ""
+}
+
+function normalizeNodeConfig(nodeType: string, value: unknown): Record<string, unknown> {
+  const config = { ...record(value) }
+
+  if (nodeType === "trigger_new_comment" || nodeType === "trigger_new_message") {
+    const triggerType = text(config.trigger_type)
+    if (triggerType === "any_comment") config.trigger_type = "any"
+  }
+
+  if (nodeType === "action_delay") {
+    const duration = numberValue(config.duration_value ?? config.duration ?? config.value)
+    if (duration !== null) config.duration_value = duration
+    const unit = durationUnit(config.duration_unit ?? config.unit ?? config.durationUnit)
+    if (unit) config.duration_unit = unit
+  }
+
+  if (nodeType === "action_ai_response") {
+    const maxTokens = numberValue(config.max_tokens)
+    if (maxTokens !== null) config.max_tokens = maxTokens
+  }
+
+  if (nodeType === "action_send_dm" || nodeType === "action_private_reply" || nodeType === "action_reply_comment") {
+    const useAiResponse = booleanValue(config.use_ai_response)
+    if (useAiResponse !== null) config.use_ai_response = useAiResponse
+  }
+
+  return config
+}
+
+function normalizeDeveloperAutomationGraph(graph: WorkflowGraph): WorkflowGraph {
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node) => {
+      const nodeType = String(node.data?.type || "")
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          config: normalizeNodeConfig(nodeType, node.data?.config),
+        } as unknown as typeof node.data,
+      }
+    }),
+  }
+}
+
 function hasMeaningfulMessage(value: unknown): boolean {
   const message = text(value)
   if (!message) return false
@@ -59,8 +130,9 @@ function graphShape(value: unknown): WorkflowGraph | null {
 }
 
 export function summarizeDeveloperAutomationGraph(graph: unknown): DeveloperAutomationGraphSummary | null {
-  const workflowGraph = graphShape(graph)
-  if (!workflowGraph) return null
+  const rawGraph = graphShape(graph)
+  if (!rawGraph) return null
+  const workflowGraph = normalizeDeveloperAutomationGraph(rawGraph)
   const triggerNode = workflowGraph.nodes.find((node) => isTriggerNode(String(node.data?.type || "")))
   if (!triggerNode) return null
   const config = record(triggerNode.data?.config)
@@ -91,15 +163,16 @@ export function validateDeveloperAutomationGraph(
     requirePostId?: boolean
   } = {},
 ): { graph: WorkflowGraph | null; errors: DeveloperAutomationGraphError[]; summary: DeveloperAutomationGraphSummary | null } {
-  const workflowGraph = graphShape(graph)
+  const rawGraph = graphShape(graph)
   const errors: DeveloperAutomationGraphError[] = []
-  if (!workflowGraph) {
+  if (!rawGraph) {
     return {
       graph: null,
       summary: null,
       errors: [{ code: "INVALID_GRAPH", message: "workflow_graph must include nodes and edges arrays." }],
     }
   }
+  const workflowGraph = normalizeDeveloperAutomationGraph(rawGraph)
 
   const triggerNodes = workflowGraph.nodes.filter((node) => isTriggerNode(String(node.data?.type || "")))
   if (triggerNodes.length !== 1) {

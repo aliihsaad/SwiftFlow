@@ -130,6 +130,14 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
           responses: { "200": { description: "Automation node catalog" } },
         },
       },
+      "/automation-templates": {
+        get: {
+          summary: "List automation templates",
+          description: "Required scope: automations:read. Returns stable graph-backed templates, their trigger/action summary, required inputs, and optional configuration knobs. Prefer templates over raw workflow_graph creation for connector clients.",
+          "x-required-scopes": ["automations:read"],
+          responses: { "200": { description: "Automation template list" } },
+        },
+      },
       "/automation-media": {
         get: {
           summary: "List selectable automation media",
@@ -159,7 +167,7 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
         },
         post: {
           summary: "Create automation",
-          description: "Required scope: automations:create. Developer API automations must be graph-backed canvas automations with a fully configured workflow_graph; wizard/legacy mode is not accepted.",
+          description: "Required scope: automations:create. Preferred path: send template_id plus required inputs from /automation-templates and SwiftFlow compiles a graph-backed canvas automation. Advanced path: send a fully configured workflow_graph. Wizard/legacy mode is not accepted.",
           "x-required-scopes": ["automations:create"],
           requestBody: {
             required: true,
@@ -167,15 +175,23 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
               "application/json": {
                 schema: {
                   type: "object",
-                  required: ["social_account_id", "name", "workflow_graph"],
+                  required: ["social_account_id", "name"],
                   properties: {
+                    template_id: { type: "string", description: "Preferred. Template id from /automation-templates, for example tpl-reply-comments-ai." },
                     social_account_id: { type: "string", format: "uuid" },
                     name: { type: "string" },
                     is_active: { type: "boolean" },
+                    post_id: { type: "string", description: "Required by comment-trigger templates." },
+                    post_thumbnail_url: { type: "string" },
+                    post_caption: { type: "string" },
+                    delay_seconds: { type: "number", description: "Optional delay inserted after the trigger." },
+                    ai_tone: { type: "string", enum: ["friendly", "professional", "playful", "empathetic", "sales"] },
+                    ai_length: { type: "string", enum: ["short", "medium", "long"] },
+                    ai_custom_instructions: { type: "string" },
                     editor_version: { type: "string", enum: ["canvas"] },
                     workflow_graph: {
                       type: "object",
-                      description: "React Flow graph with nodes and edges. Trigger config must include social_account_id; trigger_new_comment also requires post_id.",
+                      description: "Advanced. React Flow graph with nodes and edges. Trigger config must include social_account_id; trigger_new_comment also requires post_id.",
                     },
                   },
                 },

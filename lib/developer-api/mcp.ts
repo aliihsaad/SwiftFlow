@@ -66,7 +66,7 @@ const ID_INPUT_SCHEMA: JsonSchema = {
 const OAUTH_SECURITY_SCHEMES = [{ type: "oauth2" as const, scopes: [getDeveloperOAuthScope()] }]
 const WORKFLOW_GRAPH_SCHEMA = {
   type: "object",
-  description: "Required graph-backed automation workflow with { nodes, edges }. Each node data must include type, label, and a fully configured config object. Supported live trigger types are trigger_new_comment, trigger_new_message, and trigger_story_reply. Trigger config must include social_account_id; trigger_new_comment also needs post_id. Supported action node types include action_send_dm, action_private_reply, action_reply_comment, action_delay, action_condition, action_send_email, and action_ai_response. action_reply_comment must set use_ai_response true or include a real fallback message. action_http_request and trigger_story_mention are currently disabled for live automations.",
+  description: "Advanced escape hatch only. Prefer swiftflow_create_automation_from_template for normal connector-created automations. Required graph-backed automation workflow with { nodes, edges }. Each node data must include type, label, and a fully configured config object. Supported live trigger types are trigger_new_comment, trigger_new_message, and trigger_story_reply. Trigger config must include social_account_id; trigger_new_comment also needs post_id. action_delay config uses duration_value and duration_unit. action_reply_comment must set use_ai_response true or include a real fallback message.",
   additionalProperties: true,
 }
 
@@ -242,6 +242,13 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
     annotations: { readOnlyHint: true, openWorldHint: false },
   }),
   secureTool({
+    name: "swiftflow_list_automation_templates",
+    title: "List automation templates",
+    description: "List stable SwiftFlow automation templates. Prefer these templates over raw workflow_graph creation because SwiftFlow compiles the known-good canvas nodes.",
+    inputSchema: EMPTY_INPUT_SCHEMA,
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  }),
+  secureTool({
     name: "swiftflow_get_automation_node_catalog",
     title: "Get automation node catalog",
     description: "Read the supported automation node types, graph shape, and disabled node types before creating or editing workflow_graph.",
@@ -256,9 +263,38 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
     annotations: { readOnlyHint: true, openWorldHint: false },
   }),
   secureTool({
+    name: "swiftflow_create_automation_from_template",
+    title: "Create automation from template",
+    description: "Create a configured graph-backed automation by applying user inputs to a stable SwiftFlow template. Use this instead of raw workflow_graph creation for normal ChatGPT, Claude, or Codex connector workflows.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        template_id: { type: "string", description: "Template id from swiftflow_list_automation_templates, for example tpl-reply-comments-ai." },
+        social_account_id: { type: "string", description: "Connected social account UUID." },
+        name: { type: "string" },
+        is_active: { type: "boolean" },
+        post_id: { type: "string", description: "Meta Instagram media or Facebook page post id for comment templates." },
+        post_thumbnail_url: { type: "string" },
+        post_caption: { type: "string" },
+        delay_seconds: { type: "number", description: "Optional delay inserted after the trigger before actions run." },
+        ai_tone: { type: "string", enum: ["friendly", "professional", "playful", "empathetic", "sales"] },
+        ai_length: { type: "string", enum: ["short", "medium", "long"] },
+        ai_custom_instructions: { type: "string" },
+        reply_messages: { type: "array", items: { type: "string" } },
+        dm_opening_message: { type: "string" },
+        dm_button_text: { type: "string" },
+        dm_link_url: { type: "string" },
+        dm_link_message: { type: "string" },
+      },
+      required: ["template_id", "social_account_id", "name"],
+      additionalProperties: false,
+    },
+    annotations: { openWorldHint: false },
+  }),
+  secureTool({
     name: "swiftflow_create_automation",
     title: "Create automation",
-    description: "Create a graph-backed canvas automation for a connected social account. Call swiftflow_list_social_accounts and swiftflow_get_automation_node_catalog first, then send a fully configured workflow_graph. Wizard/legacy automations are not accepted through MCP.",
+    description: "Advanced: create a graph-backed canvas automation for a connected social account from a raw workflow_graph. Prefer swiftflow_create_automation_from_template unless the user explicitly needs custom nodes.",
     inputSchema: {
       type: "object",
       properties: {
@@ -422,6 +458,8 @@ function mapToolCall(name: string, rawArgs: unknown): DeveloperMcpApiRequest {
         : ""
       return { method: "GET", path: `/api/developer/v1/automation-media?account_id=${accountId}${limit}` }
     }
+    case "swiftflow_list_automation_templates":
+      return { method: "GET", path: "/api/developer/v1/automation-templates" }
     case "swiftflow_get_automation_node_catalog":
       return { method: "GET", path: "/api/developer/v1/automation-node-catalog" }
     case "swiftflow_get_automation": {
@@ -429,6 +467,8 @@ function mapToolCall(name: string, rawArgs: unknown): DeveloperMcpApiRequest {
       return { method: "GET", path: `/api/developer/v1/automations/${id}` }
     }
     case "swiftflow_create_automation":
+      return { method: "POST", path: "/api/developer/v1/automations", body: automationBody(args) }
+    case "swiftflow_create_automation_from_template":
       return { method: "POST", path: "/api/developer/v1/automations", body: automationBody(args) }
     case "swiftflow_update_automation": {
       const id = encodeURIComponent(requiredString(args, "id"))
@@ -498,6 +538,9 @@ export async function handleDeveloperMcpJsonRpc(
         return jsonRpcError(id, -32601, `Unsupported MCP method: ${message.method || "missing"}`)
     }
   } catch (error) {
-    return jsonRpcError(id, -32603, error instanceof Error ? error.message : "MCP bridge error")
+    const data = error && typeof error === "object" && "payload" in error
+      ? (error as { payload?: unknown }).payload
+      : undefined
+    return jsonRpcError(id, -32603, error instanceof Error ? error.message : "MCP bridge error", data)
   }
 }

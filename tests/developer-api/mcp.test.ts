@@ -89,8 +89,22 @@ describe("developer API MCP bridge", () => {
       }),
     }))
     expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
+      name: "swiftflow_list_automation_templates",
+      title: "List automation templates",
+    }))
+    expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
       name: "swiftflow_get_automation_node_catalog",
       title: "Get automation node catalog",
+    }))
+    expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
+      name: "swiftflow_create_automation_from_template",
+      inputSchema: expect.objectContaining({
+        required: ["template_id", "social_account_id", "name"],
+        properties: expect.objectContaining({
+          template_id: expect.objectContaining({ type: "string" }),
+          delay_seconds: expect.objectContaining({ type: "number" }),
+        }),
+      }),
     }))
     expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
       name: "swiftflow_create_automation",
@@ -266,6 +280,50 @@ describe("developer API MCP bridge", () => {
     })
   })
 
+  it("maps template automation creation to the developer API create route", async () => {
+    const calls: DeveloperMcpApiRequest[] = []
+    const response = await handleDeveloperMcpJsonRpc({
+      jsonrpc: "2.0",
+      id: "template-create",
+      method: "tools/call",
+      params: {
+        name: "swiftflow_create_automation_from_template",
+        arguments: {
+          template_id: "tpl-reply-comments-ai",
+          social_account_id: "11111111-1111-4111-8111-111111111111",
+          name: "Template AI reply",
+          post_id: "17895695668004550",
+          delay_seconds: 30,
+        },
+      },
+    }, {
+      callDeveloperApi: async (request) => {
+        calls.push(request)
+        return { automation: { id: "automation-1", editor_version: "canvas" } }
+      },
+    })
+
+    expect(calls).toEqual([{
+      method: "POST",
+      path: "/api/developer/v1/automations",
+      body: {
+        template_id: "tpl-reply-comments-ai",
+        social_account_id: "11111111-1111-4111-8111-111111111111",
+        name: "Template AI reply",
+        post_id: "17895695668004550",
+        delay_seconds: 30,
+        editor_version: "canvas",
+      },
+    }])
+    expect(response).toMatchObject({
+      jsonrpc: "2.0",
+      id: "template-create",
+      result: {
+        structuredContent: { automation: { id: "automation-1", editor_version: "canvas" } },
+      },
+    })
+  })
+
   it("maps media uploads to the developer API media endpoint", async () => {
     const calls: DeveloperMcpApiRequest[] = []
     const response = await handleDeveloperMcpJsonRpc({
@@ -301,6 +359,50 @@ describe("developer API MCP bridge", () => {
       id: "media-upload",
       result: {
         structuredContent: { publicUrl: "https://cdn.example.test/post_media/post.png" },
+      },
+    })
+  })
+
+  it("includes backend validation payloads in MCP tool errors", async () => {
+    const error = new Error("Developer API request failed with 400") as Error & {
+      payload: unknown
+    }
+    error.payload = {
+      error: "Invalid workflow_graph",
+      validationErrors: [
+        {
+          code: "MISSING_FIELD",
+          message: "Delay requires a positive duration_value.",
+          nodeId: "delay",
+        },
+      ],
+    }
+
+    const response = await handleDeveloperMcpJsonRpc({
+      jsonrpc: "2.0",
+      id: "automation-create",
+      method: "tools/call",
+      params: {
+        name: "swiftflow_create_automation",
+        arguments: {
+          social_account_id: "11111111-1111-4111-8111-111111111111",
+          name: "Bad delay",
+          workflow_graph: { nodes: [], edges: [] },
+        },
+      },
+    }, {
+      callDeveloperApi: async () => {
+        throw error
+      },
+    })
+
+    expect(response).toEqual({
+      jsonrpc: "2.0",
+      id: "automation-create",
+      error: {
+        code: -32603,
+        message: "Developer API request failed with 400",
+        data: error.payload,
       },
     })
   })

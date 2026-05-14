@@ -223,4 +223,118 @@ describe("developer API automation routes", () => {
       },
     })
   })
+
+  it("accepts connector-friendly delay and AI config aliases in workflow graphs", async () => {
+    const graph = validCommentAiGraph()
+    graph.nodes.splice(1, 0, {
+      id: "delay",
+      type: "action",
+      position: { x: 240, y: 100 },
+      data: {
+        type: "action_delay",
+        label: "Delay",
+        config: {
+          duration: "30",
+          unit: "seconds",
+        },
+      },
+    })
+    graph.edges = [
+      { id: "edge-1", source: "trigger-comment", target: "delay" },
+      { id: "edge-2", source: "delay", target: "ai-response" },
+      { id: "edge-3", source: "ai-response", target: "reply-comment" },
+    ]
+    graph.nodes[2].data.config = {
+      ...graph.nodes[2].data.config,
+      max_tokens: "500",
+    }
+
+    const response = await createAutomation({
+      social_account_id: accountId,
+      name: "Comment AI reply with delay",
+      workflow_graph: graph,
+    })
+
+    expect(response.status).toBe(201)
+    expect(state.automations[0].workflow_graph).toMatchObject({
+      nodes: expect.arrayContaining([
+        expect.objectContaining({
+          id: "delay",
+          data: expect.objectContaining({
+            config: expect.objectContaining({
+              duration_value: 30,
+              duration_unit: "seconds",
+            }),
+          }),
+        }),
+        expect.objectContaining({
+          id: "ai-response",
+          data: expect.objectContaining({
+            config: expect.objectContaining({
+              max_tokens: 500,
+            }),
+          }),
+        }),
+      ]),
+    })
+  })
+
+  it("creates configured canvas automations from stable templates", async () => {
+    const response = await createAutomation({
+      template_id: "tpl-reply-comments-ai",
+      social_account_id: accountId,
+      name: "Template AI reply",
+      post_id: postId,
+      post_thumbnail_url: "https://example.com/template-thumb.jpg",
+      post_caption: "Template post",
+      delay_seconds: 30,
+      ai_tone: "professional",
+      ai_length: "short",
+      is_active: true,
+    })
+
+    expect(response.status).toBe(201)
+    expect(state.automations[0]).toMatchObject({
+      name: "Template AI reply",
+      is_active: true,
+      editor_version: "canvas",
+      platform_post_id: postId,
+      post_thumbnail_url: "https://example.com/template-thumb.jpg",
+      post_caption: "Template post",
+      trigger_config: { trigger_type: "any_comment", keywords: [] },
+    })
+    expect(state.automations[0].workflow_graph).toMatchObject({
+      nodes: expect.arrayContaining([
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: "trigger_new_comment",
+            config: expect.objectContaining({
+              social_account_id: accountId,
+              post_id: postId,
+              post_thumbnail_url: "https://example.com/template-thumb.jpg",
+              post_caption: "Template post",
+            }),
+          }),
+        }),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: "action_delay",
+            config: expect.objectContaining({
+              duration_value: 30,
+              duration_unit: "seconds",
+            }),
+          }),
+        }),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: "action_ai_response",
+            config: expect.objectContaining({
+              tone: "professional",
+              length: "short",
+            }),
+          }),
+        }),
+      ]),
+    })
+  })
 })

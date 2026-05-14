@@ -3,6 +3,7 @@ import { createAdminClient } from "@/utils/supabase/admin"
 import { assertJsonBodySize, assertUuid } from "@/lib/security/phase1-validation"
 import { withDeveloperApiAuth } from "@/lib/developer-api/http"
 import { validateDeveloperAutomationGraph } from "@/lib/developer-api/automation-graph"
+import { buildDeveloperAutomationGraphFromTemplate } from "@/lib/developer-api/automation-templates"
 
 export const runtime = "nodejs"
 
@@ -12,6 +13,10 @@ function text(value: unknown, fallback = "", max = 240): string {
 
 function objectValue(value: unknown, fallback: Record<string, unknown>): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : fallback
+}
+
+function bodyRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
 }
 
 export async function GET(request: NextRequest) {
@@ -60,10 +65,29 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid social_account_id" }, { status: 400 })
       }
 
+      const admin = createAdminClient()
+      const { data: account, error: accountError } = await admin
+        .from("social_accounts")
+        .select("id, platform")
+        .eq("id", socialAccountId)
+        .eq("workspace_id", context.workspaceId)
+        .maybeSingle()
+
+      if (accountError) return NextResponse.json({ error: accountError.message }, { status: 500 })
+      if (!account) return NextResponse.json({ error: "Invalid social account for this workspace" }, { status: 400 })
+
       const requestedActive = body?.is_active === true
-      const workflowGraph = body?.workflow_graph
+      let workflowGraph = body?.workflow_graph
+      if (!workflowGraph && text(body?.template_id, "", 120)) {
+        const templateResult = buildDeveloperAutomationGraphFromTemplate(bodyRecord(body), {
+          socialAccountId,
+          platform: account.platform === "facebook" ? "facebook" : "instagram",
+        })
+        if (templateResult.error) return NextResponse.json({ error: templateResult.error }, { status: 400 })
+        workflowGraph = templateResult.graph
+      }
       if (!workflowGraph) {
-        return NextResponse.json({ error: "Developer API automations require a configured workflow_graph." }, { status: 400 })
+        return NextResponse.json({ error: "Developer API automations require template_id or a configured workflow_graph." }, { status: 400 })
       }
       if (body?.editor_version !== undefined && text(body.editor_version, "", 40) !== "canvas") {
         return NextResponse.json({ error: "Developer API automations must use editor_version canvas." }, { status: 400 })
@@ -79,17 +103,6 @@ export async function POST(request: NextRequest) {
           validationErrors: graphValidation.errors,
         }, { status: 400 })
       }
-
-      const admin = createAdminClient()
-      const { data: account, error: accountError } = await admin
-        .from("social_accounts")
-        .select("id")
-        .eq("id", socialAccountId)
-        .eq("workspace_id", context.workspaceId)
-        .maybeSingle()
-
-      if (accountError) return NextResponse.json({ error: accountError.message }, { status: 500 })
-      if (!account) return NextResponse.json({ error: "Invalid social account for this workspace" }, { status: 400 })
 
       const graphSummary = graphValidation.summary
       const { data, error } = await admin

@@ -225,4 +225,47 @@ describe("developer API media generation route", () => {
       },
     })
   })
+
+  it("accepts tolerant agent aliases for append attach requests", async () => {
+    const response = await mediaGenerateRoute.POST(new NextRequest(`${origin}/api/developer/v1/media/generate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Create an added image for the existing draft",
+        id: postId,
+        attachMode: "add",
+        media_urls: ["https://cdn.example.com/old.png"],
+      }),
+    }))
+
+    expect(response.status).toBe(201)
+    expect(state.requiredScopes).toEqual(["media:generate", "posts:update"])
+    const generatedUrl = `https://cdn.example.com/storage/v1/object/public/post_media/${state.uploads[0].path}`
+    await expect(response.json()).resolves.toMatchObject({
+      attached: true,
+      attachMode: "append",
+      post: {
+        id: postId,
+        media_urls: ["https://cdn.example.com/old.png", generatedUrl],
+      },
+    })
+  })
+
+  it("audits invalid post id payloads instead of failing before auth", async () => {
+    const response = await mediaGenerateRoute.POST(new NextRequest(`${origin}/api/developer/v1/media/generate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Create an image",
+        post_id: "latest draft",
+        attach_mode: "append",
+      }),
+    }))
+
+    expect(response.status).toBe(400)
+    expect(state.requiredScopes).toEqual(["media:generate", "posts:update"])
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Invalid post id",
+    })
+  })
 })

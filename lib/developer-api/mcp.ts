@@ -215,10 +215,12 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
       properties: {
         prompt: { type: "string", description: "Image prompt. If postId is provided and prompt is omitted, SwiftFlow uses the existing post caption." },
         style: { type: "string", description: "Optional visual style instruction." },
+        id: { type: "string", description: "Alias for postId. Optional draft or scheduled post UUID to attach the generated image to." },
         postId: { type: "string", description: "Optional draft or scheduled post UUID to attach the generated image to." },
         post_id: { type: "string", description: "Alias for postId. Optional draft or scheduled post UUID to attach the generated image to." },
         attachMode: { type: "string", enum: ["replace", "append"], description: "How to attach media when postId is provided. Defaults to replace." },
         attach_mode: { type: "string", enum: ["replace", "append"], description: "Alias for attachMode. Use append to add media without replacing existing mediaUrls." },
+        append: { type: "boolean", description: "Optional boolean alias. true means append without replacing existing media." },
         referenceImages: {
           type: "array",
           items: {
@@ -231,7 +233,7 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
         brandImageMode: { type: "string" },
         transformAction: { type: "string" },
       },
-      additionalProperties: false,
+      additionalProperties: true,
     },
     annotations: { openWorldHint: false },
   }),

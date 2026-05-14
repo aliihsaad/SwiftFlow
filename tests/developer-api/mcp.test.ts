@@ -81,9 +81,11 @@ describe("developer API MCP bridge", () => {
       name: "swiftflow_generate_post_image",
       title: "Generate post image",
       inputSchema: expect.objectContaining({
+        additionalProperties: true,
         properties: expect.objectContaining({
           prompt: expect.objectContaining({ type: "string" }),
           style: expect.objectContaining({ type: "string" }),
+          id: expect.objectContaining({ type: "string" }),
           postId: expect.objectContaining({ type: "string" }),
           post_id: expect.objectContaining({ type: "string" }),
           attachMode: expect.objectContaining({ enum: ["replace", "append"] }),

@@ -128,10 +128,14 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
                   properties: {
                     prompt: { type: "string", description: "Image prompt. Required unless postId is provided and the post has a caption." },
                     style: { type: "string" },
+                    id: { type: "string", format: "uuid", description: "Alias for postId." },
                     postId: { type: "string", format: "uuid", description: "Optional draft or scheduled post to attach the generated image to." },
                     post_id: { type: "string", format: "uuid", description: "Alias for postId." },
                     attachMode: { type: "string", enum: ["replace", "append"], default: "replace" },
                     attach_mode: { type: "string", enum: ["replace", "append"], default: "replace", description: "Alias for attachMode." },
+                    append: { type: "boolean", description: "Optional boolean alias. true means append without replacing existing media." },
+                    mediaUrls: { type: "array", items: { type: "string" }, description: "Optional agent context. SwiftFlow reads current media from the post record when attaching." },
+                    media_urls: { type: "array", items: { type: "string" }, description: "Alias for mediaUrls. Optional agent context." },
                     referenceImages: {
                       type: "array",
                       items: {

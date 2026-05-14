@@ -56,14 +56,15 @@ function parseReferenceImages(value: unknown): ReferenceImage[] {
 function parsePayload(raw: unknown): GenerateImagePayload {
   if (!isJsonRecord(raw)) throw new Error("Invalid image generation payload")
 
-  const rawPostId = text(raw.postId ?? raw.post_id, 80)
+  const rawPostId = text(raw.postId ?? raw.post_id ?? raw.id, 80)
   const rawAttachMode = raw.attachMode ?? raw.attach_mode
+  const attachModeText = text(rawAttachMode, 40).toLowerCase()
   const postId = rawPostId ? assertUuid(rawPostId, "post id") : undefined
   return {
     prompt: text(raw.prompt, 4_000),
     style: text(raw.style, 120) || undefined,
     postId,
-    attachMode: rawAttachMode === "append" ? "append" : "replace",
+    attachMode: ["append", "add", "push", "preserve", "keep_existing"].includes(attachModeText) || raw.append === true ? "append" : "replace",
     referenceImages: parseReferenceImages(raw.referenceImages),
     referenceMode: text(raw.referenceMode, 80) || undefined,
     brandImageMode: text(raw.brandImageMode, 80) || undefined,
@@ -165,14 +166,15 @@ function generationScopes(postId?: string): DeveloperApiScope[] {
   return postId ? ["media:generate", "posts:update"] : ["media:generate"]
 }
 
+function hasAttachTarget(raw: unknown): boolean {
+  return isJsonRecord(raw) && Boolean(text(raw.postId ?? raw.post_id ?? raw.id, 80))
+}
+
 export async function POST(request: NextRequest) {
   let raw: unknown
-  let payload: GenerateImagePayload
   try {
     assertJsonBodySize(request, 256 * 1024)
     raw = await request.json()
-    payload = parsePayload(raw)
-    if (!payload.prompt && !payload.postId) throw new Error("prompt is required unless postId is provided")
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid image generation payload" }, { status: 400 })
   }
@@ -180,12 +182,20 @@ export async function POST(request: NextRequest) {
   return withDeveloperApiAuth(
     request,
     {
-      requiredScopes: generationScopes(payload.postId),
+      requiredScopes: generationScopes(hasAttachTarget(raw) ? "attach" : undefined),
       rateLimit: "write",
-      action: payload.postId ? "media.generate.attach" : "media.generate",
+      action: hasAttachTarget(raw) ? "media.generate.attach" : "media.generate",
       route: "/api/developer/v1/media/generate",
     },
     async (context) => {
+      let payload: GenerateImagePayload
+      try {
+        payload = parsePayload(raw)
+        if (!payload.prompt && !payload.postId) throw new Error("prompt is required unless postId is provided")
+      } catch (error) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid image generation payload" }, { status: 400 })
+      }
+
       const admin = createAdminClient()
       let post: Record<string, unknown> | null = null
       if (payload.postId) {

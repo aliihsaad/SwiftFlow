@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { decryptMetaAccountRow } from '@/lib/meta-account';
 import { isReviewPhase1Release } from '@/lib/release-channel';
+import { buildInstagramMessagingAutomationEvents } from '@/lib/webhooks/instagram-automation-events';
 
 /** Build a deterministic key from a payload object, falling back to a hash when no stable ID exists */
 function stableEventKey(prefix: string, value: Record<string, unknown> | undefined): string {
@@ -521,38 +522,22 @@ async function handleCommentEvent(value: Record<string, unknown>, account: Resol
 // ============================================
 
 async function handleMessageAutomationTrigger(value: Record<string, unknown>, account: ResolvedAccount) {
-    const sender = value?.sender as Record<string, unknown> | undefined;
-    const from = value?.from as Record<string, unknown> | undefined;
-    const message = value?.message as Record<string, unknown> | undefined;
-    const senderId = (sender?.id || from?.id) as string | undefined;
-    const messageText = (message?.text || value?.text) as string | undefined;
-    const messageId = (message?.mid || value?.id) as string | undefined;
-    const hasAttachmentPayload =
-        !!(message && 'attachments' in message && message.attachments) ||
-        !!(value && 'attachments' in value && value.attachments);
+    const automationEvents = buildInstagramMessagingAutomationEvents(value, account);
+    if (automationEvents.length === 0) return;
 
-    // Allow "any message" triggers for attachment/share messages even when Meta omits text.
-    // Keyword triggers will still fail to match because message_text becomes an empty string.
-    if (!senderId || (!messageText && !messageId && !hasAttachmentPayload)) return;
-
-    try {
-        await invokeAutomationOrchestrator({
-            workspace_id: account.workspace_id,
-            social_account_id: account.social_account_id,
-            trigger_type: 'trigger_new_message',
-            event_type: 'message',
-            source: 'webhook',
-            webhook_context: {
-                sender_id: senderId,
-                sender_username: (sender?.username || from?.username) as string,
-                message_text: messageText || '',
-                message_id: messageId,
-                message_has_attachments: hasAttachmentPayload,
-                timestamp: new Date().toISOString(),
-            },
-        });
-    } catch (error) {
-        console.error('[WEBHOOK] Message automation trigger error:', error);
+    for (const event of automationEvents) {
+        try {
+            await invokeAutomationOrchestrator({
+                workspace_id: account.workspace_id,
+                social_account_id: account.social_account_id,
+                trigger_type: event.triggerType,
+                event_type: event.eventType,
+                source: 'webhook',
+                webhook_context: event.context,
+            });
+        } catch (error) {
+            console.error(`[WEBHOOK] ${event.triggerType} automation trigger error:`, error);
+        }
     }
 }
 
@@ -563,6 +548,32 @@ async function handleStoryMentionEvent(value: Record<string, unknown>, account: 
 async function handleStoryReplyEvent(value: Record<string, unknown>, account: ResolvedAccount) {
     console.log('[WEBHOOK] Story reply event:', value);
 
+    const messagingStoryEvents = buildInstagramMessagingAutomationEvents(value, account)
+        .filter((event) => event.triggerType === 'trigger_story_reply');
+
+    if (messagingStoryEvents.length > 0) {
+        for (const event of messagingStoryEvents) {
+            try {
+                await invokeAutomationOrchestrator({
+                    workspace_id: account.workspace_id,
+                    social_account_id: account.social_account_id,
+                    trigger_type: event.triggerType,
+                    event_type: event.eventType,
+                    source: 'webhook',
+                    webhook_context: event.context,
+                });
+            } catch (error) {
+                console.error('[WEBHOOK] Story reply automation trigger error:', error);
+            }
+        }
+        return;
+    }
+
+    const from = value?.from as Record<string, unknown> | undefined;
+    const senderId = from?.id as string | undefined;
+    const messageText = value?.text as string | undefined;
+    if (!senderId && !messageText) return;
+
     try {
         await invokeAutomationOrchestrator({
             workspace_id: account.workspace_id,
@@ -571,8 +582,8 @@ async function handleStoryReplyEvent(value: Record<string, unknown>, account: Re
             event_type: 'story_reply',
             source: 'webhook',
             webhook_context: {
-                sender_id: (value?.from as Record<string, unknown>)?.id as string,
-                message_text: value?.text as string,
+                sender_id: senderId,
+                message_text: messageText || '',
                 timestamp: new Date().toISOString(),
             },
         });

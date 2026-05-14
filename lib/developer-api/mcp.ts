@@ -207,6 +207,33 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
     annotations: { openWorldHint: false },
   }),
   secureTool({
+    name: "swiftflow_generate_post_image",
+    title: "Generate post image",
+    description: "Generate an AI image with SwiftFlow's post creator image pipeline, store it in post_media, and optionally attach it to a draft or scheduled post. If attaching, use a draft/scheduled post id and set attachMode to replace or append.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        prompt: { type: "string", description: "Image prompt. If postId is provided and prompt is omitted, SwiftFlow uses the existing post caption." },
+        style: { type: "string", description: "Optional visual style instruction." },
+        postId: { type: "string", description: "Optional draft or scheduled post UUID to attach the generated image to." },
+        attachMode: { type: "string", enum: ["replace", "append"], description: "How to attach media when postId is provided. Defaults to replace." },
+        referenceImages: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: true,
+          },
+          description: "Optional reference images as { base64, mimeType } objects.",
+        },
+        referenceMode: { type: "string" },
+        brandImageMode: { type: "string" },
+        transformAction: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+    annotations: { openWorldHint: false },
+  }),
+  secureTool({
     name: "swiftflow_list_automations",
     title: "List automations",
     description: "List workspace automations and their active state.",
@@ -456,6 +483,8 @@ function mapToolCall(name: string, rawArgs: unknown): DeveloperMcpApiRequest {
     }
     case "swiftflow_upload_media":
       return { method: "POST", path: "/api/developer/v1/media", body: args }
+    case "swiftflow_generate_post_image":
+      return { method: "POST", path: "/api/developer/v1/media/generate", body: args }
     case "swiftflow_list_automations":
       return { method: "GET", path: "/api/developer/v1/automations" }
     case "swiftflow_list_social_accounts": {

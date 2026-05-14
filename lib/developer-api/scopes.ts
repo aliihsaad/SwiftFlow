@@ -44,6 +44,14 @@ const SCOPE_CAPABILITIES: Record<DeveloperApiScope, { label: string; capability:
       description: "Upload image or video media into the public post media bucket and return a URL for post mediaUrls.",
     },
   },
+  "media:generate": {
+    label: "Generate media",
+    capability: {
+      area: "Media",
+      level: "run",
+      description: "Generate AI images with SwiftFlow and return post-ready media URLs.",
+    },
+  },
   "posts:read": {
     label: "Read posts",
     capability: {

@@ -114,6 +114,43 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
           responses: { "201": { description: "Media uploaded" }, "400": { description: "Invalid media payload" }, "401": { description: "Unauthorized" }, "403": { description: "Forbidden" } },
         },
       },
+      "/media/generate": {
+        post: {
+          summary: "Generate post media",
+          description: "Required scope: media:generate. When postId is provided, posts:update is also required and the generated image is attached to the draft or scheduled post. Generates an AI image through SwiftFlow, stores it in post_media, and returns a post-ready public URL.",
+          "x-required-scopes": ["media:generate", "posts:update"],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    prompt: { type: "string", description: "Image prompt. Required unless postId is provided and the post has a caption." },
+                    style: { type: "string" },
+                    postId: { type: "string", format: "uuid", description: "Optional draft or scheduled post to attach the generated image to." },
+                    attachMode: { type: "string", enum: ["replace", "append"], default: "replace" },
+                    referenceImages: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          base64: { type: "string" },
+                          mimeType: { type: "string" },
+                        },
+                      },
+                    },
+                    referenceMode: { type: "string" },
+                    brandImageMode: { type: "string" },
+                    transformAction: { type: "string" },
+                  },
+                },
+              },
+            },
+          },
+          responses: { "201": { description: "Generated media created" }, "400": { description: "Invalid payload" }, "401": { description: "Unauthorized" }, "403": { description: "Forbidden" }, "404": { description: "Draft or scheduled post not found" }, "502": { description: "Image generation failed" } },
+        },
+      },
       "/social-accounts": {
         get: {
           summary: "List connected social accounts",

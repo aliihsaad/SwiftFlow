@@ -35,12 +35,13 @@ describe("developer API scope and capability model", () => {
   })
 
   it("turns scopes into readable access capabilities for owners and admins", () => {
-    const capabilities = getDeveloperApiCapabilities(["brand:read", "brand:write", "media:upload", "posts:create", "posts:schedule", "posts:publish_now", "posts:delete", "automations:read"])
+    const capabilities = getDeveloperApiCapabilities(["brand:read", "brand:write", "media:upload", "media:generate", "posts:create", "posts:schedule", "posts:publish_now", "posts:delete", "automations:read"])
 
     expect(capabilities.summary).toEqual([
       "Read brand profile",
       "Edit brand profile",
       "Upload media",
+      "Generate media",
       "Create posts",
       "Schedule posts",
       "Post now",
@@ -61,6 +62,11 @@ describe("developer API scope and capability model", () => {
       area: "Media",
       level: "write",
       description: "Upload image or video media into the public post media bucket and return a URL for post mediaUrls.",
+    })
+    expect(capabilities.access).toContainEqual({
+      area: "Media",
+      level: "run",
+      description: "Generate AI images with SwiftFlow and return post-ready media URLs.",
     })
     expect(capabilities.access).toContainEqual({
       area: "Posts",

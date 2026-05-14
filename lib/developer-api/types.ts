@@ -5,6 +5,7 @@ export const DEVELOPER_API_SCOPE_VALUES = [
   "brand:read",
   "brand:write",
   "media:upload",
+  "media:generate",
   "posts:read",
   "posts:create",
   "posts:schedule",

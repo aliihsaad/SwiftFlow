@@ -76,6 +76,21 @@ describe("developer API MCP bridge", () => {
     }))
   })
 
+  it("advertises SwiftFlow image generation for post media", () => {
+    expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
+      name: "swiftflow_generate_post_image",
+      title: "Generate post image",
+      inputSchema: expect.objectContaining({
+        properties: expect.objectContaining({
+          prompt: expect.objectContaining({ type: "string" }),
+          style: expect.objectContaining({ type: "string" }),
+          postId: expect.objectContaining({ type: "string" }),
+          attachMode: expect.objectContaining({ enum: ["replace", "append"] }),
+        }),
+      }),
+    }))
+  })
+
   it("advertises automation discovery helpers and workflow graph fields", () => {
     expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
       name: "swiftflow_list_social_accounts",
@@ -486,6 +501,47 @@ describe("developer API MCP bridge", () => {
       id: "media-upload",
       result: {
         structuredContent: { publicUrl: "https://cdn.example.test/post_media/post.png" },
+      },
+    })
+  })
+
+  it("maps generated post images to the developer API media generation endpoint", async () => {
+    const calls: DeveloperMcpApiRequest[] = []
+    const response = await handleDeveloperMcpJsonRpc({
+      jsonrpc: "2.0",
+      id: "media-generate",
+      method: "tools/call",
+      params: {
+        name: "swiftflow_generate_post_image",
+        arguments: {
+          prompt: "Generate a launch image for this post",
+          style: "AI-first product poster",
+          postId: "22222222-2222-4222-8222-222222222222",
+          attachMode: "replace",
+        },
+      },
+    }, {
+      callDeveloperApi: async (request) => {
+        calls.push(request)
+        return { media: { publicUrl: "https://cdn.example.com/post_media/generated.png" } }
+      },
+    })
+
+    expect(calls).toEqual([{
+      method: "POST",
+      path: "/api/developer/v1/media/generate",
+      body: {
+        prompt: "Generate a launch image for this post",
+        style: "AI-first product poster",
+        postId: "22222222-2222-4222-8222-222222222222",
+        attachMode: "replace",
+      },
+    }])
+    expect(response).toMatchObject({
+      jsonrpc: "2.0",
+      id: "media-generate",
+      result: {
+        structuredContent: { media: { publicUrl: "https://cdn.example.com/post_media/generated.png" } },
       },
     })
   })

@@ -227,6 +227,21 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
     annotations: { readOnlyHint: true, openWorldHint: false },
   }),
   secureTool({
+    name: "swiftflow_list_automation_media",
+    title: "List automation media",
+    description: "List recent Instagram media or Facebook Page posts for a connected social account. Use returned media.id as trigger_new_comment config.post_id when creating comment automations.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        social_account_id: { type: "string", description: "Connected social account UUID from swiftflow_list_social_accounts." },
+        limit: { type: "number", description: "Optional result limit. Defaults to 25, max 50." },
+      },
+      required: ["social_account_id"],
+      additionalProperties: false,
+    },
+    annotations: { readOnlyHint: true, openWorldHint: false },
+  }),
+  secureTool({
     name: "swiftflow_get_automation_node_catalog",
     title: "Get automation node catalog",
     description: "Read the supported automation node types, graph shape, and disabled node types before creating or editing workflow_graph.",
@@ -399,6 +414,13 @@ function mapToolCall(name: string, rawArgs: unknown): DeveloperMcpApiRequest {
         ? `?platform=${encodeURIComponent(args.platform)}`
         : ""
       return { method: "GET", path: `/api/developer/v1/social-accounts${platform}` }
+    }
+    case "swiftflow_list_automation_media": {
+      const accountId = encodeURIComponent(requiredString(args, "social_account_id"))
+      const limit = typeof args.limit === "number" && Number.isFinite(args.limit)
+        ? `&limit=${encodeURIComponent(String(Math.max(1, Math.min(50, Math.floor(args.limit))))) }`
+        : ""
+      return { method: "GET", path: `/api/developer/v1/automation-media?account_id=${accountId}${limit}` }
     }
     case "swiftflow_get_automation_node_catalog":
       return { method: "GET", path: "/api/developer/v1/automation-node-catalog" }

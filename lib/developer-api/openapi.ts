@@ -130,6 +130,18 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
           responses: { "200": { description: "Automation node catalog" } },
         },
       },
+      "/automation-media": {
+        get: {
+          summary: "List selectable automation media",
+          description: "Required scope: automations:read. Returns recent Instagram media or Facebook Page posts for a connected social account. Use returned media.id as trigger_new_comment config.post_id.",
+          "x-required-scopes": ["automations:read"],
+          parameters: [
+            { name: "account_id", in: "query", required: true, schema: { type: "string", format: "uuid" } },
+            { name: "limit", in: "query", required: false, schema: { type: "integer", minimum: 1, maximum: 50, default: 25 } },
+          ],
+          responses: { "200": { description: "Selectable media list" }, "400": { description: "Invalid account id" }, "403": { description: "Missing Meta media permission" } },
+        },
+      },
       "/analytics/summary": {
         get: {
           summary: "Read analytics summary",

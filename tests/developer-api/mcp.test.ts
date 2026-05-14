@@ -82,6 +82,13 @@ describe("developer API MCP bridge", () => {
       title: "List connected social accounts",
     }))
     expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
+      name: "swiftflow_list_automation_media",
+      title: "List automation media",
+      inputSchema: expect.objectContaining({
+        required: ["social_account_id"],
+      }),
+    }))
+    expect(DEVELOPER_MCP_TOOLS).toContainEqual(expect.objectContaining({
       name: "swiftflow_get_automation_node_catalog",
       title: "Get automation node catalog",
     }))
@@ -222,6 +229,39 @@ describe("developer API MCP bridge", () => {
       id: "automation-discovery",
       result: {
         structuredContent: { accounts: [{ id: "account-1", platform: "instagram" }] },
+      },
+    })
+  })
+
+  it("maps automation media discovery to selectable trigger post ids", async () => {
+    const calls: DeveloperMcpApiRequest[] = []
+    const response = await handleDeveloperMcpJsonRpc({
+      jsonrpc: "2.0",
+      id: "automation-media",
+      method: "tools/call",
+      params: {
+        name: "swiftflow_list_automation_media",
+        arguments: {
+          social_account_id: "11111111-1111-4111-8111-111111111111",
+          limit: 5,
+        },
+      },
+    }, {
+      callDeveloperApi: async (request) => {
+        calls.push(request)
+        return { media: [{ id: "17895695668004550", caption: "Latest post" }] }
+      },
+    })
+
+    expect(calls).toEqual([{
+      method: "GET",
+      path: "/api/developer/v1/automation-media?account_id=11111111-1111-4111-8111-111111111111&limit=5",
+    }])
+    expect(response).toMatchObject({
+      jsonrpc: "2.0",
+      id: "automation-media",
+      result: {
+        structuredContent: { media: [{ id: "17895695668004550", caption: "Latest post" }] },
       },
     })
   })

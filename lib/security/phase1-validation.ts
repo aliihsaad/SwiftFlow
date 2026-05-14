@@ -7,7 +7,6 @@ const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i
 const ALLOWED_PLATFORMS: Platform[] = ['instagram', 'facebook']
 const ALLOWED_STATUSES: PostStatus[] = ['draft', 'scheduled', 'publishing', 'published', 'failed']
 const ALLOWED_TONES = ['educational', 'funny', 'professional', 'engaging'] as const
-const ALLOWED_BRAND_VOICES = ['professional', 'friendly', 'playful', 'luxury', 'bold'] as const
 const ALLOWED_BRAND_LANGUAGES = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'ar', 'zh', 'ja', 'ko', 'hi', 'ru', 'tr'] as const
 const ALLOWED_AI_PROVIDERS = ['openrouter', 'gemini', 'openai'] as const
 
@@ -481,13 +480,18 @@ type ServiceEntry = { name: string; description: string }
 function sanitizeServices(value: unknown): ServiceEntry[] {
     if (!Array.isArray(value)) return []
     return value
-        .filter((item): item is JsonObject => isPlainObject(item))
+        .filter((item): item is string | JsonObject => typeof item === 'string' || isPlainObject(item))
         .map((item) => ({
-            name: clampString(item.name, 120),
-            description: clampString(item.description, 500),
+            name: typeof item === 'string' ? clampString(item, 120) : clampString(item.name, 120),
+            description: typeof item === 'string' ? '' : clampString(item.description, 500),
         }))
         .filter((item) => item.name.length > 0)
         .slice(0, 25)
+}
+
+function sanitizeBrandVoice(value: unknown, fallback = ''): string {
+    const voice = clampString(value, 2000)
+    return voice || fallback
 }
 
 export function sanitizeBrandProfilePayload(body: unknown) {
@@ -515,9 +519,7 @@ export function sanitizeBrandProfilePayload(body: unknown) {
         industry: clampString(body.industry, 120),
         business_description: clampString(body.business_description, 2000),
         target_audience: clampString(body.target_audience, 1200),
-        brand_voice: typeof body.brand_voice === 'string' && (ALLOWED_BRAND_VOICES as readonly string[]).includes(body.brand_voice)
-            ? body.brand_voice
-            : 'professional',
+        brand_voice: sanitizeBrandVoice(body.brand_voice, 'professional'),
         language: typeof body.language === 'string' && (ALLOWED_BRAND_LANGUAGES as readonly string[]).includes(body.language)
             ? body.language
             : 'en',
@@ -555,9 +557,7 @@ export function sanitizePartialBrandProfilePayload(body: unknown) {
     if ('business_description' in body) payload.business_description = clampString(body.business_description, 2000)
     if ('target_audience' in body) payload.target_audience = clampString(body.target_audience, 1200)
     if ('brand_voice' in body) {
-        payload.brand_voice = typeof body.brand_voice === 'string' && (ALLOWED_BRAND_VOICES as readonly string[]).includes(body.brand_voice)
-            ? body.brand_voice
-            : 'professional'
+        payload.brand_voice = sanitizeBrandVoice(body.brand_voice)
     }
     if ('language' in body) {
         payload.language = typeof body.language === 'string' && (ALLOWED_BRAND_LANGUAGES as readonly string[]).includes(body.language)

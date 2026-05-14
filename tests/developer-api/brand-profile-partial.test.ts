@@ -35,6 +35,28 @@ describe("developer API brand profile partial updates", () => {
     })
   })
 
+  it("preserves custom brand voice text in partial updates", () => {
+    expect(sanitizePartialBrandProfilePayload({
+      brand_voice: "Direct, technical, builder-led, and specific. Avoid hype and vague SaaS language.",
+    })).toEqual({
+      brand_voice: "Direct, technical, builder-led, and specific. Avoid hype and vague SaaS language.",
+    })
+  })
+
+  it("accepts service names from MCP clients and normalizes them to service entries", () => {
+    expect(sanitizePartialBrandProfilePayload({
+      services: [
+        "AI workflow automation",
+        { name: "SaaS MVP builds", description: "Production-ready web apps for founders." },
+      ],
+    })).toEqual({
+      services: [
+        { name: "AI workflow automation", description: "" },
+        { name: "SaaS MVP builds", description: "Production-ready web apps for founders." },
+      ],
+    })
+  })
+
   it("maps ChatGPT brand profile updates to PATCH so omitted fields are preserved", async () => {
     const calls: unknown[] = []
     const response = await handleDeveloperMcpJsonRpc({

@@ -117,7 +117,7 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
       "/media/generate": {
         post: {
           summary: "Generate post media",
-          description: "Required scope: media:generate. When postId is provided, posts:update is also required and the generated image is attached to the draft or scheduled post. Generates an AI image through SwiftFlow, stores it in post_media, and returns a post-ready public URL.",
+          description: "Required scope: media:generate. When postId or post_id is provided, posts:update is also required and the generated image is attached to the draft or scheduled post. Generates an AI image through SwiftFlow, stores it in post_media, and returns a post-ready public URL.",
           "x-required-scopes": ["media:generate", "posts:update"],
           requestBody: {
             required: true,
@@ -129,7 +129,9 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
                     prompt: { type: "string", description: "Image prompt. Required unless postId is provided and the post has a caption." },
                     style: { type: "string" },
                     postId: { type: "string", format: "uuid", description: "Optional draft or scheduled post to attach the generated image to." },
+                    post_id: { type: "string", format: "uuid", description: "Alias for postId." },
                     attachMode: { type: "string", enum: ["replace", "append"], default: "replace" },
+                    attach_mode: { type: "string", enum: ["replace", "append"], default: "replace", description: "Alias for attachMode." },
                     referenceImages: {
                       type: "array",
                       items: {

@@ -57,12 +57,13 @@ function parsePayload(raw: unknown): GenerateImagePayload {
   if (!isJsonRecord(raw)) throw new Error("Invalid image generation payload")
 
   const rawPostId = text(raw.postId ?? raw.post_id, 80)
+  const rawAttachMode = raw.attachMode ?? raw.attach_mode
   const postId = rawPostId ? assertUuid(rawPostId, "post id") : undefined
   return {
     prompt: text(raw.prompt, 4_000),
     style: text(raw.style, 120) || undefined,
     postId,
-    attachMode: raw.attachMode === "append" ? "append" : "replace",
+    attachMode: rawAttachMode === "append" ? "append" : "replace",
     referenceImages: parseReferenceImages(raw.referenceImages),
     referenceMode: text(raw.referenceMode, 80) || undefined,
     brandImageMode: text(raw.brandImageMode, 80) || undefined,

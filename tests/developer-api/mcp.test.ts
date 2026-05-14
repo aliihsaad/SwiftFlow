@@ -85,7 +85,9 @@ describe("developer API MCP bridge", () => {
           prompt: expect.objectContaining({ type: "string" }),
           style: expect.objectContaining({ type: "string" }),
           postId: expect.objectContaining({ type: "string" }),
+          post_id: expect.objectContaining({ type: "string" }),
           attachMode: expect.objectContaining({ enum: ["replace", "append"] }),
+          attach_mode: expect.objectContaining({ enum: ["replace", "append"] }),
         }),
       }),
     }))
@@ -544,6 +546,38 @@ describe("developer API MCP bridge", () => {
         structuredContent: { media: { publicUrl: "https://cdn.example.com/post_media/generated.png" } },
       },
     })
+  })
+
+  it("maps snake_case generated image arguments for connector compatibility", async () => {
+    const calls: DeveloperMcpApiRequest[] = []
+    await handleDeveloperMcpJsonRpc({
+      jsonrpc: "2.0",
+      id: "media-generate-snake-case",
+      method: "tools/call",
+      params: {
+        name: "swiftflow_generate_post_image",
+        arguments: {
+          prompt: "Generate a second carousel image",
+          post_id: "22222222-2222-4222-8222-222222222222",
+          attach_mode: "append",
+        },
+      },
+    }, {
+      callDeveloperApi: async (request) => {
+        calls.push(request)
+        return { attached: true }
+      },
+    })
+
+    expect(calls).toEqual([{
+      method: "POST",
+      path: "/api/developer/v1/media/generate",
+      body: {
+        prompt: "Generate a second carousel image",
+        post_id: "22222222-2222-4222-8222-222222222222",
+        attach_mode: "append",
+      },
+    }])
   })
 
   it("includes backend validation payloads in MCP tool errors", async () => {

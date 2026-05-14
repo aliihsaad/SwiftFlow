@@ -209,14 +209,16 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
   secureTool({
     name: "swiftflow_generate_post_image",
     title: "Generate post image",
-    description: "Generate an AI image with SwiftFlow's post creator image pipeline, store it in post_media, and optionally attach it to a draft or scheduled post. If attaching, use a draft/scheduled post id and set attachMode to replace or append.",
+    description: "Generate an AI image with SwiftFlow's post creator image pipeline, store it in post_media, and optionally attach it to a draft or scheduled post. If attaching, use a draft/scheduled post id and set attachMode or attach_mode to replace or append.",
     inputSchema: {
       type: "object",
       properties: {
         prompt: { type: "string", description: "Image prompt. If postId is provided and prompt is omitted, SwiftFlow uses the existing post caption." },
         style: { type: "string", description: "Optional visual style instruction." },
         postId: { type: "string", description: "Optional draft or scheduled post UUID to attach the generated image to." },
+        post_id: { type: "string", description: "Alias for postId. Optional draft or scheduled post UUID to attach the generated image to." },
         attachMode: { type: "string", enum: ["replace", "append"], description: "How to attach media when postId is provided. Defaults to replace." },
+        attach_mode: { type: "string", enum: ["replace", "append"], description: "Alias for attachMode. Use append to add media without replacing existing mediaUrls." },
         referenceImages: {
           type: "array",
           items: {

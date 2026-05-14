@@ -202,4 +202,27 @@ describe("developer API media generation route", () => {
     })
     expect(state.posts[0].media_urls).toEqual(["https://cdn.example.com/old.png", generatedUrl])
   })
+
+  it("accepts snake_case post attach arguments from MCP clients", async () => {
+    const response = await mediaGenerateRoute.POST(new NextRequest(`${origin}/api/developer/v1/media/generate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Create another image for the existing draft",
+        post_id: postId,
+        attach_mode: "append",
+      }),
+    }))
+
+    expect(response.status).toBe(201)
+    const generatedUrl = `https://cdn.example.com/storage/v1/object/public/post_media/${state.uploads[0].path}`
+    await expect(response.json()).resolves.toMatchObject({
+      attached: true,
+      attachMode: "append",
+      post: {
+        id: postId,
+        media_urls: ["https://cdn.example.com/old.png", generatedUrl],
+      },
+    })
+  })
 })

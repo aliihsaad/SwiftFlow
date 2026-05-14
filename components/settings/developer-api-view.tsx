@@ -9,6 +9,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -75,6 +85,11 @@ type AuditLog = {
   created_at: string
 }
 
+type KeyActionTarget = {
+  action: "revoke" | "delete"
+  key: DeveloperApiKey
+}
+
 const defaultScopes: DeveloperApiScope[] = [
   "workspace:read",
   "brand:read",
@@ -107,6 +122,8 @@ export function DeveloperApiView() {
   const [selectedScopes, setSelectedScopes] = useState<DeveloperApiScope[]>(defaultScopes)
   const [expiresInDays, setExpiresInDays] = useState(90)
   const [createdSecret, setCreatedSecret] = useState<string | null>(null)
+  const [confirmKeyAction, setConfirmKeyAction] = useState<KeyActionTarget | null>(null)
+  const [pendingKeyAction, setPendingKeyAction] = useState<KeyActionTarget | null>(null)
   const {
     data: keysData,
     error: keysError,
@@ -163,10 +180,11 @@ export function DeveloperApiView() {
     }
   }
 
-  async function revokeKey(id: string) {
+  async function revokeKey(key: DeveloperApiKey) {
     setError(null)
+    setPendingKeyAction({ action: "revoke", key })
     try {
-      const response = await fetch(`/api/developer/keys/${id}`, {
+      const response = await fetch(`/api/developer/keys/${key.id}`, {
         method: "DELETE",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ reason: "revoked_from_settings" }),
@@ -174,15 +192,19 @@ export function DeveloperApiView() {
       const json = await response.json()
       if (!response.ok) throw new Error(json?.error || "Failed to revoke key")
       await Promise.all([reloadKeys(), reloadAudit()])
+      setConfirmKeyAction(null)
     } catch (revokeError) {
       setError(revokeError instanceof Error ? revokeError.message : "Failed to revoke key")
+    } finally {
+      setPendingKeyAction(null)
     }
   }
 
-  async function deleteRevokedKey(id: string) {
+  async function deleteRevokedKey(key: DeveloperApiKey) {
     setError(null)
+    setPendingKeyAction({ action: "delete", key })
     try {
-      const response = await fetch(`/api/developer/keys/${id}`, {
+      const response = await fetch(`/api/developer/keys/${key.id}`, {
         method: "DELETE",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ permanent: true }),
@@ -190,9 +212,21 @@ export function DeveloperApiView() {
       const json = await response.json()
       if (!response.ok) throw new Error(json?.error || "Failed to delete key")
       await Promise.all([reloadKeys(), reloadAudit()])
+      setConfirmKeyAction(null)
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "Failed to delete key")
+    } finally {
+      setPendingKeyAction(null)
     }
+  }
+
+  async function runConfirmedKeyAction() {
+    if (!confirmKeyAction) return
+    if (confirmKeyAction.action === "revoke") {
+      await revokeKey(confirmKeyAction.key)
+      return
+    }
+    await deleteRevokedKey(confirmKeyAction.key)
   }
 
   const preview = data?.entitlement.mode === "preview"
@@ -359,7 +393,7 @@ export function DeveloperApiView() {
             </pre>
             <div className="mt-3 grid gap-2 text-xs text-white/55">
               <p>Store the key in the local environment as SWIFTFLOW_API_KEY. Do not paste the secret into config files or source control.</p>
-              <p>ChatGPT connector support uses the same MCP endpoint with OAuth linking. In ChatGPT, add the connector URL, then link it by pasting a Developer API key on the SwiftFlow consent screen.</p>
+              <p>ChatGPT connector support uses the same MCP endpoint with OAuth linking. For the smoothest setup, add or reconnect SwiftFlow from ChatGPT in a desktop browser, then use it on desktop or mobile after it is linked.</p>
             </div>
           </div>
         </CardContent>
@@ -385,15 +419,29 @@ export function DeveloperApiView() {
                   <p className="mt-2 text-xs text-white/45">Expires {formatDate(key.expiresAt)} · Last used {formatDate(key.lastUsedAt)}</p>
                 </div>
                 {key.status === "active" && (
-                  <Button type="button" variant="outline" size="sm" onClick={() => revokeKey(key.id)} className="w-full sm:w-auto">
-                    <Trash2 className="size-4" />
-                    Revoke
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfirmKeyAction({ action: "revoke", key })}
+                    disabled={pendingKeyAction?.key.id === key.id}
+                    className="w-full sm:w-auto"
+                  >
+                    {pendingKeyAction?.key.id === key.id ? <RefreshCw className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                    {pendingKeyAction?.key.id === key.id ? "Revoking..." : "Revoke"}
                   </Button>
                 )}
                 {key.status === "revoked" && (
-                  <Button type="button" variant="destructive" size="sm" onClick={() => deleteRevokedKey(key.id)} className="w-full sm:w-auto">
-                    <Trash2 className="size-4" />
-                    Delete
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setConfirmKeyAction({ action: "delete", key })}
+                    disabled={pendingKeyAction?.key.id === key.id}
+                    className="w-full sm:w-auto"
+                  >
+                    {pendingKeyAction?.key.id === key.id ? <RefreshCw className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+                    {pendingKeyAction?.key.id === key.id ? "Deleting..." : "Delete"}
                   </Button>
                 )}
               </div>
@@ -444,6 +492,52 @@ export function DeveloperApiView() {
           </Button>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={Boolean(confirmKeyAction)}
+        onOpenChange={(open) => {
+          if (!open && !pendingKeyAction) setConfirmKeyAction(null)
+        }}
+      >
+        <AlertDialogContent className="border-white/10 bg-[#151620] text-white/85">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white/90">
+              {confirmKeyAction?.action === "delete" ? "Delete revoked API key?" : "Revoke API key?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-white/55">
+              {confirmKeyAction?.action === "delete"
+                ? "This removes the revoked key record from Settings. Existing requests using this key are already blocked."
+                : "This immediately blocks Codex, ChatGPT, scripts, and other clients using this key."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {confirmKeyAction && (
+            <div className="rounded-md border border-white/10 bg-black/25 p-3 text-sm">
+              <p className="font-medium text-white/90">{confirmKeyAction.key.name}</p>
+              <p className="mt-1 break-all font-mono text-xs text-white/45">{confirmKeyAction.key.keyPrefix}...</p>
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(pendingKeyAction)} className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault()
+                void runConfirmedKeyAction()
+              }}
+              disabled={Boolean(pendingKeyAction)}
+              className={confirmKeyAction?.action === "delete"
+                ? "border border-red-500/25 bg-red-500/15 text-red-200 hover:bg-red-500/20"
+                : "border border-amber-400/25 bg-amber-400/15 text-amber-100 hover:bg-amber-400/20"}
+            >
+              {pendingKeyAction && <RefreshCw className="mr-2 size-4 animate-spin" />}
+              {pendingKeyAction
+                ? pendingKeyAction.action === "delete" ? "Deleting..." : "Revoking..."
+                : confirmKeyAction?.action === "delete" ? "Delete key" : "Revoke key"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

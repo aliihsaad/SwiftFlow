@@ -13,6 +13,7 @@ import { getDeveloperApiKeyPepper } from "@/lib/developer-api/key-format"
 export const runtime = "nodejs"
 
 type McpJsonRpcRequest = Parameters<typeof handleDeveloperMcpJsonRpc>[0]
+const MCP_PROTOCOL_VERSION = "2025-03-26"
 
 class DeveloperMcpApiError extends Error {
   constructor(
@@ -28,7 +29,17 @@ function jsonResponse(payload: unknown, status = 200, headers: HeadersInit = {})
   return NextResponse.json(payload, {
     status,
     headers: {
-      "Mcp-Protocol-Version": "2025-03-26",
+      "Mcp-Protocol-Version": MCP_PROTOCOL_VERSION,
+      ...headers,
+    },
+  })
+}
+
+function emptyMcpResponse(status: number, headers: HeadersInit = {}) {
+  return new Response(null, {
+    status,
+    headers: {
+      "Mcp-Protocol-Version": MCP_PROTOCOL_VERSION,
       ...headers,
     },
   })
@@ -108,13 +119,7 @@ export async function GET(request: NextRequest) {
     return unauthorizedMcpResponse(request.nextUrl.origin)
   }
 
-  return jsonResponse({
-    name: "swiftflow-developer-api",
-    transport: "streamable-http",
-    endpoint: "/api/developer/mcp",
-    authentication: "OAuth 2.1 or Developer API Bearer token",
-    protectedResource: "/.well-known/oauth-protected-resource",
-  })
+  return emptyMcpResponse(405, { Allow: "POST, OPTIONS" })
 }
 
 export async function OPTIONS() {
@@ -122,7 +127,7 @@ export async function OPTIONS() {
     status: 204,
     headers: {
       Allow: "GET, POST, OPTIONS",
-      "Mcp-Protocol-Version": "2025-03-26",
+      "Mcp-Protocol-Version": MCP_PROTOCOL_VERSION,
     },
   })
 }
@@ -150,11 +155,11 @@ export async function POST(request: NextRequest) {
   try {
     if (Array.isArray(body)) {
       const responses = (await Promise.all(body.map((message) => handle(message)))).filter(Boolean)
-      return responses.length > 0 ? jsonResponse(responses) : new Response(null, { status: 204 })
+      return responses.length > 0 ? jsonResponse(responses) : emptyMcpResponse(202)
     }
 
     const response = await handle(body as McpJsonRpcRequest)
-    return response ? jsonResponse(response) : new Response(null, { status: 204 })
+    return response ? jsonResponse(response) : emptyMcpResponse(202)
   } catch (error) {
     const status = error instanceof DeveloperMcpApiError ? error.status : 500
     const authChallenge = status === 401 ? buildDeveloperMcpAuthChallenge(request.nextUrl.origin) : null

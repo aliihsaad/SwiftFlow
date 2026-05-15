@@ -61,13 +61,13 @@ export function ContentCard({ id, title, body, onGenerateImage, onRefine, onSche
     }
 
     return (
-        <Card className="flex h-full min-w-0 flex-col border-white/10 bg-[#1b1d28] p-3 text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_12px_32px_rgba(0,0,0,0.2)] transition-transform duration-200 sm:p-4 sm:hover:scale-[1.02]">
-            <h3 className="mb-1.5 break-words text-base font-bold text-white/90 sm:mb-2 sm:text-lg">{title}</h3>
-            <p className="mb-3 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-white/50 sm:mb-4 sm:text-sm">{body}</p>
+        <Card className="flex h-full min-w-0 flex-col border-white/10 bg-[#1b1d28] p-3 text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_12px_32px_rgba(0,0,0,0.2)] transition-transform duration-200 md:p-4 md:hover:scale-[1.02]">
+            <h3 className="mb-1.5 break-words text-base font-bold text-white/90 md:mb-2 md:text-lg">{title}</h3>
+            <p className="mb-3 whitespace-pre-wrap break-words text-[13px] leading-relaxed text-white/50 md:mb-4 md:text-sm">{body}</p>
 
             {/* In-Card Image Area */}
             {(generatedImage || isGenerating) && (
-                <div className="relative mb-3 aspect-square w-full overflow-hidden rounded-md border border-white/10 bg-black/10 sm:mb-4">
+                <div className="relative mb-3 aspect-square w-full overflow-hidden rounded-md border border-white/10 bg-black/10 md:mb-4">
                     {isGenerating ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/50">
                             <div className="h-6 w-6 animate-spin rounded-full border-2 border-cyan-300/20 border-t-cyan-300" />
@@ -80,7 +80,7 @@ export function ContentCard({ id, title, body, onGenerateImage, onRefine, onSche
                             <Button
                                 variant="secondary"
                                 size="sm"
-                                className="absolute bottom-2 right-2 h-9 border-white/10 bg-[#151620]/90 text-xs text-white/75 opacity-100 transition-opacity hover:bg-[#151620] hover:text-white sm:h-7 sm:opacity-0 sm:group-hover:opacity-100"
+                                className="absolute bottom-2 right-2 h-9 border-white/10 bg-[#151620]/90 text-xs text-white/75 opacity-100 transition-opacity hover:bg-[#151620] hover:text-white md:h-7 md:opacity-0 md:group-hover:opacity-100"
                                 onClick={handleDownload}
                             >
                                 Download
@@ -96,12 +96,12 @@ export function ContentCard({ id, title, body, onGenerateImage, onRefine, onSche
                 </div>
             )}
 
-            <div className="mt-auto grid grid-cols-2 gap-2 border-t border-white/10 pt-2.5 sm:grid-cols-3 sm:pt-3">
+            <div className="mt-auto grid grid-cols-2 gap-2 border-t border-white/10 pt-2.5 md:grid-cols-3 md:pt-3">
                 {!generatedImage ? (
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="h-9 min-w-0 gap-1 border border-white/10 bg-white/5 px-2 text-xs text-white/75 hover:bg-white/10 hover:text-white sm:h-8"
+                        className="h-9 min-w-0 gap-1 border border-white/10 bg-white/5 px-2 text-xs text-white/75 hover:bg-white/10 hover:text-white md:h-8"
                         onClick={handleGenerateInternal}
                         disabled={isGenerating}
                     >
@@ -112,7 +112,7 @@ export function ContentCard({ id, title, body, onGenerateImage, onRefine, onSche
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="h-9 min-w-0 gap-1 border border-white/10 bg-white/5 px-2 text-xs text-white/75 hover:bg-white/10 hover:text-white sm:h-8"
+                        className="h-9 min-w-0 gap-1 border border-white/10 bg-white/5 px-2 text-xs text-white/75 hover:bg-white/10 hover:text-white md:h-8"
                         onClick={handleGenerateInternal}
                         disabled={isGenerating}
                     >
@@ -124,7 +124,7 @@ export function ContentCard({ id, title, body, onGenerateImage, onRefine, onSche
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="h-9 min-w-0 gap-1 border border-white/10 bg-white/5 px-2 text-xs text-white/75 hover:bg-white/10 hover:text-white sm:h-8"
+                    className="h-9 min-w-0 gap-1 border border-white/10 bg-white/5 px-2 text-xs text-white/75 hover:bg-white/10 hover:text-white md:h-8"
                     onClick={() => onRefine(id, body)}
                 >
                     <MessageCircle className="w-3 h-3 text-emerald-400" />
@@ -133,13 +133,13 @@ export function ContentCard({ id, title, body, onGenerateImage, onRefine, onSche
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="col-span-2 h-9 min-w-0 gap-1 border border-white/10 bg-white/5 px-2 text-xs text-white/75 hover:bg-white/10 hover:text-white sm:col-span-1 sm:h-8"
+                    className="col-span-2 h-9 min-w-0 gap-1 border border-white/10 bg-white/5 px-2 text-xs text-white/75 hover:bg-white/10 hover:text-white md:col-span-1 md:h-8"
                     // Pass generated image if available, else null/undefined
                     onClick={() => onSchedule(id, body, generatedImage || undefined)}
                 >
                     <Calendar className="w-3 h-3 text-amber-300" />
-                    <span className="truncate sm:hidden">Schedule</span>
-                    <span className="hidden truncate sm:inline">Schedule Post</span>
+                    <span className="truncate md:hidden">Schedule</span>
+                    <span className="hidden truncate md:inline">Schedule Post</span>
                 </Button>
             </div>
         </Card>

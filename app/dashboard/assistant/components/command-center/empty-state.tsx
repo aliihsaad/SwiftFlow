@@ -25,15 +25,15 @@ export function AssistantEmptyState({ quickStarts, onQuickStart, isMobile }: Ass
         )}>
           <Bot className={cn('h-7 w-7 text-white', isMobile && 'h-5 w-5')} />
         </div>
-        <h1 className={cn('text-2xl font-bold tracking-normal text-white/90 sm:text-3xl', isMobile && 'text-xl')}>
+        <h1 className={cn('text-2xl font-bold tracking-normal text-white/90 md:text-3xl', isMobile && 'text-xl')}>
           AI Command Center
         </h1>
-        <p className={cn('max-w-md text-sm text-white/45 sm:text-base', isMobile && 'mx-auto max-w-xs text-xs')}>
+        <p className={cn('max-w-md text-sm text-white/45 md:text-base', isMobile && 'mx-auto max-w-xs text-xs')}>
           Create, improve, analyze, and operate your social media workspace from one focused assistant.
         </p>
       </div>
 
-      <div className={cn('grid w-full max-w-4xl grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3', isMobile && 'max-w-none')}>
+      <div className={cn('grid w-full max-w-4xl grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3', isMobile && 'max-w-none')}>
         {quickStarts.map((item) => {
           const Icon = item.icon
 

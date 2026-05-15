@@ -17,7 +17,7 @@ describe("assistant generated result mobile layout", () => {
     const source = readProjectFile("app/dashboard/assistant/components/command-center/assistant-response.tsx")
 
     expect(source).toContain("w-full max-w-none min-w-0 overflow-hidden")
-    expect(source).toContain("sm:max-w-2xl")
+    expect(source).toContain("md:max-w-2xl")
     expect(source).not.toMatch(/(^|["'\s])max-w-2xl(\s|["'])/)
     expect(source).not.toContain("isMobile")
   })

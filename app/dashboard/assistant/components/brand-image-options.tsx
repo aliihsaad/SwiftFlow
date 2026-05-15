@@ -18,28 +18,28 @@ interface BrandImageModeSelectorProps {
 
 export function BrandImageModeSelector({ onSelect }: BrandImageModeSelectorProps) {
     return (
-        <div className="flex w-full flex-col gap-3 sm:flex-row">
+        <div className="flex w-full flex-col gap-3 md:flex-row">
             <Button
                 variant="outline"
-                className="h-auto min-h-16 flex-1 flex-col gap-1.5 py-3 sm:min-h-24 sm:gap-2 sm:py-4"
+                className="h-auto min-h-16 flex-1 flex-col gap-1.5 py-3 md:min-h-24 md:gap-2 md:py-4"
                 onClick={() => onSelect('generate')}
             >
-                <Sparkles className="h-4 w-4 sm:h-5 sm:w-5" />
+                <Sparkles className="h-4 w-4 md:h-5 md:w-5" />
                 <div className="text-center">
-                    <div className="text-sm font-semibold sm:text-base">Generate New</div>
-                    <div className="text-[11px] opacity-80 sm:text-xs">Create images matching your brand</div>
+                    <div className="text-sm font-semibold md:text-base">Generate New</div>
+                    <div className="text-[11px] opacity-80 md:text-xs">Create images matching your brand</div>
                 </div>
             </Button>
 
             <Button
                 variant="outline"
-                className="h-auto min-h-16 flex-1 flex-col gap-1.5 py-3 sm:min-h-24 sm:gap-2 sm:py-4"
+                className="h-auto min-h-16 flex-1 flex-col gap-1.5 py-3 md:min-h-24 md:gap-2 md:py-4"
                 onClick={() => onSelect('transform')}
             >
-                <RefreshCw className="h-4 w-4 sm:h-5 sm:w-5" />
+                <RefreshCw className="h-4 w-4 md:h-5 md:w-5" />
                 <div className="text-center">
-                    <div className="text-sm font-semibold sm:text-base">Transform Existing</div>
-                    <div className="text-[11px] opacity-80 sm:text-xs">Restyle or recolor uploaded images</div>
+                    <div className="text-sm font-semibold md:text-base">Transform Existing</div>
+                    <div className="text-[11px] opacity-80 md:text-xs">Restyle or recolor uploaded images</div>
                 </div>
             </Button>
         </div>
@@ -114,12 +114,12 @@ export function BrandImageOptions({
     }
 
     return (
-        <div className="w-full max-w-none animate-in fade-in slide-in-from-bottom-2 space-y-4 rounded-xl border border-white/10 bg-[#1b1d28] p-3 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)] sm:max-w-lg sm:space-y-5 sm:p-5">
+        <div className="w-full max-w-none animate-in fade-in slide-in-from-bottom-2 space-y-4 rounded-xl border border-white/10 bg-[#1b1d28] p-3 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)] md:max-w-lg md:space-y-5 md:p-5">
             <div className="space-y-1">
                 <p className="text-sm text-white/50">
                     {mode === 'generate' ? 'Generating brand images' : 'Transforming images'} for
                 </p>
-                <h3 className="break-words text-sm font-semibold text-cyan-100 sm:text-base">&quot;{prompt}&quot;</h3>
+                <h3 className="break-words text-sm font-semibold text-cyan-100 md:text-base">&quot;{prompt}&quot;</h3>
                 {hasReferenceImages && (
                     <p className="text-xs text-white/40">{referenceCount} reference image{referenceCount > 1 ? 's' : ''} attached</p>
                 )}
@@ -135,8 +135,8 @@ export function BrandImageOptions({
                             onClick={() => setImageCount(count)}
                             disabled={isGenerating}
                             className={cn(
-                                "min-h-9 flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-all sm:min-h-10 sm:px-3 sm:py-2 sm:text-sm",
-                                "active:scale-[0.98] sm:hover:scale-[1.02]",
+                                "min-h-9 flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-all md:min-h-10 md:px-3 md:py-2 md:text-sm",
+                                "active:scale-[0.98] md:hover:scale-[1.02]",
                                 imageCount === count
                                     ? "border-cyan-300/25 bg-cyan-400/12 text-cyan-100 shadow-sm"
                                     : "border-white/10 bg-[#151620] text-white/70 hover:bg-white/5"
@@ -151,7 +151,7 @@ export function BrandImageOptions({
             {/* Style Preset */}
             <div className="space-y-2">
                 <p className="text-sm font-medium text-white/60">Style preset</p>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
                     {STYLE_PRESETS.map((style) => {
                         const Icon = style.icon
                         return (
@@ -160,15 +160,15 @@ export function BrandImageOptions({
                                 onClick={() => setSelectedStyle(style.id)}
                                 disabled={isGenerating}
                                 className={cn(
-                                    "flex min-h-10 items-center gap-2 rounded-lg border p-2 text-left transition-all sm:min-h-12 sm:p-3",
-                                    "active:scale-[0.98] sm:hover:scale-[1.02]",
+                                    "flex min-h-10 items-center gap-2 rounded-lg border p-2 text-left transition-all md:min-h-12 md:p-3",
+                                    "active:scale-[0.98] md:hover:scale-[1.02]",
                                     selectedStyle === style.id
                                         ? "ring-2 ring-cyan-300/30 border-cyan-300/25"
                                         : "hover:bg-white/5",
                                     style.bg
                                 )}
                             >
-                                <Icon className={cn("h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4", style.color)} />
+                                <Icon className={cn("h-3.5 w-3.5 shrink-0 md:h-4 md:w-4", style.color)} />
                                 <span className="min-w-0 text-xs font-medium text-white/85">{style.label}</span>
                             </button>
                         )
@@ -189,8 +189,8 @@ export function BrandImageOptions({
                                     onClick={() => setReferenceMode(rm.id)}
                                     disabled={isGenerating}
                                     className={cn(
-                                        "flex min-h-10 items-center gap-2 rounded-lg border p-2 text-left transition-all sm:min-h-12 sm:p-2.5",
-                                        "active:scale-[0.99] sm:hover:scale-[1.01]",
+                                        "flex min-h-10 items-center gap-2 rounded-lg border p-2 text-left transition-all md:min-h-12 md:p-2.5",
+                                        "active:scale-[0.99] md:hover:scale-[1.01]",
                                         referenceMode === rm.id
                                             ? "border-cyan-300/25 bg-cyan-400/10 text-cyan-100"
                                             : "border-white/10 bg-[#151620] text-white/70 hover:bg-white/5"
@@ -218,8 +218,8 @@ export function BrandImageOptions({
                                     onClick={() => setTransformAction(ta.id)}
                                     disabled={isGenerating}
                                     className={cn(
-                                        "flex min-h-10 items-center gap-2 rounded-lg border p-2 text-left transition-all sm:min-h-12 sm:p-2.5",
-                                        "active:scale-[0.99] sm:hover:scale-[1.01]",
+                                        "flex min-h-10 items-center gap-2 rounded-lg border p-2 text-left transition-all md:min-h-12 md:p-2.5",
+                                        "active:scale-[0.99] md:hover:scale-[1.01]",
                                         transformAction === ta.id
                                             ? "border-cyan-300/25 bg-cyan-400/10 text-cyan-100"
                                             : "border-white/10 bg-[#151620] text-white/70 hover:bg-white/5"
@@ -235,14 +235,14 @@ export function BrandImageOptions({
             )}
 
             {/* Magic Wand + Generate */}
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
                 <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setEnhanceEnabled(!enhanceEnabled)}
                     disabled={isGenerating}
                     className={cn(
-                        "h-9 gap-1.5 text-xs transition-all sm:h-8",
+                        "h-9 gap-1.5 text-xs transition-all md:h-8",
                         enhanceEnabled
                             ? "border-cyan-300/25 bg-cyan-400/10 text-cyan-200 shadow-[0_0_10px_rgba(56,189,248,0.18)]"
                             : "border-white/10 bg-white/5 text-white/55 hover:bg-white/10 hover:text-white/80"
@@ -256,7 +256,7 @@ export function BrandImageOptions({
                 <Button
                     onClick={handleGenerate}
                     disabled={!selectedStyle || isGenerating}
-                    className="min-h-10 flex-1 border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20 sm:min-h-11"
+                    className="min-h-10 flex-1 border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20 md:min-h-11"
                     size="lg"
                 >
                     {isGenerating ? (

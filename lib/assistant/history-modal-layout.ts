@@ -15,17 +15,17 @@ export const ASSISTANT_HISTORY_DIALOG_CLASS = [
   "p-0",
   "text-white/85",
   "shadow-2xl",
-  "sm:!bottom-auto",
-  "sm:!top-[50%]",
-  "sm:!w-full",
-  "sm:!max-w-[420px]",
-  "sm:!translate-y-[-50%]",
-  "sm:rounded-xl",
+  "md:!bottom-auto",
+  "md:!top-[50%]",
+  "md:!w-full",
+  "md:!max-w-[420px]",
+  "md:!translate-y-[-50%]",
+  "md:rounded-xl",
 ].join(" ")
 
-export const ASSISTANT_HISTORY_HEADER_CLASS = "shrink-0 border-b border-white/8 px-4 pb-3 pt-4 text-left sm:px-5"
+export const ASSISTANT_HISTORY_HEADER_CLASS = "shrink-0 border-b border-white/8 px-4 pb-3 pt-4 text-left md:px-5"
 
-export const ASSISTANT_HISTORY_ACTIONS_CLASS = "shrink-0 px-3 py-3 sm:px-4"
+export const ASSISTANT_HISTORY_ACTIONS_CLASS = "shrink-0 px-3 py-3 md:px-4"
 
 export const ASSISTANT_HISTORY_SCROLL_CLASS = "h-[min(54dvh,360px)] pr-2"
 
@@ -46,5 +46,5 @@ export const ASSISTANT_HISTORY_DELETE_DIALOG_CLASS = [
   "border-white/10",
   "bg-[#1b1d28]",
   "text-white/85",
-  "sm:!max-w-md",
+  "md:!max-w-md",
 ].join(" ")

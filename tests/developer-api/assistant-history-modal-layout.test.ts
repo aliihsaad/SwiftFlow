@@ -16,11 +16,11 @@ describe("assistant history modal mobile layout", () => {
     expect(ASSISTANT_HISTORY_DIALOG_CLASS).toContain("overflow-hidden")
   })
 
-  it("restores the centered desktop shape at the sm breakpoint", () => {
-    expect(ASSISTANT_HISTORY_DIALOG_CLASS).toContain("sm:!bottom-auto")
-    expect(ASSISTANT_HISTORY_DIALOG_CLASS).toContain("sm:!top-[50%]")
-    expect(ASSISTANT_HISTORY_DIALOG_CLASS).toContain("sm:!translate-y-[-50%]")
-    expect(ASSISTANT_HISTORY_DIALOG_CLASS).toContain("sm:!max-w-[420px]")
+  it("restores the centered desktop shape at the md breakpoint", () => {
+    expect(ASSISTANT_HISTORY_DIALOG_CLASS).toContain("md:!bottom-auto")
+    expect(ASSISTANT_HISTORY_DIALOG_CLASS).toContain("md:!top-[50%]")
+    expect(ASSISTANT_HISTORY_DIALOG_CLASS).toContain("md:!translate-y-[-50%]")
+    expect(ASSISTANT_HISTORY_DIALOG_CLASS).toContain("md:!max-w-[420px]")
   })
 
   it("keeps list rows thumb-friendly and scrollable on mobile", () => {

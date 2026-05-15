@@ -82,8 +82,8 @@ export function AssistantHistoryControls({
           <div className={ASSISTANT_HISTORY_HEADER_CLASS}>
             <div className="flex items-start gap-3">
               <DialogHeader className="min-w-0 flex-1 pr-2 text-left">
-                <DialogTitle className="text-base text-white/90 sm:text-lg">Chat History</DialogTitle>
-                <DialogDescription className="text-xs leading-relaxed text-white/50 sm:text-sm">
+                <DialogTitle className="text-base text-white/90 md:text-lg">Chat History</DialogTitle>
+                <DialogDescription className="text-xs leading-relaxed text-white/50 md:text-sm">
                   Resume a previous conversation or start clean.
                 </DialogDescription>
               </DialogHeader>
@@ -102,14 +102,14 @@ export function AssistantHistoryControls({
             <Button
               size="sm"
               variant="outline"
-              className="h-10 w-full border-white/10 bg-white/5 text-white/75 hover:bg-white/10 hover:text-white sm:h-9"
+              className="h-10 w-full border-white/10 bg-white/5 text-white/75 hover:bg-white/10 hover:text-white md:h-9"
               onClick={handleNewChat}
             >
               <RefreshCw className="mr-2 h-4 w-4" />
               New chat
             </Button>
           </div>
-          <div className="min-h-0 px-3 pb-3 sm:px-4 sm:pb-4">
+          <div className="min-h-0 px-3 pb-3 md:px-4 md:pb-4">
             <ScrollArea className={ASSISTANT_HISTORY_SCROLL_CLASS}>
               <div className="space-y-1.5">
                 {sessions.map((session) => (

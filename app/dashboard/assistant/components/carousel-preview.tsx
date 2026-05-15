@@ -53,7 +53,7 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
     }
 
     return (
-        <div className="flex min-w-0 flex-col gap-3 sm:gap-4">
+        <div className="flex min-w-0 flex-col gap-3 md:gap-4">
             <div className={CAROUSEL_SLIDE_FRAME_CLASS}>
                 <div
                     aria-label="Carousel slides"
@@ -81,7 +81,7 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
 
                                 <div className="min-w-0 flex-1 space-y-1">
                                     <p className="text-xs font-semibold uppercase tracking-wider text-white/45">Content</p>
-                                    <p className="max-h-14 overflow-y-auto whitespace-normal break-words text-xs leading-relaxed text-white/50 sm:max-h-[60px]">
+                                    <p className="max-h-14 overflow-y-auto whitespace-normal break-words text-xs leading-relaxed text-white/50 md:max-h-[60px]">
                                         {slide.content}
                                     </p>
                                 </div>
@@ -98,7 +98,7 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="h-10 w-full border-white/10 bg-white/5 text-xs text-white/75 hover:bg-white/10 hover:text-white sm:h-8"
+                                                    className="h-10 w-full border-white/10 bg-white/5 text-xs text-white/75 hover:bg-white/10 hover:text-white md:h-8"
                                                     onClick={() => onGenerateImage(slide.slide_number, slide.image_prompt!)}
                                                     disabled={isGenerating || generatingSlide !== null}
                                                 >
@@ -117,7 +117,7 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
                                             <img
                                                 src={slide.imageUrl}
                                                 alt={`Slide ${slide.slide_number}`}
-                                                className="h-28 w-full rounded-md object-cover sm:h-32"
+                                                className="h-28 w-full rounded-md object-cover md:h-32"
                                             />
                                         )}
                                         {slideError && (
@@ -133,14 +133,14 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
                 </div>
             </div>
             {/* Carousel Footer Actions */}
-            <div className="flex min-w-0 flex-col gap-2.5 rounded-xl border border-white/10 bg-[#1b1d28] p-3 sm:gap-3 sm:p-4">
+            <div className="flex min-w-0 flex-col gap-2.5 rounded-xl border border-white/10 bg-[#1b1d28] p-3 md:gap-3 md:p-4">
                 {caption && (
                     <div className="min-w-0 space-y-2">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <h4 className="text-sm font-semibold text-white/85">Target Caption</h4>
                             <button
                                 type="button"
-                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-white/50 hover:bg-white/5 hover:text-white/80 sm:h-7 sm:w-7"
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-white/50 hover:bg-white/5 hover:text-white/80 md:h-7 md:w-7"
                                 onClick={copyCaption}
                                 title="Copy caption"
                             >
@@ -151,14 +151,14 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
                                 )}
                             </button>
                         </div>
-                        <p className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words text-[13px] leading-relaxed text-white/50 sm:max-h-none sm:text-sm">{caption}</p>
+                        <p className="max-h-32 overflow-y-auto whitespace-pre-wrap break-words text-[13px] leading-relaxed text-white/50 md:max-h-none md:text-sm">{caption}</p>
                     </div>
                 )}
 
                 {onSchedule && (
                     <Button
                         onClick={handleScheduleAll}
-                        className="min-h-10 w-full border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20 sm:min-h-11"
+                        className="min-h-10 w-full border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20 md:min-h-11"
                     >
                         Schedule Carousel Post
                     </Button>

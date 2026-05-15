@@ -979,7 +979,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
     return (
         <div
-            className="flex h-[calc(100dvh-7.25rem)] w-full max-w-none flex-col overflow-hidden rounded-none border-0 sm:mx-auto sm:h-[calc(100vh-8.5rem)] sm:max-w-6xl sm:rounded-xl sm:border sm:border-white/10"
+            className="flex h-[calc(100dvh-7.25rem)] w-full max-w-none flex-col overflow-hidden rounded-none border-0 md:mx-auto md:h-[calc(100vh-8.5rem)] md:max-w-6xl md:rounded-xl md:border md:border-white/10"
             style={{
                 background: ASSIST_THEME.shell,
                 boxShadow: '0 0 60px rgba(56,189,248,0.05)',
@@ -987,7 +987,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         >
             {/* ── TOOLBAR ── */}
             <div
-                className="sticky top-0 z-20 flex flex-none items-center justify-between gap-2 px-3 py-2 sm:static sm:gap-4 sm:px-5 sm:py-3"
+                className="sticky top-0 z-20 flex flex-none items-center justify-between gap-2 px-3 py-2 md:static md:gap-4 md:px-5 md:py-3"
                 style={{
                     borderBottom: `1px solid ${ASSIST_THEME.borderSoft}`,
                     background: 'rgba(21,22,32,0.92)',
@@ -1000,10 +1000,10 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                     </span>
                     <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: ASSIST_THEME.textDim }}>
-                        <span className="sm:hidden">Assistant</span>
-                        <span className="hidden sm:inline">Assistant Active</span>
+                        <span className="md:hidden">Assistant</span>
+                        <span className="hidden md:inline">Assistant Active</span>
                     </span>
-                    <span className="hidden text-[11px] text-white/25 sm:inline">
+                    <span className="hidden text-[11px] text-white/25 md:inline">
                         {lastFunctionName}
                     </span>
                 </div>
@@ -1017,8 +1017,8 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                 />
             </div>
 
-            <div className="flex-none border-b border-white/6 px-2 py-1.5 sm:px-5 sm:py-2">
-                <div className="mx-auto max-w-none sm:max-w-4xl">
+            <div className="flex-none border-b border-white/6 px-2 py-1.5 md:px-5 md:py-2">
+                <div className="mx-auto max-w-none md:max-w-4xl">
                     <AssistantModeSwitcher
                         modes={ASSISTANT_MODES}
                         selectedMode={selectedMode}
@@ -1031,7 +1031,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             {/* ── MESSAGES ── */}
             <div className="flex-1 min-h-0 relative">
                 <ScrollArea className="h-full w-full" ref={scrollRef}>
-                    <div className="mx-auto max-w-none px-2 py-2.5 sm:max-w-4xl sm:p-5">
+                    <div className="mx-auto max-w-none px-2 py-2.5 md:max-w-4xl md:p-5">
 
                         {/* Empty state */}
                         {messages.length === 0 && (
@@ -1043,21 +1043,21 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                         )}
 
                         {/* Messages */}
-                        <div className="mx-auto max-w-none space-y-3 pb-3 sm:max-w-3xl sm:space-y-5 sm:pb-4">
+                        <div className="mx-auto max-w-none space-y-3 pb-3 md:max-w-3xl md:space-y-5 md:pb-4">
                             {messages.map((msg, i) => (
                                 <div
                                     key={i}
                                     className={cn(
                                         "flex gap-3",
                                         msg.role === 'user' ? 'justify-end' : 'justify-start',
-                                        'gap-2 sm:gap-3',
+                                        'gap-2 md:gap-3',
                                     )}
                                 >
 
                                     {/* Bot avatar */}
                                     {msg.role === 'assistant' && (
                                         <div
-                                            className="mt-0.5 hidden h-8 w-8 shrink-0 items-center justify-center rounded-full sm:flex"
+                                            className="mt-0.5 hidden h-8 w-8 shrink-0 items-center justify-center rounded-full md:flex"
                                             style={{ background: 'linear-gradient(135deg, #38bdf8, #fb7185)', boxShadow: '0 0 16px rgba(56,189,248,0.2)' }}
                                         >
                                             <Bot className="h-4 w-4 text-white" />
@@ -1068,7 +1068,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                         className={cn(
                                             "flex min-w-0 flex-col gap-2",
                                             msg.role === 'user' ? 'items-end' : 'items-start',
-                                            msg.role === 'assistant' && 'w-full max-w-none overflow-hidden items-stretch sm:max-w-[85%] sm:items-start sm:overflow-visible',
+                                            msg.role === 'assistant' && 'w-full max-w-none overflow-hidden items-stretch md:max-w-[85%] md:items-start md:overflow-visible',
                                             msg.role === 'user' && 'max-w-[90%]',
                                         )}
                                     >
@@ -1085,7 +1085,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                 />
                                             ) : (
                                                 <div
-                                                    className="group relative max-w-full whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed sm:px-4 sm:py-3 sm:text-sm"
+                                                    className="group relative max-w-full whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed md:px-4 md:py-3 md:text-sm"
                                                     style={msg.role === 'user' ? {
                                                         background: 'linear-gradient(135deg, rgba(56,189,248,0.25), rgba(251,113,133,0.2))',
                                                         border: '1px solid rgba(56,189,248,0.18)',
@@ -1120,7 +1120,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
                                         {/* Content cards */}
                                         {msg.type === 'content_cards' && msg.data?.data && (
-                                            <div className="mt-1 grid w-full min-w-0 max-w-full grid-cols-1 gap-3 overflow-hidden animate-in fade-in slide-in-from-bottom-2 sm:grid-cols-2">
+                                            <div className="mt-1 grid w-full min-w-0 max-w-full grid-cols-1 gap-3 overflow-hidden animate-in fade-in slide-in-from-bottom-2 md:grid-cols-2">
                                                 {msg.data.data.map((card: any, idx: number) => (
                                                     <ContentCard key={idx} id={card.id || idx.toString()} title={card.title} body={card.body} onGenerateImage={handleGenerateImage} onRefine={handleRefine} onSchedule={handleSchedule} />
                                                 ))}
@@ -1136,7 +1136,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
                                         {/* Image preview */}
                                         {msg.type === 'image' && msg.data && (
-                                            <div className="mt-1 w-full min-w-0 max-w-none overflow-hidden animate-in fade-in zoom-in-50 sm:max-w-sm">
+                                            <div className="mt-1 w-full min-w-0 max-w-none overflow-hidden animate-in fade-in zoom-in-50 md:max-w-sm">
                                                 <ImagePreview id={msg.data.id} imageUrl={msg.data.imageUrl} promptUsed={msg.data.prompt_used} onDownload={handleDownloadImage} onUseInPost={handleUseImage} onRegenerate={(prompt) => handleSend(`Regenerate: ${prompt}`, "generate-image")} />
                                             </div>
                                         )}
@@ -1191,7 +1191,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                     {/* User avatar */}
                                     {msg.role === 'user' && (
                                         <div
-                                            className="mt-0.5 hidden h-8 w-8 shrink-0 items-center justify-center rounded-full sm:flex"
+                                            className="mt-0.5 hidden h-8 w-8 shrink-0 items-center justify-center rounded-full md:flex"
                                             style={{ background: '#1b1d28', border: `1px solid ${ASSIST_THEME.border}` }}
                                         >
                                             <User className="h-4 w-4" style={{ color: 'rgba(255,255,255,0.5)' }} />

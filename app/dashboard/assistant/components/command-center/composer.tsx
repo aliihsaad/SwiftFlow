@@ -62,11 +62,11 @@ export function AssistantComposer({
   return (
     <div
       className={cn(
-        'flex-none border-t border-white/6 bg-[#151620]/90 p-3 backdrop-blur sm:p-4',
-        'px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-1.5 sm:px-4 sm:pb-4 sm:pt-4',
+        'flex-none border-t border-white/6 bg-[#151620]/90 p-3 backdrop-blur md:p-4',
+        'px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-1.5 md:px-4 md:pb-4 md:pt-4',
       )}
     >
-      <div className="mx-auto max-w-none sm:max-w-3xl">
+      <div className="mx-auto max-w-none md:max-w-3xl">
         {pendingImages.length > 0 && (
           <div className={cn('mb-2 flex gap-2 px-1', ASSISTANT_HORIZONTAL_SCROLL_CLASS)}>
             {pendingImages.map((img, index) => (
@@ -74,12 +74,12 @@ export function AssistantComposer({
                 <img
                   src={`data:${img.mimeType};base64,${img.base64}`}
                   alt={img.name}
-                  className="h-14 w-14 rounded-lg border border-white/10 object-cover sm:h-16 sm:w-16"
+                  className="h-14 w-14 rounded-lg border border-white/10 object-cover md:h-16 md:w-16"
                 />
                 <button
                   type="button"
                   onClick={() => onRemoveImage(index)}
-                  className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-red-500/90 text-white opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+                  className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-red-500/90 text-white opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
                   aria-label={`Remove ${img.name}`}
                 >
                   <X className="h-3 w-3" />
@@ -89,13 +89,13 @@ export function AssistantComposer({
           </div>
         )}
 
-        <div className="mb-2 hidden items-center justify-between gap-2 px-1 sm:flex">
+        <div className="mb-2 hidden items-center justify-between gap-2 px-1 md:flex">
           <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold capitalize text-cyan-100">
             {selectedMode}
           </span>
         </div>
 
-        <div className="-mx-1 mb-1.5 sm:mx-0 sm:mb-2">
+        <div className="-mx-1 mb-1.5 md:mx-0 md:mb-2">
           <AssistantQuickActions
             actions={quickActions}
             disabled={isLoading}
@@ -130,7 +130,7 @@ export function AssistantComposer({
             }}
             placeholder={placeholderForMode(selectedMode)}
             className={cn(
-              'min-h-11 w-full rounded-xl py-3 pl-12 pr-14 text-[16px] text-white/85 outline-none transition-colors sm:min-h-[48px] sm:py-3.5 sm:text-sm',
+              'min-h-11 w-full rounded-xl py-3 pl-12 pr-14 text-[16px] text-white/85 outline-none transition-colors md:min-h-[48px] md:py-3.5 md:text-sm',
             )}
             style={{
               background: ASSISTANT_THEME.shellAlt,
@@ -147,7 +147,7 @@ export function AssistantComposer({
             <ArrowUp className="h-4 w-4 text-white" />
           </button>
         </div>
-        <p className="mt-2 hidden text-center text-[11px] text-white/25 sm:block">
+        <p className="mt-2 hidden text-center text-[11px] text-white/25 md:block">
           AI can make mistakes. Check important info.
         </p>
       </div>

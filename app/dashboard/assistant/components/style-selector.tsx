@@ -21,8 +21,8 @@ export function StyleSelector({ onSelect, isGenerating = false }: StyleSelectorP
     const [enhanceEnabled, setEnhanceEnabled] = useState(false)
 
     return (
-        <div className="w-full max-w-none animate-in fade-in slide-in-from-bottom-2 space-y-3 rounded-xl border border-white/10 bg-[#1b1d28] p-3 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)] sm:max-w-md sm:space-y-4 sm:p-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="w-full max-w-none animate-in fade-in slide-in-from-bottom-2 space-y-3 rounded-xl border border-white/10 bg-[#1b1d28] p-3 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)] md:max-w-md md:space-y-4 md:p-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <h3 className="text-sm font-medium text-white/55">Choose a style for your image:</h3>
 
                 <Button
@@ -30,7 +30,7 @@ export function StyleSelector({ onSelect, isGenerating = false }: StyleSelectorP
                     size="sm"
                     onClick={() => setEnhanceEnabled(!enhanceEnabled)}
                     className={cn(
-                        "h-9 gap-1.5 text-xs transition-all sm:h-8",
+                        "h-9 gap-1.5 text-xs transition-all md:h-8",
                         enhanceEnabled
                             ? "border-cyan-300/25 bg-cyan-400/10 text-cyan-200 shadow-[0_0_10px_rgba(56,189,248,0.18)]"
                             : "border-white/10 bg-white/5 text-white/55 hover:bg-white/10 hover:text-white/80"
@@ -42,7 +42,7 @@ export function StyleSelector({ onSelect, isGenerating = false }: StyleSelectorP
                 </Button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 gap-2 md:gap-3">
                 {STYLES.map((style) => {
                     const Icon = style.icon
                     return (
@@ -51,16 +51,16 @@ export function StyleSelector({ onSelect, isGenerating = false }: StyleSelectorP
                             onClick={() => onSelect(style.label, enhanceEnabled)}
                             disabled={isGenerating}
                             className={cn(
-                                "flex min-h-10 items-center gap-2 rounded-lg border p-2 text-left transition-all sm:min-h-12 sm:gap-3 sm:p-3",
-                                "active:scale-[0.98] sm:hover:scale-[1.02]",
+                                "flex min-h-10 items-center gap-2 rounded-lg border p-2 text-left transition-all md:min-h-12 md:gap-3 md:p-3",
+                                "active:scale-[0.98] md:hover:scale-[1.02]",
                                 "hover:bg-white/5 hover:border-white/20",
                                 style.bg
                             )}
                         >
-                            <div className={cn("rounded-full bg-black/20 p-1.5 shadow-sm sm:p-2", style.color)}>
-                                <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                            <div className={cn("rounded-full bg-black/20 p-1.5 shadow-sm md:p-2", style.color)}>
+                                <Icon className="h-3.5 w-3.5 md:h-4 md:w-4" />
                             </div>
-                            <span className="min-w-0 truncate text-xs font-medium text-white/85 sm:text-sm">{style.label}</span>
+                            <span className="min-w-0 truncate text-xs font-medium text-white/85 md:text-sm">{style.label}</span>
                         </button>
                     )
                 })}

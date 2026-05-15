@@ -34,8 +34,10 @@ import {
 import { AssistantModeSwitcher } from './components/command-center/mode-switcher'
 import { AssistantEmptyState } from './components/command-center/empty-state'
 import { AssistantComposer } from './components/command-center/composer'
+import { AssistantContextReceiptView } from './components/command-center/context-receipt'
 import { AssistantHistoryControls } from './components/command-center/history-controls'
 import { AssistantLoadingBubble } from './components/command-center/loading-bubble'
+import type { AssistantCommandResponse } from '@/lib/assistant/context-types'
 import { routeAssistantIntent } from '@/lib/assistant/intent-router'
 
 interface ChatInterfaceProps {
@@ -99,6 +101,27 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }
 
         return payload?.data
+    }
+
+    const invokeCommand = async (body: Record<string, unknown>): Promise<AssistantCommandResponse> => {
+        const response = await fetch('/api/assistant/command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        })
+
+        let payload: any = null
+        try {
+            payload = await response.json()
+        } catch {
+            payload = null
+        }
+
+        if (!response.ok) {
+            throw new Error(payload?.error || 'Assistant command failed')
+        }
+
+        return payload as AssistantCommandResponse
     }
 
     // Image compression — resize to max 800px wide, 70% JPEG quality
@@ -355,9 +378,15 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         const targetFunction = routedIntent.functionName
 
         try {
-            const data = await invokeEdge(targetFunction, {
+            const commandBody = {
                 messages: newMessages,
                 workspaceId,
+                message: messageText,
+                mode: routedIntent.mode,
+                action: routedIntent.action,
+                functionName: targetFunction,
+                confidence: routedIntent.confidence,
+                needsClarification: routedIntent.needsClarification,
                 prompt: messageText,
                 assistantIntent: {
                     mode: routedIntent.mode,
@@ -365,7 +394,15 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                     confidence: routedIntent.confidence,
                 },
                 ...extraPayload
-            }) as any
+            }
+
+            const commandResponse = targetFunction === 'chat-assistant'
+                ? await invokeCommand(commandBody)
+                : null
+
+            const data = commandResponse
+                ? commandResponse.data as any
+                : await invokeEdge(targetFunction, commandBody) as any
             if (data?.error) throw new Error(data.error)
 
             // Handle Structured Response
@@ -395,7 +432,8 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                 role: 'assistant',
                 content: responseContent,
                 type: responseType,
-                data: responseData
+                data: responseData,
+                contextReceipt: commandResponse?.contextReceipt,
             }]
 
             setMessages(finalMessages)
@@ -1038,6 +1076,10 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                     isGenerating={isLoading}
                                                 />
                                             </div>
+                                        )}
+
+                                        {msg.role === 'assistant' && (
+                                            <AssistantContextReceiptView receipt={msg.contextReceipt} />
                                         )}
                                     </div>
 

@@ -25,7 +25,7 @@ export const CAROUSEL_SLIDE_CARD_CLASS = [
   "h-auto",
   "min-h-[280px]",
   "w-[calc(100%_-_1.5rem)]",
-  "max-w-[320px]",
+  "max-w-none",
   "shrink-0",
   "snap-start",
   "flex-col",
@@ -38,4 +38,5 @@ export const CAROUSEL_SLIDE_CARD_CLASS = [
   "sm:gap-3",
   "sm:p-4",
   "sm:w-[280px]",
+  "sm:max-w-[320px]",
 ].join(" ")

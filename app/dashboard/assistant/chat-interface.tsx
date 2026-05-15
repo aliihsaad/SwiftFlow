@@ -1068,7 +1068,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                         className={cn(
                                             "flex min-w-0 flex-col gap-2",
                                             msg.role === 'user' ? 'items-end' : 'items-start',
-                                            msg.role === 'assistant' && 'w-full max-w-none items-stretch sm:max-w-[85%] sm:items-start',
+                                            msg.role === 'assistant' && 'w-full max-w-none overflow-hidden items-stretch sm:max-w-[85%] sm:items-start sm:overflow-visible',
                                             msg.role === 'user' && 'max-w-[90%]',
                                         )}
                                     >
@@ -1082,7 +1082,6 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                     onCopy={handleCopy}
                                                     onQuickAction={handleAssistantQuickAction}
                                                     activeActionId={activeQuickActionId}
-                                                    isMobile={isMobile}
                                                 />
                                             ) : (
                                                 <div
@@ -1121,7 +1120,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
                                         {/* Content cards */}
                                         {msg.type === 'content_cards' && msg.data?.data && (
-                                            <div className="mt-1 grid w-full min-w-0 grid-cols-1 gap-3 animate-in fade-in slide-in-from-bottom-2 sm:grid-cols-2">
+                                            <div className="mt-1 grid w-full min-w-0 max-w-full grid-cols-1 gap-3 overflow-hidden animate-in fade-in slide-in-from-bottom-2 sm:grid-cols-2">
                                                 {msg.data.data.map((card: any, idx: number) => (
                                                     <ContentCard key={idx} id={card.id || idx.toString()} title={card.title} body={card.body} onGenerateImage={handleGenerateImage} onRefine={handleRefine} onSchedule={handleSchedule} />
                                                 ))}
@@ -1130,49 +1129,49 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
                                         {/* Carousel preview */}
                                         {msg.type === 'carousel_slides' && msg.data?.data && (
-                                            <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                            <div className="mt-1 w-full min-w-0 max-w-full overflow-hidden animate-in fade-in slide-in-from-bottom-2">
                                                 <CarouselPreview slots={msg.data.data} caption={msg.data.caption} onGenerateImage={handleGenerateSlideImage} onSchedule={handleSchedule} generatingSlide={generatingSlide} slideImageErrors={slideImageErrors} />
                                             </div>
                                         )}
 
                                         {/* Image preview */}
                                         {msg.type === 'image' && msg.data && (
-                                            <div className="mt-1 w-full max-w-none animate-in fade-in zoom-in-50 sm:max-w-sm">
+                                            <div className="mt-1 w-full min-w-0 max-w-none overflow-hidden animate-in fade-in zoom-in-50 sm:max-w-sm">
                                                 <ImagePreview id={msg.data.id} imageUrl={msg.data.imageUrl} promptUsed={msg.data.prompt_used} onDownload={handleDownloadImage} onUseInPost={handleUseImage} onRegenerate={(prompt) => handleSend(`Regenerate: ${prompt}`, "generate-image")} />
                                             </div>
                                         )}
 
                                         {/* Style selector */}
                                         {msg.type === 'style_selector' && (
-                                            <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                            <div className="mt-1 w-full min-w-0 max-w-full overflow-hidden animate-in fade-in slide-in-from-bottom-2">
                                                 <StyleSelector onSelect={handleStyleSelect} isGenerating={isLoading && flowState === 'idle'} />
                                             </div>
                                         )}
 
                                         {/* Carousel style selector */}
                                         {msg.type === 'carousel_style_selector' && msg.data && (
-                                            <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                            <div className="mt-1 w-full min-w-0 max-w-full overflow-hidden animate-in fade-in slide-in-from-bottom-2">
                                                 <CarouselStyleSelector topic={msg.data.topic} onGenerate={handleCarouselGenerate} isGenerating={isLoading} />
                                             </div>
                                         )}
 
                                         {/* Idea options */}
                                         {msg.type === 'idea_options_selector' && (
-                                            <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                            <div className="mt-1 w-full min-w-0 max-w-full overflow-hidden animate-in fade-in slide-in-from-bottom-2">
                                                 <IdeaOptionsSelector onGenerate={handleIdeaGenerate} isLoading={isLoading} />
                                             </div>
                                         )}
 
                                         {/* Brand image mode selector */}
                                         {msg.type === 'brand_image_mode_selector' && (
-                                            <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                            <div className="mt-1 w-full min-w-0 max-w-full overflow-hidden animate-in fade-in slide-in-from-bottom-2">
                                                 <BrandImageModeSelector onSelect={handleBrandImageModeSelect} />
                                             </div>
                                         )}
 
                                         {/* Brand image options */}
                                         {msg.type === 'brand_image_options' && msg.data && (
-                                            <div className="w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                            <div className="mt-1 w-full min-w-0 max-w-full overflow-hidden animate-in fade-in slide-in-from-bottom-2">
                                                 <BrandImageOptions
                                                     mode={msg.data.mode}
                                                     prompt={msg.data.prompt}

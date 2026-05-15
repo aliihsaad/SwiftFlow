@@ -40,6 +40,8 @@ import { AssistantResponseView } from './components/command-center/assistant-res
 import type { AssistantCommandResponse } from '@/lib/assistant/context-types'
 import { routeAssistantIntent } from '@/lib/assistant/intent-router'
 import { getAssistantModeActions, type AssistantQuickAction } from '@/lib/assistant/quick-actions'
+import { useIsMobile } from '@/lib/hooks/use-is-mobile'
+import { cn } from '@/lib/utils'
 
 interface ChatInterfaceProps {
     workspaceId?: string
@@ -79,6 +81,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
     const { toast } = useToast()
     const scrollRef = useRef<HTMLDivElement>(null)
+    const isMobile = useIsMobile()
 
     const invokeEdge = async (functionName: string, body: Record<string, unknown>) => {
         const response = await fetch('/api/assistant/invoke', {
@@ -975,16 +978,22 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
     return (
         <div
-            className="mx-auto flex h-[calc(100vh-7.75rem)] w-full max-w-6xl flex-col overflow-hidden rounded-none sm:h-[calc(100vh-8.5rem)] sm:rounded-xl"
+            className={cn(
+                "mx-auto flex h-[calc(100vh-7.75rem)] w-full max-w-6xl flex-col overflow-hidden rounded-none sm:h-[calc(100vh-8.5rem)] sm:rounded-xl",
+                isMobile && "fixed inset-0 z-50 h-[100dvh] max-w-none border-0 sm:h-[100dvh] sm:rounded-none",
+            )}
             style={{
                 background: ASSIST_THEME.shell,
-                border: `1px solid ${ASSIST_THEME.border}`,
+                border: isMobile ? '0' : `1px solid ${ASSIST_THEME.border}`,
                 boxShadow: '0 0 60px rgba(56,189,248,0.05)',
             }}
         >
             {/* ── TOOLBAR ── */}
             <div
-                className="flex-none flex items-center justify-between gap-4 px-5 py-3"
+                className={cn(
+                    "flex-none flex items-center justify-between gap-4 px-5 py-3",
+                    isMobile && "sticky top-0 z-20 gap-2 px-3 py-2.5",
+                )}
                 style={{
                     borderBottom: `1px solid ${ASSIST_THEME.borderSoft}`,
                     background: 'rgba(21,22,32,0.92)',
@@ -997,7 +1006,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                     </span>
                     <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: ASSIST_THEME.textDim }}>
-                        Assistant Active
+                        {isMobile ? 'Assistant' : 'Assistant Active'}
                     </span>
                     <span className="hidden text-[11px] text-white/25 sm:inline">
                         {lastFunctionName}
@@ -1013,8 +1022,8 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                 />
             </div>
 
-            <div className="flex-none border-b border-white/6 px-3 py-2 sm:px-5">
-                <div className="mx-auto max-w-4xl">
+            <div className={cn("flex-none border-b border-white/6 px-3 py-2 sm:px-5", isMobile && "px-2 py-2")}>
+                <div className={cn("mx-auto max-w-4xl", isMobile && "max-w-none")}>
                     <AssistantModeSwitcher
                         modes={ASSISTANT_MODES}
                         selectedMode={selectedMode}
@@ -1027,23 +1036,31 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             {/* ── MESSAGES ── */}
             <div className="flex-1 min-h-0 relative">
                 <ScrollArea className="h-full w-full" ref={scrollRef}>
-                    <div className="p-3 sm:p-5 max-w-4xl mx-auto">
+                    <div className={cn("p-3 sm:p-5 max-w-4xl mx-auto", isMobile && "max-w-none px-2 py-3")}>
 
                         {/* Empty state */}
                         {messages.length === 0 && (
                             <AssistantEmptyState
                                 quickStarts={ASSISTANT_QUICK_STARTS}
                                 onQuickStart={handleQuickStart}
+                                isMobile={isMobile}
                             />
                         )}
 
                         {/* Messages */}
-                        <div className="space-y-5 pb-4 max-w-3xl mx-auto">
+                        <div className={cn("space-y-5 pb-4 max-w-3xl mx-auto", isMobile && "max-w-none space-y-3 pb-3")}>
                             {messages.map((msg, i) => (
-                                <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                <div
+                                    key={i}
+                                    className={cn(
+                                        "flex gap-3",
+                                        msg.role === 'user' ? 'justify-end' : 'justify-start',
+                                        isMobile && 'gap-2',
+                                    )}
+                                >
 
                                     {/* Bot avatar */}
-                                    {msg.role === 'assistant' && (
+                                    {msg.role === 'assistant' && !isMobile && (
                                         <div
                                             className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 mt-0.5"
                                             style={{ background: 'linear-gradient(135deg, #38bdf8, #fb7185)', boxShadow: '0 0 16px rgba(56,189,248,0.2)' }}
@@ -1052,7 +1069,14 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                         </div>
                                     )}
 
-                                    <div className={`flex flex-col gap-2 max-w-[90%] sm:max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                    <div
+                                        className={cn(
+                                            "flex flex-col gap-2 max-w-[90%] sm:max-w-[85%]",
+                                            msg.role === 'user' ? 'items-end' : 'items-start',
+                                            isMobile && msg.role === 'assistant' && 'w-full max-w-none items-stretch',
+                                            isMobile && msg.role === 'user' && 'max-w-[90%]',
+                                        )}
+                                    >
 
                                         {/* Text bubble */}
                                         {msg.content && (
@@ -1063,10 +1087,11 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                     onCopy={handleCopy}
                                                     onQuickAction={handleAssistantQuickAction}
                                                     activeActionId={activeQuickActionId}
+                                                    isMobile={isMobile}
                                                 />
                                             ) : (
                                                 <div
-                                                    className="relative group px-4 py-3 rounded-2xl text-sm leading-relaxed"
+                                                    className={cn("relative group px-4 py-3 rounded-2xl text-sm leading-relaxed", isMobile && "px-3.5 py-2.5 text-[13px]")}
                                                     style={msg.role === 'user' ? {
                                                         background: 'linear-gradient(135deg, rgba(56,189,248,0.25), rgba(251,113,133,0.2))',
                                                         border: '1px solid rgba(56,189,248,0.18)',
@@ -1087,7 +1112,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
                                         {/* Attached images in user messages */}
                                         {msg.role === 'user' && msg.images && msg.images.length > 0 && (
-                                            <div className="flex gap-2 mt-1">
+                                            <div className={cn("flex gap-2 mt-1", isMobile && "max-w-full overflow-x-auto pb-1")}>
                                                 {msg.images.map((img, j) => (
                                                     <img
                                                         key={j}
@@ -1170,7 +1195,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                     </div>
 
                                     {/* User avatar */}
-                                    {msg.role === 'user' && (
+                                    {msg.role === 'user' && !isMobile && (
                                         <div
                                             className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 mt-0.5"
                                             style={{ background: '#1b1d28', border: `1px solid ${ASSIST_THEME.border}` }}
@@ -1201,6 +1226,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                 onQuickAction={handleAssistantQuickAction}
                 onFileSelect={handleFileSelect}
                 onRemoveImage={(index) => setPendingImages(prev => prev.filter((_, itemIndex) => itemIndex !== index))}
+                isMobile={isMobile}
             />
 
             {/* Create Post Modal */}

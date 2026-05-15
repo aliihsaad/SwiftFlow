@@ -5,6 +5,7 @@ import { ArrowUp, Paperclip, X } from 'lucide-react'
 import type { AssistantMode, MessageImage } from '../../assistant-types'
 import { ASSISTANT_THEME } from '../../assistant-config'
 import type { AssistantQuickAction } from '@/lib/assistant/quick-actions'
+import { cn } from '@/lib/utils'
 import { AssistantQuickActions } from './quick-actions'
 
 interface AssistantComposerProps {
@@ -14,6 +15,7 @@ interface AssistantComposerProps {
   pendingImages: MessageImage[]
   isLoading: boolean
   activeActionId?: string | null
+  isMobile?: boolean
   fileInputRef: RefObject<HTMLInputElement | null>
   onInputChange: (value: string) => void
   onSend: () => void
@@ -45,6 +47,7 @@ export function AssistantComposer({
   pendingImages,
   isLoading,
   activeActionId,
+  isMobile,
   fileInputRef,
   onInputChange,
   onSend,
@@ -53,10 +56,15 @@ export function AssistantComposer({
   onRemoveImage,
 }: AssistantComposerProps) {
   return (
-    <div className="flex-none border-t border-white/6 bg-[#151620]/90 p-3 backdrop-blur sm:p-4">
-      <div className="mx-auto max-w-3xl">
+    <div
+      className={cn(
+        'flex-none border-t border-white/6 bg-[#151620]/90 p-3 backdrop-blur sm:p-4',
+        isMobile && 'px-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2',
+      )}
+    >
+      <div className={cn('mx-auto max-w-3xl', isMobile && 'max-w-none')}>
         {pendingImages.length > 0 && (
-          <div className="mb-2 flex gap-2 px-1">
+          <div className={cn('mb-2 flex gap-2 px-1', isMobile && 'overflow-x-auto pb-1')}>
             {pendingImages.map((img, index) => (
               <div key={`${img.name}-${index}`} className="group relative">
                 <img
@@ -76,13 +84,13 @@ export function AssistantComposer({
           </div>
         )}
 
-        <div className="mb-2 flex items-center gap-2 px-1">
+        <div className={cn('mb-2 flex items-center gap-2 px-1', isMobile && 'justify-between')}>
           <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold capitalize text-cyan-100">
             {selectedMode}
           </span>
         </div>
 
-        <div className="mb-2">
+        <div className={cn('mb-2', isMobile && '-mx-1')}>
           <AssistantQuickActions
             actions={quickActions}
             disabled={isLoading}
@@ -116,7 +124,10 @@ export function AssistantComposer({
               if (event.key === 'Enter' && !event.shiftKey) onSend()
             }}
             placeholder={placeholderForMode(selectedMode)}
-            className="w-full rounded-xl py-3.5 pl-11 pr-14 text-sm text-white/85 outline-none transition-colors"
+            className={cn(
+              'w-full rounded-xl py-3.5 pl-11 pr-14 text-sm text-white/85 outline-none transition-colors',
+              isMobile && 'min-h-[48px] text-[16px]',
+            )}
             style={{
               background: ASSISTANT_THEME.shellAlt,
               border: `1px solid ${ASSISTANT_THEME.border}`,
@@ -131,7 +142,7 @@ export function AssistantComposer({
             <ArrowUp className="h-4 w-4 text-white" />
           </button>
         </div>
-        <p className="mt-2 text-center text-[11px] text-white/25">
+        <p className={cn('mt-2 text-center text-[11px] text-white/25', isMobile && 'text-[10px]')}>
           AI can make mistakes. Check important info.
         </p>
       </div>

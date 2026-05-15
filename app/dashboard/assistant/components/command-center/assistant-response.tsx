@@ -16,6 +16,7 @@ import {
 import type { AssistantContextReceipt } from '@/lib/assistant/context-types'
 import { buildAssistantBriefing, stripAssistantMarkdown } from '@/lib/assistant/response-briefing'
 import { buildContextualAssistantActions, type AssistantQuickAction } from '@/lib/assistant/quick-actions'
+import { cn } from '@/lib/utils'
 import { AssistantQuickActions } from './quick-actions'
 
 interface AssistantResponseViewProps {
@@ -24,6 +25,7 @@ interface AssistantResponseViewProps {
   onCopy: (text: string) => void
   onQuickAction?: (action: AssistantQuickAction) => void
   activeActionId?: string | null
+  isMobile?: boolean
 }
 
 const metricIcon = {
@@ -101,14 +103,18 @@ function isErrorResponse(content: string) {
   return /^error:/i.test(content.trim())
 }
 
-function AssistantProseBubble({ content, onCopy }: Pick<AssistantResponseViewProps, 'content' | 'onCopy'>) {
+function AssistantProseBubble({ content, onCopy, isMobile }: Pick<AssistantResponseViewProps, 'content' | 'onCopy' | 'isMobile'>) {
   const paragraphs = content
     .split(/\n{2,}/)
     .map((paragraph) => stripAssistantMarkdown(paragraph))
     .filter(Boolean)
 
   return (
-    <div className="group relative max-w-full rounded-2xl rounded-bl px-4 py-3 text-sm leading-relaxed text-white/80"
+    <div
+      className={cn(
+        'group relative max-w-full rounded-2xl rounded-bl px-4 py-3 text-sm leading-relaxed text-white/80',
+        isMobile && 'w-full rounded-xl px-3.5 py-3 text-[13px]',
+      )}
       style={{
         background: 'rgba(23,25,36,0.96)',
         border: '1px solid rgba(255,255,255,0.08)',
@@ -122,7 +128,10 @@ function AssistantProseBubble({ content, onCopy }: Pick<AssistantResponseViewPro
         ))}
       </div>
       <button
-        className="absolute -right-7 top-2 flex h-6 w-6 items-center justify-center rounded-md text-white/40 opacity-0 transition-opacity hover:text-white/70 group-hover:opacity-100"
+        className={cn(
+          'absolute top-2 flex h-6 w-6 items-center justify-center rounded-md text-white/40 opacity-0 transition-opacity hover:text-white/70 group-hover:opacity-100',
+          isMobile ? 'right-2 opacity-100' : '-right-7',
+        )}
         style={{ background: 'rgba(255,255,255,0.06)' }}
         onClick={() => onCopy(content)}
         aria-label="Copy assistant response"
@@ -133,9 +142,9 @@ function AssistantProseBubble({ content, onCopy }: Pick<AssistantResponseViewPro
   )
 }
 
-export function AssistantResponseView({ content, contextReceipt, onCopy, onQuickAction, activeActionId }: AssistantResponseViewProps) {
+export function AssistantResponseView({ content, contextReceipt, onCopy, onQuickAction, activeActionId, isMobile }: AssistantResponseViewProps) {
   if (isErrorResponse(content)) {
-    return <AssistantProseBubble content={content} onCopy={onCopy} />
+    return <AssistantProseBubble content={content} onCopy={onCopy} isMobile={isMobile} />
   }
 
   const briefing = buildAssistantBriefing(content)
@@ -146,14 +155,20 @@ export function AssistantResponseView({ content, contextReceipt, onCopy, onQuick
   const engagementTotal = engagementMetrics.reduce((sum, metric) => sum + parseMetricValue(metric.value), 0)
 
   if (!hasStructuredContent) {
-    return <AssistantProseBubble content={content} onCopy={onCopy} />
+    return <AssistantProseBubble content={content} onCopy={onCopy} isMobile={isMobile} />
   }
 
   return (
     <article
-      className="group relative w-full max-w-2xl overflow-hidden rounded-2xl rounded-bl border border-white/10 bg-[#171923] text-white shadow-[0_18px_50px_rgba(0,0,0,0.22)]"
+      className={cn(
+        'group relative w-full max-w-2xl overflow-hidden rounded-2xl rounded-bl border border-white/10 bg-[#171923] text-white shadow-[0_18px_50px_rgba(0,0,0,0.22)]',
+        isMobile && 'max-w-none rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.24)]',
+      )}
     >
-      <div className="border-b border-white/8 bg-gradient-to-r from-cyan-300/[0.08] via-violet-300/[0.045] to-rose-300/[0.06] px-4 py-3 sm:px-5">
+      <div className={cn(
+        'border-b border-white/8 bg-gradient-to-r from-cyan-300/[0.08] via-violet-300/[0.045] to-rose-300/[0.06] px-4 py-3 sm:px-5',
+        isMobile && 'px-3 py-2.5',
+      )}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-cyan-400/12 text-cyan-200">
@@ -178,15 +193,15 @@ export function AssistantResponseView({ content, contextReceipt, onCopy, onQuick
         </div>
       </div>
 
-      <div className="space-y-4 px-4 py-4 sm:px-5">
+      <div className={cn('space-y-4 px-4 py-4 sm:px-5', isMobile && 'space-y-3 px-3 py-3')}>
         {briefing.metrics.length > 0 && (
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+          <div className={cn('grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5', isMobile && 'grid-cols-2')}>
             {briefing.metrics.slice(0, 5).map((metric) => {
               const Icon = metricIcon[metric.label as keyof typeof metricIcon] || BarChart3
               const tone = metricTone[metric.label as keyof typeof metricTone] || metricTone.Views
               const width = Math.max(8, Math.round((parseMetricValue(metric.value) / metricMax) * 100))
               return (
-                <div key={metric.label} className={`min-w-0 rounded-lg border px-3 py-2 ${tone.tile}`}>
+                <div key={metric.label} className={cn('min-w-0 rounded-lg border px-3 py-2', isMobile && 'px-2.5 py-2', tone.tile)}>
                   <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-white/50">
                     <Icon className={`h-3.5 w-3.5 ${tone.icon}`} />
                     <span className="truncate">{metric.label}</span>
@@ -245,7 +260,7 @@ export function AssistantResponseView({ content, contextReceipt, onCopy, onQuick
         )}
 
         {briefing.sections.length > 0 && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className={cn('grid grid-cols-1 gap-3 sm:grid-cols-2', isMobile && 'gap-2.5')}>
             {briefing.sections.map((section) => {
               const Icon = section.title === 'Post next'
                 ? Lightbulb

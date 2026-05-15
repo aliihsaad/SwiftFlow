@@ -3,38 +3,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState, useRef, useEffect } from "react"
-import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
     Bot,
     User,
-    ArrowUp,
     Copy,
-    RefreshCw,
-    History,
-    Trash2,
-    Paperclip,
-    X
 } from "lucide-react"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { ContentCard } from "./components/content-card"
 import { CarouselPreview } from "./components/carousel-preview"
@@ -59,6 +33,9 @@ import {
 } from './assistant-config'
 import { AssistantModeSwitcher } from './components/command-center/mode-switcher'
 import { AssistantEmptyState } from './components/command-center/empty-state'
+import { AssistantComposer } from './components/command-center/composer'
+import { AssistantHistoryControls } from './components/command-center/history-controls'
+import { AssistantLoadingBubble } from './components/command-center/loading-bubble'
 import { routeAssistantIntent } from '@/lib/assistant/intent-router'
 
 interface ChatInterfaceProps {
@@ -92,8 +69,6 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
     // History State
     const [sessions, setSessions] = useState<{ id: string, title: string }[]>([])
     const [sessionId, setSessionId] = useState<string | null>(null)
-    const [loadingSessions, setLoadingSessions] = useState(false)
-
     // Image attachment state
     const [pendingImages, setPendingImages] = useState<MessageImage[]>([])
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -192,7 +167,6 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             return
         }
 
-        setLoadingSessions(true)
         try {
             const res = await fetch(`/api/chat/sessions/${id}`)
             if (res.ok) {
@@ -202,10 +176,8 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                     setSessionId(data.id)
                 }
             }
-        } catch (e) {
+        } catch {
             toast({ title: "Error", description: "Failed to load chat history." })
-        } finally {
-            setLoadingSessions(false)
         }
     }
 
@@ -450,7 +422,11 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             const method = currentId ? 'PATCH' : 'POST'
 
             // Strip images from messages before persisting — no DB storage
-            const messagesForStorage = currentMessages.map(({ images, ...rest }) => rest)
+            const messagesForStorage = currentMessages.map((message) => {
+                const messageForStorage = { ...message }
+                delete messageForStorage.images
+                return messageForStorage
+            })
 
             const res = await fetch(url, {
                 method,
@@ -843,7 +819,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             } else {
                 toast({ title: "Chat deleted" })
             }
-        } catch (error) {
+        } catch {
             toast({ title: "Error", description: "Failed to delete chat" })
         }
     }
@@ -867,9 +843,16 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         setIsCreatePostModalOpen(true)
     }
 
+    const handleNewChat = () => {
+        loadSession('new')
+        setSelectedMode('create')
+        setLastFunctionName('chat-assistant')
+        toast({ title: 'New Chat Started', duration: 1000 })
+    }
+
     return (
         <div
-            className="flex flex-col h-[calc(100vh-8.5rem)] max-w-6xl mx-auto w-full overflow-hidden rounded-2xl"
+            className="mx-auto flex h-[calc(100vh-7.75rem)] w-full max-w-6xl flex-col overflow-hidden rounded-none sm:h-[calc(100vh-8.5rem)] sm:rounded-xl"
             style={{
                 background: ASSIST_THEME.shell,
                 border: `1px solid ${ASSIST_THEME.border}`,
@@ -898,87 +881,13 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                     </span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {/* History dialog */}
-                    <Dialog>
-                        <DialogTrigger asChild>
-                            <button
-                                className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150"
-                                style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${ASSIST_THEME.border}`, color: ASSIST_THEME.textMuted }}
-                                title="Chat History"
-                            >
-                                <History className="h-3.5 w-3.5" />
-                            </button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-[420px] border-white/10 bg-[#151620] text-white/85">
-                            <DialogHeader>
-                                <DialogTitle className="text-white/90">Chat History</DialogTitle>
-                                <DialogDescription className="text-white/50">Select a previous conversation to resume or start a new chat.</DialogDescription>
-                            </DialogHeader>
-                            <div className="flex flex-col gap-4 mt-2">
-                                <div className="flex justify-end">
-                                    <Button
-                                        size="icon"
-                                        variant="outline"
-                                        className="border-white/10 bg-white/5 text-white/75 hover:bg-white/10 hover:text-white"
-                                        onClick={() => { loadSession('new'); setSelectedMode('create'); setLastFunctionName('chat-assistant'); toast({ title: "New Chat Started", duration: 1000 }) }}
-                                        title="New Chat"
-                                    >
-                                        <RefreshCw className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                                <ScrollArea className="h-[300px] pr-4">
-                                    <div className="space-y-1.5">
-                                        {sessions.map(s => (
-                                            <div
-                                                key={s.id}
-                                                className="flex items-center justify-between rounded-lg px-2 py-1.5 transition-colors"
-                                                style={{
-                                                    background: s.id === sessionId ? 'rgba(56,189,248,0.12)' : 'transparent',
-                                                    border: s.id === sessionId ? '1px solid rgba(56,189,248,0.18)' : '1px solid transparent',
-                                                }}
-                                            >
-                                                <button onClick={() => loadSession(s.id)} className="flex-1 text-left text-sm truncate px-2" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                                                    {s.title || "Untitled Chat"}
-                                                </button>
-                                                <AlertDialog>
-                                                    <AlertDialogTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-red-400 hover:bg-red-500/10">
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    </AlertDialogTrigger>
-                                                    <AlertDialogContent className="border-white/10 bg-[#1b1d28] text-white/85">
-                                                        <AlertDialogHeader>
-                                                            <AlertDialogTitle className="text-white/90">Delete this chat?</AlertDialogTitle>
-                                                            <AlertDialogDescription className="text-white/50">This action cannot be undone.</AlertDialogDescription>
-                                                        </AlertDialogHeader>
-                                                        <AlertDialogFooter>
-                                                            <AlertDialogCancel className="border-white/10 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white">Cancel</AlertDialogCancel>
-                                                            <AlertDialogAction onClick={(e) => { e.stopPropagation(); handleDeleteSession(s.id) }} className="border border-red-500/25 bg-red-500/15 text-red-300 hover:bg-red-500/20">Delete</AlertDialogAction>
-                                                        </AlertDialogFooter>
-                                                    </AlertDialogContent>
-                                                </AlertDialog>
-                                            </div>
-                                        ))}
-                                        {sessions.length === 0 && (
-                                            <div className="py-10 text-center text-sm" style={{ color: 'rgba(255,255,255,0.25)' }}>No chat history yet.</div>
-                                        )}
-                                    </div>
-                                </ScrollArea>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
-
-                    {/* New chat */}
-                    <button
-                        className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150"
-                        style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${ASSIST_THEME.border}`, color: ASSIST_THEME.textMuted }}
-                        onClick={() => { loadSession('new'); setSelectedMode('create'); setLastFunctionName('chat-assistant'); toast({ title: "New Chat Started", duration: 1000 }) }}
-                        title="New Chat"
-                    >
-                        <RefreshCw className="h-3.5 w-3.5" />
-                    </button>
-                </div>
+                <AssistantHistoryControls
+                    sessions={sessions}
+                    sessionId={sessionId}
+                    onLoadSession={loadSession}
+                    onNewChat={handleNewChat}
+                    onDeleteSession={handleDeleteSession}
+                />
             </div>
 
             <div className="flex-none border-b border-white/6 px-3 py-2 sm:px-5">
@@ -1145,112 +1054,23 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                             ))}
 
                             {/* Loading dots */}
-                            {isLoading && (
-                                <div className="flex gap-3">
-                                    <div
-                                        className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 animate-pulse"
-                                        style={{ background: 'linear-gradient(135deg, #38bdf8, #fb7185)' }}
-                                    >
-                                        <Bot className="h-4 w-4 text-white" />
-                                    </div>
-                                    <div
-                                        className="flex items-center gap-1.5 px-4 py-3 rounded-2xl"
-                                        style={{ background: ASSIST_THEME.shellAlt, border: `1px solid ${ASSIST_THEME.borderSoft}`, borderBottomLeftRadius: '4px' }}
-                                    >
-                                        <div className="h-1.5 w-1.5 rounded-full animate-bounce [animation-delay:-0.3s]" style={{ background: ASSIST_THEME.cyan }} />
-                                        <div className="h-1.5 w-1.5 rounded-full animate-bounce [animation-delay:-0.15s]" style={{ background: ASSIST_THEME.coral }} />
-                                        <div className="h-1.5 w-1.5 rounded-full animate-bounce" style={{ background: ASSIST_THEME.amber }} />
-                                    </div>
-                                </div>
-                            )}
+                            {isLoading && <AssistantLoadingBubble />}
                         </div>
                     </div>
                 </ScrollArea>
             </div>
 
-            {/* ── INPUT ── */}
-            {/* ── INPUT ── */}
-            <div
-                className="flex-none p-4"
-                style={{ borderTop: `1px solid ${ASSIST_THEME.borderSoft}`, background: 'rgba(21,22,32,0.86)' }}
-            >
-                <div className="max-w-3xl mx-auto">
-                    {/* Pending image preview strip */}
-                    {pendingImages.length > 0 && (
-                        <div className="flex gap-2 mb-2 px-1">
-                            {pendingImages.map((img, i) => (
-                                <div key={i} className="relative group">
-                                    <img
-                                        src={`data:${img.mimeType};base64,${img.base64}`}
-                                        alt={img.name}
-                                        className="w-16 h-16 object-cover rounded-lg border border-white/10"
-                                    />
-                                    <button
-                                        onClick={() => setPendingImages(prev => prev.filter((_, idx) => idx !== i))}
-                                        className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500/90 text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    <div className="relative flex items-center">
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            accept="image/*"
-                            multiple
-                            className="hidden"
-                            onChange={handleFileSelect}
-                        />
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={isLoading || pendingImages.length >= 3}
-                            className="absolute left-2 flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150 disabled:opacity-30 hover:bg-white/10"
-                            style={{ color: 'rgba(255,255,255,0.4)' }}
-                            title="Attach image"
-                        >
-                            <Paperclip className="h-4 w-4" />
-                        </button>
-                        <input
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                            placeholder={
-                                selectedMode === 'create'
-                                    ? 'Create a post, image, carousel, or idea...'
-                                    : selectedMode === 'improve'
-                                        ? 'Paste a draft to improve...'
-                                        : selectedMode === 'analyze'
-                                            ? 'Ask about performance or timing...'
-                                            : selectedMode === 'operate'
-                                                ? 'Ask about posts, schedules, or automations...'
-                                                : 'Ask me anything...'
-                            }
-                            className="w-full rounded-xl py-3.5 pl-11 pr-14 text-sm outline-none transition-all"
-                            style={{
-                                background: ASSIST_THEME.shellAlt,
-                                border: `1px solid ${ASSIST_THEME.border}`,
-                                color: 'rgba(255,255,255,0.85)',
-                            }}
-                            onFocus={(e) => (e.currentTarget.style.borderColor = 'rgba(56,189,248,0.25)')}
-                            onBlur={(e) => (e.currentTarget.style.borderColor = ASSIST_THEME.border)}
-                        />
-                        <button
-                            onClick={() => handleSend()}
-                            disabled={isLoading || (!input.trim() && pendingImages.length === 0)}
-                            className="absolute right-2 flex h-9 w-9 items-center justify-center rounded-lg transition-all duration-150 disabled:opacity-30 hover:opacity-85 active:scale-95"
-                            style={{ background: 'linear-gradient(135deg, #38bdf8, #fb7185)' }}
-                        >
-                            <ArrowUp className="h-4 w-4 text-white" />
-                        </button>
-                    </div>
-                    <p className="mt-2 text-center text-[11px]" style={{ color: 'rgba(255,255,255,0.2)' }}>
-                        AI can make mistakes. Check important info.
-                    </p>
-                </div>
-            </div>
+            <AssistantComposer
+                input={input}
+                selectedMode={selectedMode}
+                pendingImages={pendingImages}
+                isLoading={isLoading}
+                fileInputRef={fileInputRef}
+                onInputChange={setInput}
+                onSend={() => handleSend()}
+                onFileSelect={handleFileSelect}
+                onRemoveImage={(index) => setPendingImages(prev => prev.filter((_, itemIndex) => itemIndex !== index))}
+            />
 
             {/* Create Post Modal */}
             <CreatePostModal

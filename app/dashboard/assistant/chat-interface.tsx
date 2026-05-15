@@ -66,6 +66,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
     const [messages, setMessages] = useState<AssistantMessage[]>([])
     const [input, setInput] = useState("")
     const [isLoading, setIsLoading] = useState(false)
+    const [activeQuickActionId, setActiveQuickActionId] = useState<string | null>(null)
     const [selectedMode, setSelectedMode] = useState<AssistantMode>('create')
     const [lastFunctionName, setLastFunctionName] = useState<AssistantFunctionName>('chat-assistant')
 
@@ -545,7 +546,9 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }
     }
 
-    const handleAssistantQuickAction = (action: AssistantQuickAction) => {
+    const handleAssistantQuickAction = async (action: AssistantQuickAction) => {
+        if (isLoading || activeQuickActionId) return
+
         setLastFunctionName(action.functionName)
 
         if (action.intent === 'set_input') {
@@ -554,14 +557,76 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }
 
         if (action.intent === 'start_draft') {
+            setActiveQuickActionId(action.id)
             setDraftCaption(action.prompt)
             setDraftMedia([])
             setIsCreatePostModalOpen(true)
             toast({ title: "Draft started", description: "Opened the post editor with the recommendation." })
+            setActiveQuickActionId(null)
             return
         }
 
-        handleSend(action.prompt, action.functionName)
+        if (action.intent === 'start_image_flow') {
+            const imagePrompt = action.prompt.trim()
+            setActiveQuickActionId(action.id)
+
+            if (imagePrompt) {
+                setTempImagePrompt(imagePrompt)
+                setFlowState('awaiting_style')
+                setMessages(prev => [...prev, {
+                    role: 'user',
+                    content: `Create image from recommendation: ${imagePrompt}`,
+                }, {
+                    role: 'assistant',
+                    content: `Choose a visual style for this image: "${imagePrompt}"`,
+                    type: 'style_selector',
+                }])
+            } else {
+                setFlowState('awaiting_description')
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: action.guidance || "What do you want the image to be about?",
+                }])
+            }
+
+            setActiveQuickActionId(null)
+            return
+        }
+
+        if (action.intent === 'start_carousel_flow') {
+            const carouselTopic = action.prompt.trim()
+            setActiveQuickActionId(action.id)
+
+            if (carouselTopic) {
+                setTempCarouselTopic(carouselTopic)
+                setFlowState('awaiting_carousel_style')
+                setMessages(prev => [...prev, {
+                    role: 'user',
+                    content: `Make a carousel from recommendation: ${carouselTopic}`,
+                }, {
+                    role: 'assistant',
+                    content: `Choose carousel settings for: "${carouselTopic}"`,
+                    type: 'carousel_style_selector',
+                    data: { topic: carouselTopic },
+                }])
+            } else {
+                setFlowState('awaiting_carousel_topic')
+                setMessages(prev => [...prev, {
+                    role: 'assistant',
+                    content: action.guidance || "What topic do you want the carousel to be about?",
+                }])
+            }
+
+            setActiveQuickActionId(null)
+            return
+        }
+
+        setActiveQuickActionId(action.id)
+        try {
+            await handleSend(action.prompt, action.functionName)
+        } finally {
+            setActiveQuickActionId(null)
+        }
     }
 
     const handleStyleSelect = async (style: string, enhance: boolean) => {
@@ -997,6 +1062,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                     contextReceipt={msg.contextReceipt}
                                                     onCopy={handleCopy}
                                                     onQuickAction={handleAssistantQuickAction}
+                                                    activeActionId={activeQuickActionId}
                                                 />
                                             ) : (
                                                 <div
@@ -1127,6 +1193,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                 selectedMode={selectedMode}
                 pendingImages={pendingImages}
                 isLoading={isLoading}
+                activeActionId={activeQuickActionId}
                 fileInputRef={fileInputRef}
                 quickActions={getAssistantModeActions(selectedMode)}
                 onInputChange={setInput}

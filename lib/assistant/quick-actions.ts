@@ -2,7 +2,12 @@ import type { AssistantBriefing } from "./response-briefing"
 
 export type AssistantQuickActionMode = "create" | "improve" | "analyze" | "operate" | "ask"
 export type AssistantQuickActionFunction = "chat-assistant" | "generate-image" | "generate-ideas" | "generate-carousel"
-export type AssistantQuickActionIntent = "send" | "set_input" | "start_draft"
+export type AssistantQuickActionIntent =
+  | "send"
+  | "set_input"
+  | "start_draft"
+  | "start_image_flow"
+  | "start_carousel_flow"
 export type AssistantQuickActionTone = "cyan" | "rose" | "amber" | "emerald" | "violet"
 
 export interface AssistantQuickAction {
@@ -12,6 +17,9 @@ export interface AssistantQuickAction {
   intent: AssistantQuickActionIntent
   functionName: AssistantQuickActionFunction
   tone: AssistantQuickActionTone
+  loadingLabel: string
+  guidance?: string
+  primary?: boolean
 }
 
 const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
@@ -23,22 +31,30 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "send",
       functionName: "chat-assistant",
       tone: "cyan",
+      loadingLabel: "Creating...",
+      primary: true,
     },
     {
       id: "create-carousel",
       label: "Carousel",
-      prompt: "Create a 5-slide Instagram carousel based on my current best content themes.",
-      intent: "send",
+      prompt: "",
+      intent: "start_carousel_flow",
       functionName: "generate-carousel",
       tone: "violet",
+      loadingLabel: "Preparing...",
+      guidance: "What should the carousel be about?",
+      primary: true,
     },
     {
       id: "create-image",
       label: "Image",
-      prompt: "Create a polished social media image concept for my next post.",
-      intent: "send",
+      prompt: "",
+      intent: "start_image_flow",
       functionName: "generate-image",
       tone: "rose",
+      loadingLabel: "Preparing...",
+      guidance: "What should the image be about?",
+      primary: true,
     },
     {
       id: "schedule-draft",
@@ -47,6 +63,7 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "send",
       functionName: "chat-assistant",
       tone: "emerald",
+      loadingLabel: "Drafting...",
     },
   ],
   improve: [
@@ -57,6 +74,8 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "set_input",
       functionName: "chat-assistant",
       tone: "cyan",
+      loadingLabel: "Ready",
+      primary: true,
     },
     {
       id: "improve-hook",
@@ -65,6 +84,8 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "set_input",
       functionName: "chat-assistant",
       tone: "rose",
+      loadingLabel: "Ready",
+      primary: true,
     },
     {
       id: "improve-voice",
@@ -73,6 +94,8 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "set_input",
       functionName: "chat-assistant",
       tone: "violet",
+      loadingLabel: "Ready",
+      primary: true,
     },
     {
       id: "improve-cta",
@@ -81,6 +104,7 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "set_input",
       functionName: "chat-assistant",
       tone: "amber",
+      loadingLabel: "Ready",
     },
   ],
   analyze: [
@@ -91,6 +115,8 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "send",
       functionName: "chat-assistant",
       tone: "cyan",
+      loadingLabel: "Analyzing...",
+      primary: true,
     },
     {
       id: "analyze-best-time",
@@ -99,6 +125,8 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "send",
       functionName: "chat-assistant",
       tone: "emerald",
+      loadingLabel: "Checking...",
+      primary: true,
     },
     {
       id: "analyze-top-posts",
@@ -107,6 +135,8 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "send",
       functionName: "chat-assistant",
       tone: "violet",
+      loadingLabel: "Finding...",
+      primary: true,
     },
     {
       id: "analyze-content-gaps",
@@ -115,6 +145,7 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "send",
       functionName: "chat-assistant",
       tone: "amber",
+      loadingLabel: "Scanning...",
     },
   ],
   operate: [
@@ -125,6 +156,8 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "send",
       functionName: "chat-assistant",
       tone: "cyan",
+      loadingLabel: "Inspecting...",
+      primary: true,
     },
     {
       id: "operate-scheduled",
@@ -133,6 +166,8 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "send",
       functionName: "chat-assistant",
       tone: "emerald",
+      loadingLabel: "Inspecting...",
+      primary: true,
     },
     {
       id: "operate-automations",
@@ -141,6 +176,8 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "send",
       functionName: "chat-assistant",
       tone: "violet",
+      loadingLabel: "Reviewing...",
+      primary: true,
     },
     {
       id: "operate-sync-analytics",
@@ -149,6 +186,7 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "send",
       functionName: "chat-assistant",
       tone: "amber",
+      loadingLabel: "Syncing...",
     },
   ],
   ask: [
@@ -159,6 +197,8 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "send",
       functionName: "chat-assistant",
       tone: "cyan",
+      loadingLabel: "Explaining...",
+      primary: true,
     },
     {
       id: "ask-setup",
@@ -167,6 +207,8 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "send",
       functionName: "chat-assistant",
       tone: "emerald",
+      loadingLabel: "Checking...",
+      primary: true,
     },
     {
       id: "ask-capabilities",
@@ -175,12 +217,25 @@ const MODE_ACTIONS: Record<AssistantQuickActionMode, AssistantQuickAction[]> = {
       intent: "send",
       functionName: "chat-assistant",
       tone: "violet",
+      loadingLabel: "Listing...",
+      primary: true,
     },
   ],
 }
 
 export function getAssistantModeActions(mode: AssistantQuickActionMode): AssistantQuickAction[] {
   return MODE_ACTIONS[mode]
+}
+
+export function splitAssistantQuickActions(actions: AssistantQuickAction[], maxPrimary = 3) {
+  const explicitPrimary = actions.filter((action) => action.primary)
+  const primary = (explicitPrimary.length ? explicitPrimary : actions).slice(0, maxPrimary)
+  const primaryIds = new Set(primary.map((action) => action.id))
+
+  return {
+    primary,
+    secondary: actions.filter((action) => !primaryIds.has(action.id)),
+  }
 }
 
 function getPrimaryRecommendation(briefing: AssistantBriefing): string | null {
@@ -200,22 +255,28 @@ export function buildContextualAssistantActions(briefing: AssistantBriefing): As
       intent: "send",
       functionName: "chat-assistant",
       tone: "cyan",
+      loadingLabel: "Generating...",
+      primary: true,
     },
     {
       id: "make-carousel",
       label: "Make carousel",
-      prompt: `Create a 5-slide Instagram carousel about this recommendation: "${recommendation}".`,
-      intent: "send",
+      prompt: recommendation,
+      intent: "start_carousel_flow",
       functionName: "generate-carousel",
       tone: "violet",
+      loadingLabel: "Preparing...",
+      primary: true,
     },
     {
       id: "create-image",
       label: "Create image",
-      prompt: `Create a polished social media image for this post idea: "${recommendation}".`,
-      intent: "send",
+      prompt: recommendation,
+      intent: "start_image_flow",
       functionName: "generate-image",
       tone: "rose",
+      loadingLabel: "Preparing...",
+      primary: true,
     },
     {
       id: "start-draft",
@@ -224,6 +285,7 @@ export function buildContextualAssistantActions(briefing: AssistantBriefing): As
       intent: "start_draft",
       functionName: "chat-assistant",
       tone: "emerald",
+      loadingLabel: "Opening...",
     },
   ]
 }

@@ -13,6 +13,7 @@ interface AssistantComposerProps {
   quickActions: AssistantQuickAction[]
   pendingImages: MessageImage[]
   isLoading: boolean
+  activeActionId?: string | null
   fileInputRef: RefObject<HTMLInputElement | null>
   onInputChange: (value: string) => void
   onSend: () => void
@@ -43,6 +44,7 @@ export function AssistantComposer({
   quickActions,
   pendingImages,
   isLoading,
+  activeActionId,
   fileInputRef,
   onInputChange,
   onSend,
@@ -81,7 +83,12 @@ export function AssistantComposer({
         </div>
 
         <div className="mb-2">
-          <AssistantQuickActions actions={quickActions} disabled={isLoading} onAction={onQuickAction} />
+          <AssistantQuickActions
+            actions={quickActions}
+            disabled={isLoading}
+            activeActionId={activeActionId}
+            onAction={onQuickAction}
+          />
         </div>
 
         <div className="relative flex items-center">

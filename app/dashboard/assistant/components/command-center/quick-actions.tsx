@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import {
   BarChart3,
   CalendarClock,
@@ -13,12 +14,17 @@ import {
   WandSparkles,
   Zap,
 } from 'lucide-react'
-import type { AssistantQuickAction, AssistantQuickActionTone } from '@/lib/assistant/quick-actions'
+import {
+  splitAssistantQuickActions,
+  type AssistantQuickAction,
+  type AssistantQuickActionTone,
+} from '@/lib/assistant/quick-actions'
 
 interface AssistantQuickActionsProps {
   actions: AssistantQuickAction[]
   disabled?: boolean
   compact?: boolean
+  activeActionId?: string | null
   onAction: (action: AssistantQuickAction) => void
 }
 
@@ -55,26 +61,46 @@ const toneClasses: Record<AssistantQuickActionTone, string> = {
   violet: 'border-violet-300/20 bg-violet-300/10 text-violet-50 hover:bg-violet-300/15',
 }
 
-export function AssistantQuickActions({ actions, disabled, compact, onAction }: AssistantQuickActionsProps) {
+export function AssistantQuickActions({ actions, disabled, compact, activeActionId, onAction }: AssistantQuickActionsProps) {
+  const [expandedSignature, setExpandedSignature] = useState<string | null>(null)
+  const actionSignature = actions.map((action) => action.id).join('|')
+
   if (!actions.length) return null
+
+  const grouped = splitAssistantQuickActions(actions)
+  const showMore = expandedSignature === actionSignature
+  const visibleActions = showMore ? [...grouped.primary, ...grouped.secondary] : grouped.primary
+  const isBusy = Boolean(activeActionId)
 
   return (
     <div className={`flex gap-2 overflow-x-auto pb-1 ${compact ? 'max-w-full' : 'px-1'}`}>
-      {actions.map((action) => {
+      {visibleActions.map((action) => {
         const Icon = iconByAction[action.id] || Sparkles
+        const isActive = activeActionId === action.id
         return (
           <button
             key={action.id}
             type="button"
-            disabled={disabled}
+            disabled={disabled || (isBusy && !isActive)}
             onClick={() => onAction(action)}
+            title={action.guidance || action.prompt || action.label}
             className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 ${toneClasses[action.tone]}`}
           >
             <Icon className="h-3.5 w-3.5" />
-            {action.label}
+            {isActive ? action.loadingLabel : action.label}
           </button>
         )
       })}
+      {grouped.secondary.length > 0 && !showMore && (
+        <button
+          type="button"
+          disabled={disabled || isBusy}
+          onClick={() => setExpandedSignature(actionSignature)}
+          className="inline-flex h-8 shrink-0 items-center rounded-lg border border-white/10 bg-white/5 px-2.5 text-xs font-semibold text-white/55 transition hover:bg-white/8 hover:text-white/75 disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          More
+        </button>
+      )}
     </div>
   )
 }

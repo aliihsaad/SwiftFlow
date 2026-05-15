@@ -3,6 +3,7 @@ import { buildAssistantBriefing } from "@/lib/assistant/response-briefing"
 import {
   buildContextualAssistantActions,
   getAssistantModeActions,
+  splitAssistantQuickActions,
 } from "@/lib/assistant/quick-actions"
 
 describe("assistant quick actions", () => {
@@ -22,6 +23,26 @@ describe("assistant quick actions", () => {
     ])
   })
 
+  it("keeps only primary mode actions visible before the More menu", () => {
+    const grouped = splitAssistantQuickActions(getAssistantModeActions("create"))
+
+    expect(grouped.primary.map((action) => action.label)).toEqual(["Post idea", "Carousel", "Image"])
+    expect(grouped.secondary.map((action) => action.label)).toEqual(["Schedule draft"])
+  })
+
+  it("routes broad create actions through setup flows instead of firing vague generation", () => {
+    const createActions = getAssistantModeActions("create")
+
+    expect(createActions.find((action) => action.id === "create-carousel")).toMatchObject({
+      intent: "start_carousel_flow",
+      guidance: "What should the carousel be about?",
+    })
+    expect(createActions.find((action) => action.id === "create-image")).toMatchObject({
+      intent: "start_image_flow",
+      guidance: "What should the image be about?",
+    })
+  })
+
   it("builds contextual generation actions from the post-next recommendation", () => {
     const briefing = buildAssistantBriefing(`BRIEF: Practical AI posts are working.
 POST NEXT:
@@ -38,8 +59,15 @@ TIMING:
       ["start-draft", "Start draft"],
     ])
     expect(actions[0].prompt).toContain("Turn one Claude Code workflow into a quick carousel")
-    expect(actions[1].functionName).toBe("generate-carousel")
-    expect(actions[2].functionName).toBe("generate-image")
+    expect(actions[1]).toMatchObject({
+      functionName: "generate-carousel",
+      intent: "start_carousel_flow",
+    })
+    expect(actions[2]).toMatchObject({
+      functionName: "generate-image",
+      intent: "start_image_flow",
+    })
+    expect(actions[1].prompt).toBe("Turn one Claude Code workflow into a quick carousel.")
   })
 
   it("does not show contextual actions when no recommendation exists", () => {

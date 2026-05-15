@@ -23,6 +23,7 @@ interface AssistantResponseViewProps {
   contextReceipt?: AssistantContextReceipt
   onCopy: (text: string) => void
   onQuickAction?: (action: AssistantQuickAction) => void
+  activeActionId?: string | null
 }
 
 const metricIcon = {
@@ -132,7 +133,7 @@ function AssistantProseBubble({ content, onCopy }: Pick<AssistantResponseViewPro
   )
 }
 
-export function AssistantResponseView({ content, contextReceipt, onCopy, onQuickAction }: AssistantResponseViewProps) {
+export function AssistantResponseView({ content, contextReceipt, onCopy, onQuickAction, activeActionId }: AssistantResponseViewProps) {
   if (isErrorResponse(content)) {
     return <AssistantProseBubble content={content} onCopy={onCopy} />
   }
@@ -277,7 +278,12 @@ export function AssistantResponseView({ content, contextReceipt, onCopy, onQuick
         {contextualActions.length > 0 && onQuickAction && (
           <div className="rounded-lg border border-white/8 bg-black/[0.16] p-3">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/52">Act on this</div>
-            <AssistantQuickActions actions={contextualActions} compact onAction={onQuickAction} />
+            <AssistantQuickActions
+              actions={contextualActions}
+              compact
+              activeActionId={activeActionId}
+              onAction={onQuickAction}
+            />
           </div>
         )}
       </div>

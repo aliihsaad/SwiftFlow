@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, ChevronLeft, ChevronRight, Battery, Wifi, Signal, Home, Search, PlusSquare, Clapperboard } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { getCarouselSwipeIntent } from "@/lib/create/carousel-swipe"
 
 interface InstagramPostPreviewProps {
     caption: string
@@ -17,6 +18,7 @@ interface InstagramPostPreviewProps {
 
 export function InstagramPostPreview({ caption, mediaUrls, username = "you", userImage, location, date, className }: InstagramPostPreviewProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0)
+    const touchStartRef = useRef<{ x: number; y: number } | null>(null)
 
     const hasMultipleImages = mediaUrls.length > 1
 
@@ -38,6 +40,30 @@ export function InstagramPostPreview({ caption, mediaUrls, username = "you", use
         if (currentImageIndex > 0) {
             setCurrentImageIndex(prev => prev - 1)
         }
+    }
+
+    const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+        if (!hasMultipleImages) return
+        const touch = event.touches[0]
+        if (!touch) return
+        touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+    }
+
+    const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+        if (!hasMultipleImages || !touchStartRef.current) return
+        const touch = event.changedTouches[0]
+        if (!touch) return
+
+        const intent = getCarouselSwipeIntent({
+            startX: touchStartRef.current.x,
+            endX: touch.clientX,
+            startY: touchStartRef.current.y,
+            endY: touch.clientY,
+        })
+
+        touchStartRef.current = null
+        if (intent === "next") nextImage()
+        if (intent === "previous") prevImage()
     }
 
     return (
@@ -92,7 +118,11 @@ export function InstagramPostPreview({ caption, mediaUrls, username = "you", use
                     </div>
 
                     {/* Media */}
-                    <div className="relative aspect-square bg-zinc-900 group">
+                    <div
+                        className="relative aspect-square bg-zinc-900 group"
+                        onTouchStart={handleTouchStart}
+                        onTouchEnd={handleTouchEnd}
+                    >
                         {mediaUrls.length > 0 ? (
                             <>
                                 {mediaUrls[currentImageIndex].match(/\.(mp4|webm|ogg|mov)$/i) ? (

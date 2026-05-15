@@ -2,11 +2,15 @@
 
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Copy, Check, ImageIcon, Loader2 } from "lucide-react"
 import { useState } from "react"
 import { toast } from "sonner"
+import {
+    CAROUSEL_SLIDE_CARD_CLASS,
+    CAROUSEL_SLIDE_FRAME_CLASS,
+    CAROUSEL_SLIDE_TRACK_CLASS,
+} from "@/lib/assistant/carousel-preview-layout"
 
 interface Slide {
     slide_number: number
@@ -47,15 +51,19 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
     }
 
     return (
-        <div className="flex flex-col gap-4">
-            <ScrollArea className="w-full whitespace-nowrap rounded-xl border border-white/10 bg-[#151620]">
-                <div className="flex w-max space-x-4 p-4">
+        <div className="flex min-w-0 flex-col gap-4">
+            <div className={CAROUSEL_SLIDE_FRAME_CLASS}>
+                <div
+                    aria-label="Carousel slides"
+                    className={CAROUSEL_SLIDE_TRACK_CLASS}
+                    tabIndex={0}
+                >
                     {slots.map((slide) => {
                         const isGenerating = generatingSlide === slide.slide_number
                         const slideError = slideImageErrors[slide.slide_number]
 
                         return (
-                            <Card key={slide.slide_number} className="flex h-auto min-h-[320px] w-[280px] shrink-0 flex-col gap-3 border-white/10 bg-[#1b1d28] p-4 text-white/85">
+                            <Card key={slide.slide_number} className={CAROUSEL_SLIDE_CARD_CLASS}>
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                     <Badge variant="outline" className="border-white/10 bg-white/5 text-white/70">Slide {slide.slide_number}</Badge>
                                     <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -121,8 +129,7 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
                         )
                     })}
                 </div>
-                <ScrollBar orientation="horizontal" />
-            </ScrollArea>
+            </div>
             {/* Carousel Footer Actions */}
             <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#1b1d28] p-4">
                 {caption && (

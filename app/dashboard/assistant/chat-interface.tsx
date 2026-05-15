@@ -1,21 +1,13 @@
 "use client"
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Card } from "@/components/ui/card"
 import {
     Bot,
-    Send,
     User,
-    Lightbulb,
-    Images,
-    Link as LinkIcon,
-    Image as ImageIcon,
-    Paintbrush,
-    CalendarDays,
-    BarChart3,
     ArrowUp,
     Copy,
     RefreshCw,
@@ -52,20 +44,22 @@ import { CarouselStyleSelector } from "./components/carousel-style-selector"
 import { IdeaOptionsSelector } from "./components/idea-options-selector"
 import { BrandImageModeSelector, BrandImageOptions } from "./components/brand-image-options"
 import { CreatePostModal } from "@/components/create/create-post-modal"
-
-interface MessageImage {
-    base64: string
-    mimeType: string
-    name: string
-}
-
-interface Message {
-    role: 'user' | 'assistant'
-    content: string
-    type?: 'text' | 'content_cards' | 'carousel_slides' | 'image' | 'style_selector' | 'carousel_style_selector' | 'idea_options_selector' | 'brand_image_mode_selector' | 'brand_image_options'
-    data?: any
-    images?: MessageImage[]
-}
+import type {
+    AssistantFlowState,
+    AssistantFunctionName,
+    AssistantMessage,
+    AssistantMode,
+    AssistantQuickStart,
+    MessageImage,
+} from './assistant-types'
+import {
+    ASSISTANT_MODES,
+    ASSISTANT_QUICK_STARTS,
+    ASSISTANT_THEME as ASSIST_THEME,
+} from './assistant-config'
+import { AssistantModeSwitcher } from './components/command-center/mode-switcher'
+import { AssistantEmptyState } from './components/command-center/empty-state'
+import { routeAssistantIntent } from '@/lib/assistant/intent-router'
 
 interface ChatInterfaceProps {
     workspaceId?: string
@@ -88,57 +82,12 @@ function sanitizeAssistantImageError(msg: string): string {
     return normalized || "Image generation failed. Please try again."
 }
 
-const ACTION_CARDS = [
-    {
-        icon: Lightbulb,
-        title: "Generate content ideas",
-        description: "Get creative post ideas for any platform",
-        prompt: "Generate 5 content ideas for Instagram.",
-        functionName: "generate-ideas"
-    },
-    {
-        icon: Images,
-        title: "Create a carousel",
-        description: "Multi-image posts for Instagram or TikTok",
-        prompt: "Create a 5-slide educational carousel about...",
-        functionName: "generate-carousel"
-    },
-    {
-        icon: ImageIcon,
-        title: "Create an image",
-        description: "Generate AI images for posts",
-        prompt: "Create a realistic image of...",
-        functionName: "generate-image"
-    },
-    {
-        icon: Paintbrush,
-        title: "Brand images",
-        description: "Generate or transform images for your brand",
-        prompt: "",
-        functionName: "brand-images"
-    }
-]
-
-const ASSIST_THEME = {
-    shell: '#151620',
-    shellAlt: '#1b1d28',
-    bubble: '#1b1d28',
-    border: 'rgba(255,255,255,0.08)',
-    borderSoft: 'rgba(255,255,255,0.06)',
-    text: 'rgba(255,255,255,0.85)',
-    textMuted: 'rgba(255,255,255,0.5)',
-    textDim: 'rgba(255,255,255,0.35)',
-    cyan: '#38bdf8',
-    cyanSoft: '#dff6ff',
-    coral: '#fb7185',
-    amber: '#fbbf24',
-}
-
 export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
-    const [messages, setMessages] = useState<Message[]>([])
+    const [messages, setMessages] = useState<AssistantMessage[]>([])
     const [input, setInput] = useState("")
     const [isLoading, setIsLoading] = useState(false)
-    const [activeFunction, setActiveFunction] = useState<string>("chat-assistant")
+    const [selectedMode, setSelectedMode] = useState<AssistantMode>('create')
+    const [lastFunctionName, setLastFunctionName] = useState<AssistantFunctionName>('chat-assistant')
 
     // History State
     const [sessions, setSessions] = useState<{ id: string, title: string }[]>([])
@@ -266,7 +215,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }
     }, [messages, isLoading])
 
-    const [flowState, setFlowState] = useState<'idle' | 'awaiting_description' | 'awaiting_style' | 'awaiting_carousel_topic' | 'awaiting_carousel_style' | 'awaiting_idea_options' | 'awaiting_brand_image_mode' | 'awaiting_brand_image_upload' | 'awaiting_brand_image_options'>('idle')
+    const [flowState, setFlowState] = useState<AssistantFlowState>('idle')
     const [tempImagePrompt, setTempImagePrompt] = useState("")
     const [tempCarouselTopic, setTempCarouselTopic] = useState("")
     const [generatingSlide, setGeneratingSlide] = useState<number | null>(null)
@@ -316,7 +265,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }
     }
 
-    const handleSend = async (text?: string, overrideFunction?: string, extraPayload?: Record<string, unknown>) => {
+    const handleSend = async (text?: string, overrideFunction?: AssistantFunctionName, extraPayload?: Record<string, unknown>) => {
         const messageText = text || input
         if (!messageText.trim()) return
 
@@ -324,7 +273,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         if (flowState === 'awaiting_description' && !overrideFunction) {
             // User sent the description
             setInput("")
-            const newMessages: Message[] = [
+            const newMessages: AssistantMessage[] = [
                 ...messages,
                 { role: 'user', content: messageText },
                 {
@@ -344,7 +293,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         // HANDLE CAROUSEL FLOW STATE: Awaiting Topic
         if (flowState === 'awaiting_carousel_topic' && !overrideFunction) {
             setInput("")
-            const newMessages: Message[] = [
+            const newMessages: AssistantMessage[] = [
                 ...messages,
                 { role: 'user', content: messageText },
                 {
@@ -369,7 +318,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             setTempBrandImagePrompt(messageText)
             setPendingImages([])
 
-            const newMessages: Message[] = [
+            const newMessages: AssistantMessage[] = [
                 ...messages,
                 { role: 'user', content: messageText, images: refs.length > 0 ? refs : undefined },
                 {
@@ -398,7 +347,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             return
         }
 
-        const newMessages: Message[] = [...messages, {
+        const newMessages: AssistantMessage[] = [...messages, {
             role: 'user',
             content: messageText,
             images: pendingImages.length > 0 ? pendingImages : undefined
@@ -422,20 +371,34 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             console.error("Failed to initial save:", e)
         }
 
-        const targetFunction = overrideFunction || activeFunction || "chat-assistant"
+        const routedIntent = routeAssistantIntent({
+            message: messageText,
+            selectedMode,
+            overrideFunctionName: overrideFunction,
+        })
+
+        setSelectedMode(routedIntent.mode)
+        setLastFunctionName(routedIntent.functionName)
+
+        const targetFunction = routedIntent.functionName
 
         try {
             const data = await invokeEdge(targetFunction, {
                 messages: newMessages,
                 workspaceId,
                 prompt: messageText,
+                assistantIntent: {
+                    mode: routedIntent.mode,
+                    action: routedIntent.action,
+                    confidence: routedIntent.confidence,
+                },
                 ...extraPayload
             }) as any
             if (data?.error) throw new Error(data.error)
 
             // Handle Structured Response
             let responseContent = "Done."
-            let responseType: Message['type'] = 'text'
+            let responseType: AssistantMessage['type'] = 'text'
             let responseData = null
 
             if (data?.result) {
@@ -456,7 +419,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             }
 
             // 2. Add assistant response & Save full history
-            const finalMessages: Message[] = [...newMessages, {
+            const finalMessages: AssistantMessage[] = [...newMessages, {
                 role: 'assistant',
                 content: responseContent,
                 type: responseType,
@@ -478,7 +441,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }
     }
 
-    const saveSession = async (currentMessages: Message[], currentId: string | null): Promise<string | null> => {
+    const saveSession = async (currentMessages: AssistantMessage[], currentId: string | null): Promise<string | null> => {
         try {
             const url = currentId
                 ? `/api/chat/sessions/${currentId}`
@@ -514,9 +477,15 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         return currentId
     }
 
-    const handleCardClick = (card: typeof ACTION_CARDS[0]) => {
-        if (card.functionName === 'generate-image') {
-            // Start Image Flow directly with AI generation
+    const handleQuickStart = (quickStart: AssistantQuickStart) => {
+        setSelectedMode(quickStart.mode)
+        setLastFunctionName(
+            quickStart.functionName === 'brand-images'
+                ? 'chat-assistant'
+                : quickStart.functionName,
+        )
+
+        if (quickStart.functionName === 'generate-image') {
             setFlowState('awaiting_description')
             setMessages(prev => [...prev, {
                 role: 'assistant',
@@ -525,17 +494,16 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             return
         }
 
-        if (card.functionName === 'generate-carousel') {
-            // Start Carousel Flow
+        if (quickStart.functionName === 'generate-carousel') {
             setFlowState('awaiting_carousel_topic')
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: "What topic do you want the carousel to be about? Feel free to share any specific tips or points you'd like to include, or I can generate them for you!"
+                content: "What topic do you want the carousel to be about? Share any specific tips or points, or I can generate them."
             }])
             return
         }
 
-        if (card.functionName === 'brand-images') {
+        if (quickStart.functionName === 'brand-images') {
             setFlowState('awaiting_brand_image_mode')
             setMessages(prev => [...prev, {
                 role: 'assistant',
@@ -545,22 +513,20 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             return
         }
 
-        if (card.functionName === 'generate-ideas') {
-            // Start Ideas Flow
+        if (quickStart.functionName === 'generate-ideas') {
             setFlowState('awaiting_idea_options')
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: "Let's generate some content ideas! Choose your source and how many ideas you need:",
+                content: "Let's generate content ideas. Choose your source and how many ideas you need:",
                 type: 'idea_options_selector'
             }])
             return
         }
 
-        setActiveFunction(card.functionName)
-        if (card.prompt.endsWith("...") || card.prompt.endsWith(": ")) {
-            setInput(card.prompt)
+        if (quickStart.prompt.endsWith(' ')) {
+            setInput(quickStart.prompt)
         } else {
-            handleSend(card.prompt, card.functionName)
+            handleSend(quickStart.prompt, quickStart.functionName)
         }
     }
 
@@ -927,6 +893,9 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                     <span className="text-[11px] font-bold uppercase tracking-widest" style={{ color: ASSIST_THEME.textDim }}>
                         Assistant Active
                     </span>
+                    <span className="hidden text-[11px] text-white/25 sm:inline">
+                        {lastFunctionName}
+                    </span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -952,7 +921,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                         size="icon"
                                         variant="outline"
                                         className="border-white/10 bg-white/5 text-white/75 hover:bg-white/10 hover:text-white"
-                                        onClick={() => { loadSession('new'); setActiveFunction("chat-assistant"); toast({ title: "New Chat Started", duration: 1000 }) }}
+                                        onClick={() => { loadSession('new'); setSelectedMode('create'); setLastFunctionName('chat-assistant'); toast({ title: "New Chat Started", duration: 1000 }) }}
                                         title="New Chat"
                                     >
                                         <RefreshCw className="h-4 w-4" />
@@ -1004,11 +973,22 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                     <button
                         className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150"
                         style={{ background: 'rgba(255,255,255,0.05)', border: `1px solid ${ASSIST_THEME.border}`, color: ASSIST_THEME.textMuted }}
-                        onClick={() => { loadSession('new'); setActiveFunction("chat-assistant"); toast({ title: "New Chat Started", duration: 1000 }) }}
+                        onClick={() => { loadSession('new'); setSelectedMode('create'); setLastFunctionName('chat-assistant'); toast({ title: "New Chat Started", duration: 1000 }) }}
                         title="New Chat"
                     >
                         <RefreshCw className="h-3.5 w-3.5" />
                     </button>
+                </div>
+            </div>
+
+            <div className="flex-none border-b border-white/6 px-3 py-2 sm:px-5">
+                <div className="mx-auto max-w-4xl">
+                    <AssistantModeSwitcher
+                        modes={ASSISTANT_MODES}
+                        selectedMode={selectedMode}
+                        onModeChange={setSelectedMode}
+                        compact
+                    />
                 </div>
             </div>
 
@@ -1019,59 +999,10 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
                         {/* Empty state */}
                         {messages.length === 0 && (
-                            <div className="flex flex-col items-center justify-center min-h-[58vh] gap-10 animate-in fade-in zoom-in duration-500">
-                                <div className="text-center space-y-3">
-                                    <div
-                                        className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl"
-                                        style={{ background: 'linear-gradient(135deg, #38bdf8, #fb7185)', boxShadow: '0 0 40px rgba(56,189,248,0.22)' }}
-                                    >
-                                        <Bot className="h-7 w-7 text-white" />
-                                    </div>
-                                    <h1
-                                        className="text-3xl font-bold tracking-tight"
-                                        style={{ background: 'linear-gradient(135deg, #dff6ff, #fcd34d)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
-                                    >
-                                        AI Assistant
-                                    </h1>
-                                    <p className="text-base" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                                        Your social media copilot. Ask me anything!
-                                    </p>
-                                </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full max-w-3xl">
-                                    {ACTION_CARDS.map((card, i) => (
-                                        <button
-                                            key={i}
-                                            onClick={() => handleCardClick(card)}
-                                            className="group flex sm:flex-col items-center sm:items-start gap-3 sm:gap-0 p-3 sm:p-5 rounded-xl text-left transition-all duration-200 sm:hover:-translate-y-1"
-                                            style={{
-                                                background: ASSIST_THEME.shellAlt,
-                                                border: '1px solid rgba(255,255,255,0.08)',
-                                                boxShadow: '0 2px 12px rgba(0,0,0,0.3)',
-                                            }}
-                                            onMouseEnter={(e) => {
-                                                e.currentTarget.style.borderColor = 'rgba(56,189,248,0.22)'
-                                                e.currentTarget.style.boxShadow = '0 8px 24px rgba(56,189,248,0.08)'
-                                            }}
-                                            onMouseLeave={(e) => {
-                                                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
-                                                e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.3)'
-                                            }}
-                                        >
-                                            <div
-                                                className="shrink-0 sm:mb-4 flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl transition-all duration-200 group-hover:scale-110"
-                                                style={{ background: 'rgba(56,189,248,0.12)' }}
-                                            >
-                                                <card.icon className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: ASSIST_THEME.cyan }} />
-                                            </div>
-                                            <div>
-                                                <h3 className="font-semibold text-sm mb-0.5 sm:mb-1" style={{ color: 'rgba(255,255,255,0.85)' }}>{card.title}</h3>
-                                                <p className="text-xs leading-relaxed hidden sm:block" style={{ color: 'rgba(255,255,255,0.35)' }}>{card.description}</p>
-                                            </div>
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                            <AssistantEmptyState
+                                quickStarts={ASSISTANT_QUICK_STARTS}
+                                onQuickStart={handleQuickStart}
+                            />
                         )}
 
                         {/* Messages */}
@@ -1286,7 +1217,17 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                            placeholder={activeFunction !== 'chat-assistant' ? `Using ${activeFunction}…` : "Ask me anything…"}
+                            placeholder={
+                                selectedMode === 'create'
+                                    ? 'Create a post, image, carousel, or idea...'
+                                    : selectedMode === 'improve'
+                                        ? 'Paste a draft to improve...'
+                                        : selectedMode === 'analyze'
+                                            ? 'Ask about performance or timing...'
+                                            : selectedMode === 'operate'
+                                                ? 'Ask about posts, schedules, or automations...'
+                                                : 'Ask me anything...'
+                            }
                             className="w-full rounded-xl py-3.5 pl-11 pr-14 text-sm outline-none transition-all"
                             style={{
                                 background: ASSIST_THEME.shellAlt,

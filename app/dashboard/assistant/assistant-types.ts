@@ -51,7 +51,7 @@ export interface AssistantMessage {
   role: 'user' | 'assistant'
   content: string
   type?: AssistantMessageType
-  data?: unknown
+  data?: any
   images?: MessageImage[]
 }
 

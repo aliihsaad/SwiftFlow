@@ -1,36 +1,42 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import { ASSISTANT_MOBILE_BREAKPOINT, isAssistantMobileWidth } from '@/lib/assistant/mobile-layout'
 
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => (
-    typeof window === 'undefined' ? false : isAssistantMobileWidth(window.innerWidth)
-  ))
+export function getAssistantMobileSnapshot() {
+  return typeof window !== 'undefined' && isAssistantMobileWidth(window.innerWidth)
+}
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
+export function getAssistantMobileServerSnapshot() {
+  return false
+}
 
-    const query = window.matchMedia(`(max-width: ${ASSISTANT_MOBILE_BREAKPOINT - 1}px)`)
-    const update = () => setIsMobile(isAssistantMobileWidth(window.innerWidth))
+export function subscribeAssistantMobileChange(onChange: () => void) {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => undefined
 
-    update()
-    if (typeof query.addEventListener === 'function') {
-      query.addEventListener('change', update)
+  const query = window.matchMedia(`(max-width: ${ASSISTANT_MOBILE_BREAKPOINT - 1}px)`)
+
+  if (typeof query.addEventListener === 'function') {
+    query.addEventListener('change', onChange)
+  } else {
+    query.addListener(onChange)
+  }
+  window.addEventListener('resize', onChange)
+
+  return () => {
+    if (typeof query.removeEventListener === 'function') {
+      query.removeEventListener('change', onChange)
     } else {
-      query.addListener(update)
+      query.removeListener(onChange)
     }
-    window.addEventListener('resize', update)
+    window.removeEventListener('resize', onChange)
+  }
+}
 
-    return () => {
-      if (typeof query.removeEventListener === 'function') {
-        query.removeEventListener('change', update)
-      } else {
-        query.removeListener(update)
-      }
-      window.removeEventListener('resize', update)
-    }
-  }, [])
-
-  return isMobile
+export function useIsMobile() {
+  return useSyncExternalStore(
+    subscribeAssistantMobileChange,
+    getAssistantMobileSnapshot,
+    getAssistantMobileServerSnapshot,
+  )
 }

@@ -43,14 +43,14 @@ export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false 
             {/* Slide Count */}
             <div className="space-y-2">
                 <p className="text-sm font-medium text-white/60">How many slides?</p>
-                <div className="flex gap-2">
+                <div className="grid grid-cols-3 gap-2">
                     {SLIDE_COUNTS.map((count) => (
                         <button
                             key={count}
                             onClick={() => setSelectedCount(count)}
                             disabled={isGenerating}
                             className={cn(
-                                "min-h-10 flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all",
+                                "min-h-10 min-w-0 rounded-lg border px-2 py-2 text-sm font-medium transition-all",
                                 "active:scale-[0.98] sm:hover:scale-[1.02]",
                                 selectedCount === count
                                     ? "border-cyan-300/25 bg-cyan-400/12 text-cyan-100 shadow-sm"
@@ -96,7 +96,7 @@ export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false 
                 onClick={() => setResearch(!research)}
                 disabled={isGenerating}
                 className={cn(
-                    "flex w-full items-center gap-3 p-3 rounded-lg border-2 transition-all",
+                    "flex min-h-16 w-full items-center gap-3 rounded-lg border-2 p-3 transition-all",
                     research
                         ? "border-amber-300/25 bg-amber-400/10 text-amber-200"
                         : "border-white/10 bg-[#151620] text-white/70 hover:border-amber-300/15 hover:bg-white/5"
@@ -108,17 +108,17 @@ export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false 
                 )}>
                     <Search className="w-4 h-4" />
                 </div>
-                <div className="flex-1 text-left">
+                <div className="min-w-0 flex-1 text-left">
                     <span className="text-sm font-medium block">Research First 🔍</span>
                     <span className={cn(
-                        "text-xs transition-colors",
+                        "block break-words text-xs transition-colors",
                         research ? "text-amber-200/70" : "text-white/40"
                     )}>
                         Research real facts & trends for slide content
                     </span>
                 </div>
                 <div className={cn(
-                    "w-9 h-5 rounded-full transition-colors relative",
+                    "relative h-5 w-9 shrink-0 rounded-full transition-colors",
                     research ? "bg-amber-400/40" : "bg-white/10"
                 )}>
                     <div className={cn(

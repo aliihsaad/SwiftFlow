@@ -40,6 +40,7 @@ import { AssistantResponseView } from './components/command-center/assistant-res
 import type { AssistantCommandResponse } from '@/lib/assistant/context-types'
 import { routeAssistantIntent } from '@/lib/assistant/intent-router'
 import { getAssistantModeActions, type AssistantQuickAction } from '@/lib/assistant/quick-actions'
+import { ASSISTANT_MOBILE_SHELL_CLASS } from '@/lib/assistant/mobile-layout'
 import { useIsMobile } from '@/lib/hooks/use-is-mobile'
 import { cn } from '@/lib/utils'
 
@@ -980,7 +981,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         <div
             className={cn(
                 "mx-auto flex h-[calc(100vh-7.75rem)] w-full max-w-6xl flex-col overflow-hidden rounded-none sm:h-[calc(100vh-8.5rem)] sm:rounded-xl",
-                isMobile && "fixed inset-0 z-50 h-[100dvh] max-w-none border-0 sm:h-[100dvh] sm:rounded-none",
+                isMobile && ASSISTANT_MOBILE_SHELL_CLASS,
             )}
             style={{
                 background: ASSIST_THEME.shell,

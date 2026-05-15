@@ -11,20 +11,20 @@ export function AssistantContextReceiptView({ receipt }: AssistantContextReceipt
   if (!receipt) return null
 
   return (
-    <div className="mt-2 flex max-w-full flex-wrap items-center gap-1.5 text-[11px] text-white/38">
-      <span className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-full border border-white/8 bg-white/5 px-2 py-1">
+    <div className="mt-1.5 flex max-w-full flex-nowrap items-center gap-1 overflow-x-auto overscroll-x-contain text-[10px] text-white/38 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mt-2 sm:flex-wrap sm:gap-1.5 sm:overflow-visible sm:text-[11px]">
+      <span className="inline-flex max-w-[75vw] shrink-0 items-center gap-1 rounded-full border border-white/8 bg-white/5 px-1.5 py-0.5 sm:max-w-full sm:px-2 sm:py-1">
         <Database className="h-3 w-3 shrink-0 text-cyan-200/70" />
-        <span className="min-w-0 break-words">{receipt.label}</span>
+        <span className="min-w-0 truncate">{receipt.label}</span>
       </span>
       {receipt.analyticsSyncReason && (
-        <span className="max-w-full min-w-0 break-words rounded-full border border-white/8 bg-white/5 px-2 py-1">
+        <span className="max-w-[75vw] shrink-0 truncate rounded-full border border-white/8 bg-white/5 px-1.5 py-0.5 sm:max-w-full sm:px-2 sm:py-1">
           analytics: {receipt.analyticsSyncReason}
         </span>
       )}
       {receipt.warnings.slice(0, 2).map((warning) => (
-        <span key={warning} className="inline-flex max-w-full min-w-0 items-center gap-1 rounded-full border border-amber-400/15 bg-amber-400/10 px-2 py-1 text-amber-100/70">
+        <span key={warning} className="inline-flex max-w-[75vw] shrink-0 items-center gap-1 rounded-full border border-amber-400/15 bg-amber-400/10 px-1.5 py-0.5 text-amber-100/70 sm:max-w-full sm:px-2 sm:py-1">
           <AlertCircle className="h-3 w-3 shrink-0" />
-          <span className="min-w-0 break-words">{warning}</span>
+          <span className="min-w-0 truncate">{warning}</span>
         </span>
       ))}
     </div>

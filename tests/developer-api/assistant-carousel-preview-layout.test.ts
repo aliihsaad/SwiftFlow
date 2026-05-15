@@ -22,6 +22,8 @@ describe("assistant carousel preview mobile layout", () => {
     expect(CAROUSEL_SLIDE_CARD_CLASS).toContain("snap-start")
     expect(CAROUSEL_SLIDE_CARD_CLASS).toContain("w-[calc(100%_-_1.5rem)]")
     expect(CAROUSEL_SLIDE_CARD_CLASS).toContain("max-w-[320px]")
+    expect(CAROUSEL_SLIDE_CARD_CLASS).toContain("min-h-[280px]")
+    expect(CAROUSEL_SLIDE_CARD_CLASS).toContain("sm:min-h-[320px]")
     expect(CAROUSEL_SLIDE_CARD_CLASS).toContain("sm:w-[280px]")
   })
 })

@@ -34,7 +34,7 @@ export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false 
     }
 
     return (
-        <div className="w-full max-w-none animate-in fade-in slide-in-from-bottom-2 space-y-5 rounded-xl border border-white/10 bg-[#1b1d28] p-4 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)] sm:max-w-lg sm:p-5">
+        <div className="w-full max-w-none animate-in fade-in slide-in-from-bottom-2 space-y-4 rounded-xl border border-white/10 bg-[#1b1d28] p-3 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)] sm:max-w-lg sm:space-y-5 sm:p-5">
             <div className="space-y-1">
                 <p className="text-sm text-white/50">Creating Instagram carousel about</p>
                 <h3 className="break-words font-semibold text-cyan-100">&quot;{topic}&quot;</h3>
@@ -50,7 +50,7 @@ export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false 
                             onClick={() => setSelectedCount(count)}
                             disabled={isGenerating}
                             className={cn(
-                                "min-h-10 min-w-0 rounded-lg border px-2 py-2 text-sm font-medium transition-all",
+                                "min-h-9 min-w-0 rounded-lg border px-2 py-1.5 text-xs font-medium transition-all sm:min-h-10 sm:py-2 sm:text-sm",
                                 "active:scale-[0.98] sm:hover:scale-[1.02]",
                                 selectedCount === count
                                     ? "border-cyan-300/25 bg-cyan-400/12 text-cyan-100 shadow-sm"
@@ -75,7 +75,7 @@ export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false 
                                 onClick={() => setSelectedStyle(style.id)}
                                 disabled={isGenerating}
                                 className={cn(
-                                    "flex min-h-12 items-center gap-2 rounded-lg border p-3 text-left transition-all",
+                                    "flex min-h-10 items-center gap-2 rounded-lg border p-2 text-left transition-all sm:min-h-12 sm:p-3",
                                     "active:scale-[0.98] sm:hover:scale-[1.02]",
                                     selectedStyle === style.id
                                         ? "ring-2 ring-cyan-300/30 border-cyan-300/25"
@@ -83,7 +83,7 @@ export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false 
                                     style.bg
                                 )}
                             >
-                                <Icon className={cn("w-4 h-4", style.color)} />
+                                <Icon className={cn("h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4", style.color)} />
                                 <span className="text-xs font-medium text-white/85">{style.label}</span>
                             </button>
                         )
@@ -96,22 +96,22 @@ export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false 
                 onClick={() => setResearch(!research)}
                 disabled={isGenerating}
                 className={cn(
-                    "flex min-h-16 w-full items-center gap-3 rounded-lg border-2 p-3 transition-all",
+                    "flex min-h-12 w-full items-center gap-2.5 rounded-lg border-2 p-2.5 transition-all sm:min-h-16 sm:gap-3 sm:p-3",
                     research
                         ? "border-amber-300/25 bg-amber-400/10 text-amber-200"
                         : "border-white/10 bg-[#151620] text-white/70 hover:border-amber-300/15 hover:bg-white/5"
                 )}
             >
                 <div className={cn(
-                    "flex items-center justify-center w-8 h-8 rounded-md transition-colors",
+                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition-colors sm:h-8 sm:w-8",
                     research ? "bg-amber-400/20" : "bg-white/5"
                 )}>
-                    <Search className="w-4 h-4" />
+                    <Search className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </div>
                 <div className="min-w-0 flex-1 text-left">
-                    <span className="text-sm font-medium block">Research First 🔍</span>
+                    <span className="block text-xs font-medium sm:text-sm">Research First 🔍</span>
                     <span className={cn(
-                        "block break-words text-xs transition-colors",
+                        "block break-words text-[11px] transition-colors sm:text-xs",
                         research ? "text-amber-200/70" : "text-white/40"
                     )}>
                         Research real facts & trends for slide content
@@ -132,7 +132,7 @@ export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false 
             <Button
                 onClick={handleGenerate}
                 disabled={!selectedStyle || isGenerating}
-                className="w-full border border-cyan-300/20 bg-linear-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
+                className="min-h-10 w-full border border-cyan-300/20 bg-linear-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20 sm:min-h-11"
                 size="lg"
             >
                 {isGenerating ? (

@@ -979,7 +979,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
     return (
         <div
-            className="flex h-[calc(100dvh-7.5rem)] w-full max-w-none flex-col overflow-hidden rounded-none border-0 sm:mx-auto sm:h-[calc(100vh-8.5rem)] sm:max-w-6xl sm:rounded-xl sm:border sm:border-white/10"
+            className="flex h-[calc(100dvh-7.25rem)] w-full max-w-none flex-col overflow-hidden rounded-none border-0 sm:mx-auto sm:h-[calc(100vh-8.5rem)] sm:max-w-6xl sm:rounded-xl sm:border sm:border-white/10"
             style={{
                 background: ASSIST_THEME.shell,
                 boxShadow: '0 0 60px rgba(56,189,248,0.05)',
@@ -987,7 +987,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         >
             {/* ── TOOLBAR ── */}
             <div
-                className="sticky top-0 z-20 flex flex-none items-center justify-between gap-2 px-3 py-2.5 sm:static sm:gap-4 sm:px-5 sm:py-3"
+                className="sticky top-0 z-20 flex flex-none items-center justify-between gap-2 px-3 py-2 sm:static sm:gap-4 sm:px-5 sm:py-3"
                 style={{
                     borderBottom: `1px solid ${ASSIST_THEME.borderSoft}`,
                     background: 'rgba(21,22,32,0.92)',
@@ -1017,7 +1017,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                 />
             </div>
 
-            <div className="flex-none border-b border-white/6 px-2 py-2 sm:px-5">
+            <div className="flex-none border-b border-white/6 px-2 py-1.5 sm:px-5 sm:py-2">
                 <div className="mx-auto max-w-none sm:max-w-4xl">
                     <AssistantModeSwitcher
                         modes={ASSISTANT_MODES}
@@ -1031,7 +1031,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
             {/* ── MESSAGES ── */}
             <div className="flex-1 min-h-0 relative">
                 <ScrollArea className="h-full w-full" ref={scrollRef}>
-                    <div className="mx-auto max-w-none px-2 py-3 sm:max-w-4xl sm:p-5">
+                    <div className="mx-auto max-w-none px-2 py-2.5 sm:max-w-4xl sm:p-5">
 
                         {/* Empty state */}
                         {messages.length === 0 && (

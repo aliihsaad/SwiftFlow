@@ -32,11 +32,11 @@ export function ImagePreview({
                 />
             </div>
 
-            <div className="grid grid-cols-2 gap-2 border-t border-white/10 bg-[#151620] p-3 sm:grid-cols-[1fr_1fr_auto]">
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_2.25rem] gap-1.5 border-t border-white/10 bg-[#151620] p-2 sm:grid-cols-[1fr_1fr_auto] sm:gap-2 sm:p-3">
                 <Button
                     variant="outline"
                     size="sm"
-                    className="h-10 min-w-0 gap-2 border-white/10 bg-white/5 text-xs text-white/75 hover:bg-white/10 hover:text-white sm:h-9"
+                    className="h-9 min-w-0 gap-1.5 border-white/10 bg-white/5 px-2 text-[11px] text-white/75 hover:bg-white/10 hover:text-white sm:gap-2 sm:text-xs"
                     onClick={() => onDownload(imageUrl)}
                 >
                     <Download className="w-3 h-3" />
@@ -45,7 +45,7 @@ export function ImagePreview({
                 <Button
                     variant="default"
                     size="sm"
-                    className="h-10 min-w-0 gap-2 border border-cyan-300/20 bg-cyan-400/15 text-xs text-cyan-50 hover:bg-cyan-400/20 sm:h-9"
+                    className="h-9 min-w-0 gap-1.5 border border-cyan-300/20 bg-cyan-400/15 px-2 text-[11px] text-cyan-50 hover:bg-cyan-400/20 sm:gap-2 sm:text-xs"
                     onClick={() => onUseInPost(imageUrl)}
                 >
                     <PlusSquare className="w-3 h-3" />
@@ -54,12 +54,12 @@ export function ImagePreview({
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="col-span-2 h-10 w-full text-white/65 hover:bg-white/10 hover:text-white sm:col-span-1 sm:h-9 sm:w-9"
+                    className="h-9 w-9 text-white/65 hover:bg-white/10 hover:text-white"
                     onClick={() => onRegenerate(promptUsed)}
                     title="Regenerate"
+                    aria-label="Regenerate image"
                 >
                     <RefreshCw className="w-3 h-3" />
-                    <span className="ml-2 text-xs sm:hidden">Regenerate</span>
                 </Button>
             </div>
         </Card>

@@ -63,7 +63,7 @@ export function AssistantComposer({
     <div
       className={cn(
         'flex-none border-t border-white/6 bg-[#151620]/90 p-3 backdrop-blur sm:p-4',
-        'px-2 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 sm:px-4 sm:pb-4 sm:pt-4',
+        'px-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-1.5 sm:px-4 sm:pb-4 sm:pt-4',
       )}
     >
       <div className="mx-auto max-w-none sm:max-w-3xl">
@@ -89,13 +89,13 @@ export function AssistantComposer({
           </div>
         )}
 
-        <div className="mb-2 flex items-center justify-between gap-2 px-1">
+        <div className="mb-2 hidden items-center justify-between gap-2 px-1 sm:flex">
           <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold capitalize text-cyan-100">
             {selectedMode}
           </span>
         </div>
 
-        <div className="-mx-1 mb-2 sm:mx-0">
+        <div className="-mx-1 mb-1.5 sm:mx-0 sm:mb-2">
           <AssistantQuickActions
             actions={quickActions}
             disabled={isLoading}
@@ -130,7 +130,7 @@ export function AssistantComposer({
             }}
             placeholder={placeholderForMode(selectedMode)}
             className={cn(
-              'min-h-[48px] w-full rounded-xl py-3.5 pl-12 pr-14 text-[16px] text-white/85 outline-none transition-colors sm:text-sm',
+              'min-h-11 w-full rounded-xl py-3 pl-12 pr-14 text-[16px] text-white/85 outline-none transition-colors sm:min-h-[48px] sm:py-3.5 sm:text-sm',
             )}
             style={{
               background: ASSISTANT_THEME.shellAlt,
@@ -147,7 +147,7 @@ export function AssistantComposer({
             <ArrowUp className="h-4 w-4 text-white" />
           </button>
         </div>
-        <p className="mt-2 text-center text-[10px] text-white/25 sm:text-[11px]">
+        <p className="mt-2 hidden text-center text-[11px] text-white/25 sm:block">
           AI can make mistakes. Check important info.
         </p>
       </div>

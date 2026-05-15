@@ -104,6 +104,19 @@ function formatAssistantContext(context: unknown, intent: unknown): string {
         : ''
 }
 
+function formatAssistantResponseContract(intent: unknown): string {
+    const intentRecord = intent && typeof intent === 'object' ? intent as Record<string, unknown> : {}
+    const mode = String(intentRecord.mode || '').toLowerCase()
+    const action = String(intentRecord.action || '').toLowerCase()
+    const isAnalysis = mode === 'analyze' || action.includes('analyze') || action.includes('inspect')
+
+    if (!isAnalysis) {
+        return `\n\nResponse format:\n- Do not use Markdown headings, hash-heading syntax, or double-asterisk bold markers.\n- Keep responses short and scannable.\n- Use plain bullets only when listing options.\n- Avoid generic capability descriptions. Answer the user's exact request.`
+    }
+
+    return `\n\nAnalysis response format:\nReturn a compact briefing using exactly these labels when the data exists:\nBRIEF: one direct sentence with the main takeaway.\nMETRICS: Views=<value>, Likes=<value>, Comments=<value>, Saves=<value>, Posts=<value>\nWHAT HAPPENED:\n- one concrete pattern from the data\n- one concrete risk or gap if relevant\nPOST NEXT:\n- one specific post idea\n- one specific angle or hook\nTIMING:\n- one timing or cadence recommendation\nACTIONS:\n- one next action the user can take now\n\nRules:\n- No Markdown headings, no hash-heading syntax, no double-asterisk bold markers.\n- No long paragraphs. Each bullet must be under 18 words.\n- Do not invent metrics. If a metric is missing, omit it from METRICS.\n- Prefer specific content advice over generic social media tips.`
+}
+
 async function generateWithOpenAI(apiKey: string, modelName: string, messages: ReturnType<typeof buildOpenAICompatibleMessages>, temperature: number, maxTokens: number) {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -180,6 +193,7 @@ serve(async (req) => {
         const language = brandProfile?.language || 'en'
         const languageName = LANGUAGE_NAMES[language] || 'English'
         const contextInstruction = formatAssistantContext(assistantContext, assistantIntent)
+        const responseContract = formatAssistantResponseContract(assistantIntent)
 
         const systemInstruction = `You are an expert Social Media Manager AI Assistant. Your role is to help users create engaging content, plan schedules, and analyze social media strategies for platforms like Instagram, Facebook, LinkedIn, and Twitter.
 
@@ -192,7 +206,7 @@ Guidelines:
 4. If asked about technical issues, guide them to the Settings page.
 5. Do not just list generic capabilities; actively help them with their specific request.
 6. Use emoji where appropriate to match the social media vibe.
-7. ALL content must be in ${languageName}.${contextInstruction}`
+7. ALL content must be in ${languageName}.${contextInstruction}${responseContract}`
 
         let responseText = ""
 

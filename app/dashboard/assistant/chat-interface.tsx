@@ -7,7 +7,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import {
     Bot,
     User,
-    Copy,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { ContentCard } from "./components/content-card"
@@ -37,6 +36,7 @@ import { AssistantComposer } from './components/command-center/composer'
 import { AssistantContextReceiptView } from './components/command-center/context-receipt'
 import { AssistantHistoryControls } from './components/command-center/history-controls'
 import { AssistantLoadingBubble } from './components/command-center/loading-bubble'
+import { AssistantResponseView } from './components/command-center/assistant-response'
 import type { AssistantCommandResponse } from '@/lib/assistant/context-types'
 import { routeAssistantIntent } from '@/lib/assistant/intent-router'
 
@@ -971,32 +971,31 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
                                         {/* Text bubble */}
                                         {msg.content && (
-                                            <div
-                                                className="relative group px-4 py-3 rounded-2xl text-sm leading-relaxed"
-                                                style={msg.role === 'user' ? {
-                                                    background: 'linear-gradient(135deg, rgba(56,189,248,0.25), rgba(251,113,133,0.2))',
-                                                    border: '1px solid rgba(56,189,248,0.18)',
-                                                    color: 'white',
-                                                    borderBottomRightRadius: '4px',
-                                                    boxShadow: '0 4px 16px rgba(56,189,248,0.08)',
-                                                } : {
-                                                    background: ASSIST_THEME.shellAlt,
-                                                    border: `1px solid ${ASSIST_THEME.border}`,
-                                                    color: 'rgba(255,255,255,0.8)',
-                                                    borderBottomLeftRadius: '4px',
-                                                }}
-                                            >
-                                                {msg.content}
-                                                {msg.role === 'assistant' && (
-                                                    <button
-                                                        className="absolute -right-7 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex h-6 w-6 items-center justify-center rounded-md"
-                                                        style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.4)' }}
-                                                        onClick={() => handleCopy(msg.content)}
-                                                    >
-                                                        <Copy className="h-3 w-3" />
-                                                    </button>
-                                                )}
-                                            </div>
+                                            msg.role === 'assistant' && (!msg.type || msg.type === 'text') ? (
+                                                <AssistantResponseView
+                                                    content={msg.content}
+                                                    contextReceipt={msg.contextReceipt}
+                                                    onCopy={handleCopy}
+                                                />
+                                            ) : (
+                                                <div
+                                                    className="relative group px-4 py-3 rounded-2xl text-sm leading-relaxed"
+                                                    style={msg.role === 'user' ? {
+                                                        background: 'linear-gradient(135deg, rgba(56,189,248,0.25), rgba(251,113,133,0.2))',
+                                                        border: '1px solid rgba(56,189,248,0.18)',
+                                                        color: 'white',
+                                                        borderBottomRightRadius: '4px',
+                                                        boxShadow: '0 4px 16px rgba(56,189,248,0.08)',
+                                                    } : {
+                                                        background: ASSIST_THEME.shellAlt,
+                                                        border: `1px solid ${ASSIST_THEME.border}`,
+                                                        color: 'rgba(255,255,255,0.8)',
+                                                        borderBottomLeftRadius: '4px',
+                                                    }}
+                                                >
+                                                    {msg.content}
+                                                </div>
+                                            )
                                         )}
 
                                         {/* Attached images in user messages */}

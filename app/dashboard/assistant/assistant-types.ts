@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
+import type { AssistantContextReceipt } from '@/lib/assistant/context-types'
 
 export type AssistantMode = 'create' | 'improve' | 'analyze' | 'operate' | 'ask'
 
@@ -53,6 +54,7 @@ export interface AssistantMessage {
   type?: AssistantMessageType
   data?: any
   images?: MessageImage[]
+  contextReceipt?: AssistantContextReceipt
 }
 
 export type AssistantFlowState =

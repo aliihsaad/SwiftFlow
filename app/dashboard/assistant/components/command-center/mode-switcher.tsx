@@ -2,7 +2,7 @@
 
 import type { AssistantMode, AssistantModeMeta } from '../../assistant-types'
 import { cn } from '@/lib/utils'
-import { ASSISTANT_HORIZONTAL_SCROLL_CLASS, ASSISTANT_TOUCH_PILL_BUTTON_CLASS } from '@/lib/assistant/mobile-control-layout'
+import { ASSISTANT_MODE_GRID_CLASS, ASSISTANT_TOUCH_PILL_BUTTON_CLASS } from '@/lib/assistant/mobile-control-layout'
 
 interface AssistantModeSwitcherProps {
   modes: AssistantModeMeta[]
@@ -18,7 +18,7 @@ export function AssistantModeSwitcher({
   compact = false,
 }: AssistantModeSwitcherProps) {
   return (
-    <div className={cn('flex gap-1.5 pb-1', ASSISTANT_HORIZONTAL_SCROLL_CLASS)}>
+    <div className={ASSISTANT_MODE_GRID_CLASS}>
       {modes.map((mode) => {
         const Icon = mode.icon
         const active = selectedMode === mode.id
@@ -29,7 +29,7 @@ export function AssistantModeSwitcher({
             type="button"
             onClick={() => onModeChange(mode.id)}
             className={cn(
-              'flex items-center gap-2 rounded-lg border px-3 text-xs font-semibold transition-colors',
+              'flex items-center justify-center gap-1.5 rounded-lg border px-2 text-xs font-semibold transition-colors sm:shrink-0 sm:gap-2 sm:px-3',
               ASSISTANT_TOUCH_PILL_BUTTON_CLASS,
               active
                 ? 'border-cyan-400/35 bg-cyan-400/12 text-cyan-100'
@@ -37,8 +37,8 @@ export function AssistantModeSwitcher({
             )}
             title={mode.description}
           >
-            <Icon className="h-3.5 w-3.5" />
-            <span>{compact ? mode.shortLabel : mode.label}</span>
+            <Icon className="h-3.5 w-3.5 shrink-0" />
+            <span className="min-w-0 truncate">{compact ? mode.shortLabel : mode.label}</span>
           </button>
         )
       })}

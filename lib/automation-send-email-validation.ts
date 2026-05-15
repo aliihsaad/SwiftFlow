@@ -27,6 +27,7 @@ export function validateSendEmailNodeConfigs(
         const recipientEmail = nonEmptyString(config.recipient_email)
         const subject = nonEmptyString(config.subject)
         const body = nonEmptyString(config.body)
+        const includeContext = config.include_context !== false
 
         if (recipientType !== 'custom') {
             issues.push({
@@ -58,10 +59,10 @@ export function validateSendEmailNodeConfigs(
             })
         }
 
-        if (!body) {
+        if (!includeContext && !body) {
             issues.push({
                 code: 'SEND_EMAIL_BODY_REQUIRED',
-                message: 'Send Email requires a body.',
+                message: 'Send Email requires a body when automation context is disabled.',
                 nodeId: node.id,
             })
         }

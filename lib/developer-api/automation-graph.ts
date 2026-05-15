@@ -97,6 +97,13 @@ function normalizeNodeConfig(nodeType: string, value: unknown): Record<string, u
     if (useAiResponse !== null) config.use_ai_response = useAiResponse
   }
 
+  if (nodeType === "action_send_email") {
+    const includeContext = booleanValue(config.include_context)
+    if (includeContext !== null) config.include_context = includeContext
+    const includeTechnicalDetails = booleanValue(config.include_technical_details)
+    if (includeTechnicalDetails !== null) config.include_technical_details = includeTechnicalDetails
+  }
+
   return config
 }
 
@@ -253,8 +260,11 @@ export function validateDeveloperAutomationGraph(
         }
         break
       case "action_send_email":
-        if (!text(config.subject) || !text(config.body)) {
-          errors.push({ code: "MISSING_FIELD", message: "Send Email requires subject and body.", nodeId: node.id })
+        if (!text(config.subject)) {
+          errors.push({ code: "MISSING_FIELD", message: "Send Email requires subject.", nodeId: node.id })
+        }
+        if (config.include_context === false && !text(config.body)) {
+          errors.push({ code: "MISSING_FIELD", message: "Send Email requires body when include_context is false.", nodeId: node.id })
         }
         break
       case "action_ai_response":

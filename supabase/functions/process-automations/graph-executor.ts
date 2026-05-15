@@ -7,7 +7,8 @@
  * condition nodes and parallel edges.
  */
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
-import { buildAutomationAiPrompt, interpolateTemplate } from "../_shared/automation-context.ts"
+import { buildAutomationAiPrompt } from "../_shared/automation-context.ts"
+import { buildAutomationEmailMessage } from "../_shared/automation-email.ts"
 import { sendResendEmail, textToSimpleHtml } from "../_shared/resend-email.ts"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 import {
@@ -82,6 +83,17 @@ interface TriggerContext {
   ai_cta_button_text?: string
   ai_cta_link_url?: string
   ai_cta_link_message?: string
+  alert_error?: string
+  alert_source_node_id?: string
+  alert_source_node_type?: string
+  alert_source_node_label?: string
+  automation_id?: string
+  automation_name?: string
+  workspace_id?: string
+  node_id?: string
+  node_type?: string
+  node_label?: string
+  platform?: string
 }
 
 interface ExecutionResult {
@@ -221,13 +233,29 @@ function queueEdges(
   }
 }
 
+function applyAlertContext(
+  runtimeContext: TriggerContext | undefined,
+  node: WorkflowNode | undefined,
+  nodeResult: { success: boolean; output?: any; error?: string } | undefined,
+) {
+  if (!runtimeContext || !node) return;
+  runtimeContext.alert_error = String(nodeResult?.error || 'Node execution failed');
+  runtimeContext.alert_source_node_id = node.id;
+  runtimeContext.alert_source_node_type = String(node.data?.type || '');
+  runtimeContext.alert_source_node_label = String(node.data?.label || node.data?.type || node.id);
+}
+
 function queueErrorBranchIfPresent(
   adjacency: Map<string, { targetId: string; sourceHandle?: string }[]>,
   nodeId: string,
   queue: string[],
+  runtimeContext?: TriggerContext,
+  node?: WorkflowNode,
+  nodeResult?: { success: boolean; output?: any; error?: string },
 ): boolean {
   const errorEdges = getOutgoingEdges(adjacency, nodeId).filter((edge) => edge.sourceHandle === 'error');
   if (!errorEdges.length) return false;
+  applyAlertContext(runtimeContext, node, nodeResult);
   queueEdges(errorEdges, queue);
   return true;
 }
@@ -237,6 +265,9 @@ function queueStandardActionChildren(
   nodeId: string,
   queue: string[],
   nodeSucceeded: boolean,
+  runtimeContext?: TriggerContext,
+  node?: WorkflowNode,
+  nodeResult?: { success: boolean; output?: any; error?: string },
 ) {
   const outEdges = getOutgoingEdges(adjacency, nodeId);
   const nonErrorEdges = outEdges.filter((edge) => edge.sourceHandle !== 'error');
@@ -246,7 +277,7 @@ function queueStandardActionChildren(
     return;
   }
 
-  const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, queue);
+  const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, queue, runtimeContext, node, nodeResult);
   if (!hadErrorBranch) {
     // Preserve legacy behavior: failed nodes continue on their normal path unless an explicit error edge is connected.
     queueEdges(nonErrorEdges, queue);
@@ -455,7 +486,7 @@ export async function executeWorkflowGraph(
             }
           }
         } else {
-          const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, executionQueue);
+          const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, executionQueue, runtimeContext, node, nodeResult);
           if (!hadErrorBranch) {
             // Preserve legacy behavior: failed condition nodes fall through the "false" path
             for (const edge of outEdges) {
@@ -498,13 +529,14 @@ export async function executeWorkflowGraph(
       }
       // Normal node: add all children to queue
       else {
-        queueStandardActionChildren(adjacency, nodeId, executionQueue, nodeResult.success);
+        queueStandardActionChildren(adjacency, nodeId, executionQueue, nodeResult.success, runtimeContext, node, nodeResult);
       }
     } catch (err) {
       console.error(`[GRAPH] Error executing node ${nodeId}:`, err);
-      result.nodeResults[nodeId] = { success: false, error: err?.message || 'Unknown error' };
+      const failedNodeResult = { success: false, error: err?.message || 'Unknown error' };
+      result.nodeResults[nodeId] = failedNodeResult;
       result.errors++;
-      queueErrorBranchIfPresent(adjacency, nodeId, executionQueue);
+      queueErrorBranchIfPresent(adjacency, nodeId, executionQueue, runtimeContext, node, failedNodeResult);
     }
   }
 
@@ -605,7 +637,7 @@ export async function resumeFromDelay(
             if (edge.sourceHandle === branch) queue.push(edge.targetId);
           }
         } else {
-          const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, queue);
+          const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, queue, runtimeContext, node, nodeResult);
           if (!hadErrorBranch) {
             for (const edge of outEdges) {
               if (edge.sourceHandle === 'false') queue.push(edge.targetId);
@@ -637,12 +669,13 @@ export async function resumeFromDelay(
         }
         continue;
       } else {
-        queueStandardActionChildren(adjacency, nodeId, queue, nodeResult.success);
+        queueStandardActionChildren(adjacency, nodeId, queue, nodeResult.success, runtimeContext, node, nodeResult);
       }
     } catch (err) {
-      result.nodeResults[nodeId] = { success: false, error: err?.message || 'Unknown error' };
+      const failedNodeResult = { success: false, error: err?.message || 'Unknown error' };
+      result.nodeResults[nodeId] = failedNodeResult;
       result.errors++;
-      queueErrorBranchIfPresent(adjacency, nodeId, queue);
+      queueErrorBranchIfPresent(adjacency, nodeId, queue, runtimeContext, node, failedNodeResult);
     }
   }
 
@@ -674,12 +707,25 @@ async function executeNode(
   if (nodeType !== 'action_delay') {
     const workerFunction = NODE_WORKER_MAP[nodeType];
     if (workerFunction) {
+      const enrichedContext = {
+        ...triggerContext,
+        automation_id: automation.id,
+        automation_name: automation.name,
+        workspace_id: automation.workspace_id,
+        node_id: node.id,
+        node_type: nodeType,
+        node_label: node.data?.label,
+        platform: account?.platform,
+      };
       const workerResult = await invokeEdgeFunction(workerFunction, {
         workspace_id: automation.workspace_id,
         automation_id: automation.id,
+        automation_name: automation.name,
         node_id: node.id,
+        node_type: nodeType,
+        node_label: node.data?.label,
         config,
-        context: triggerContext,
+        context: enrichedContext,
         access_token: account?.access_token,
         page_id: pageId,
         platform: account?.platform,
@@ -717,7 +763,7 @@ async function executeNode(
       return await executeAiResponse(supabase, config, triggerContext, automation.workspace_id);
 
     case 'action_send_email':
-      return await executeSendEmail(config, triggerContext, automation, node);
+      return await executeSendEmail(config, { ...triggerContext, platform: account?.platform }, automation, node);
 
     default:
       console.warn(`[GRAPH] Unknown node type: ${node.data.type}`);
@@ -742,43 +788,37 @@ async function executeSendEmail(
       return { success: false, error: 'Email address is required' };
     }
 
-    const subject = interpolateTemplate(String(config?.subject || ''), ctx).trim();
-    const messageBody = interpolateTemplate(String(config?.body || ''), ctx).trim();
+    const email = buildAutomationEmailMessage({
+      config,
+      context: ctx,
+      automation,
+      node,
+      platform: ctx.platform,
+    });
 
-    if (!subject) {
+    if (!email.subject) {
       return { success: false, error: 'Email subject is required' };
     }
 
-    if (!messageBody) {
+    if (!email.text) {
       return { success: false, error: 'Email body is required' };
     }
 
-    const footerLines = [
-      '',
-      '---',
-      'Sent by SwiftFlow Automation',
-      automation?.name ? `Automation: ${String(automation.name)}` : null,
-      automation?.workspace_id ? `Workspace: ${String(automation.workspace_id)}` : null,
-      automation?.id ? `Automation ID: ${String(automation.id)}` : null,
-      node?.id ? `Node ID: ${String(node.id)}` : null,
-    ].filter(Boolean).join('\n');
-
-    const text = `${messageBody}${footerLines}`;
-
     const sendResult = await sendResendEmail({
       to,
-      subject,
-      text,
-      html: textToSimpleHtml(text),
+      subject: email.subject,
+      text: email.text,
+      html: textToSimpleHtml(email.text),
     });
 
     return {
       success: true,
       output: {
         to,
-        subject,
+        subject: email.subject,
         provider: 'resend',
         email_id: sendResult.id || null,
+        context_included: config?.include_context !== false,
       },
     };
   } catch (err) {

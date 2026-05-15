@@ -905,6 +905,9 @@ function ActionConditionFields({ config, onUpdate }: { config: ActionConditionCo
 }
 
 function ActionEmailFields({ config, onUpdate }: { config: ActionSendEmailConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+  const includeContext = config.include_context !== false
+  const includeTechnicalDetails = config.include_technical_details === true
+
   useEffect(() => {
     // Migrate legacy node configs that used a non-sendable "commenter" recipient option.
     if (config.recipient_type !== 'custom') {
@@ -930,22 +933,57 @@ function ActionEmailFields({ config, onUpdate }: { config: ActionSendEmailConfig
           className="mt-1"
         />
       </div>
+      <div className="rounded-md border border-border/60 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label className="text-xs">Add Automation Context</Label>
+            <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+              Adds trigger text, user IDs, AI output, automation/node details, and alert errors when connected from an Alert output.
+            </p>
+          </div>
+          <Switch
+            checked={includeContext}
+            onCheckedChange={(checked) => onUpdate({ include_context: checked })}
+          />
+        </div>
+      </div>
+      {includeContext && (
+        <div className="rounded-md border border-border/60 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <Label className="text-xs">Technical Details</Label>
+              <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+                Includes a redacted runtime payload. Alert emails include this automatically.
+              </p>
+            </div>
+            <Switch
+              checked={includeTechnicalDetails}
+              onCheckedChange={(checked) => onUpdate({ include_technical_details: checked })}
+            />
+          </div>
+        </div>
+      )}
       <div>
         <Label className="text-xs">Subject</Label>
         <Input
           value={config.subject || ''}
           onChange={(e) => onUpdate({ subject: e.target.value })}
           className="mt-1"
+          placeholder="SwiftFlow alert: {{automation_name}}"
         />
       </div>
       <div>
-        <Label className="text-xs">Body</Label>
+        <Label className="text-xs">{includeContext ? 'Intro Body' : 'Body'}</Label>
         <Textarea
           value={config.body || ''}
           onChange={(e) => onUpdate({ body: e.target.value })}
           className="mt-1"
           rows={4}
+          placeholder={includeContext ? 'Optional intro above the automation context.' : 'Email body'}
         />
+        <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
+          Variables: {'{{username}}'}, {'{{comment_text}}'}, {'{{message_text}}'}, {'{{ai_response}}'}, {'{{alert_error}}'}, {'{{alert_source_node_label}}'}
+        </p>
       </div>
     </>
   )

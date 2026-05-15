@@ -106,7 +106,9 @@ export interface ActionSendEmailConfig {
   recipient_type?: 'custom'
   recipient_email?: string
   subject: string
-  body: string
+  body?: string
+  include_context?: boolean
+  include_technical_details?: boolean
 }
 
 export interface ActionHttpRequestConfig {
@@ -395,7 +397,13 @@ export function getDefaultConfig(type: WorkflowNodeType): TriggerConfig | Action
     case 'action_condition':
       return { condition_type: 'keyword_match', keywords: [], operator: 'contains' } as ActionConditionConfig
     case 'action_send_email':
-      return { recipient_type: 'custom', subject: '', body: '' } as ActionSendEmailConfig
+      return {
+        recipient_type: 'custom',
+        subject: '',
+        body: '',
+        include_context: true,
+        include_technical_details: false,
+      } as ActionSendEmailConfig
     case 'action_http_request':
       return { method: 'POST', url: '', headers: {}, body: '' } as ActionHttpRequestConfig
     case 'action_ai_response':

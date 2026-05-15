@@ -22,15 +22,46 @@ export interface TriggerContext {
   ai_cta_button_text?: string
   ai_cta_link_url?: string
   ai_cta_link_message?: string
+  alert_error?: string
+  alert_source_node_id?: string
+  alert_source_node_type?: string
+  alert_source_node_label?: string
+  automation_id?: string
+  automation_name?: string
+  workspace_id?: string
+  node_id?: string
+  node_type?: string
+  node_label?: string
+  platform?: string
 }
 
 export function interpolateTemplate(template: string, ctx: TriggerContext): string {
   const username = ctx.commenter_username || ctx.sender_username || ctx.follower_username || '';
-  return (template || '')
-    .replace(/\{\{comment_text\}\}/g, ctx.comment_text || '')
-    .replace(/\{\{message_text\}\}/g, ctx.message_text || '')
-    .replace(/\{\{username\}\}/g, username)
-    .replace(/\{\{ai_response\}\}/g, ctx.ai_response || '');
+  const replacements: Record<string, string> = {
+    comment_text: ctx.comment_text || '',
+    message_text: ctx.message_text || '',
+    username,
+    ai_response: ctx.ai_response || '',
+    alert_error: ctx.alert_error || '',
+    alert_source_node_id: ctx.alert_source_node_id || '',
+    alert_source_node_type: ctx.alert_source_node_type || '',
+    alert_source_node_label: ctx.alert_source_node_label || '',
+    post_id: ctx.post_id || '',
+    comment_id: ctx.comment_id || '',
+    commenter_id: ctx.commenter_id || '',
+    message_id: ctx.message_id || '',
+    sender_id: ctx.sender_id || '',
+    follower_id: ctx.follower_id || '',
+    timestamp: ctx.timestamp || '',
+    automation_id: ctx.automation_id || '',
+    automation_name: ctx.automation_name || '',
+    workspace_id: ctx.workspace_id || '',
+    node_id: ctx.node_id || '',
+    node_type: ctx.node_type || '',
+    node_label: ctx.node_label || '',
+    platform: ctx.platform || '',
+  };
+  return (template || '').replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (_match, key) => replacements[key] ?? '');
 }
 
 export function getRecipientId(ctx: TriggerContext): string | undefined {

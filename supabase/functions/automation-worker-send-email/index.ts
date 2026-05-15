@@ -1,6 +1,6 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { interpolateTemplate } from "../_shared/automation-context.ts"
+import { buildAutomationEmailMessage } from "../_shared/automation-email.ts"
 import { sendResendEmail, textToSimpleHtml } from "../_shared/resend-email.ts"
 
 const corsHeaders = {
@@ -34,8 +34,12 @@ serve(async (req) => {
     const config = body?.config || {};
     const context = body?.context || {};
     const automationId = body?.automation_id || null;
+    const automationName = body?.automation_name || context?.automation_name || null;
     const workspaceId = body?.workspace_id || null;
     const nodeId = body?.node_id || null;
+    const nodeType = body?.node_type || context?.node_type || null;
+    const nodeLabel = body?.node_label || context?.node_label || null;
+    const platform = body?.platform || context?.platform || null;
 
     const recipientType = String(config?.recipient_type || 'custom');
     if (recipientType !== 'custom') {
@@ -56,48 +60,53 @@ serve(async (req) => {
       });
     }
 
-    const subject = interpolateTemplate(String(config?.subject || ''), context).trim();
-    const messageBody = interpolateTemplate(String(config?.body || ''), context).trim();
+    const email = buildAutomationEmailMessage({
+      config,
+      context,
+      automation: {
+        id: automationId,
+        name: automationName,
+        workspace_id: workspaceId,
+      },
+      node: {
+        id: nodeId,
+        data: {
+          type: nodeType,
+          label: nodeLabel,
+        },
+      },
+      platform,
+    });
 
-    if (!subject) {
+    if (!email.subject) {
       return new Response(JSON.stringify({ success: false, error: 'Email subject is required' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    if (!messageBody) {
+    if (!email.text) {
       return new Response(JSON.stringify({ success: false, error: 'Email body is required' }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const footerLines = [
-      '',
-      '---',
-      'Sent by SwiftFlow Automation',
-      workspaceId ? `Workspace: ${workspaceId}` : null,
-      automationId ? `Automation: ${automationId}` : null,
-      nodeId ? `Node: ${nodeId}` : null,
-    ].filter(Boolean).join('\n');
-
-    const text = `${messageBody}${footerLines}`;
-
     const sendResult = await sendResendEmail({
       to,
-      subject,
-      text,
-      html: textToSimpleHtml(text),
+      subject: email.subject,
+      text: email.text,
+      html: textToSimpleHtml(email.text),
     });
 
     return new Response(JSON.stringify({
       success: true,
       output: {
         to,
-        subject,
+        subject: email.subject,
         provider: 'resend',
         email_id: sendResult.id || null,
+        context_included: config?.include_context !== false,
       },
     }), {
       status: 200,

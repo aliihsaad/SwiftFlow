@@ -47,6 +47,63 @@ function buildOpenAICompatibleMessages(messages: Message[], systemInstruction: s
     ]
 }
 
+function safeList(value: unknown, limit = 8): string {
+    return Array.isArray(value)
+        ? value.map((item) => String(item || '').trim()).filter(Boolean).slice(0, limit).join(', ')
+        : ''
+}
+
+function formatAssistantContext(context: unknown, intent: unknown): string {
+    if (!context || typeof context !== 'object') return ''
+
+    const ctx = context as Record<string, any>
+    const lines: string[] = []
+    const intentRecord = intent && typeof intent === 'object' ? intent as Record<string, unknown> : {}
+
+    if (intentRecord.mode || intentRecord.action) {
+        lines.push(`Intent: mode=${intentRecord.mode || 'unknown'}, action=${intentRecord.action || 'unknown'}`)
+    }
+
+    const brand = ctx.brand || {}
+    if (brand.businessName || brand.industry || brand.brandVoice) {
+        lines.push(`Brand: ${brand.businessName || 'Workspace'}; industry=${brand.industry || 'unknown'}; voice=${brand.brandVoice || 'professional'}; audience=${brand.targetAudience || 'not specified'}`)
+    }
+    if (brand.businessDescription) lines.push(`Brand description: ${String(brand.businessDescription).slice(0, 600)}`)
+    if (Array.isArray(brand.contentThemes) && brand.contentThemes.length) lines.push(`Content themes: ${safeList(brand.contentThemes, 10)}`)
+    if (Array.isArray(brand.uniqueSellingPoints) && brand.uniqueSellingPoints.length) lines.push(`Unique selling points: ${safeList(brand.uniqueSellingPoints, 8)}`)
+
+    const accounts = ctx.accounts || {}
+    if (Array.isArray(accounts.items)) {
+        lines.push(`Connected accounts: ${accounts.items.map((item: any) => `${item.platform}:${item.accountName || item.accountId}`).join(', ') || 'none'}`)
+    }
+
+    const content = ctx.content || {}
+    if (Array.isArray(content.recentPosts) && content.recentPosts.length) {
+        lines.push(`Recent posts: ${content.recentPosts.slice(0, 8).map((post: any) => `[${post.status}] ${String(post.content || '').slice(0, 140)}`).join(' | ')}`)
+    }
+
+    const analytics = ctx.analytics || null
+    if (analytics?.totals) {
+        lines.push(`Analytics ${analytics.range || '30d'} totals: views=${analytics.totals.views || 0}, likes=${analytics.totals.likes || 0}, comments=${analytics.totals.comments || 0}, shares=${analytics.totals.shares || 0}, saves=${analytics.totals.saves || 0}, publishedPosts=${analytics.totals.publishedPosts || 0}`)
+    }
+    if (Array.isArray(analytics?.topPosts) && analytics.topPosts.length) {
+        lines.push(`Top posts: ${analytics.topPosts.slice(0, 5).map((post: any) => `${post.platform || 'platform'} views=${post.views || 0} likes=${post.likes || 0} comments=${post.comments || 0}`).join(' | ')}`)
+    }
+
+    const automations = ctx.automations || {}
+    if (Array.isArray(automations.items)) {
+        lines.push(`Automations: ${automations.items.slice(0, 8).map((item: any) => `${item.isActive ? 'active' : 'paused'} ${item.name} (${item.type}) triggers=${item.totalTriggered || 0}`).join(' | ') || 'none'}`)
+    }
+
+    if (Array.isArray(ctx.warnings) && ctx.warnings.length) {
+        lines.push(`Context warnings: ${safeList(ctx.warnings, 5)}`)
+    }
+
+    return lines.length
+        ? `\n\nWorkspace context for this answer:\n${lines.map((line) => `- ${line}`).join('\n')}\n\nUse this context when relevant. If context is missing or partial, say that clearly. Do not claim live data beyond these provided facts.`
+        : ''
+}
+
 async function generateWithOpenAI(apiKey: string, modelName: string, messages: ReturnType<typeof buildOpenAICompatibleMessages>, temperature: number, maxTokens: number) {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
@@ -77,7 +134,7 @@ serve(async (req) => {
     }
 
     try {
-        const { messages, workspaceId } = await req.json()
+        const { messages, workspaceId, assistantContext, assistantIntent } = await req.json()
 
         // Validate messages
         if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -122,6 +179,7 @@ serve(async (req) => {
 
         const language = brandProfile?.language || 'en'
         const languageName = LANGUAGE_NAMES[language] || 'English'
+        const contextInstruction = formatAssistantContext(assistantContext, assistantIntent)
 
         const systemInstruction = `You are an expert Social Media Manager AI Assistant. Your role is to help users create engaging content, plan schedules, and analyze social media strategies for platforms like Instagram, Facebook, LinkedIn, and Twitter.
 
@@ -134,7 +192,7 @@ Guidelines:
 4. If asked about technical issues, guide them to the Settings page.
 5. Do not just list generic capabilities; actively help them with their specific request.
 6. Use emoji where appropriate to match the social media vibe.
-7. ALL content must be in ${languageName}.`
+7. ALL content must be in ${languageName}.${contextInstruction}`
 
         let responseText = ""
 

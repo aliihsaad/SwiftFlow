@@ -39,6 +39,7 @@ import { AssistantLoadingBubble } from './components/command-center/loading-bubb
 import { AssistantResponseView } from './components/command-center/assistant-response'
 import type { AssistantCommandResponse } from '@/lib/assistant/context-types'
 import { routeAssistantIntent } from '@/lib/assistant/intent-router'
+import { getAssistantModeActions, type AssistantQuickAction } from '@/lib/assistant/quick-actions'
 
 interface ChatInterfaceProps {
     workspaceId?: string
@@ -544,6 +545,25 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
         }
     }
 
+    const handleAssistantQuickAction = (action: AssistantQuickAction) => {
+        setLastFunctionName(action.functionName)
+
+        if (action.intent === 'set_input') {
+            setInput(action.prompt)
+            return
+        }
+
+        if (action.intent === 'start_draft') {
+            setDraftCaption(action.prompt)
+            setDraftMedia([])
+            setIsCreatePostModalOpen(true)
+            toast({ title: "Draft started", description: "Opened the post editor with the recommendation." })
+            return
+        }
+
+        handleSend(action.prompt, action.functionName)
+    }
+
     const handleStyleSelect = async (style: string, enhance: boolean) => {
         setFlowState('idle') // End flow, start generating logic
 
@@ -976,6 +996,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                     content={msg.content}
                                                     contextReceipt={msg.contextReceipt}
                                                     onCopy={handleCopy}
+                                                    onQuickAction={handleAssistantQuickAction}
                                                 />
                                             ) : (
                                                 <div
@@ -1107,8 +1128,10 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                 pendingImages={pendingImages}
                 isLoading={isLoading}
                 fileInputRef={fileInputRef}
+                quickActions={getAssistantModeActions(selectedMode)}
                 onInputChange={setInput}
                 onSend={() => handleSend()}
+                onQuickAction={handleAssistantQuickAction}
                 onFileSelect={handleFileSelect}
                 onRemoveImage={(index) => setPendingImages(prev => prev.filter((_, itemIndex) => itemIndex !== index))}
             />

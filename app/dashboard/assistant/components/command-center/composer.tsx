@@ -4,15 +4,19 @@ import type { ChangeEvent, RefObject } from 'react'
 import { ArrowUp, Paperclip, X } from 'lucide-react'
 import type { AssistantMode, MessageImage } from '../../assistant-types'
 import { ASSISTANT_THEME } from '../../assistant-config'
+import type { AssistantQuickAction } from '@/lib/assistant/quick-actions'
+import { AssistantQuickActions } from './quick-actions'
 
 interface AssistantComposerProps {
   input: string
   selectedMode: AssistantMode
+  quickActions: AssistantQuickAction[]
   pendingImages: MessageImage[]
   isLoading: boolean
   fileInputRef: RefObject<HTMLInputElement | null>
   onInputChange: (value: string) => void
   onSend: () => void
+  onQuickAction: (action: AssistantQuickAction) => void
   onFileSelect: (event: ChangeEvent<HTMLInputElement>) => void
   onRemoveImage: (index: number) => void
 }
@@ -36,11 +40,13 @@ function placeholderForMode(mode: AssistantMode): string {
 export function AssistantComposer({
   input,
   selectedMode,
+  quickActions,
   pendingImages,
   isLoading,
   fileInputRef,
   onInputChange,
   onSend,
+  onQuickAction,
   onFileSelect,
   onRemoveImage,
 }: AssistantComposerProps) {
@@ -72,6 +78,10 @@ export function AssistantComposer({
           <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-semibold capitalize text-cyan-100">
             {selectedMode}
           </span>
+        </div>
+
+        <div className="mb-2">
+          <AssistantQuickActions actions={quickActions} disabled={isLoading} onAction={onQuickAction} />
         </div>
 
         <div className="relative flex items-center">

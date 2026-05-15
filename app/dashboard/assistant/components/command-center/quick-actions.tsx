@@ -19,6 +19,8 @@ import {
   type AssistantQuickAction,
   type AssistantQuickActionTone,
 } from '@/lib/assistant/quick-actions'
+import { ASSISTANT_HORIZONTAL_SCROLL_CLASS, ASSISTANT_TOUCH_PILL_BUTTON_CLASS } from '@/lib/assistant/mobile-control-layout'
+import { cn } from '@/lib/utils'
 
 interface AssistantQuickActionsProps {
   actions: AssistantQuickAction[]
@@ -73,7 +75,7 @@ export function AssistantQuickActions({ actions, disabled, compact, activeAction
   const isBusy = Boolean(activeActionId)
 
   return (
-    <div className={`flex gap-2 overflow-x-auto pb-1 ${compact ? 'max-w-full' : 'px-1'}`}>
+    <div className={cn('flex gap-2 pb-1', ASSISTANT_HORIZONTAL_SCROLL_CLASS, compact ? 'max-w-full' : 'px-1')}>
       {visibleActions.map((action) => {
         const Icon = iconByAction[action.id] || Sparkles
         const isActive = activeActionId === action.id
@@ -84,7 +86,7 @@ export function AssistantQuickActions({ actions, disabled, compact, activeAction
             disabled={disabled || (isBusy && !isActive)}
             onClick={() => onAction(action)}
             title={action.guidance || action.prompt || action.label}
-            className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 ${toneClasses[action.tone]}`}
+            className={cn('inline-flex items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45', ASSISTANT_TOUCH_PILL_BUTTON_CLASS, toneClasses[action.tone])}
           >
             <Icon className="h-3.5 w-3.5" />
             {isActive ? action.loadingLabel : action.label}
@@ -96,7 +98,7 @@ export function AssistantQuickActions({ actions, disabled, compact, activeAction
           type="button"
           disabled={disabled || isBusy}
           onClick={() => setExpandedSignature(actionSignature)}
-          className="inline-flex h-8 shrink-0 items-center rounded-lg border border-white/10 bg-white/5 px-2.5 text-xs font-semibold text-white/55 transition hover:bg-white/8 hover:text-white/75 disabled:cursor-not-allowed disabled:opacity-45"
+          className={cn('inline-flex items-center rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-semibold text-white/55 transition hover:bg-white/8 hover:text-white/75 disabled:cursor-not-allowed disabled:opacity-45', ASSISTANT_TOUCH_PILL_BUTTON_CLASS)}
         >
           More
         </button>

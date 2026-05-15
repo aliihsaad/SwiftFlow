@@ -1,5 +1,7 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -72,14 +74,14 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
                                     </div>
                                 </div>
 
-                                <div className="space-y-1">
+                                <div className="min-w-0 space-y-1">
                                     <p className="text-xs font-semibold uppercase tracking-wider text-white/45">Title</p>
-                                    <h4 className="text-sm font-bold leading-snug text-white/90 whitespace-normal">{slide.title}</h4>
+                                    <h4 className="whitespace-normal break-words text-sm font-bold leading-snug text-white/90">{slide.title}</h4>
                                 </div>
 
-                                <div className="space-y-1 flex-1">
+                                <div className="min-w-0 flex-1 space-y-1">
                                     <p className="text-xs font-semibold uppercase tracking-wider text-white/45">Content</p>
-                                    <p className="max-h-[60px] overflow-y-auto whitespace-normal text-xs leading-relaxed text-white/50">
+                                    <p className="max-h-[60px] overflow-y-auto whitespace-normal break-words text-xs leading-relaxed text-white/50">
                                         {slide.content}
                                     </p>
                                 </div>
@@ -88,7 +90,7 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
 
                                 {slide.image_prompt && (
                                     <div className="space-y-2 border-t border-white/10 pt-2">
-                                        <div className="rounded border border-dashed border-white/15 bg-white/5 p-2 text-[10px] text-white/45 whitespace-normal">
+                                        <div className="whitespace-normal break-words rounded border border-dashed border-white/15 bg-white/5 p-2 text-[10px] text-white/45">
                                             🖼️ {slide.image_prompt.slice(0, 50)}...
                                         </div>
                                         <div className="flex gap-2">
@@ -96,7 +98,7 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
-                                                    className="h-8 w-full border-white/10 bg-white/5 text-xs text-white/75 hover:bg-white/10 hover:text-white"
+                                                    className="h-10 w-full border-white/10 bg-white/5 text-xs text-white/75 hover:bg-white/10 hover:text-white sm:h-8"
                                                     onClick={() => onGenerateImage(slide.slide_number, slide.image_prompt!)}
                                                     disabled={isGenerating || generatingSlide !== null}
                                                 >
@@ -115,11 +117,11 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
                                             <img
                                                 src={slide.imageUrl}
                                                 alt={`Slide ${slide.slide_number}`}
-                                                className="w-full h-32 object-cover rounded-md"
+                                                className="h-32 w-full rounded-md object-cover"
                                             />
                                         )}
                                         {slideError && (
-                                            <div className="rounded-md border border-rose-400/20 bg-rose-500/10 px-3 py-2 text-[11px] leading-relaxed text-rose-200 whitespace-normal">
+                                            <div className="whitespace-normal break-words rounded-md border border-rose-400/20 bg-rose-500/10 px-3 py-2 text-[11px] leading-relaxed text-rose-200">
                                                 {slideError}
                                             </div>
                                         )}
@@ -131,14 +133,14 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
                 </div>
             </div>
             {/* Carousel Footer Actions */}
-            <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#1b1d28] p-4">
+            <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-white/10 bg-[#1b1d28] p-4">
                 {caption && (
-                    <div className="space-y-2">
+                    <div className="min-w-0 space-y-2">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <h4 className="text-sm font-semibold text-white/85">Target Caption</h4>
                             <button
                                 type="button"
-                                className="shrink-0 rounded p-1 text-white/50 hover:bg-white/5 hover:text-white/80"
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-white/50 hover:bg-white/5 hover:text-white/80 sm:h-7 sm:w-7"
                                 onClick={copyCaption}
                                 title="Copy caption"
                             >
@@ -149,14 +151,14 @@ export function CarouselPreview({ slots, caption, onGenerateImage, onSchedule, g
                                 )}
                             </button>
                         </div>
-                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-white/50">{caption}</p>
+                        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-white/50">{caption}</p>
                     </div>
                 )}
 
                 {onSchedule && (
                     <Button
                         onClick={handleScheduleAll}
-                        className="w-full border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
+                        className="min-h-11 w-full border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
                     >
                         Schedule Carousel Post
                     </Button>

@@ -129,8 +129,8 @@ function AssistantProseBubble({ content, onCopy, isMobile }: Pick<AssistantRespo
       </div>
       <button
         className={cn(
-          'absolute top-2 flex h-6 w-6 items-center justify-center rounded-md text-white/40 opacity-0 transition-opacity hover:text-white/70 group-hover:opacity-100',
-          isMobile ? 'right-2 opacity-100' : '-right-7',
+          'absolute top-2 flex items-center justify-center rounded-md text-white/40 opacity-0 transition-opacity hover:text-white/70 group-hover:opacity-100',
+          isMobile ? 'right-2 h-8 w-8 opacity-100' : '-right-7 h-6 w-6',
         )}
         style={{ background: 'rgba(255,255,255,0.06)' }}
         onClick={() => onCopy(content)}
@@ -161,7 +161,7 @@ export function AssistantResponseView({ content, contextReceipt, onCopy, onQuick
   return (
     <article
       className={cn(
-        'group relative w-full max-w-2xl overflow-hidden rounded-2xl rounded-bl border border-white/10 bg-[#171923] text-white shadow-[0_18px_50px_rgba(0,0,0,0.22)]',
+        'group relative w-full max-w-2xl min-w-0 overflow-hidden rounded-2xl rounded-bl border border-white/10 bg-[#171923] text-white shadow-[0_18px_50px_rgba(0,0,0,0.22)]',
         isMobile && 'max-w-none rounded-xl shadow-[0_12px_32px_rgba(0,0,0,0.24)]',
       )}
     >
@@ -176,7 +176,7 @@ export function AssistantResponseView({ content, contextReceipt, onCopy, onQuick
             </span>
             <div className="min-w-0">
               <h3 className="text-sm font-semibold leading-tight text-white">Performance briefing</h3>
-              <p className="mt-0.5 text-[11px] text-white/42">
+              <p className="mt-0.5 break-words text-[11px] text-white/42">
                 {contextReceipt?.analyticsSyncReason
                   ? `Analytics ${contextReceipt.analyticsSyncReason.replace(/_/g, ' ')}`
                   : 'Scored from recent workspace signals'}
@@ -184,7 +184,10 @@ export function AssistantResponseView({ content, contextReceipt, onCopy, onQuick
             </div>
           </div>
           <button
-            className="flex h-7 w-7 items-center justify-center rounded-md border border-white/8 bg-white/5 text-white/45 transition hover:bg-white/8 hover:text-white/75"
+            className={cn(
+              'flex items-center justify-center rounded-md border border-white/8 bg-white/5 text-white/45 transition hover:bg-white/8 hover:text-white/75',
+              isMobile ? 'h-9 w-9' : 'h-7 w-7',
+            )}
             onClick={() => onCopy(content)}
             aria-label="Copy assistant response"
           >
@@ -203,7 +206,7 @@ export function AssistantResponseView({ content, contextReceipt, onCopy, onQuick
               return (
                 <div key={metric.label} className={cn('min-w-0 rounded-lg border px-3 py-2', isMobile && 'px-2.5 py-2', tone.tile)}>
                   <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-white/50">
-                    <Icon className={`h-3.5 w-3.5 ${tone.icon}`} />
+                    <Icon className={`h-3.5 w-3.5 shrink-0 ${tone.icon}`} />
                     <span className="truncate">{metric.label}</span>
                   </div>
                   <div className="text-base font-semibold leading-none text-white">{metric.value}</div>
@@ -221,7 +224,7 @@ export function AssistantResponseView({ content, contextReceipt, onCopy, onQuick
 
         {engagementTotal > 0 && (
           <div className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
-            <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-white/55">Engagement mix</span>
               <span className="text-[11px] text-white/35">{Math.round(engagementTotal).toLocaleString()} signals</span>
             </div>
@@ -254,7 +257,7 @@ export function AssistantResponseView({ content, contextReceipt, onCopy, onQuick
         )}
 
         {briefing.summary && (
-          <div className="rounded-lg border border-cyan-300/12 bg-cyan-300/[0.045] px-3 py-2.5 text-sm leading-relaxed text-cyan-50/82">
+          <div className="break-words rounded-lg border border-cyan-300/12 bg-cyan-300/[0.045] px-3 py-2.5 text-sm leading-relaxed text-cyan-50/82">
             {stripAssistantMarkdown(briefing.summary)}
           </div>
         )}
@@ -273,8 +276,8 @@ export function AssistantResponseView({ content, contextReceipt, onCopy, onQuick
                   className={`min-w-0 rounded-lg border p-3 ${sectionTone[section.title as keyof typeof sectionTone] || 'border-white/8 bg-white/[0.03]'}`}
                 >
                   <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/62">
-                    <Icon className="h-3.5 w-3.5 text-cyan-200/75" />
-                    {section.title}
+                    <Icon className="h-3.5 w-3.5 shrink-0 text-cyan-200/75" />
+                    <span className="min-w-0 break-words">{section.title}</span>
                   </div>
                   <ul className="space-y-1.5">
                     {section.items.slice(0, 4).map((item) => (
@@ -291,7 +294,7 @@ export function AssistantResponseView({ content, contextReceipt, onCopy, onQuick
         )}
 
         {contextualActions.length > 0 && onQuickAction && (
-          <div className="rounded-lg border border-white/8 bg-black/[0.16] p-3">
+          <div className="min-w-0 rounded-lg border border-white/8 bg-black/[0.16] p-3">
             <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/52">Act on this</div>
             <AssistantQuickActions
               actions={contextualActions}

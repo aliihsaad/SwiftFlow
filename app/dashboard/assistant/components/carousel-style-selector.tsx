@@ -34,10 +34,10 @@ export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false 
     }
 
     return (
-        <div className="w-full max-w-lg animate-in fade-in slide-in-from-bottom-2 space-y-5 rounded-xl border border-white/10 bg-[#1b1d28] p-5 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]">
+        <div className="w-full max-w-none animate-in fade-in slide-in-from-bottom-2 space-y-5 rounded-xl border border-white/10 bg-[#1b1d28] p-4 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)] sm:max-w-lg sm:p-5">
             <div className="space-y-1">
                 <p className="text-sm text-white/50">Creating Instagram carousel about</p>
-                <h3 className="font-semibold text-cyan-100">"{topic}"</h3>
+                <h3 className="break-words font-semibold text-cyan-100">&quot;{topic}&quot;</h3>
             </div>
 
             {/* Slide Count */}
@@ -50,8 +50,8 @@ export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false 
                             onClick={() => setSelectedCount(count)}
                             disabled={isGenerating}
                             className={cn(
-                                "px-4 py-2 rounded-lg border text-sm font-medium transition-all",
-                                "hover:scale-[1.02] active:scale-[0.98]",
+                                "min-h-10 flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all",
+                                "active:scale-[0.98] sm:hover:scale-[1.02]",
                                 selectedCount === count
                                     ? "border-cyan-300/25 bg-cyan-400/12 text-cyan-100 shadow-sm"
                                     : "border-white/10 bg-[#151620] text-white/70 hover:bg-white/5"
@@ -66,7 +66,7 @@ export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false 
             {/* Style Selection */}
             <div className="space-y-2">
                 <p className="text-sm font-medium text-white/60">Choose a style</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {STYLES.map((style) => {
                         const Icon = style.icon
                         return (
@@ -75,8 +75,8 @@ export function CarouselStyleSelector({ topic, onGenerate, isGenerating = false 
                                 onClick={() => setSelectedStyle(style.id)}
                                 disabled={isGenerating}
                                 className={cn(
-                                    "flex items-center gap-2 p-3 rounded-lg border transition-all text-left",
-                                    "hover:scale-[1.02] active:scale-[0.98]",
+                                    "flex min-h-12 items-center gap-2 rounded-lg border p-3 text-left transition-all",
+                                    "active:scale-[0.98] sm:hover:scale-[1.02]",
                                     selectedStyle === style.id
                                         ? "ring-2 ring-cyan-300/30 border-cyan-300/25"
                                         : "hover:bg-white/5",

@@ -1,6 +1,6 @@
 "use client"
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @next/next/no-img-element, @typescript-eslint/no-explicit-any */
 
 import { useState, useRef, useEffect } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -40,6 +40,7 @@ import { AssistantResponseView } from './components/command-center/assistant-res
 import type { AssistantCommandResponse } from '@/lib/assistant/context-types'
 import { routeAssistantIntent } from '@/lib/assistant/intent-router'
 import { getAssistantModeActions, type AssistantQuickAction } from '@/lib/assistant/quick-actions'
+import { ASSISTANT_HORIZONTAL_SCROLL_CLASS } from '@/lib/assistant/mobile-control-layout'
 import { ASSISTANT_MOBILE_SHELL_CLASS } from '@/lib/assistant/mobile-layout'
 import { useIsMobile } from '@/lib/hooks/use-is-mobile'
 import { cn } from '@/lib/utils'
@@ -1072,7 +1073,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
                                     <div
                                         className={cn(
-                                            "flex flex-col gap-2 max-w-[90%] sm:max-w-[85%]",
+                                            "flex max-w-[90%] min-w-0 flex-col gap-2 sm:max-w-[85%]",
                                             msg.role === 'user' ? 'items-end' : 'items-start',
                                             isMobile && msg.role === 'assistant' && 'w-full max-w-none items-stretch',
                                             isMobile && msg.role === 'user' && 'max-w-[90%]',
@@ -1092,7 +1093,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                                 />
                                             ) : (
                                                 <div
-                                                    className={cn("relative group px-4 py-3 rounded-2xl text-sm leading-relaxed", isMobile && "px-3.5 py-2.5 text-[13px]")}
+                                                    className={cn("group relative max-w-full whitespace-pre-wrap break-words rounded-2xl px-4 py-3 text-sm leading-relaxed", isMobile && "px-3.5 py-2.5 text-[13px]")}
                                                     style={msg.role === 'user' ? {
                                                         background: 'linear-gradient(135deg, rgba(56,189,248,0.25), rgba(251,113,133,0.2))',
                                                         border: '1px solid rgba(56,189,248,0.18)',
@@ -1113,13 +1114,13 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
                                         {/* Attached images in user messages */}
                                         {msg.role === 'user' && msg.images && msg.images.length > 0 && (
-                                            <div className={cn("flex gap-2 mt-1", isMobile && "max-w-full overflow-x-auto pb-1")}>
+                                            <div className={cn("mt-1 flex gap-2", isMobile && "max-w-full", isMobile && ASSISTANT_HORIZONTAL_SCROLL_CLASS)}>
                                                 {msg.images.map((img, j) => (
                                                     <img
                                                         key={j}
                                                         src={`data:${img.mimeType};base64,${img.base64}`}
                                                         alt={img.name}
-                                                        className="w-20 h-20 object-cover rounded-lg border border-white/10"
+                                                        className="h-20 w-20 shrink-0 rounded-lg border border-white/10 object-cover"
                                                     />
                                                 ))}
                                             </div>
@@ -1127,7 +1128,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
                                         {/* Content cards */}
                                         {msg.type === 'content_cards' && msg.data?.data && (
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mt-1 animate-in fade-in slide-in-from-bottom-2">
+                                            <div className="mt-1 grid w-full min-w-0 grid-cols-1 gap-3 animate-in fade-in slide-in-from-bottom-2 sm:grid-cols-2">
                                                 {msg.data.data.map((card: any, idx: number) => (
                                                     <ContentCard key={idx} id={card.id || idx.toString()} title={card.title} body={card.body} onGenerateImage={handleGenerateImage} onRefine={handleRefine} onSchedule={handleSchedule} />
                                                 ))}
@@ -1143,7 +1144,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
 
                                         {/* Image preview */}
                                         {msg.type === 'image' && msg.data && (
-                                            <div className="w-full max-w-sm mt-1 animate-in fade-in zoom-in-50">
+                                            <div className={cn("w-full max-w-sm mt-1 animate-in fade-in zoom-in-50", isMobile && "max-w-none")}>
                                                 <ImagePreview id={msg.data.id} imageUrl={msg.data.imageUrl} promptUsed={msg.data.prompt_used} onDownload={handleDownloadImage} onUseInPost={handleUseImage} onRegenerate={(prompt) => handleSend(`Regenerate: ${prompt}`, "generate-image")} />
                                             </div>
                                         )}
@@ -1208,7 +1209,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                             ))}
 
                             {/* Loading dots */}
-                            {isLoading && <AssistantLoadingBubble />}
+                            {isLoading && <AssistantLoadingBubble isMobile={isMobile} />}
                         </div>
                     </div>
                 </ScrollArea>

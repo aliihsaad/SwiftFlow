@@ -24,7 +24,7 @@ export function IdeaOptionsSelector({ onGenerate, isLoading }: IdeaOptionsSelect
     }
 
     return (
-        <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-200 space-y-6 rounded-xl border border-white/10 bg-[#1b1d28] p-4 text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]">
+        <div className="w-full max-w-none animate-in fade-in zoom-in-95 space-y-6 rounded-xl border border-white/10 bg-[#1b1d28] p-4 text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)] duration-200 sm:max-w-md">
             <div className="space-y-4">
                 <div className="space-y-2">
                     <Label className="text-xs font-medium uppercase tracking-wider text-white/50">Inspiration Source</Label>
@@ -32,7 +32,7 @@ export function IdeaOptionsSelector({ onGenerate, isLoading }: IdeaOptionsSelect
                         <button
                             onClick={() => setSource('auto')}
                             className={cn(
-                                "flex flex-col items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all hover:bg-accent/50",
+                                "flex min-h-20 flex-col items-center justify-center gap-2 rounded-lg border-2 p-3 transition-all hover:bg-accent/50",
                                 source === 'auto'
                                     ? "border-cyan-300/25 bg-cyan-400/10 text-cyan-200"
                                     : "border-white/10 bg-[#151620] text-white/70 hover:border-cyan-300/15 hover:bg-white/5"
@@ -44,7 +44,7 @@ export function IdeaOptionsSelector({ onGenerate, isLoading }: IdeaOptionsSelect
                         <button
                             onClick={() => setSource('custom')}
                             className={cn(
-                                "flex flex-col items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all hover:bg-accent/50",
+                                "flex min-h-20 flex-col items-center justify-center gap-2 rounded-lg border-2 p-3 transition-all hover:bg-accent/50",
                                 source === 'custom'
                                     ? "border-cyan-300/25 bg-cyan-400/10 text-cyan-200"
                                     : "border-white/10 bg-[#151620] text-white/70 hover:border-cyan-300/15 hover:bg-white/5"
@@ -63,7 +63,7 @@ export function IdeaOptionsSelector({ onGenerate, isLoading }: IdeaOptionsSelect
                             placeholder="E.g., Summer Sale, Industry Trends..."
                             value={topic}
                             onChange={(e) => setTopic(e.target.value)}
-                            className="border-white/10 bg-[#151620] text-white/85 placeholder:text-white/25"
+                            className="border-white/10 bg-[#151620] text-[16px] text-white/85 placeholder:text-white/25 sm:text-sm"
                         />
                     </div>
                 )}
@@ -74,7 +74,7 @@ export function IdeaOptionsSelector({ onGenerate, isLoading }: IdeaOptionsSelect
                     <button
                         onClick={() => setResearch(!research)}
                         className={cn(
-                            "flex w-full items-center gap-3 p-3 rounded-lg border-2 transition-all",
+                            "flex min-h-16 w-full items-center gap-3 rounded-lg border-2 p-3 transition-all",
                             research
                                 ? "border-amber-300/25 bg-amber-400/10 text-amber-200"
                                 : "border-white/10 bg-[#151620] text-white/70 hover:border-amber-300/15 hover:bg-white/5"
@@ -115,7 +115,7 @@ export function IdeaOptionsSelector({ onGenerate, isLoading }: IdeaOptionsSelect
                                 key={num}
                                 onClick={() => setCount(num)}
                                 className={cn(
-                                    "flex-1 h-9 rounded-md border text-sm font-medium transition-colors hover:bg-accent",
+                                    "h-10 flex-1 rounded-md border text-sm font-medium transition-colors hover:bg-accent",
                                     count === num
                                         ? "border-cyan-300/25 bg-cyan-400/12 text-cyan-100 hover:bg-cyan-400/15"
                                         : "border-white/10 bg-[#151620] text-white/70 hover:bg-white/5"

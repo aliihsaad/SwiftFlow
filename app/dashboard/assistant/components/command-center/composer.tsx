@@ -1,10 +1,16 @@
 'use client'
 
+/* eslint-disable @next/next/no-img-element */
+
 import type { ChangeEvent, RefObject } from 'react'
 import { ArrowUp, Paperclip, X } from 'lucide-react'
 import type { AssistantMode, MessageImage } from '../../assistant-types'
 import { ASSISTANT_THEME } from '../../assistant-config'
 import type { AssistantQuickAction } from '@/lib/assistant/quick-actions'
+import {
+  ASSISTANT_HORIZONTAL_SCROLL_CLASS,
+  ASSISTANT_TOUCH_ICON_BUTTON_CLASS,
+} from '@/lib/assistant/mobile-control-layout'
 import { cn } from '@/lib/utils'
 import { AssistantQuickActions } from './quick-actions'
 
@@ -64,9 +70,9 @@ export function AssistantComposer({
     >
       <div className={cn('mx-auto max-w-3xl', isMobile && 'max-w-none')}>
         {pendingImages.length > 0 && (
-          <div className={cn('mb-2 flex gap-2 px-1', isMobile && 'overflow-x-auto pb-1')}>
+          <div className={cn('mb-2 flex gap-2 px-1', isMobile && ASSISTANT_HORIZONTAL_SCROLL_CLASS)}>
             {pendingImages.map((img, index) => (
-              <div key={`${img.name}-${index}`} className="group relative">
+              <div key={`${img.name}-${index}`} className="group relative shrink-0">
                 <img
                   src={`data:${img.mimeType};base64,${img.base64}`}
                   alt={img.name}
@@ -75,7 +81,8 @@ export function AssistantComposer({
                 <button
                   type="button"
                   onClick={() => onRemoveImage(index)}
-                  className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500/90 text-white opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+                  className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-red-500/90 text-white opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
+                  aria-label={`Remove ${img.name}`}
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -112,7 +119,7 @@ export function AssistantComposer({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading || pendingImages.length >= 3}
-            className="absolute left-2 flex h-8 w-8 items-center justify-center rounded-lg text-white/45 transition-colors hover:bg-white/10 disabled:opacity-30"
+            className={cn('absolute left-1 flex items-center justify-center rounded-lg text-white/45 transition-colors hover:bg-white/10 disabled:opacity-30', ASSISTANT_TOUCH_ICON_BUTTON_CLASS)}
             title="Attach image"
           >
             <Paperclip className="h-4 w-4" />
@@ -125,7 +132,7 @@ export function AssistantComposer({
             }}
             placeholder={placeholderForMode(selectedMode)}
             className={cn(
-              'w-full rounded-xl py-3.5 pl-11 pr-14 text-sm text-white/85 outline-none transition-colors',
+              'w-full rounded-xl py-3.5 pl-12 pr-14 text-sm text-white/85 outline-none transition-colors',
               isMobile && 'min-h-[48px] text-[16px]',
             )}
             style={{
@@ -137,7 +144,8 @@ export function AssistantComposer({
             type="button"
             onClick={onSend}
             disabled={isLoading || (!input.trim() && pendingImages.length === 0)}
-            className="absolute right-2 flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-rose-400 transition-opacity active:scale-95 disabled:opacity-30"
+            className={cn('absolute right-1 flex items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-rose-400 transition-opacity active:scale-95 disabled:opacity-30', ASSISTANT_TOUCH_ICON_BUTTON_CLASS)}
+            aria-label="Send message"
           >
             <ArrowUp className="h-4 w-4 text-white" />
           </button>

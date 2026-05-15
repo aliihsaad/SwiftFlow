@@ -18,10 +18,10 @@ interface BrandImageModeSelectorProps {
 
 export function BrandImageModeSelector({ onSelect }: BrandImageModeSelectorProps) {
     return (
-        <div className="flex gap-3 w-full">
+        <div className="flex w-full flex-col gap-3 sm:flex-row">
             <Button
                 variant="outline"
-                className="flex-1 h-auto py-4 flex-col gap-2"
+                className="h-auto min-h-24 flex-1 flex-col gap-2 py-4"
                 onClick={() => onSelect('generate')}
             >
                 <Sparkles className="w-5 h-5" />
@@ -33,7 +33,7 @@ export function BrandImageModeSelector({ onSelect }: BrandImageModeSelectorProps
 
             <Button
                 variant="outline"
-                className="flex-1 h-auto py-4 flex-col gap-2"
+                className="h-auto min-h-24 flex-1 flex-col gap-2 py-4"
                 onClick={() => onSelect('transform')}
             >
                 <RefreshCw className="w-5 h-5" />
@@ -114,12 +114,12 @@ export function BrandImageOptions({
     }
 
     return (
-        <div className="w-full max-w-lg animate-in fade-in slide-in-from-bottom-2 space-y-5 rounded-xl border border-white/10 bg-[#1b1d28] p-5 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]">
+        <div className="w-full max-w-none animate-in fade-in slide-in-from-bottom-2 space-y-5 rounded-xl border border-white/10 bg-[#1b1d28] p-4 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)] sm:max-w-lg sm:p-5">
             <div className="space-y-1">
                 <p className="text-sm text-white/50">
                     {mode === 'generate' ? 'Generating brand images' : 'Transforming images'} for
                 </p>
-                <h3 className="font-semibold text-cyan-100">"{prompt}"</h3>
+                <h3 className="break-words font-semibold text-cyan-100">&quot;{prompt}&quot;</h3>
                 {hasReferenceImages && (
                     <p className="text-xs text-white/40">{referenceCount} reference image{referenceCount > 1 ? 's' : ''} attached</p>
                 )}
@@ -135,8 +135,8 @@ export function BrandImageOptions({
                             onClick={() => setImageCount(count)}
                             disabled={isGenerating}
                             className={cn(
-                                "px-4 py-2 rounded-lg border text-sm font-medium transition-all",
-                                "hover:scale-[1.02] active:scale-[0.98]",
+                                "min-h-10 flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-all",
+                                "active:scale-[0.98] sm:hover:scale-[1.02]",
                                 imageCount === count
                                     ? "border-cyan-300/25 bg-cyan-400/12 text-cyan-100 shadow-sm"
                                     : "border-white/10 bg-[#151620] text-white/70 hover:bg-white/5"
@@ -151,7 +151,7 @@ export function BrandImageOptions({
             {/* Style Preset */}
             <div className="space-y-2">
                 <p className="text-sm font-medium text-white/60">Style preset</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                     {STYLE_PRESETS.map((style) => {
                         const Icon = style.icon
                         return (
@@ -160,16 +160,16 @@ export function BrandImageOptions({
                                 onClick={() => setSelectedStyle(style.id)}
                                 disabled={isGenerating}
                                 className={cn(
-                                    "flex items-center gap-2 p-3 rounded-lg border transition-all text-left",
-                                    "hover:scale-[1.02] active:scale-[0.98]",
+                                    "flex min-h-12 items-center gap-2 rounded-lg border p-3 text-left transition-all",
+                                    "active:scale-[0.98] sm:hover:scale-[1.02]",
                                     selectedStyle === style.id
                                         ? "ring-2 ring-cyan-300/30 border-cyan-300/25"
                                         : "hover:bg-white/5",
                                     style.bg
                                 )}
                             >
-                                <Icon className={cn("w-4 h-4", style.color)} />
-                                <span className="text-xs font-medium text-white/85">{style.label}</span>
+                                <Icon className={cn("h-4 w-4 shrink-0", style.color)} />
+                                <span className="min-w-0 text-xs font-medium text-white/85">{style.label}</span>
                             </button>
                         )
                     })}
@@ -189,8 +189,8 @@ export function BrandImageOptions({
                                     onClick={() => setReferenceMode(rm.id)}
                                     disabled={isGenerating}
                                     className={cn(
-                                        "flex items-center gap-2 p-2.5 rounded-lg border text-left transition-all",
-                                        "hover:scale-[1.01] active:scale-[0.99]",
+                                        "flex min-h-12 items-center gap-2 rounded-lg border p-2.5 text-left transition-all",
+                                        "active:scale-[0.99] sm:hover:scale-[1.01]",
                                         referenceMode === rm.id
                                             ? "border-cyan-300/25 bg-cyan-400/10 text-cyan-100"
                                             : "border-white/10 bg-[#151620] text-white/70 hover:bg-white/5"
@@ -218,8 +218,8 @@ export function BrandImageOptions({
                                     onClick={() => setTransformAction(ta.id)}
                                     disabled={isGenerating}
                                     className={cn(
-                                        "flex items-center gap-2 p-2.5 rounded-lg border text-left transition-all",
-                                        "hover:scale-[1.01] active:scale-[0.99]",
+                                        "flex min-h-12 items-center gap-2 rounded-lg border p-2.5 text-left transition-all",
+                                        "active:scale-[0.99] sm:hover:scale-[1.01]",
                                         transformAction === ta.id
                                             ? "border-cyan-300/25 bg-cyan-400/10 text-cyan-100"
                                             : "border-white/10 bg-[#151620] text-white/70 hover:bg-white/5"
@@ -235,14 +235,14 @@ export function BrandImageOptions({
             )}
 
             {/* Magic Wand + Generate */}
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setEnhanceEnabled(!enhanceEnabled)}
                     disabled={isGenerating}
                     className={cn(
-                        "transition-all gap-1.5 h-8 text-xs",
+                        "h-10 gap-1.5 text-xs transition-all sm:h-8",
                         enhanceEnabled
                             ? "border-cyan-300/25 bg-cyan-400/10 text-cyan-200 shadow-[0_0_10px_rgba(56,189,248,0.18)]"
                             : "border-white/10 bg-white/5 text-white/55 hover:bg-white/10 hover:text-white/80"
@@ -256,7 +256,7 @@ export function BrandImageOptions({
                 <Button
                     onClick={handleGenerate}
                     disabled={!selectedStyle || isGenerating}
-                    className="flex-1 border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
+                    className="min-h-11 flex-1 border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"
                     size="lg"
                 >
                     {isGenerating ? (

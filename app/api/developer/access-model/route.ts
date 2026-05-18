@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
+import { redactSensitiveLogValue } from "@/lib/security/redaction"
 import {
   canRoleCreateDeveloperApiKey,
   getDeveloperApiCapabilities,
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     if (permissionStatus) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Forbidden" }, { status: permissionStatus })
     }
-    console.error("[developer/access-model] POST", error)
+    console.error("[developer/access-model] POST", redactSensitiveLogValue(error))
     return NextResponse.json({ error: "Failed to inspect Developer API access" }, { status: 500 })
   }
 }

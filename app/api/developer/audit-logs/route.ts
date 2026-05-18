@@ -4,6 +4,7 @@ import { createAdminClient } from "@/utils/supabase/admin"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
 import { canRoleCreateDeveloperApiKey } from "@/lib/developer-api/scopes"
+import { redactSensitiveLogValue } from "@/lib/security/redaction"
 
 export const runtime = "nodejs"
 
@@ -36,7 +37,7 @@ export async function GET() {
     if (permissionStatus) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Forbidden" }, { status: permissionStatus })
     }
-    console.error("[developer/audit-logs] GET", error)
+    console.error("[developer/audit-logs] GET", redactSensitiveLogValue(error))
     return NextResponse.json({ error: "Failed to load Developer API audit logs" }, { status: 500 })
   }
 }

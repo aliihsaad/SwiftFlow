@@ -1,12 +1,28 @@
 import { consumeRateLimit, getClientIp, RateLimitExceededError } from "@/lib/security/rate-limit"
 import type { DeveloperApiAuthContext } from "./types"
 
-export type DeveloperApiRateLimitKind = "read" | "write" | "expensive" | "failed_auth"
+export type DeveloperApiRateLimitKind =
+  | "read"
+  | "write"
+  | "expensive"
+  | "media_upload"
+  | "media_generate"
+  | "analytics_refresh"
+  | "content_intelligence"
+  | "automation_write"
+  | "post_publish_now"
+  | "failed_auth"
 
 const LIMITS: Record<DeveloperApiRateLimitKind, { limit: number; windowSeconds: number; bucketSeconds: number }> = {
   read: { limit: 120, windowSeconds: 60, bucketSeconds: 60 },
   write: { limit: 30, windowSeconds: 60, bucketSeconds: 60 },
   expensive: { limit: 10, windowSeconds: 60, bucketSeconds: 60 },
+  media_upload: { limit: 12, windowSeconds: 60, bucketSeconds: 60 },
+  media_generate: { limit: 5, windowSeconds: 60, bucketSeconds: 60 },
+  analytics_refresh: { limit: 12, windowSeconds: 60, bucketSeconds: 60 },
+  content_intelligence: { limit: 10, windowSeconds: 60, bucketSeconds: 60 },
+  automation_write: { limit: 20, windowSeconds: 60, bucketSeconds: 60 },
+  post_publish_now: { limit: 6, windowSeconds: 60, bucketSeconds: 60 },
   failed_auth: { limit: 20, windowSeconds: 600, bucketSeconds: 60 },
 }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { assertJsonBodySize, sanitizePostPayload } from "@/lib/security/phase1-validation"
+import { redactSensitiveLogValue } from "@/lib/security/redaction"
 import { withDeveloperApiAuth } from "@/lib/developer-api/http"
 import type { DeveloperApiScope } from "@/lib/developer-api/types"
 
@@ -15,11 +16,11 @@ function triggerPublishEdgeFunction() {
   const supabaseAdmin = createAdminClient()
   supabaseAdmin.functions.invoke("process-scheduled-posts").then(
     ({ data, error }: EdgeInvokeResult) => {
-      if (error) console.error("[developer-api/posts] Edge function error:", error)
-      else console.log("[developer-api/posts] Edge function result:", data)
+      if (error) console.error("[developer-api/posts] Edge function error:", redactSensitiveLogValue(error))
+      else console.log("[developer-api/posts] Edge function result:", redactSensitiveLogValue(data))
     },
   ).catch((error: unknown) => {
-    console.error("[developer-api/posts] Edge function invoke failed:", error)
+    console.error("[developer-api/posts] Edge function invoke failed:", redactSensitiveLogValue(error))
   })
 }
 
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
     request,
     {
       requiredScopes: [requiredScope],
-      rateLimit: "write",
+      rateLimit: requestedStatus === "published" ? "post_publish_now" : "write",
       action: requestedStatus === "published" ? "posts.publish_now" : requestedStatus === "scheduled" ? "posts.schedule" : "posts.create",
       route: "/api/developer/v1/posts",
     },

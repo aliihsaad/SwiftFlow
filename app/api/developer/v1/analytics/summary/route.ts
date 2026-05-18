@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     request,
     {
       requiredScopes: ["analytics:read"],
-      rateLimit: "read",
+      rateLimit: "analytics_refresh",
       action: "analytics.summary.read",
       route: "/api/developer/v1/analytics/summary",
     },

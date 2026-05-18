@@ -5,6 +5,7 @@ import { encryptMetaToken } from '@/lib/meta-account';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/utils/supabase/server';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
+import { redactSensitiveLogValue, redactSensitiveString } from '@/lib/security/redaction';
 
 const META_OAUTH_STATE_COOKIE = 'meta_oauth_state';
 const META_OAUTH_STATE_MAX_AGE_MS = 10 * 60 * 1000;
@@ -104,8 +105,9 @@ export async function GET(request: NextRequest) {
     );
 
     const log = (msg: string) => {
-        console.log(`[META_CALLBACK] ${msg}`);
-        debugLog.push(msg);
+        const safeMessage = redactSensitiveString(msg);
+        console.log(`[META_CALLBACK] ${safeMessage}`);
+        debugLog.push(safeMessage);
     };
 
     log(`Callback received at ${new Date().toISOString()}`);
@@ -214,7 +216,7 @@ export async function GET(request: NextRequest) {
         if (!pagesResponse.ok) {
             const pagesErrorText = await pagesResponse.text();
             log(`ERROR: Pages fetch failed with status ${pagesResponse.status}`);
-            const details = encodeURIComponent(pagesErrorText.slice(0, 500));
+            const details = encodeURIComponent(redactSensitiveString(pagesErrorText).slice(0, 500));
             return redirectWithError(`/dashboard/settings/brand?error=pages_fetch_failed&status=${pagesResponse.status}&details=${details}`);
         }
 
@@ -372,10 +374,11 @@ export async function GET(request: NextRequest) {
         if (permissionStatus) {
             return redirectWithError('/dashboard/settings/brand?error=forbidden');
         }
-        log(`FATAL ERROR: ${error instanceof Error ? error.message : String(error)}`);
-        console.error('[META_CALLBACK] Full error:', error);
+        const safeErrorMessage = redactSensitiveString(error instanceof Error ? error.message : String(error));
+        log(`FATAL ERROR: ${safeErrorMessage}`);
+        console.error('[META_CALLBACK] Full error:', redactSensitiveLogValue(error));
         return redirectWithError(`/dashboard/settings/brand?error=${encodeURIComponent(
-            error instanceof Error ? error.message : 'Unknown error'
+            error instanceof Error ? safeErrorMessage : 'Unknown error'
         )}`);
     }
 }

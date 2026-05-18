@@ -4,6 +4,7 @@ import { createAdminClient } from "@/utils/supabase/admin"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
 import { assertJsonBodySize } from "@/lib/security/phase1-validation"
+import { redactSensitiveLogValue } from "@/lib/security/redaction"
 import { getDeveloperApiEntitlement } from "@/lib/developer-api/entitlements"
 import { createDeveloperApiToken, getDeveloperApiKeyPepper, hashDeveloperApiToken } from "@/lib/developer-api/key-format"
 import {
@@ -92,7 +93,7 @@ export async function GET() {
     if (permissionStatus) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Forbidden" }, { status: permissionStatus })
     }
-    console.error("[developer/keys] GET", error)
+    console.error("[developer/keys] GET", redactSensitiveLogValue(error))
     return NextResponse.json({ error: "Failed to load Developer API keys" }, { status: 500 })
   }
 }
@@ -146,7 +147,7 @@ export async function POST(request: NextRequest) {
     if (permissionStatus) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Forbidden" }, { status: permissionStatus })
     }
-    console.error("[developer/keys] POST", error)
+    console.error("[developer/keys] POST", redactSensitiveLogValue(error))
     return NextResponse.json({ error: "Failed to create Developer API key" }, { status: 500 })
   }
 }

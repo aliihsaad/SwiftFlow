@@ -11,6 +11,7 @@ import { buildAutomationAiPrompt } from "../_shared/automation-context.ts"
 import { buildAutomationEmailMessage } from "../_shared/automation-email.ts"
 import { sendResendEmail, textToSimpleHtml } from "../_shared/resend-email.ts"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
+import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
 import {
   canManageCommentsWithMetaAccount,
   canManageMessagesWithMetaAccount,
@@ -388,7 +389,7 @@ export async function executeWorkflowGraph(
 
   const graphIssues = validateExecutableGraph(graph);
   if (graphIssues.length > 0) {
-    console.error(`[GRAPH] Automation ${automation.id}: Invalid workflow graph`, graphIssues);
+    console.error(`[GRAPH] Automation ${automation.id}: Invalid workflow graph`, redactSensitiveLogValue(graphIssues));
     return {
       ...result,
       errors: 1,
@@ -398,7 +399,7 @@ export async function executeWorkflowGraph(
 
   const capabilityIssues = getGraphCapabilityIssues(graph, account);
   if (capabilityIssues.length > 0) {
-    console.error(`[GRAPH] Automation ${automation.id}: Capability check failed`, capabilityIssues);
+    console.error(`[GRAPH] Automation ${automation.id}: Capability check failed`, redactSensitiveLogValue(capabilityIssues));
     return {
       ...result,
       errors: capabilityIssues.length,
@@ -532,7 +533,7 @@ export async function executeWorkflowGraph(
         queueStandardActionChildren(adjacency, nodeId, executionQueue, nodeResult.success, runtimeContext, node, nodeResult);
       }
     } catch (err) {
-      console.error(`[GRAPH] Error executing node ${nodeId}:`, err);
+      console.error(`[GRAPH] Error executing node ${nodeId}:`, redactSensitiveLogValue(err));
       const failedNodeResult = { success: false, error: err?.message || 'Unknown error' };
       result.nodeResults[nodeId] = failedNodeResult;
       result.errors++;
@@ -578,7 +579,7 @@ export async function resumeFromDelay(
   const graph: WorkflowGraph = automation.workflow_graph;
   const graphIssues = validateExecutableGraph(graph);
   if (graphIssues.length > 0) {
-    console.error(`[GRAPH_RESUME] Automation ${automation_id} invalid workflow graph`, graphIssues);
+    console.error(`[GRAPH_RESUME] Automation ${automation_id} invalid workflow graph`, redactSensitiveLogValue(graphIssues));
     return { processed: 0, dmsSent: 0, errors: 1, nodeResults: { } };
   }
   const pageId = account.metadata?.connected_page_id || account.account_id;
@@ -735,7 +736,7 @@ async function executeNode(
         return workerResult.data;
       }
 
-      console.warn(`[GRAPH] Worker ${workerFunction} failed for node ${node.id}, using local fallback:`, workerResult.error);
+      console.warn(`[GRAPH] Worker ${workerFunction} failed for node ${node.id}, using local fallback:`, redactSensitiveLogValue(workerResult.error));
     }
   }
 
@@ -1155,12 +1156,12 @@ async function executeAiResponse(
       generationConfig: { temperature: aiConfig.temperature, maxOutputTokens: aiConfig.maxTokens },
     });
 
-    console.log(`[GRAPH] AI response: model=${aiConfig.modelName}, prompt="${prompt.substring(0, 100)}..."`);
+    console.log(`[GRAPH] AI response: model=${aiConfig.modelName}, promptLength=${prompt.length}`);
 
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
 
-    console.log(`[GRAPH] AI response generated: "${responseText.substring(0, 100)}..."`);
+    console.log(`[GRAPH] AI response generated length=${responseText.length}`);
 
     const includeCta = config.include_cta === true;
     const ctaMode = config.cta_mode === 'text' ? 'text' : 'button';
@@ -1180,7 +1181,7 @@ async function executeAiResponse(
       },
     };
   } catch (err) {
-    console.error('[GRAPH] AI response error:', err);
+    console.error('[GRAPH] AI response error:', redactSensitiveLogValue(err));
     if (String(config?.preset_goal || '') === 'reply_comment' && isTransientAiError(err)) {
       return {
         success: true,

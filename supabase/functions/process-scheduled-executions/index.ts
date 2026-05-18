@@ -13,6 +13,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { resumeFromDelay } from "../process-automations/graph-executor.ts"
+import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -126,7 +127,7 @@ serve(async (req) => {
         console.log(`[SCHEDULED] Execution ${exec.id} completed: ${JSON.stringify(result)}`);
       } catch (err) {
         errors++;
-        console.error(`[SCHEDULED] Execution ${exec.id} failed:`, err);
+        console.error(`[SCHEDULED] Execution ${exec.id} failed:`, redactSensitiveLogValue(err));
         const executedAt = new Date().toISOString();
 
         await supabase
@@ -153,7 +154,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
     );
   } catch (error) {
-    console.error('[SCHEDULED] Error:', error);
+    console.error('[SCHEDULED] Error:', redactSensitiveLogValue(error));
     return new Response(
       JSON.stringify({ error: error.message || 'Internal error' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 },

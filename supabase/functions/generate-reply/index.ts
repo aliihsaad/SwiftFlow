@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 import { generateText, requireGeneratedText } from "../_shared/generate-text.ts"
+import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -68,13 +69,13 @@ serve(async (req) => {
 
         const reply = requireGeneratedText(responseText)
 
-        console.log('[generate-reply] Reply:', reply.substring(0, 100))
+        console.log('[generate-reply] Reply generated length:', reply.length)
         return new Response(JSON.stringify({ reply }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
 
     } catch (error: any) {
-        console.error('[generate-reply] Error:', error?.message || error)
+        console.error('[generate-reply] Error:', redactSensitiveLogValue(error?.message || error))
         return new Response(JSON.stringify({ error: toUserFriendlyError(error) }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,

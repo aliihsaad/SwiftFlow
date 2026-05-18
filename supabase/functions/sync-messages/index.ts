@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { canManageMessagesWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
 import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
+import { redactSensitiveLogValue } from "../_shared/log-redaction.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
@@ -62,7 +63,7 @@ async function syncMessages(supabase: any, workspaceId: string) {
         .eq('platform', 'instagram');
 
     if (accountsError) {
-        console.error(`[MessageSync] Error fetching accounts:`, accountsError);
+        console.error(`[MessageSync] Error fetching accounts:`, redactSensitiveLogValue(accountsError));
         return { conversations: 0, messages: 0, error: accountsError.message };
     }
 
@@ -113,7 +114,7 @@ async function syncMessages(supabase: any, workspaceId: string) {
                     console.log(`[MessageSync] Instagram messaging not enabled or no permission for account ${account.id}`);
                     continue;
                 }
-                console.error(`[MessageSync] Instagram API error:`, data.error);
+                console.error(`[MessageSync] Instagram API error:`, redactSensitiveLogValue(data.error));
                 continue;
             }
 
@@ -153,7 +154,7 @@ async function syncMessages(supabase: any, workspaceId: string) {
                     .single();
 
                 if (convError) {
-                    console.error(`[MessageSync] Failed to upsert conversation ${conv.id}:`, convError);
+                    console.error(`[MessageSync] Failed to upsert conversation ${conv.id}:`, redactSensitiveLogValue(convError));
                     continue;
                 }
 
@@ -191,14 +192,14 @@ async function syncMessages(supabase: any, workspaceId: string) {
                         });
 
                     if (msgError) {
-                        console.error(`[MessageSync] Failed to upsert message ${msg.id}:`, msgError);
+                        console.error(`[MessageSync] Failed to upsert message ${msg.id}:`, redactSensitiveLogValue(msgError));
                     } else {
                         messageCount++;
                     }
                 }
             }
         } catch (error) {
-            console.error(`[MessageSync] Error syncing messages for account ${account.id}:`, error);
+            console.error(`[MessageSync] Error syncing messages for account ${account.id}:`, redactSensitiveLogValue(error));
         }
     }
 
@@ -234,7 +235,7 @@ serve(async (req) => {
         );
 
     } catch (error: any) {
-        console.error('Sync messages error:', error);
+        console.error('Sync messages error:', redactSensitiveLogValue(error));
         return new Response(
             JSON.stringify({ error: error.message }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }

@@ -8,6 +8,7 @@ import { generateText, requireGeneratedText } from "../_shared/generate-text.ts"
 import { buildAutomationAiPrompt } from "../_shared/automation-context.ts"
 
 import { isSafeMetaGraphNodeId, META_GRAPH_API_BASE_URL, toMetaGraphFormBody } from "../_shared/meta-graph.ts";
+import { redactSensitiveLogValue } from "../_shared/log-redaction.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
@@ -74,7 +75,7 @@ async function fetchPostComments(
     const result = await response.json();
 
     if (!response.ok || result.error) {
-        console.error(`Failed to fetch comments for post ${postId}:`, result.error);
+        console.error(`Failed to fetch comments for post ${postId}:`, redactSensitiveLogValue(result.error));
         return [];
     }
 
@@ -198,7 +199,7 @@ async function sendDM(
 
         if (!openingResponse.ok || openingResult.error) {
             const err = openingResult.error || {};
-            console.warn(`[DM] Normal DM failed (code ${err.code}/${err.error_subcode}):`, err.message);
+            console.warn(`[DM] Normal DM failed (code ${err.code}/${err.error_subcode}):`, redactSensitiveLogValue(err.message));
 
             // Only fall back on window/recipient errors
             if (isDmFallbackError(err)) {
@@ -307,7 +308,7 @@ async function sendLinkFollowUp(
 
     if (!linkResponse.ok || linkResult.error) {
         // Fall back to plain text with link
-        console.warn('[DM] Button template failed, sending plain text:', linkResult.error?.message);
+        console.warn('[DM] Button template failed, sending plain text:', redactSensitiveLogValue(linkResult.error?.message));
         await fetch(sendUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -450,7 +451,7 @@ async function generateAiReplyForComment(
         });
         return requireGeneratedText(text);
     } catch (err) {
-        console.error('[AI_REPLY] Generation failed:', err?.message || err);
+        console.error('[AI_REPLY] Generation failed:', redactSensitiveLogValue(err?.message || err));
         return null;
     }
 }
@@ -513,7 +514,7 @@ async function processSingleComment(
         .single();
 
     if (logError) {
-        console.error(`Automation ${automation.id}: Failed to create log:`, logError);
+        console.error(`Automation ${automation.id}: Failed to create log:`, redactSensitiveLogValue(logError));
         stats.errors++;
         return stats;
     }
@@ -553,7 +554,7 @@ async function processSingleComment(
                 const replyResult = await replyToComment(comment.id, replyMessage, accessToken);
                 commentReplySent = replyResult.success;
                 if (!replyResult.success) {
-                    console.warn(`Automation ${automation.id}: Comment reply failed:`, replyResult.error);
+                    console.warn(`Automation ${automation.id}: Comment reply failed:`, redactSensitiveLogValue(replyResult.error));
                 }
             }
         }
@@ -577,7 +578,7 @@ async function processSingleComment(
             dmChannel = dmResult.channel || null;
             if (!dmResult.success) {
                 errorMessage = dmResult.error || 'DM sending failed';
-                console.warn(`Automation ${automation.id}: DM failed for ${comment.from.id}:`, dmResult.error);
+                console.warn(`Automation ${automation.id}: DM failed for ${comment.from.id}:`, redactSensitiveLogValue(dmResult.error));
             }
         }
 
@@ -585,7 +586,7 @@ async function processSingleComment(
     } catch (error) {
         errorMessage = error.message;
         stats.errors++;
-        console.error(`Automation ${automation.id}: Error processing comment ${comment.id}:`, error);
+        console.error(`Automation ${automation.id}: Error processing comment ${comment.id}:`, redactSensitiveLogValue(error));
     }
 
     // Update the log entry
@@ -655,7 +656,7 @@ async function processWebhookComment(
     const { data: automations, error } = await query;
 
     if (error) {
-        console.error('[WEBHOOK_FAST] Failed to fetch automations:', error);
+        console.error('[WEBHOOK_FAST] Failed to fetch automations:', redactSensitiveLogValue(error));
         return totalStats;
     }
 
@@ -916,7 +917,7 @@ serve(async (req) => {
                 totalStats.dmsSent += stats.dmsSent;
                 totalStats.errors += stats.errors;
             } catch (error) {
-                console.error(`Error processing automation ${automation.id}:`, error);
+                console.error(`Error processing automation ${automation.id}:`, redactSensitiveLogValue(error));
                 totalStats.errors++;
             }
         }
@@ -936,7 +937,7 @@ serve(async (req) => {
         );
 
     } catch (error) {
-        console.error('Process automations error:', error);
+        console.error('Process automations error:', redactSensitiveLogValue(error));
         return new Response(
             JSON.stringify({
                 error: error.message || 'Internal server error'

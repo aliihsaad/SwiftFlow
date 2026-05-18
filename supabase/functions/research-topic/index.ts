@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
 import { toUserFriendlyError } from "../_shared/ai-config.ts"
+import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -162,7 +163,7 @@ Format your response as a clear, concise research brief that can be used to info
             },
         )
     } catch (error: unknown) {
-        console.error("Research Topic Error:", error)
+        console.error("Research Topic Error:", redactSensitiveLogValue(error))
         return new Response(
             JSON.stringify({
                 error: toUserFriendlyError(error),

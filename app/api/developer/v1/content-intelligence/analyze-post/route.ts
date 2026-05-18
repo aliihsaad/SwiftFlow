@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     request,
     {
       requiredScopes: ["content_intelligence:run"],
-      rateLimit: "expensive",
+      rateLimit: "content_intelligence",
       action: "content_intelligence.analyze_post",
       route: "/api/developer/v1/content-intelligence/analyze-post",
     },

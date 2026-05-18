@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/utils/supabase/admin"
+import { redactSensitiveLogValue } from "@/lib/security/redaction"
 import type { DeveloperApiAccessMode, DeveloperApiEntitlement } from "./types"
 
 export function getDeveloperApiAccessMode(): DeveloperApiAccessMode {
@@ -32,7 +33,7 @@ export async function getDeveloperApiEntitlement(workspaceId: string): Promise<D
     .maybeSingle()
 
   if (error) {
-    console.error("[developer-api] failed to load entitlement", error)
+    console.error("[developer-api] failed to load entitlement", redactSensitiveLogValue(error))
     return resolveDeveloperApiEntitlementFromInputs(mode, false)
   }
 

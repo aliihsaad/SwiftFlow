@@ -51,7 +51,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     request,
     {
       requiredScopes: ["automations:update"],
-      rateLimit: "write",
+      rateLimit: "automation_write",
       action: "automations.update",
       route: "/api/developer/v1/automations/:id",
     },
@@ -158,7 +158,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     request,
     {
       requiredScopes: ["automations:delete"],
-      rateLimit: "write",
+      rateLimit: "automation_write",
       action: "automations.delete",
       route: "/api/developer/v1/automations/:id",
     },

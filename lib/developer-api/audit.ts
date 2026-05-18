@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "crypto"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { getClientIp } from "@/lib/security/rate-limit"
+import { redactSensitiveLogValue } from "@/lib/security/redaction"
 import type { DeveloperApiAuthContext, DeveloperApiScope } from "./types"
 
 export function hashAuditValue(value: string | null | undefined): string | null {
@@ -47,6 +48,6 @@ export async function writeDeveloperApiAuditLog(params: {
       metadata: params.metadata || {},
     })
   } catch (error) {
-    console.error("[developer-api] failed to write audit log", error)
+    console.error("[developer-api] failed to write audit log", redactSensitiveLogValue(error))
   }
 }

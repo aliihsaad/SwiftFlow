@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     request,
     {
       requiredScopes: ["automations:create"],
-      rateLimit: "write",
+      rateLimit: "automation_write",
       action: "automations.create",
       route: "/api/developer/v1/automations",
     },

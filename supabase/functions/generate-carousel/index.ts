@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 import { generateText, requireGeneratedText } from "../_shared/generate-text.ts"
+import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -52,7 +53,7 @@ serve(async (req) => {
                 researchContext = `\nRESEARCH FINDINGS (from real-time Google Search):\n${researchResult.data.research}\n\nUse these research findings to create factually accurate, trend-aware slide content.\n`
                 console.log('Research completed for carousel, findings length:', researchResult.data.research.length)
             } else {
-                console.warn('Research failed or returned empty:', researchResult.error)
+                console.warn('Research failed or returned empty:', redactSensitiveLogValue(researchResult.error))
             }
         }
 
@@ -101,7 +102,7 @@ Return valid JSON only.`
             temperature: 0.7,
             maxTokens: Math.min(aiConfig.maxTokens, 2600),
         }), "Carousel response")
-        console.log('Raw AI Response:', responseText)
+        console.log('Raw AI Response length:', responseText.length)
 
         let parsedResult
         try {
@@ -125,7 +126,7 @@ Return valid JSON only.`
         })
 
     } catch (error: unknown) {
-        console.error('Generate Carousel Error:', error)
+        console.error('Generate Carousel Error:', redactSensitiveLogValue(error))
         return new Response(JSON.stringify({ error: toUserFriendlyError(error) }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,

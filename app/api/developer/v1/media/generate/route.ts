@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
     request,
     {
       requiredScopes: generationScopes(hasAttachTarget(raw) ? "attach" : undefined),
-      rateLimit: "write",
+      rateLimit: "media_generate",
       action: hasAttachTarget(raw) ? "media.generate.attach" : "media.generate",
       route: "/api/developer/v1/media/generate",
     },

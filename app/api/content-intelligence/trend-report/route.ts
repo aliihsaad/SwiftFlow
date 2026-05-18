@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { buildTrendReport } from "@/lib/content-intelligence/research"
+import { assertJsonBodySize } from "@/lib/security/phase1-validation"
+import { enforceRateLimit, getClientIp, RateLimitExceededError } from "@/lib/security/rate-limit"
+import { redactSensitiveLogValue } from "@/lib/security/redaction"
 import { createClient } from "@/utils/supabase/server"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import type { ContentPlatform, ResearchProviderId } from "@/lib/content-intelligence/types"
@@ -31,6 +34,7 @@ function normalizeProvider(value: unknown): ResearchProviderId | "auto" {
 
 export async function POST(request: NextRequest) {
   try {
+    assertJsonBodySize(request)
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
@@ -43,6 +47,26 @@ export async function POST(request: NextRequest) {
     if (!topic) return NextResponse.json({ error: "topic is required" }, { status: 400 })
 
     const depth = normalizeDepth(body?.depth)
+    const clientIp = getClientIp(request)
+    await enforceRateLimit(
+      {
+        scope: "content-intelligence:trend-report:user",
+        subject: `${user.id}:${activeWorkspace.id}`,
+        limit: depth === "deep" ? 3 : 10,
+        windowSeconds: 15 * 60,
+      },
+      "Too many trend research requests. Please wait a moment and try again.",
+    )
+    await enforceRateLimit(
+      {
+        scope: "content-intelligence:trend-report:ip",
+        subject: clientIp,
+        limit: 30,
+        windowSeconds: 15 * 60,
+      },
+      "Too many trend research requests. Please wait a moment and try again.",
+    )
+
     const report = await buildTrendReport({
       workspaceId: activeWorkspace.id,
       topic,
@@ -58,7 +82,16 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(report)
   } catch (error) {
-    console.error("[content-intelligence/trend-report]", error)
+    if (error instanceof RateLimitExceededError) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 429, headers: { "Retry-After": String(error.retryAfterSeconds) } },
+      )
+    }
+    if (error instanceof Error && /Request payload too large|Invalid content length/i.test(error.message)) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+    console.error("[content-intelligence/trend-report]", redactSensitiveLogValue(error))
     return NextResponse.json({ error: "Failed to generate trend report" }, { status: 500 })
   }
 }

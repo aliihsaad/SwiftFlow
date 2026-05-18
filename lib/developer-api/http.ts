@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { RateLimitExceededError } from "@/lib/security/rate-limit"
+import { redactSensitiveLogValue } from "@/lib/security/redaction"
 import { authenticateDeveloperApiRequest, DeveloperApiAuthError } from "./auth"
 import { getDeveloperApiRequestId, writeDeveloperApiAuditLog } from "./audit"
 import type { DeveloperApiRateLimitKind } from "./rate-limit"
@@ -51,7 +52,7 @@ export async function withDeveloperApiAuth(
       message = error.message
       retryAfterSeconds = error.retryAfterSeconds
     } else {
-      console.error("[developer-api] route error", error)
+      console.error("[developer-api] route error", redactSensitiveLogValue(error))
     }
 
     await writeDeveloperApiAuditLog({

@@ -4,6 +4,7 @@ import { createAdminClient } from "@/utils/supabase/admin"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
 import { assertJsonBodySize, assertUuid } from "@/lib/security/phase1-validation"
+import { redactSensitiveLogValue } from "@/lib/security/redaction"
 import {
   canRoleCreateDeveloperApiKey,
   normalizeDeveloperApiScopes,
@@ -83,7 +84,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (permissionStatus) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Forbidden" }, { status: permissionStatus })
     }
-    console.error("[developer/keys/:id] PATCH", error)
+    console.error("[developer/keys/:id] PATCH", redactSensitiveLogValue(error))
     return NextResponse.json({ error: "Failed to update Developer API key" }, { status: 500 })
   }
 }
@@ -145,7 +146,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (permissionStatus) {
       return NextResponse.json({ error: error instanceof Error ? error.message : "Forbidden" }, { status: permissionStatus })
     }
-    console.error("[developer/keys/:id] DELETE", error)
+    console.error("[developer/keys/:id] DELETE", redactSensitiveLogValue(error))
     return NextResponse.json({ error: "Failed to revoke Developer API key" }, { status: 500 })
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { assertJsonBodySize, sanitizeAssistantInvokePayload } from '@/lib/security/phase1-validation'
 import { enforceRateLimit, getClientIp, RateLimitExceededError } from '@/lib/security/rate-limit'
+import { redactSensitiveLogValue } from '@/lib/security/redaction'
 import { AssistantAuthError, resolveAssistantWorkspace } from '@/lib/assistant/auth'
 import { assertAssistantEdgeFunctionName, invokeAssistantEdgeFunction } from '@/lib/assistant/edge-invoke'
 
@@ -76,7 +77,7 @@ export async function POST(request: NextRequest) {
                 { status: 400 }
             )
         }
-        console.error('[assistant/invoke] unexpected error:', error)
+        console.error('[assistant/invoke] unexpected error:', redactSensitiveLogValue(error))
         return NextResponse.json(
             { error: error instanceof Error ? error.message : 'Internal server error' },
             { status: 500 }

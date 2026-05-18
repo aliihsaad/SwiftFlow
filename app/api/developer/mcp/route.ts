@@ -115,10 +115,34 @@ function unauthorizedMcpResponse(origin: string) {
   }, 401, { "WWW-Authenticate": buildDeveloperMcpAuthChallenge(origin, "invalid_token", "Authenticate SwiftFlow to continue") })
 }
 
-export async function GET(request: NextRequest) {
-  if (!request.headers.get("authorization")) {
-    return unauthorizedMcpResponse(request.nextUrl.origin)
+function invalidMcpAuthorizationResponse(origin: string, error: unknown) {
+  const status = error instanceof DeveloperMcpApiError ? error.status : 401
+  return jsonResponse({
+    jsonrpc: "2.0",
+    id: null,
+    error: {
+      code: -32603,
+      message: error instanceof Error ? error.message : "Invalid SwiftFlow MCP authorization",
+      data: error instanceof DeveloperMcpApiError ? error.payload : undefined,
+    },
+  }, status, { "WWW-Authenticate": buildDeveloperMcpAuthChallenge(origin) })
+}
+
+function validateDeveloperMcpAuthorization(request: NextRequest): Response | null {
+  const authorization = request.headers.get("authorization")
+  if (!authorization) return unauthorizedMcpResponse(request.nextUrl.origin)
+
+  try {
+    resolveDeveloperApiAuthorization(authorization, request.nextUrl.origin)
+    return null
+  } catch (error) {
+    return invalidMcpAuthorizationResponse(request.nextUrl.origin, error)
   }
+}
+
+export async function GET(request: NextRequest) {
+  const authError = validateDeveloperMcpAuthorization(request)
+  if (authError) return authError
 
   return emptyMcpResponse(405, { Allow: "POST, OPTIONS" })
 }
@@ -134,9 +158,8 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: NextRequest) {
-  if (!request.headers.get("authorization")) {
-    return unauthorizedMcpResponse(request.nextUrl.origin)
-  }
+  const authError = validateDeveloperMcpAuthorization(request)
+  if (authError) return authError
 
   let body: unknown
   try {

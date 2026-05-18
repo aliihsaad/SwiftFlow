@@ -9,6 +9,7 @@ import { invokeAssistantEdgeFunction } from "@/lib/assistant/edge-invoke"
 import { routeAssistantIntent } from "@/lib/assistant/intent-router"
 import { assertJsonBodySize, sanitizeAssistantInvokePayload } from "@/lib/security/phase1-validation"
 import { enforceRateLimit, getClientIp, RateLimitExceededError } from "@/lib/security/rate-limit"
+import { redactSensitiveLogValue } from "@/lib/security/redaction"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -129,7 +130,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
-    console.error("[assistant/command] unexpected error:", error)
+    console.error("[assistant/command] unexpected error:", redactSensitiveLogValue(error))
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Internal server error" },
       { status: 500 },

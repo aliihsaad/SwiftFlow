@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from "npm:@google/generative-ai"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 import { createOpenRouterChatCompletion, extractOpenRouterTextContent } from "../_shared/openrouter-client.ts"
+import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -269,7 +270,7 @@ Guidelines:
         })
 
     } catch (error: unknown) {
-        console.error('Chat Assistant Error:', error)
+        console.error('Chat Assistant Error:', redactSensitiveLogValue(error))
         return new Response(JSON.stringify({ error: toUserFriendlyError(error) }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,

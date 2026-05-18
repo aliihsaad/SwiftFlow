@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
 import { keywordMatch } from "../_shared/automation-context.ts"
+import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -236,7 +237,7 @@ serve(async (req) => {
         .single();
 
       if (runInsertError || !runRow) {
-        console.error('[ORCHESTRATOR] Failed to create run row:', runInsertError);
+        console.error('[ORCHESTRATOR] Failed to create run row:', redactSensitiveLogValue(runInsertError));
         failed++;
         continue;
       }
@@ -247,13 +248,13 @@ serve(async (req) => {
       });
 
       if (!invokeResult.ok || invokeResult.data?.success === false) {
-        console.error('[ORCHESTRATOR] Run worker invocation failed', {
+        console.error('[ORCHESTRATOR] Run worker invocation failed', redactSensitiveLogValue({
           automation_id: automation.id,
           run_id: runRow.id,
           status: invokeResult.status,
           error: invokeResult.error,
           data: invokeResult.data,
-        });
+        }));
         failed++;
         await supabase
           .from('automation_runs')
@@ -291,7 +292,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('[ORCHESTRATOR] Error:', error);
+    console.error('[ORCHESTRATOR] Error:', redactSensitiveLogValue(error));
     return new Response(JSON.stringify({ success: false, error: error?.message || 'Orchestrator failed' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

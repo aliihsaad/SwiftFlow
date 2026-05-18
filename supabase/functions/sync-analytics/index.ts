@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { canReadAnalyticsWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
 import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
+import { redactSensitiveLogValue, redactSensitiveString } from "../_shared/log-redaction.ts";
 
 // Use v21.0 to maintain compatibility with older metric names
 // v22.0+ removed 'impressions' metric for Instagram media
@@ -33,7 +34,7 @@ function summarizeMetaGraphPayload(payload: any): string {
         const code = error.code ?? 'unknown';
         const subcode = error.error_subcode ?? 'unknown';
         const type = error.type ?? 'unknown';
-        const message = typeof error.message === 'string' ? error.message : 'unknown';
+        const message = typeof error.message === 'string' ? redactSensitiveString(error.message) : 'unknown';
         return `error_type=${type} error_code=${code} error_subcode=${subcode} message=${message}`;
     }
 
@@ -46,7 +47,7 @@ function summarizeMetaGraphPayload(payload: any): string {
         return keys.length > 0 ? `keys=${keys.join(',')}` : 'empty_object';
     }
 
-    return typeof payload === 'string' && payload.length > 0 ? payload : 'no_details';
+    return typeof payload === 'string' && payload.length > 0 ? redactSensitiveString(payload) : 'no_details';
 }
 
 function logMetaGraphWarning(context: string, payload: any) {
@@ -54,9 +55,9 @@ function logMetaGraphWarning(context: string, payload: any) {
 }
 
 function summarizeError(error: any): string {
-    if (error instanceof Error) return error.message;
-    if (typeof error?.message === 'string') return error.message;
-    return String(error);
+    if (error instanceof Error) return redactSensitiveString(error.message);
+    if (typeof error?.message === 'string') return redactSensitiveString(error.message);
+    return redactSensitiveString(String(error));
 }
 
 async function fetchInstagramMediaInsightsBestEffort(mediaId: string, accessToken: string, mediaType?: string) {
@@ -177,7 +178,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
 
     console.log(`[Sync] All posts in workspace:`, allPosts?.length || 0);
     if (allPostsError) {
-        console.error(`[Sync] Error fetching posts:`, allPostsError);
+        console.error(`[Sync] Error fetching posts:`, redactSensitiveLogValue(allPostsError));
         return { synced: 0, error: allPostsError.message };
     }
 
@@ -197,7 +198,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
             .in('post_id', postIds);
 
         if (pubPostsError) {
-            console.error(`[Sync] Error fetching published_posts:`, pubPostsError);
+            console.error(`[Sync] Error fetching published_posts:`, redactSensitiveLogValue(pubPostsError));
             return { synced: 0, error: pubPostsError.message };
         }
 
@@ -450,7 +451,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                         });
 
                     if (upsertError) {
-                        console.error(`[Sync] Failed to upsert analytics for post ${publishedPost.id}:`, upsertError);
+                        console.error(`[Sync] Failed to upsert analytics for post ${publishedPost.id}:`, redactSensitiveLogValue(upsertError));
                         throw upsertError;
                     }
 
@@ -678,7 +679,7 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
         .eq('workspace_id', workspaceId);
 
     if (accountsError) {
-        console.error(`[AccountSync] Error fetching accounts:`, accountsError);
+        console.error(`[AccountSync] Error fetching accounts:`, redactSensitiveLogValue(accountsError));
         return { synced: 0, error: accountsError.message };
     }
 
@@ -816,7 +817,7 @@ serve(async (req) => {
         );
 
     } catch (error: any) {
-        console.error('Sync analytics error:', error);
+        console.error('Sync analytics error:', redactSensitiveLogValue(error));
         return new Response(
             JSON.stringify({ error: error.message }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }

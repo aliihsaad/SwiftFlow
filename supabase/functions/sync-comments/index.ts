@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { canReadCommentsWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
 import { isSafeMetaGraphNodeId, META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
+import { redactSensitiveLogValue } from "../_shared/log-redaction.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
@@ -42,7 +43,7 @@ async function syncComments(supabase: any, workspaceId: string) {
         .eq('workspace_id', workspaceId);
 
     if (accountsError) {
-        console.error(`[CommentSync] Error fetching accounts:`, accountsError);
+        console.error(`[CommentSync] Error fetching accounts:`, redactSensitiveLogValue(accountsError));
         return { synced: 0, error: accountsError.message };
     }
 
@@ -64,7 +65,7 @@ async function syncComments(supabase: any, workspaceId: string) {
         .eq('status', 'published');
 
     if (wpError) {
-        console.error(`[CommentSync] Error fetching workspace posts:`, wpError);
+        console.error(`[CommentSync] Error fetching workspace posts:`, redactSensitiveLogValue(wpError));
         return { synced: 0, error: wpError.message };
     }
 
@@ -91,7 +92,7 @@ async function syncComments(supabase: any, workspaceId: string) {
     }
 
     if (postsError) {
-        console.error(`[CommentSync] Error fetching published posts:`, postsError);
+        console.error(`[CommentSync] Error fetching published posts:`, redactSensitiveLogValue(postsError));
         return { synced: 0, error: postsError.message };
     }
 
@@ -147,7 +148,7 @@ async function syncComments(supabase: any, workspaceId: string) {
                         comments = data.data;
                         console.log(`[CommentSync] Found ${comments.length} comments`);
                     } else if (data.error) {
-                        console.error(`[CommentSync] Instagram API error:`, data.error);
+                        console.error(`[CommentSync] Instagram API error:`, redactSensitiveLogValue(data.error));
                     }
                 } else if (account.platform === 'facebook') {
                     // Facebook: GET /{post-id}/comments?fields=id,message,created_time,from
@@ -162,7 +163,7 @@ async function syncComments(supabase: any, workspaceId: string) {
                         comments = data.data;
                         console.log(`[CommentSync] Found ${comments.length} Facebook comments`);
                     } else if (data.error) {
-                        console.error(`[CommentSync] Facebook API error:`, data.error);
+                        console.error(`[CommentSync] Facebook API error:`, redactSensitiveLogValue(data.error));
                     }
                 }
 
@@ -188,7 +189,7 @@ async function syncComments(supabase: any, workspaceId: string) {
                         });
 
                     if (upsertError) {
-                        console.error(`[CommentSync] Failed to upsert comment ${comment.id}:`, upsertError);
+                        console.error(`[CommentSync] Failed to upsert comment ${comment.id}:`, redactSensitiveLogValue(upsertError));
                     } else {
                         syncedCount++;
                     }
@@ -225,14 +226,14 @@ async function syncComments(supabase: any, workspaceId: string) {
                             });
 
                         if (replyUpsertError) {
-                            console.error(`[CommentSync] Failed to upsert reply ${reply.id}:`, replyUpsertError);
+                            console.error(`[CommentSync] Failed to upsert reply ${reply.id}:`, redactSensitiveLogValue(replyUpsertError));
                         } else {
                             syncedCount++;
                         }
                     }
                 }
             } catch (error) {
-                console.error(`[CommentSync] Error syncing comments for post ${publishedPost.id}:`, error);
+                console.error(`[CommentSync] Error syncing comments for post ${publishedPost.id}:`, redactSensitiveLogValue(error));
             }
         }
     }
@@ -301,10 +302,10 @@ async function syncComments(supabase: any, workspaceId: string) {
                         }
                     }
                 } else if (data.error) {
-                    console.error(`[CommentSync] Error fetching automation post comments:`, data.error);
+                    console.error(`[CommentSync] Error fetching automation post comments:`, redactSensitiveLogValue(data.error));
                 }
             } catch (error) {
-                console.error(`[CommentSync] Error processing automation post ${automation.platform_post_id}:`, error);
+                console.error(`[CommentSync] Error processing automation post ${automation.platform_post_id}:`, redactSensitiveLogValue(error));
             }
         }
     }
@@ -343,7 +344,7 @@ serve(async (req) => {
         );
 
     } catch (error: any) {
-        console.error('Sync comments error:', error);
+        console.error('Sync comments error:', redactSensitiveLogValue(error));
         return new Response(
             JSON.stringify({ error: error.message }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }

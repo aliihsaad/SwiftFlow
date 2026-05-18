@@ -10,7 +10,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     request,
     {
       requiredScopes: ["automations:toggle"],
-      rateLimit: "write",
+      rateLimit: "automation_write",
       action: "automations.toggle",
       route: "/api/developer/v1/automations/:id/toggle",
     },

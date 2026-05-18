@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
+import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -389,18 +390,18 @@ async function generateWithOpenRouterImage(params: {
         }
 
         if (response.ok && !(data as { error?: { message?: string } }).error && !imageUrl) {
-            console.error("[generate-image] OpenRouter returned no image payload", {
+            console.error("[generate-image] OpenRouter returned no image payload", redactSensitiveLogValue({
                 candidate,
                 hasChoices: choices.length > 0,
                 messageContent: firstChoice?.message?.content || null,
                 imageKeys: firstImage ? Object.keys(firstImage) : [],
-            })
+            }))
         } else {
-            console.error("[generate-image] OpenRouter candidate failed", {
+            console.error("[generate-image] OpenRouter candidate failed", redactSensitiveLogValue({
                 candidate,
                 status: response.status,
                 providerError,
-            })
+            }))
         }
 
         lastError = providerError
@@ -652,10 +653,10 @@ serve(async (req) => {
                     const { data: publicData } = supabase.storage.from("generated_assets").getPublicUrl(fileName)
                     finalAssetUrl = publicData.publicUrl
                 } else {
-                    console.error("Upload Error:", uploadError)
+                    console.error("Upload Error:", redactSensitiveLogValue(uploadError))
                 }
             } catch (error) {
-                console.error("Blob conversion error:", error)
+                console.error("Blob conversion error:", redactSensitiveLogValue(error))
             }
         }
 
@@ -667,7 +668,7 @@ serve(async (req) => {
         })
 
         if (insertError) {
-            console.error("Database insert error:", insertError)
+            console.error("Database insert error:", redactSensitiveLogValue(insertError))
         } else {
             console.log("Successfully saved to generated_assets")
         }
@@ -695,7 +696,7 @@ serve(async (req) => {
             },
         )
     } catch (error: unknown) {
-        console.error("[generate-image] fatal error:", error)
+        console.error("[generate-image] fatal error:", redactSensitiveLogValue(error))
         if (supabase) {
             await markAutomationImageFailure({
                 supabase,

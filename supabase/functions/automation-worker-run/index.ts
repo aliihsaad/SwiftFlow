@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { executeWorkflowGraph } from "../process-automations/graph-executor.ts"
 import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
+import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
 import {
   getAutomationFailureAlertRecipients,
   sendResendEmail,
@@ -109,7 +110,7 @@ async function upsertNodeRuns(
     .upsert(rows, { onConflict: 'run_id,node_id' });
 
   if (error) {
-    console.error('[RUN_WORKER] Failed to write automation_node_runs:', error);
+    console.error('[RUN_WORKER] Failed to write automation_node_runs:', redactSensitiveLogValue(error));
   }
 }
 
@@ -273,7 +274,7 @@ serve(async (req) => {
           graphResult,
         })
       } catch (alertError) {
-        console.error('[RUN_WORKER] Failed to send automation failure alert email:', alertError)
+        console.error('[RUN_WORKER] Failed to send automation failure alert email:', redactSensitiveLogValue(alertError))
       }
     }
 
@@ -287,7 +288,7 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('[RUN_WORKER] Error:', error);
+    console.error('[RUN_WORKER] Error:', redactSensitiveLogValue(error));
     return new Response(JSON.stringify({ success: false, error: error?.message || 'Run worker failed' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

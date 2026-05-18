@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     request,
     {
       requiredScopes: ["media:upload"],
-      rateLimit: "write",
+      rateLimit: "media_upload",
       action: "media.upload",
       route: "/api/developer/v1/media",
     },

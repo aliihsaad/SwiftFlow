@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { canPublishWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts";
 import { normalizeMetaGraphError } from "../_shared/meta-graph-errors.ts";
 import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
+import { redactSensitiveLogValue, redactSensitiveString } from "../_shared/log-redaction.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
@@ -156,7 +157,7 @@ function summarizeMetaGraphPayload(payload: any): string {
         const code = error.code ?? 'unknown';
         const subcode = error.error_subcode ?? 'unknown';
         const type = error.type ?? 'unknown';
-        const message = typeof error.message === 'string' ? error.message : 'unknown';
+        const message = typeof error.message === 'string' ? redactSensitiveString(error.message) : 'unknown';
         return `error_type=${type} error_code=${code} error_subcode=${subcode} message=${message}`;
     }
 
@@ -165,7 +166,7 @@ function summarizeMetaGraphPayload(payload: any): string {
         return keys.length > 0 ? `keys=${keys.join(',')}` : 'empty_object';
     }
 
-    return typeof payload === 'string' && payload.length > 0 ? payload : 'no_details';
+    return typeof payload === 'string' && payload.length > 0 ? redactSensitiveString(payload) : 'no_details';
 }
 
 /**
@@ -332,7 +333,7 @@ async function publishToInstagramVideo(
         console.log('Instagram Reel published:', publishData.id);
         return { success: true, platform: 'instagram', platformPostId: publishData.id };
     } catch (error) {
-        console.error('Instagram video EXCEPTION:', error);
+        console.error('Instagram video EXCEPTION:', redactSensitiveLogValue(error));
         return { success: false, platform: 'instagram', error: String(error) };
     }
 }
@@ -369,7 +370,7 @@ async function publishToFacebookVideo(
         console.log('Facebook video published:', data.id);
         return { success: true, platform: 'facebook', platformPostId: data.id };
     } catch (error) {
-        console.error('Facebook video EXCEPTION:', error);
+        console.error('Facebook video EXCEPTION:', redactSensitiveLogValue(error));
         return { success: false, platform: 'facebook', error: String(error) };
     }
 }
@@ -504,7 +505,7 @@ async function publishToFacebookMultiPhoto(
 
         const feedData = await feedRes.json();
         if (!feedRes.ok) {
-            console.error('Facebook multi-photo feed error:', feedData);
+            console.error('Facebook multi-photo feed error:', redactSensitiveLogValue(feedData));
             return buildMetaPublishFailure('facebook', feedData?.error, 'Failed to create Facebook multi-photo post');
         }
 
@@ -547,7 +548,7 @@ serve(async (req) => {
             .limit(10);
 
         if (fetchError) {
-            console.error('Error claiming posts:', fetchError);
+            console.error('Error claiming posts:', redactSensitiveLogValue(fetchError));
             return new Response(JSON.stringify({ error: fetchError.message }), {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 500
@@ -668,7 +669,7 @@ serve(async (req) => {
                     result = buildPublishFailure(platform, 'Unsupported platform', 'unsupported_platform');
                 }
 
-                console.log(`Platform ${platform} result:`, JSON.stringify(result));
+                console.log(`Platform ${platform} result:`, redactSensitiveString(JSON.stringify(result)));
                 postResults.push(result);
 
                 // Store in published_posts if successful
@@ -691,14 +692,14 @@ serve(async (req) => {
                                 platform_post_id: result.platformPostId
                             });
                         } else {
-                            console.error('Failed to insert published_posts:', publishedInsertError);
+                            console.error('Failed to insert published_posts:', redactSensitiveLogValue(publishedInsertError));
                         }
                     }
                 }
             }
 
             // Update post status
-            console.log(`Post ${post.id} results:`, JSON.stringify(postResults));
+            console.log(`Post ${post.id} results:`, redactSensitiveString(JSON.stringify(postResults)));
             const allSucceeded = postResults.every(r => r.success);
             const failureSummary = summarizePublishResults(postResults);
             await supabase
@@ -726,7 +727,7 @@ serve(async (req) => {
         });
 
     } catch (error: any) {
-        console.error('Process scheduled posts error:', error);
+        console.error('Process scheduled posts error:', redactSensitiveLogValue(error));
         return new Response(JSON.stringify({ error: error.message }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 500

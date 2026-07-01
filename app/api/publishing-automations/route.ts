@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, automation })
     } catch (error: unknown) {
-        if (error instanceof Error && /Invalid publishing automation payload|Automation name is required|Content goal is required|At least one valid platform|Workflow platform mode|Workflow approval mode|Scheduled automation|Instagram scheduled automation|Request payload too large|Invalid content length/i.test(error.message)) {
+        if (error instanceof Error && /Invalid publishing automation payload|Automation name is required|Content goal is required|At least one valid platform|Workflow platform mode|Workflow approval mode|approval modes are not yet supported|Scheduled automation|Instagram scheduled automation|Request payload too large|Invalid content length/i.test(error.message)) {
             return NextResponse.json({ error: error.message }, { status: 400 })
         }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)

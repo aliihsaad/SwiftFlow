@@ -7,6 +7,7 @@ export default defineConfig({
     include: [
       "tests/content-intelligence/**/*.test.ts",
       "tests/developer-api/**/*.test.ts",
+      "tests/publishing-automations/**/*.test.ts",
       "tests/security/**/*.test.ts",
     ],
     globals: false,

@@ -77,7 +77,9 @@ function rowToPayload(row: JsonRecord): CreatePublishingAutomationPayload {
         workflow_config: row.workflow_config,
         schedule_config: row.schedule_config,
         daily_cap: row.daily_cap,
-    })
+        // Legacy rows may still carry auto_* approval modes; manual Run Draft
+        // always produces a draft post, so they stay runnable.
+    }, { allowUnsupportedApprovalModes: true })
 }
 
 function summarizeRecentPosts(posts: RecentPostSummary[]): string {

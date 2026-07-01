@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import type { Platform } from '@/types/post'
-import { checkPublishingAutomationReadiness } from '@/lib/publishing-automation-readiness'
 import { getActiveWorkspace } from '@/lib/workspace-utils'
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions'
 import { assertJsonBodySize, assertUuid } from '@/lib/security/phase1-validation'
@@ -10,11 +8,6 @@ type RouteContext = { params: Promise<{ id: string }> }
 
 function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'Unexpected error'
-}
-
-function platformsFromRow(value: unknown): Platform[] {
-    if (!Array.isArray(value)) return []
-    return value.filter((item): item is Platform => item === 'facebook' || item === 'instagram')
 }
 
 export async function POST(
@@ -41,7 +34,7 @@ export async function POST(
 
         const { data: existing, error: existingError } = await supabase
             .from('publishing_automations')
-            .select('id, platforms, approval_mode')
+            .select('id, approval_mode')
             .eq('id', automationId)
             .eq('workspace_id', activeWorkspace.id)
             .maybeSingle()
@@ -49,20 +42,13 @@ export async function POST(
         if (existingError) throw existingError
         if (!existing) return NextResponse.json({ error: 'Publishing automation not found' }, { status: 404 })
 
-        const platforms = platformsFromRow(existing.platforms)
         const approvalMode = typeof existing.approval_mode === 'string' ? existing.approval_mode : 'manual_review'
 
         if (isActive && approvalMode !== 'manual_review') {
-            const readiness = await checkPublishingAutomationReadiness(supabase, activeWorkspace.id, platforms)
-            if (!readiness.ready) {
-                return NextResponse.json({
-                    error: 'Selected platforms are not ready for automated publishing',
-                    errorCode: 'meta_missing_permission',
-                    missingPlatforms: readiness.missingPlatforms,
-                    missingPermissions: readiness.missingPermissions,
-                    requiresReconnect: true,
-                }, { status: 403 })
-            }
+            return NextResponse.json({
+                error: 'The auto_schedule and auto_publish approval modes are not yet supported. Switch this automation to manual_review before starting it.',
+                errorCode: 'approval_mode_not_supported',
+            }, { status: 400 })
         }
 
         const { data: automation, error } = await supabase

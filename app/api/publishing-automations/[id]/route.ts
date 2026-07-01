@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { CreatePublishingAutomationPayload } from '@/types/publishing-automation'
-import { checkPublishingAutomationReadiness } from '@/lib/publishing-automation-readiness'
 import {
     sanitizeCreatePublishingAutomationPayload,
     sanitizeMergedPublishingAutomationPayload,
@@ -19,6 +18,8 @@ function errorMessage(error: unknown): string {
 }
 
 function rowToPayload(row: AutomationRow): CreatePublishingAutomationPayload {
+    // Existing rows may still carry auto_schedule/auto_publish from before the
+    // guardrail; keep them loadable so they can be edited back to manual_review.
     return sanitizeCreatePublishingAutomationPayload({
         name: row.name,
         platforms: row.platforms,
@@ -33,7 +34,7 @@ function rowToPayload(row: AutomationRow): CreatePublishingAutomationPayload {
         workflow_config: row.workflow_config,
         schedule_config: row.schedule_config,
         daily_cap: row.daily_cap,
-    })
+    }, { allowUnsupportedApprovalModes: true })
 }
 
 export async function GET(
@@ -109,16 +110,10 @@ export async function PUT(
         const nextIsActive = partial.is_active ?? existing.is_active === true
 
         if (nextIsActive && merged.approval_mode !== 'manual_review') {
-            const readiness = await checkPublishingAutomationReadiness(supabase, activeWorkspace.id, merged.platforms)
-            if (!readiness.ready) {
-                return NextResponse.json({
-                    error: 'Selected platforms are not ready for automated publishing',
-                    errorCode: 'meta_missing_permission',
-                    missingPlatforms: readiness.missingPlatforms,
-                    missingPermissions: readiness.missingPermissions,
-                    requiresReconnect: true,
-                }, { status: 403 })
-            }
+            return NextResponse.json({
+                error: 'The auto_schedule and auto_publish approval modes are not yet supported. Switch this automation to manual_review before activating it.',
+                errorCode: 'approval_mode_not_supported',
+            }, { status: 400 })
         }
 
         const { data: automation, error: updateError } = await supabase
@@ -149,7 +144,7 @@ export async function PUT(
 
         return NextResponse.json({ success: true, automation })
     } catch (error: unknown) {
-        if (error instanceof Error && /Invalid automation id|Invalid publishing automation payload|Automation name is required|Content goal is required|At least one valid platform|Workflow platform mode|Workflow approval mode|Scheduled automation|Instagram scheduled automation|Request payload too large|Invalid content length/i.test(error.message)) {
+        if (error instanceof Error && /Invalid automation id|Invalid publishing automation payload|Automation name is required|Content goal is required|At least one valid platform|Workflow platform mode|Workflow approval mode|approval modes are not yet supported|Scheduled automation|Instagram scheduled automation|Request payload too large|Invalid content length/i.test(error.message)) {
             return NextResponse.json({ error: error.message }, { status: 400 })
         }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)

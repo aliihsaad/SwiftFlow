@@ -17,6 +17,16 @@ type JsonRecord = Record<string, unknown>
 
 const PLATFORMS: Platform[] = ['facebook', 'instagram']
 const APPROVAL_MODES: PublishingAutomationApprovalMode[] = ['manual_review', 'auto_schedule', 'auto_publish']
+
+// auto_schedule/auto_publish are accepted by the schema but the runner only
+// creates draft posts today. Reject them explicitly instead of silently
+// behaving as draft-only, until scheduled/auto publishing is actually wired.
+const UNSUPPORTED_APPROVAL_MODES: PublishingAutomationApprovalMode[] = ['auto_schedule', 'auto_publish']
+export const UNSUPPORTED_APPROVAL_MODE_MESSAGE = 'The auto_schedule and auto_publish approval modes are not yet supported. Use manual_review.'
+
+export function isUnsupportedApprovalMode(value: unknown): boolean {
+    return typeof value === 'string' && UNSUPPORTED_APPROVAL_MODES.includes(value as PublishingAutomationApprovalMode)
+}
 const IDEA_MODES: PublishingAutomationIdeaMode[] = ['generate_new', 'fixed_topic', 'reuse_content_pillars']
 const CAPTION_MODES: PublishingAutomationCaptionMode[] = ['generate', 'refine', 'use_template']
 const MEDIA_MODES: PublishingAutomationMediaMode[] = ['none', 'generated_image', 'carousel', 'manual_required']
@@ -172,13 +182,23 @@ function validateWorkflow(platforms: Platform[], workflow: PublishingAutomationW
     }
 }
 
-export function sanitizeCreatePublishingAutomationPayload(body: unknown): CreatePublishingAutomationPayload {
+export function sanitizeCreatePublishingAutomationPayload(
+    body: unknown,
+    options: { allowUnsupportedApprovalModes?: boolean } = {},
+): CreatePublishingAutomationPayload {
     if (!isRecord(body)) throw new Error('Invalid publishing automation payload')
 
     const name = clampString(body.name, 160)
     const content_goal = clampString(body.content_goal, 4000)
     const platforms = sanitizePlatforms(body.platforms)
     const approval_mode = oneOf(body.approval_mode, APPROVAL_MODES, 'manual_review')
+
+    // allowUnsupportedApprovalModes exists only for re-validating existing DB
+    // rows (so legacy auto_* automations stay editable); request bodies must
+    // never set it.
+    if (!options.allowUnsupportedApprovalModes && isUnsupportedApprovalMode(approval_mode)) {
+        throw new Error(UNSUPPORTED_APPROVAL_MODE_MESSAGE)
+    }
 
     if (!name) throw new Error('Automation name is required')
     if (!content_goal) throw new Error('Content goal is required')
@@ -210,7 +230,10 @@ export function sanitizeUpdatePublishingAutomationPayload(body: unknown): Update
     const partial: UpdatePublishingAutomationPayload = {}
     if (body.name !== undefined) partial.name = clampString(body.name, 160)
     if (body.platforms !== undefined) partial.platforms = sanitizePlatforms(body.platforms)
-    if (body.approval_mode !== undefined) partial.approval_mode = oneOf(body.approval_mode, APPROVAL_MODES, 'manual_review')
+    if (body.approval_mode !== undefined) {
+        if (isUnsupportedApprovalMode(body.approval_mode)) throw new Error(UNSUPPORTED_APPROVAL_MODE_MESSAGE)
+        partial.approval_mode = oneOf(body.approval_mode, APPROVAL_MODES, 'manual_review')
+    }
     if (body.content_goal !== undefined) partial.content_goal = clampString(body.content_goal, 4000)
     if (body.brand_voice !== undefined) partial.brand_voice = clampOptionalString(body.brand_voice, 1000)
     if (body.content_pillars !== undefined) partial.content_pillars = stringArray(body.content_pillars, 20, 160)
@@ -244,7 +267,10 @@ export function sanitizeMergedPublishingAutomationPayload(
         schedule_config: partial.schedule_config ?? current.schedule_config,
     }
 
-    const validated = sanitizeCreatePublishingAutomationPayload(merged)
+    // Explicitly setting an unsupported approval mode is already rejected in
+    // sanitizeUpdatePublishingAutomationPayload; allow it here so legacy rows
+    // that still carry auto_* remain editable (e.g. back to manual_review).
+    const validated = sanitizeCreatePublishingAutomationPayload(merged, { allowUnsupportedApprovalModes: true })
     return {
         ...validated,
         brand_voice: partial.brand_voice === undefined ? current.brand_voice : validated.brand_voice,

@@ -64,6 +64,14 @@ export async function GET(request: NextRequest) {
                     (account.platform === 'facebook' && canPublishWithMetaAccount(account.metadata, 'facebook'))
                     || (account.platform === 'instagram' && canPublishWithMetaAccount(account.metadata, 'instagram'))
             ),
+            // Worst token health across accounts, from the daily token-health
+            // sweep. null = not checked yet.
+            tokenHealth: sanitizedAccounts.reduce<string | null>((worst, account) => {
+                const health = account.metadata.token_health;
+                if (health === 'invalid' || worst === 'invalid') return 'invalid';
+                if (health === 'expiring_soon' || worst === 'expiring_soon') return 'expiring_soon';
+                return health ?? worst;
+            }, null),
             accounts: sanitizedAccounts,
         };
 

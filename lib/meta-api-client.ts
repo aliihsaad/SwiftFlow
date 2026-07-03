@@ -4,6 +4,7 @@
  */
 
 import { META_GRAPH_API_BASE_URL } from "@/lib/meta-graph-version";
+import { metaGraphFetch } from "@/lib/meta-graph-fetch";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
@@ -20,6 +21,11 @@ export interface FacebookInsights {
     page_engaged_users: number;
     page_fans: number;
     page_views: number;
+}
+
+interface GraphInsightMetric {
+    name?: string;
+    values?: Array<{ value?: number }>;
 }
 
 export interface PostInsights {
@@ -60,7 +66,7 @@ export async function fetchInstagramInsights(
         if (since) params.append('since', since.toString());
         if (until) params.append('until', until.toString());
 
-        const response = await fetch(
+        const response = await metaGraphFetch(
             `${META_GRAPH_URL}/${igAccountId}/insights?${params.toString()}`
         );
 
@@ -81,7 +87,7 @@ export async function fetchInstagramInsights(
             engagement: 0
         };
 
-        data.data?.forEach((metric: any) => {
+        data.data?.forEach((metric: GraphInsightMetric) => {
             const value = metric.values?.[0]?.value || 0;
             const metricName = metric.name;
 
@@ -125,7 +131,7 @@ export async function fetchFacebookPageInsights(
         if (since) params.append('since', since.toString());
         if (until) params.append('until', until.toString());
 
-        const response = await fetch(
+        const response = await metaGraphFetch(
             `${META_GRAPH_URL}/${pageId}/insights?${params.toString()}`
         );
 
@@ -145,7 +151,7 @@ export async function fetchFacebookPageInsights(
             page_views: 0
         };
 
-        data.data?.forEach((metric: any) => {
+        data.data?.forEach((metric: GraphInsightMetric) => {
             const value = metric.values?.[0]?.value || 0;
             const metricName = metric.name;
 
@@ -184,7 +190,7 @@ export async function fetchInstagramPostInsights(
             access_token: accessToken
         });
 
-        const response = await fetch(
+        const response = await metaGraphFetch(
             `${META_GRAPH_URL}/${mediaId}/insights?${params.toString()}`
         );
 
@@ -207,7 +213,7 @@ export async function fetchInstagramPostInsights(
             saves: 0
         };
 
-        data.data?.forEach((metric: any) => {
+        data.data?.forEach((metric: GraphInsightMetric) => {
             const value = metric.values?.[0]?.value || 0;
             const metricName = metric.name;
 
@@ -239,7 +245,7 @@ export async function fetchFacebookPostInsights(
             access_token: accessToken
         });
 
-        const response = await fetch(
+        const response = await metaGraphFetch(
             `${META_GRAPH_URL}/${postId}?${params.toString()}`
         );
 

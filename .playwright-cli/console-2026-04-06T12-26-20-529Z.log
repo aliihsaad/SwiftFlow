@@ -1,3 +1,0 @@
-[     167ms] [ERROR] Error: <path> attribute d: Expected number, "M 50% 30% L 50% 50%". @ http://host.docker.internal:3000/:0
-[     167ms] [ERROR] Error: <path> attribute d: Expected number, "M 50% 50% L 50% 70%". @ http://host.docker.internal:3000/:0
-[     742ms] [WARNING] Please ensure that the container has a non-static position, like 'relative', 'fixed', or 'absolute' to ensure scroll offset is calculated correctly. @ http://host.docker.internal:3000/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297

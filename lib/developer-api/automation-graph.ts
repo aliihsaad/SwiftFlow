@@ -5,6 +5,7 @@ import {
   SUPPORTED_CANVAS_TRIGGER_TYPES,
 } from "@/types/automation-graph"
 import { isMetaGraphNodeId } from "@/lib/security/phase1-validation"
+import { isCommentPostScope } from "@/supabase/functions/_shared/comment-scope"
 
 export type DeveloperAutomationGraphError = {
   code: string
@@ -80,6 +81,19 @@ function normalizeNodeConfig(nodeType: string, value: unknown): Record<string, u
     if (triggerType === "any_comment") config.trigger_type = "any"
   }
 
+  if (nodeType === "trigger_new_comment") {
+    // Drop invalid scopes so legacy resolution (post_id ? specific : any)
+    // applies, and clear stale post selections on non-specific scopes.
+    if (config.post_scope !== undefined && !isCommentPostScope(config.post_scope)) {
+      delete config.post_scope
+    }
+    if (isCommentPostScope(config.post_scope) && config.post_scope !== "specific") {
+      config.post_id = ""
+      delete config.post_thumbnail_url
+      delete config.post_caption
+    }
+  }
+
   if (nodeType === "action_delay") {
     const duration = numberValue(config.duration_value ?? config.duration ?? config.value)
     if (duration !== null) config.duration_value = duration
@@ -153,7 +167,9 @@ export function summarizeDeveloperAutomationGraph(graph: unknown): DeveloperAuto
       config,
     },
     socialAccountId: text(config.social_account_id),
-    platformPostId: triggerType === "trigger_new_comment" ? text(config.post_id) : "__canvas__",
+    // Broad-scope comment triggers have no post selection; use the same
+    // '__canvas__' sentinel the app's automations route stores.
+    platformPostId: triggerType === "trigger_new_comment" ? (text(config.post_id) || "__canvas__") : "__canvas__",
     postThumbnailUrl: text(config.post_thumbnail_url) || null,
     postCaption: text(config.post_caption) || null,
     triggerConfig: {
@@ -216,8 +232,15 @@ export function validateDeveloperAutomationGraph(
         if (options.expectedSocialAccountId && text(config.social_account_id) !== options.expectedSocialAccountId) {
           errors.push({ code: "ACCOUNT_MISMATCH", message: "Trigger social_account_id must match the automation social_account_id.", nodeId: node.id })
         }
-        if (options.requirePostId && !text(config.post_id)) {
-          errors.push({ code: "MISSING_FIELD", message: "Comment trigger requires post_id before the automation can be saved.", nodeId: node.id })
+        // Broad scopes must be opted into explicitly via post_scope; without
+        // one, the Developer API keeps its original contract of requiring a
+        // specific post so clients cannot create any-comment automations by
+        // accidentally omitting post_id.
+        {
+          const explicitBroadScope = isCommentPostScope(config.post_scope) && config.post_scope !== "specific"
+          if (options.requirePostId && !explicitBroadScope && !text(config.post_id)) {
+            errors.push({ code: "MISSING_FIELD", message: "Comment trigger requires post_id (or an explicit post_scope of any/any_post/any_reel).", nodeId: node.id })
+          }
         }
         if (text(config.post_id) && !isMetaGraphNodeId(text(config.post_id))) {
           errors.push({ code: "INVALID_POST_ID", message: "Comment trigger post_id must be a valid Meta object ID.", nodeId: node.id })

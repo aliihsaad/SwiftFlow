@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { canManageCommentsWithMetaAccount, canReadCommentsWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
-import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { getActiveWorkspace, getExplicitActiveWorkspace } from '@/lib/workspace-utils';
 import { normalizeMetaGraphError, type MetaGraphErrorShape } from '@/lib/meta-graph-errors';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
@@ -268,7 +268,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const activeWorkspace = await getActiveWorkspace();
+        const activeWorkspace = await getExplicitActiveWorkspace();
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
@@ -366,7 +366,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const activeWorkspace = await getActiveWorkspace();
+        const activeWorkspace = await getExplicitActiveWorkspace();
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
@@ -443,7 +443,7 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const activeWorkspace = await getActiveWorkspace();
+        const activeWorkspace = await getExplicitActiveWorkspace();
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }

@@ -4,7 +4,7 @@ import { ArrowLeft, ArrowRight, Check, Sparkles, Zap, ChevronRight } from "lucid
 export const metadata = {
   title: "Pricing | SwiftFlow",
   description:
-    "Pricing direction for SwiftFlow. Billing is not live yet; this page explains the planned workspace-based subscription model.",
+    "Workspace-based subscription plans for SwiftFlow. Upgrade and manage your plan from the dashboard billing settings.",
 }
 
 const freePlan = [
@@ -60,10 +60,11 @@ export default function PricingPage() {
           </div>
           <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-tight text-white mb-6">
             Start for free.<br />
-            <span className="text-transparent bg-clip-text bg-linear-to-r from-white/40 to-white/10">Pro expansion soon.</span>
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-white/40 to-white/10">Upgrade when you grow.</span>
           </h1>
           <p className="text-lg md:text-xl leading-relaxed text-white/50 font-medium max-w-2xl">
-            Billing is not live yet. The current product can be used without checkout, and paid plans will only launch after workspace entitlements and usage enforcement are implemented.
+            Subscriptions are billed per workspace and managed from the dashboard billing settings.
+            AI provider costs stay on your own key (BYOK) and are never resold as bundled credits.
           </p>
         </div>
 
@@ -160,10 +161,10 @@ export default function PricingPage() {
 
               <div className="mt-auto rounded-2xl p-5 bg-white/5 border border-white/10 backdrop-blur-md">
                 <p className="text-sm font-bold text-white mb-2">
-                  Billing is not live yet.
+                  Upgrade from your dashboard.
                 </p>
                 <p className="text-xs leading-relaxed text-white/40 font-medium">
-                  We are validating workspace limits, automation enforcement, analytics retention, and team entitlements before publishing final pricing.
+                  Workspace owners can start or change a subscription under Dashboard → Subscription. Plan changes and cancellations are self-service through the billing portal.
                 </p>
               </div>
             </div>

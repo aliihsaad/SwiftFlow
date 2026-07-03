@@ -71,7 +71,9 @@ describe("secret log redaction", () => {
 
     expect(source("lib", "developer-api", "http.ts")).toContain("redactSensitiveLogValue(error)")
     expect(source("lib", "developer-api", "audit.ts")).toContain("redactSensitiveLogValue(error)")
-    expect(source("lib", "developer-api", "entitlements.ts")).toContain("redactSensitiveLogValue(error)")
+    // Developer API entitlements now delegate to the billing reader, which
+    // owns the redacted error logging for entitlement reads.
+    expect(source("lib", "billing", "entitlements.ts")).toContain("redactSensitiveLogValue(")
     expect(source("app", "api", "developer", "keys", "route.ts")).toContain("redactSensitiveLogValue(error)")
     expect(source("app", "api", "developer", "keys", "[id]", "route.ts")).toContain("redactSensitiveLogValue(error)")
     expect(source("app", "api", "developer", "access-model", "route.ts")).toContain("redactSensitiveLogValue(error)")

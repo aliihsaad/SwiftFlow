@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageMessagesWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
-import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
-import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { getExplicitActiveWorkspace } from '@/lib/workspace-utils';
 import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
+import { MAX_OUTBOUND_MESSAGE_LENGTH, requiredMessagingPermissions, sendMetaTextMessage } from '@/lib/meta-messaging';
+import { assertJsonBodySize } from '@/lib/security/phase1-validation';
+import { enforceRateLimit, getClientIp, RateLimitExceededError } from '@/lib/security/rate-limit';
+import { redactSensitiveLogValue } from '@/lib/security/redaction';
 
-const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
-
-function requiredMessagingPermissions(platform: string): string[] {
-    return platform === 'facebook' ? ['pages_messaging'] : ['instagram_manage_messages'];
-}
+const MAX_SEND_BODY_BYTES = 64 * 1024;
 
 // POST - Send a message reply via Meta API
 export async function POST(request: NextRequest) {
@@ -22,21 +21,38 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const activeWorkspace = await getActiveWorkspace();
+        // Mutations require an explicit, membership-verified workspace selection
+        const activeWorkspace = await getExplicitActiveWorkspace();
         if (!activeWorkspace) {
-            return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
+            return NextResponse.json({ error: 'No valid workspace selected' }, { status: 400 });
         }
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write');
 
+        assertJsonBodySize(request, MAX_SEND_BODY_BYTES);
         const body = await request.json();
         const { recipientId, message, platform } = body;
 
-        if (!recipientId || !message || !platform) {
+        if (!recipientId || typeof message !== 'string' || !message.trim() || !platform) {
             return NextResponse.json(
                 { error: 'recipientId, message, and platform are required' },
                 { status: 400 }
             );
         }
+        if (message.length > MAX_OUTBOUND_MESSAGE_LENGTH) {
+            return NextResponse.json(
+                { error: `Message must be at most ${MAX_OUTBOUND_MESSAGE_LENGTH} characters` },
+                { status: 400 }
+            );
+        }
+
+        await enforceRateLimit(
+            { scope: 'messages:send:user', subject: `${user.id}:${activeWorkspace.id}`, limit: 30, windowSeconds: 60 },
+            'Too many messages sent. Please wait a moment and try again.'
+        );
+        await enforceRateLimit(
+            { scope: 'messages:send:ip', subject: getClientIp(request), limit: 60, windowSeconds: 60 },
+            'Too many messages sent. Please wait a moment and try again.'
+        );
 
         // Get the social account
         const { data: account, error: accountError } = await supabase
@@ -74,23 +90,16 @@ export async function POST(request: NextRequest) {
             ? (decryptedAccount.metadata?.connected_page_id || decryptedAccount.account_id)
             : decryptedAccount.account_id;
 
-        const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
-
-        const response = await fetch(sendUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                recipient: { id: recipientId },
-                ...(platform === 'facebook' ? { messaging_type: 'RESPONSE' } : {}),
-                message: { text: message },
-                access_token: decryptedAccount.access_token,
-            }),
+        const result = await sendMetaTextMessage({
+            pageId,
+            recipientId,
+            text: message,
+            accessToken: decryptedAccount.access_token,
+            platform,
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            const normalized = normalizeMetaGraphError(result?.error, {
+        if (!result.ok) {
+            const normalized = normalizeMetaGraphError(result.error, {
                 feature: 'messages',
                 platform,
                 operation: 'send_message',
@@ -109,10 +118,16 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            messageId: result.message_id,
+            messageId: result.messageId,
         });
 
     } catch (error: any) {
+        if (error instanceof RateLimitExceededError) {
+            return NextResponse.json(
+                { error: error.message, errorCode: 'rate_limited' },
+                { status: 429, headers: { 'Retry-After': String(error.retryAfterSeconds) } }
+            );
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
             return NextResponse.json(
@@ -120,7 +135,10 @@ export async function POST(request: NextRequest) {
                 { status: permissionStatus }
             );
         }
-        console.error('Send message API error:', error);
+        if (error instanceof Error && /Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json({ error: error.message, errorCode: 'invalid_request' }, { status: 400 });
+        }
+        console.error('Send message API error:', redactSensitiveLogValue(error));
         return NextResponse.json(
             { error: error.message || 'Failed to send message', errorCode: 'internal_error' },
             { status: 500 }

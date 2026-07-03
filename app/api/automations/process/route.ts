@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { createAdminClient } from '@/utils/supabase/admin';
+import { getExplicitActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 // POST - Trigger automation processing
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Get active workspace
-        const activeWorkspace = await getActiveWorkspace();
+        const activeWorkspace = await getExplicitActiveWorkspace();
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
@@ -40,7 +41,10 @@ export async function POST(request: NextRequest) {
             payload.automation_id = automationId;
         }
 
-        const { data, error } = await supabase.functions.invoke('process-automations', {
+        // process-automations requires internal (service-role) invocation;
+        // auth + automation:write were already enforced above for this user.
+        const supabaseAdmin = createAdminClient();
+        const { data, error } = await supabaseAdmin.functions.invoke('process-automations', {
             body: payload
         });
 

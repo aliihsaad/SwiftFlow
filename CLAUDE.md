@@ -21,7 +21,7 @@ This is a **Next.js 16 App Router** application for managing social media (Insta
 - **Next.js 16** (App Router, server + client components)
 - **Supabase** (PostgreSQL + Auth + Storage + Edge Functions + Realtime)
 - **Google Gemini AI** for content generation
-- **Meta Graph API v24.0** for Instagram/Facebook integration
+- **Meta Graph API v25.0** for Instagram/Facebook integration
 - **Tailwind CSS v4** + **shadcn/ui** (new-york style) + **Radix UI**
 - **SWR** for client-side data fetching/polling
 - **@xyflow/react** for the automation workflow canvas
@@ -84,6 +84,18 @@ NEXT_PUBLIC_APP_URL
 
 # Optional
 INSTAGRAM_APP_SECRET
+
+# Billing (Stripe) — all optional; billing routes return 503 when unset
+STRIPE_SECRET_KEY
+STRIPE_WEBHOOK_SECRET
+STRIPE_PRICE_PRO_MONTHLY
+STRIPE_PRICE_PRO_YEARLY
+STRIPE_PRICE_AGENCY_MONTHLY
+STRIPE_PRICE_AGENCY_YEARLY
+BILLING_ENFORCEMENT_MODE   # off (default) | log | enforce — plan gates are no-ops while off
+
+# Retention cleanup (Supabase edge function secret)
+RETENTION_CLEANUP_MODE     # off (default) | dry_run | enabled — destructive deletes only when enabled
 ```
 
 Per-workspace Gemini API keys can be stored in `workspace_settings` and override the global `GEMINI_API_KEY`.

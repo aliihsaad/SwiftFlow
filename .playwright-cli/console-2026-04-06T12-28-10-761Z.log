@@ -1,3 +1,0 @@
-[     449ms] [WARNING] Image with src "/logo.png" was detected as the Largest Contentful Paint (LCP). Please add the `loading="eager"` property if this image is above the fold.
-Read more: https://nextjs.org/docs/app/api-reference/components/image#loading @ http://host.docker.internal:3000/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
-[   18219ms] [WARNING] WebCrypto API is not supported. Code challenge method will default to use plain instead of sha256. @ http://host.docker.internal:3000/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297

@@ -10,7 +10,7 @@ import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { createClient } from '@/utils/supabase/server';
-import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { getActiveWorkspace, getExplicitActiveWorkspace } from '@/lib/workspace-utils';
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 export const dynamic = 'force-dynamic';
@@ -447,7 +447,7 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const activeWorkspace = await getActiveWorkspace();
+        const activeWorkspace = await getExplicitActiveWorkspace();
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
@@ -538,7 +538,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const activeWorkspace = await getActiveWorkspace();
+        const activeWorkspace = await getExplicitActiveWorkspace();
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
-import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { getExplicitActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
 function summarizeError(error: unknown): string {
@@ -27,7 +27,7 @@ export async function POST(
         }
 
         // Get active workspace
-        const activeWorkspace = await getActiveWorkspace();
+        const activeWorkspace = await getExplicitActiveWorkspace();
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }

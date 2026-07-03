@@ -26,27 +26,31 @@ export async function resolveAssistantWorkspace(
     throw new AssistantAuthError("Unauthorized", 401)
   }
 
+  // Assistant routes can write; require an explicit workspace selection
+  // (request body or cookie) and never fall back to the first membership.
   const bodyWorkspaceId = typeof requestedWorkspaceId === "string" ? requestedWorkspaceId : null
   const cookieWorkspaceId = request.cookies.get("active_workspace_id")?.value || null
+  const workspaceId = bodyWorkspaceId || cookieWorkspaceId
+
+  if (!workspaceId) {
+    throw new AssistantAuthError("No workspace selected", 400)
+  }
+
   const supabaseAdmin = createAdminClient()
-  const { data: memberships, error: membershipsError } = await supabaseAdmin
+  const { data: membership, error: membershipError } = await supabaseAdmin
     .from("workspace_members")
-    .select("workspace_id, created_at")
+    .select("workspace_id")
     .eq("user_id", user.id)
-    .order("created_at", { ascending: true })
+    .eq("workspace_id", workspaceId)
+    .maybeSingle()
 
-  if (membershipsError) {
-    throw new AssistantAuthError(`Failed to resolve workspace membership: ${membershipsError.message}`, 500)
+  if (membershipError) {
+    throw new AssistantAuthError(`Failed to resolve workspace membership: ${membershipError.message}`, 500)
   }
 
-  if (!memberships || memberships.length === 0) {
-    throw new AssistantAuthError("No workspace memberships found for this account", 403)
+  if (!membership) {
+    throw new AssistantAuthError("No access to the selected workspace", 403)
   }
-
-  const allowedWorkspaceIds = new Set(memberships.map((membership: { workspace_id: string }) => membership.workspace_id))
-  const workspaceId = [bodyWorkspaceId, cookieWorkspaceId].find(
-    (id): id is string => !!id && allowedWorkspaceIds.has(id),
-  ) || memberships[0].workspace_id
 
   return { userId: user.id, workspaceId }
 }

@@ -1,6 +1,5 @@
 "use client"
 
-import { createClient } from "@/utils/supabase/client"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
@@ -308,17 +307,24 @@ function PostCreatorInner({ open, onClose, postToEdit, workspaceId, initialCapti
         setIsSubmitting(true)
         setSubmitAction(status)
         setInlineError(null)
-        const supabase = createClient()
         try {
+            // Data URLs (AI-generated previews) are uploaded via the server
+            // route so the objects are workspace-scoped and tracked for
+            // quotas/retention cleanup.
             const processedMedia = await Promise.all(globalMedia.map(async (url) => {
                 if (!url.startsWith('data:')) return url
                 const blob = base64ToBlob(url)
-                const fileExt = url.split(';')[0].split('/')[1]
-                const fileName = `ai-gen-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`
-                const { error } = await supabase.storage.from('generated_assets').upload(fileName, blob)
-                if (error) throw error
-                const { data: { publicUrl } } = supabase.storage.from('generated_assets').getPublicUrl(fileName)
-                return publicUrl
+                const fileExt = url.split(';')[0].split('/')[1] || 'png'
+                const formData = new FormData()
+                formData.append('file', new File([blob], `ai-gen.${fileExt}`, { type: blob.type }))
+                formData.append('kind', 'generated')
+
+                const response = await fetch('/api/media/upload', { method: 'POST', body: formData })
+                const payload = await response.json().catch(() => null)
+                if (!response.ok || !payload?.url) {
+                    throw new Error(payload?.error || 'Failed to upload generated image')
+                }
+                return payload.url as string
             }))
 
             let selectedPlatforms = ['instagram', 'facebook']

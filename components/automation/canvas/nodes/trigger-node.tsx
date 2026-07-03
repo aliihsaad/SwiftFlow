@@ -100,12 +100,20 @@ function getDescription(data: WorkflowNodeData): string {
   const config = data.config as unknown as Record<string, unknown>
   switch (data.type) {
     case 'trigger_new_comment': {
+      const scopeLabels: Record<string, string> = {
+        any_post: 'posts only',
+        any_reel: 'Reels only',
+        specific: 'selected post',
+      }
+      const scope = scopeLabels[String(config.post_scope || (config.post_id ? 'specific' : ''))]
+      const suffix = scope ? ` · ${scope}` : ''
+
       const tt = config.trigger_type as string
       if (tt === 'keywords') {
         const kw = config.keywords as string[]
-        return kw?.length ? `Keywords: ${kw.join(', ')}` : 'Keywords trigger'
+        return (kw?.length ? `Keywords: ${kw.join(', ')}` : 'Keywords trigger') + suffix
       }
-      return 'Any comment'
+      return `Any comment${suffix}`
     }
     case 'trigger_new_message':
       return config.trigger_type === 'keywords' ? 'Keyword messages' : 'Any message'

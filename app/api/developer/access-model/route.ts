@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
-import { getActiveWorkspace } from "@/lib/workspace-utils"
+import { getExplicitActiveWorkspace } from "@/lib/workspace-utils"
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
 import { redactSensitiveLogValue } from "@/lib/security/redaction"
 import {
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const activeWorkspace = await getActiveWorkspace()
+    const activeWorkspace = await getExplicitActiveWorkspace()
     if (!activeWorkspace) return NextResponse.json({ error: "No active workspace" }, { status: 404 })
     const role = await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, "settings:write")
     if (!canRoleCreateDeveloperApiKey(role)) {

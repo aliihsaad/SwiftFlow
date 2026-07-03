@@ -1,5 +1,4 @@
-import { createAdminClient } from "@/utils/supabase/admin"
-import { redactSensitiveLogValue } from "@/lib/security/redaction"
+import { getWorkspaceEntitlements } from "@/lib/billing/entitlements"
 import type { DeveloperApiAccessMode, DeveloperApiEntitlement } from "./types"
 
 export function getDeveloperApiAccessMode(): DeveloperApiAccessMode {
@@ -25,17 +24,9 @@ export async function getDeveloperApiEntitlement(workspaceId: string): Promise<D
     return resolveDeveloperApiEntitlementFromInputs(mode, false)
   }
 
-  const admin = createAdminClient()
-  const { data, error } = await admin
-    .from("workspace_entitlements")
-    .select("developer_api_enabled")
-    .eq("workspace_id", workspaceId)
-    .maybeSingle()
-
-  if (error) {
-    console.error("[developer-api] failed to load entitlement", redactSensitiveLogValue(error))
-    return resolveDeveloperApiEntitlementFromInputs(mode, false)
-  }
-
-  return resolveDeveloperApiEntitlementFromInputs(mode, Boolean(data?.developer_api_enabled))
+  // Single billing entitlement reader: merges the workspace_entitlements row
+  // (including manual developer_api_enabled overrides) with the plan tier
+  // resolved from the Stripe-synced subscription state.
+  const entitlements = await getWorkspaceEntitlements(workspaceId)
+  return resolveDeveloperApiEntitlementFromInputs(mode, entitlements.limits.developerApiEnabled)
 }

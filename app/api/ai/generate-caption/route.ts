@@ -3,6 +3,9 @@ import { AICaptionRequest, AICaptionResponse } from '@/types/post'
 import { createClient } from '@/utils/supabase/server'
 import { assertJsonBodySize, sanitizeAICaptionPayload } from '@/lib/security/phase1-validation'
 import { enforceRateLimit, getClientIp, RateLimitExceededError } from '@/lib/security/rate-limit'
+import { gateAiGeneration } from '@/lib/billing/gate'
+import { incrementWorkspaceUsage } from '@/lib/billing/usage'
+import { createAdminClient } from '@/utils/supabase/admin'
 
 export const runtime = 'edge'
 
@@ -23,39 +26,30 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
+        // AI generation writes cost money; require an explicit, membership-verified
+        // workspace selection and never fall back to the user's first workspace.
         const requestedWorkspaceId = typeof body.workspaceId === 'string' ? body.workspaceId : null
         const cookieWorkspaceId = request.cookies.get('active_workspace_id')?.value || null
-        let effectiveWorkspaceId = requestedWorkspaceId || cookieWorkspaceId
-
-        if (effectiveWorkspaceId) {
-            const { data: membership } = await supabase
-                .from('workspace_members')
-                .select('workspace_id')
-                .eq('user_id', user.id)
-                .eq('workspace_id', effectiveWorkspaceId)
-                .maybeSingle()
-
-            if (!membership) {
-                effectiveWorkspaceId = null
-            }
-        }
-
-        if (!effectiveWorkspaceId) {
-            const { data: firstMembership } = await supabase
-                .from('workspace_members')
-                .select('workspace_id')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: true })
-                .limit(1)
-                .maybeSingle()
-
-            effectiveWorkspaceId = firstMembership?.workspace_id || null
-        }
+        const effectiveWorkspaceId = requestedWorkspaceId || cookieWorkspaceId
 
         if (!effectiveWorkspaceId) {
             return NextResponse.json(
-                { error: 'No active workspace found for caption generation' },
+                { error: 'No valid workspace selected' },
                 { status: 400 }
+            )
+        }
+
+        const { data: membership } = await supabase
+            .from('workspace_members')
+            .select('workspace_id')
+            .eq('user_id', user.id)
+            .eq('workspace_id', effectiveWorkspaceId)
+            .maybeSingle()
+
+        if (!membership) {
+            return NextResponse.json(
+                { error: 'No access to the selected workspace' },
+                { status: 403 }
             )
         }
 
@@ -68,6 +62,10 @@ export async function POST(request: NextRequest) {
             { scope: 'ai:caption:ip', subject: clientIp, limit: 60, windowSeconds: 15 * 60 },
             'Too many caption requests. Please wait a moment and try again.'
         )
+
+        // Plan quota gate; BYOK workspaces (own AI key) are exempt.
+        const quotaGate = await gateAiGeneration(effectiveWorkspaceId)
+        if (quotaGate) return quotaGate
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
         const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -109,6 +107,7 @@ export async function POST(request: NextRequest) {
             throw new Error(details)
         }
 
+        await incrementWorkspaceUsage(createAdminClient(), effectiveWorkspaceId, 'ai_generations')
         return NextResponse.json(payload as AICaptionResponse)
 
     } catch (error: unknown) {

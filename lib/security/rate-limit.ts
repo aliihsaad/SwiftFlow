@@ -21,6 +21,8 @@ interface RateLimitRow {
     retry_after_seconds: number
 }
 
+const FAIL_CLOSED_RETRY_AFTER_SECONDS = 30
+
 export class RateLimitExceededError extends Error {
     readonly retryAfterSeconds: number
 
@@ -66,14 +68,17 @@ export async function consumeRateLimit(rule: RateLimitRule): Promise<RateLimitRe
         p_bucket_seconds: rule.bucketSeconds ?? 60,
     })
 
+    // Fail closed: this limiter protects auth, Developer API, AI generation, and
+    // message-send paths. An unreachable/broken limiter must not grant unlimited access.
     if (error) {
-        console.error("[rate-limit] consume_rate_limit failed:", error)
-        return { allowed: true, remaining: rule.limit, retryAfterSeconds: 0 }
+        console.error("[rate-limit] consume_rate_limit failed; failing closed:", error)
+        return { allowed: false, remaining: 0, retryAfterSeconds: FAIL_CLOSED_RETRY_AFTER_SECONDS }
     }
 
     const row = Array.isArray(data) ? (data[0] as RateLimitRow | undefined) : undefined
     if (!row) {
-        return { allowed: true, remaining: rule.limit, retryAfterSeconds: 0 }
+        console.error("[rate-limit] consume_rate_limit returned no row; failing closed", { scope: rule.scope })
+        return { allowed: false, remaining: 0, retryAfterSeconds: FAIL_CLOSED_RETRY_AFTER_SECONDS }
     }
 
     return {

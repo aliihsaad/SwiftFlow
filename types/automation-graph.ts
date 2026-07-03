@@ -10,10 +10,17 @@ export type TriggerNodeType =
   | 'trigger_story_mention'
   | 'trigger_story_reply'
 
+/**
+ * Which media a comment trigger applies to. Legacy configs without post_scope
+ * resolve as: post_id set → 'specific', otherwise 'any'.
+ */
+export type CommentPostScope = 'any' | 'any_post' | 'any_reel' | 'specific'
+
 export interface TriggerNewCommentConfig {
   platform?: 'instagram' | 'facebook'
   trigger_type: 'any' | 'keywords'
   keywords: string[]
+  post_scope?: CommentPostScope
   post_id: string
   post_thumbnail_url?: string
   post_caption?: string
@@ -364,7 +371,7 @@ export function isActionNode(type: string): type is ActionNodeType {
 export function getDefaultConfig(type: WorkflowNodeType): TriggerConfig | ActionConfig {
   switch (type) {
     case 'trigger_new_comment':
-      return { trigger_type: 'any', keywords: [], post_id: '', social_account_id: '' } as TriggerNewCommentConfig
+      return { trigger_type: 'any', keywords: [], post_scope: 'any', post_id: '', social_account_id: '' } as TriggerNewCommentConfig
     case 'trigger_new_message':
       return { trigger_type: 'any', keywords: [], social_account_id: '' } as TriggerNewMessageConfig
     case 'trigger_new_follower':

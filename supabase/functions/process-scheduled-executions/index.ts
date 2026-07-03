@@ -14,22 +14,86 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { resumeFromDelay } from "../process-automations/graph-executor.ts"
 import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
+import { assertInternalInvoke } from "../_shared/internal-auth.ts"
+import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
+import { finalizeScheduledExecution } from "./finalization.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-function isAuthorizedInternalInvoke(req: Request): boolean {
-  const expectedApiKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-  const providedApiKey = req.headers.get('apikey') || '';
+const STALLED_RUN_AGE_MINUTES = 2
+const STALLED_RUN_BATCH = 10
+const ABANDONED_RUNNING_AGE_MINUTES = 30
 
-  if (!expectedApiKey) {
-    console.error('[process-scheduled-executions] Missing SUPABASE_SERVICE_ROLE_KEY for internal auth check');
-    return false;
+/**
+ * Safety net for the orchestrator's background dispatch: runs that stayed
+ * 'queued' (dispatcher torn down / worker invocation failed) are re-invoked
+ * here. automation-worker-run's atomic queued->running claim guarantees
+ * exactly-once execution even if two ticks reclaim the same run.
+ *
+ * Runs stuck in 'running' far beyond any plausible execution are marked
+ * failed for bookkeeping only — they are never re-executed because their
+ * side effects (replies/DMs) may already have happened.
+ */
+async function reclaimStalledAutomationRuns(supabase): Promise<{ reclaimed: number; abandoned: number }> {
+  const queuedCutoff = new Date(Date.now() - STALLED_RUN_AGE_MINUTES * 60 * 1000).toISOString()
+  const { data: stalledRuns, error } = await supabase
+    .from('automation_runs')
+    .select('id, workspace_id, automation_id, event_id, trigger_type, trigger_context')
+    .eq('status', 'queued')
+    .lt('created_at', queuedCutoff)
+    .order('created_at', { ascending: true })
+    .limit(STALLED_RUN_BATCH)
+
+  if (error) {
+    console.error('[SCHEDULED] Failed to list stalled automation runs:', redactSensitiveLogValue(error))
+    return { reclaimed: 0, abandoned: 0 }
   }
 
-  return providedApiKey === expectedApiKey;
+  const dispatchStalled = async () => {
+    for (const run of stalledRuns || []) {
+      const result = await invokeEdgeFunction('automation-worker-run', {
+        run_id: run.id,
+        workspace_id: run.workspace_id,
+        automation_id: run.automation_id,
+        event_id: run.event_id,
+        trigger_type: run.trigger_type,
+        trigger_context: run.trigger_context || {},
+      })
+      if (!result.ok) {
+        console.error('[SCHEDULED] Stalled run redispatch failed (stays queued):', redactSensitiveLogValue({
+          run_id: run.id,
+          status: result.status,
+          error: result.error,
+        }))
+      }
+    }
+  }
+
+  if ((stalledRuns || []).length > 0) {
+    if (typeof EdgeRuntime !== 'undefined' && typeof EdgeRuntime.waitUntil === 'function') {
+      EdgeRuntime.waitUntil(dispatchStalled())
+    } else {
+      await dispatchStalled()
+    }
+  }
+
+  const abandonedCutoff = new Date(Date.now() - ABANDONED_RUNNING_AGE_MINUTES * 60 * 1000).toISOString()
+  const { data: abandonedRuns } = await supabase
+    .from('automation_runs')
+    .update({
+      status: 'failed',
+      error_message: 'Run abandoned: worker did not finish within the expected window',
+      finished_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('status', 'running')
+    .lt('started_at', abandonedCutoff)
+    .select('id')
+
+  return { reclaimed: (stalledRuns || []).length, abandoned: (abandonedRuns || []).length }
 }
 
 serve(async (req) => {
@@ -37,12 +101,8 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  if (!isAuthorizedInternalInvoke(req)) {
-    return new Response(
-      JSON.stringify({ success: false, error: 'Unauthorized' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 },
-    );
-  }
+  const unauthorized = assertInternalInvoke(req, corsHeaders);
+  if (unauthorized) return unauthorized;
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -52,22 +112,29 @@ serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Fetch pending scheduled executions that are due
+    // Reclaim webhook-triggered runs whose background dispatch was lost.
+    const reclaim = await reclaimStalledAutomationRuns(supabase);
+    if (reclaim.reclaimed > 0 || reclaim.abandoned > 0) {
+      console.log(`[SCHEDULED] Reclaimed ${reclaim.reclaimed} stalled run(s), abandoned ${reclaim.abandoned}`);
+    }
+
+    // Atomically claim due executions (FOR UPDATE SKIP LOCKED + claim token)
+    // so overlapping scheduler ticks never resume the same delayed node twice.
+    const claimToken = crypto.randomUUID();
     const { data: pendingExecs, error: fetchError } = await supabase
-      .from('automation_scheduled_executions')
-      .select('*')
-      .eq('status', 'pending')
-      .lte('scheduled_for', new Date().toISOString())
-      .order('scheduled_for', { ascending: true })
-      .limit(50); // Process up to 50 at a time
+      .rpc('claim_due_scheduled_executions', {
+        p_claim_token: claimToken,
+        p_limit: 50,
+        p_stale_after_minutes: 30,
+      });
 
     if (fetchError) {
-      throw new Error(`Failed to fetch scheduled executions: ${fetchError.message}`);
+      throw new Error(`Failed to claim scheduled executions: ${fetchError.message}`);
     }
 
     if (!pendingExecs || pendingExecs.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, message: 'No pending executions', count: 0 }),
+        JSON.stringify({ success: true, message: 'No pending executions', count: 0, reclaim }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
       );
     }
@@ -79,29 +146,25 @@ serve(async (req) => {
 
     for (const exec of pendingExecs) {
       try {
-        // Mark as executing
-        await supabase
-          .from('automation_scheduled_executions')
-          .update({ status: 'executing' })
-          .eq('id', exec.id);
-
+        // Rows are already claimed + marked 'executing' by the RPC.
         // Resume execution
         const result = await resumeFromDelay(supabase, exec);
         const executedAt = new Date().toISOString();
 
-        // Mark as completed
-        await supabase
-          .from('automation_scheduled_executions')
-          .update({
-            status: result.errors > 0 ? 'failed' : 'completed',
-            executed_at: executedAt,
-            execution_context: {
-              ...(exec.execution_context || {}),
-              resume_result: result,
-              resumed_at: executedAt,
-            },
-          })
-          .eq('id', exec.id);
+        const finalization = await finalizeScheduledExecution(supabase, exec.id, claimToken, {
+          status: result.errors > 0 ? 'failed' : 'completed',
+          executed_at: executedAt,
+          execution_context: {
+            ...(exec.execution_context || {}),
+            resume_result: result,
+            resumed_at: executedAt,
+          },
+        });
+        if (!finalization.finalized) {
+          errors++;
+          console.warn(`[SCHEDULED] Execution ${exec.id} was not counted because its claim was already lost`);
+          continue;
+        }
 
         // Update automation stats
         if (result.processed > 0 || result.dmsSent > 0) {
@@ -130,9 +193,8 @@ serve(async (req) => {
         console.error(`[SCHEDULED] Execution ${exec.id} failed:`, redactSensitiveLogValue(err));
         const executedAt = new Date().toISOString();
 
-        await supabase
-          .from('automation_scheduled_executions')
-          .update({
+        try {
+          const finalization = await finalizeScheduledExecution(supabase, exec.id, claimToken, {
             status: 'failed',
             executed_at: executedAt,
             execution_context: {
@@ -140,8 +202,13 @@ serve(async (req) => {
               resume_error: err?.message || 'Unknown error',
               resumed_at: executedAt,
             },
-          })
-          .eq('id', exec.id);
+          });
+          if (!finalization.finalized) {
+            console.warn(`[SCHEDULED] Failed execution ${exec.id} was not finalized because its claim was already lost`);
+          }
+        } catch (finalizeErr) {
+          console.error(`[SCHEDULED] Failed to record failure for execution ${exec.id}:`, redactSensitiveLogValue(finalizeErr));
+        }
       }
     }
 
@@ -149,7 +216,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         message: `Processed ${processed} scheduled execution(s)`,
-        stats: { total: pendingExecs.length, processed, errors },
+        stats: { total: pendingExecs.length, processed, errors, reclaim },
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
     );

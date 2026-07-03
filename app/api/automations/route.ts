@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageMessagesWithMetaAccount, canReadCommentsWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
 import { createClient } from '@/utils/supabase/server';
-import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { getActiveWorkspace, getExplicitActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
 import { validateSendEmailNodeConfigs } from '@/lib/automation-send-email-validation';
+import { gateWorkspaceLimit } from '@/lib/billing/gate';
+import { createAdminClient } from '@/utils/supabase/admin';
 import type { WorkflowGraph } from '@/types/automation-graph';
 
 interface CreateAutomationBody {
@@ -155,11 +157,22 @@ export async function POST(request: NextRequest) {
         }
 
         // Get active workspace
-        const activeWorkspace = await getActiveWorkspace();
+        const activeWorkspace = await getExplicitActiveWorkspace();
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write');
+
+        // Plan quota gate (no-op unless BILLING_ENFORCEMENT_MODE is log/enforce).
+        const quotaGate = await gateWorkspaceLimit(activeWorkspace.id, 'active_automations', async () => {
+            const { count } = await createAdminClient()
+                .from('automations')
+                .select('id', { count: 'exact', head: true })
+                .eq('workspace_id', activeWorkspace.id)
+                .eq('is_active', true);
+            return count ?? 0;
+        });
+        if (quotaGate) return quotaGate;
 
         assertJsonBodySize(request, 256 * 1024);
         const body = await request.json() as CreateAutomationBody;

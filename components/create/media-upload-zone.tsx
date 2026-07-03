@@ -1,7 +1,6 @@
 import { useState, useCallback } from "react"
 import { useDropzone } from "react-dropzone"
 import { Upload, X, Wand2, ArrowUp, GripVertical } from "lucide-react"
-import { createClient } from "@/utils/supabase/client"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -102,7 +101,6 @@ function SortableMediaItem({ url, index, onRemove }: { url: string, index: numbe
 export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGenerating }: MediaUploadZoneProps) {
     const [isUploading, setIsUploading] = useState(false)
     const [aiPrompt, setAiPrompt] = useState("")
-    const supabase = createClient()
 
     const sensors = useSensors(
         useSensor(PointerSensor, {
@@ -117,25 +115,24 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
     )
 
     // --- Dropping Logic (Reused) ---
+    // Uploads go through the server route so objects land under a
+    // workspace-scoped path and are tracked for quotas/retention cleanup.
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         setIsUploading(true)
         const newUrls: string[] = []
         try {
             for (const file of acceptedFiles) {
-                const fileExt = file.name.split('.').pop()
-                const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`
+                const formData = new FormData()
+                formData.append('file', file)
+                formData.append('kind', 'post')
 
-                const { error: uploadError } = await supabase.storage
-                    .from('post_media')
-                    .upload(`${fileName}`, file)
+                const response = await fetch('/api/media/upload', { method: 'POST', body: formData })
+                const payload = await response.json().catch(() => null)
+                if (!response.ok || !payload?.url) {
+                    throw new Error(payload?.error || 'Upload failed')
+                }
 
-                if (uploadError) throw uploadError
-
-                const { data } = supabase.storage
-                    .from('post_media')
-                    .getPublicUrl(`${fileName}`)
-
-                newUrls.push(data.publicUrl)
+                newUrls.push(payload.url)
             }
             onMediaChange([...mediaUrls, ...newUrls])
         } catch (error) {
@@ -143,7 +140,7 @@ export function MediaUploadZone({ mediaUrls, onMediaChange, onAiGenerate, isGene
         } finally {
             setIsUploading(false)
         }
-    }, [mediaUrls, onMediaChange, supabase.storage])
+    }, [mediaUrls, onMediaChange])
 
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop,

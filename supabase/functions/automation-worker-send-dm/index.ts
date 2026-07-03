@@ -1,6 +1,7 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { META_GRAPH_URL, getRecipientId, interpolateTemplate } from "../_shared/automation-context.ts"
+import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
 import { toMetaGraphFormBody } from "../_shared/meta-graph.ts"
 
@@ -28,6 +29,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  const unauthorized = assertInternalInvoke(req, corsHeaders);
+  if (unauthorized) return unauthorized;
 
   try {
     const body = await req.json();

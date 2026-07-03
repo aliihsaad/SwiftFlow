@@ -30,6 +30,9 @@ export interface MetaAccountMetadata extends Record<string, unknown> {
   last_scope_sync_at?: string
   scopes_checked_at?: string
   token_status?: "available" | "missing"
+  /** Written by the token-health-sweep edge function (~daily). */
+  token_health?: "valid" | "expiring_soon" | "invalid"
+  token_checked_at?: string
   user_access_token?: string | null
   instagram_business_account_id?: string | null
   connected_page_id?: string | null
@@ -176,6 +179,8 @@ export function sanitizeMetaAccountMetadataForClient(
     last_scope_sync_at: metadata.last_scope_sync_at,
     scopes_checked_at: metadata.scopes_checked_at,
     token_status: metadata.token_status,
+    token_health: metadata.token_health,
+    token_checked_at: metadata.token_checked_at,
   }
 
   return Object.fromEntries(

@@ -251,6 +251,33 @@ export async function exchangeCodeForToken(code: string): Promise<{
 }
 
 /**
+ * Exchanges a short-lived user token for a long-lived one (~60 days).
+ * Page tokens fetched with a long-lived user token do not expire, so this
+ * exchange is what keeps workspace connections alive without re-auth.
+ */
+export async function exchangeForLongLivedUserToken(shortLivedToken: string): Promise<{
+    access_token: string;
+    token_type?: string;
+    expires_in?: number;
+}> {
+    const params = new URLSearchParams({
+        grant_type: 'fb_exchange_token',
+        client_id: process.env.NEXT_PUBLIC_META_APP_ID!,
+        client_secret: process.env.META_APP_SECRET!,
+        fb_exchange_token: shortLivedToken,
+    });
+
+    const response = await fetch(`${META_TOKEN_URL}?${params.toString()}`, { method: 'GET' });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Meta long-lived token exchange failed: ${error}`);
+    }
+
+    return response.json();
+}
+
+/**
  * Frontend helper: Redirect user to Meta OAuth
  */
 export function redirectToMetaOAuth(workspaceId?: string): void {

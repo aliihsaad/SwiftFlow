@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { cookies } from "next/headers"
 import { revalidatePath } from "next/cache"
+import { checkUserWorkspaceLimit } from "@/lib/billing/entitlements"
 
 /**
  * Generate a unique slug from workspace name
@@ -24,6 +25,12 @@ export async function createWorkspace(name: string) {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error("Unauthorized")
+
+    // Plan workspace-count gate (no-op unless BILLING_ENFORCEMENT_MODE is log/enforce).
+    const workspaceLimit = await checkUserWorkspaceLimit(user.id)
+    if (!workspaceLimit.allowed) {
+        throw new Error("Workspace limit reached on the current plan. Upgrade to create more workspaces.")
+    }
 
     const slug = generateSlug(name)
 

@@ -8,6 +8,7 @@ export type WorkspacePermission =
     | "integrations:write"
     | "members:manage"
     | "analytics:sync"
+    | "billing:manage"
 
 export const WORKSPACE_PERMISSION_ROLE_MAP: Record<WorkspacePermission, WorkspaceRole[]> = {
     "workspace:read": ["owner", "admin", "editor", "viewer"],
@@ -17,6 +18,7 @@ export const WORKSPACE_PERMISSION_ROLE_MAP: Record<WorkspacePermission, Workspac
     "integrations:write": ["owner", "admin"],
     "members:manage": ["owner"],
     "analytics:sync": ["owner", "admin"],
+    "billing:manage": ["owner"],
 }
 
 export function hasWorkspacePermissionByRole(

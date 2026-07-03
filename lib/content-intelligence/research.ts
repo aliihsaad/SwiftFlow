@@ -360,16 +360,48 @@ export async function researchContentTopic(request: ResearchRequest): Promise<Re
     }
   }
 
-  const findings = normalizeFindings(await adapter.search(request), adapter)
+  let findings: ResearchFinding[] = []
+  let failureReason: string | undefined
+  try {
+    findings = normalizeFindings(await adapter.search(request), adapter)
+    if (findings.length === 0) failureReason = "provider_returned_no_findings"
+  } catch (error) {
+    failureReason = "provider_error"
+    console.error(
+      `[content-intelligence] research provider "${adapter.id}" failed:`,
+      error instanceof Error ? error.message : String(error),
+    )
+  }
+
+  // A live provider must never fail the report: fall back to benchmark
+  // guidance and record why the provider was unavailable.
+  if (failureReason && adapter.id !== "benchmark") {
+    const benchmark = adapters.benchmark
+    const benchmarkResults = normalizeFindings(await benchmark.search(request), benchmark)
+    return {
+      findings: benchmarkResults,
+      evidence: [
+        providerUnavailableEvidence(request.topic, adapter, failureReason),
+        ...benchmarkResults.map((finding) => evidenceForFinding(finding, benchmark)),
+      ],
+      unavailableReason: failureReason,
+      providerStatus: {
+        selected: adapter.id,
+        configured: adapter.isConfigured(),
+        unavailableReason: failureReason,
+      },
+    }
+  }
+
   if (findings.length === 0) {
-    const unavailableReason = adapter.id === "benchmark" ? "research_provider_not_configured" : "provider_adapter_dormant"
+    const unavailableReason = "research_provider_not_configured"
     return {
       findings: [],
       evidence: [providerUnavailableEvidence(request.topic, adapter, unavailableReason)],
       unavailableReason,
       providerStatus: {
         selected: adapter.id,
-        configured: adapter.id !== "benchmark" && adapter.isConfigured(),
+        configured: false,
         unavailableReason,
       },
     }
@@ -399,7 +431,7 @@ export async function buildTrendReport(request: TrendReportRequest): Promise<Tre
       findings: [],
       evidence: [
         fallbackEvidence(
-          "Deep trend reports are reserved for paid plans. Billing entitlements are not live yet, so this report is locked without making external provider calls.",
+          "Deep trend reports require a Pro or Agency plan. Upgrade the workspace subscription to unlock deep research; no external provider calls were made for this locked report.",
           "low",
         ),
       ],

@@ -2,8 +2,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { canManageMessagesWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
-import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
+import { META_GRAPH_API_BASE_URL, metaGraphFetch } from "../_shared/meta-graph.ts";
 import { redactSensitiveLogValue } from "../_shared/log-redaction.ts";
+import { assertWorkspaceAccess } from "../_shared/workspace-auth.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
@@ -106,7 +107,7 @@ async function syncMessages(supabase: any, workspaceId: string) {
 
             console.log(`[MessageSync] Fetching conversations for page ${pageId} (IG: ${igUserId})`);
 
-            const response = await fetch(conversationsUrl);
+            const response = await metaGraphFetch(conversationsUrl);
             const data = await response.json();
 
             if (!response.ok) {
@@ -226,6 +227,10 @@ serve(async (req) => {
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
             );
         }
+
+        // Non-internal callers must present a user JWT with workspace membership.
+        const unauthorized = await assertWorkspaceAccess(req, supabase, workspaceId, corsHeaders);
+        if (unauthorized) return unauthorized;
 
         const results = await syncMessages(supabase, workspaceId);
 

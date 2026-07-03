@@ -209,6 +209,9 @@ export function buildDeveloperAutomationGraphFromTemplate(
       config.social_account_id = context.socialAccountId
       config.platform = context.platform
       if (nodeType === "trigger_new_comment") {
+        // Templates target one selected post; the explicit scope keeps graph
+        // normalization from treating the default broad scope as intent.
+        config.post_scope = "specific"
         config.post_id = postId
         config.post_thumbnail_url = postThumbnailUrl
         config.post_caption = postCaption

@@ -3,7 +3,7 @@
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
 import { UpdateSettingsInput, WorkspaceSettings } from "@/types/settings"
-import { getActiveWorkspace } from "@/lib/workspace-utils"
+import { getActiveWorkspace, getExplicitActiveWorkspace } from "@/lib/workspace-utils"
 import { getDefaultModelForProvider } from "@/lib/ai-models"
 import { requireWorkspacePermission } from "@/lib/workspace-permissions"
 import { decryptSecretIfNeeded, encryptSecretIfNeeded, normalizeOptionalSecretInput } from "@/lib/secret-crypto"
@@ -22,8 +22,11 @@ function sanitizeWorkspaceSettingsForClient(row: WorkspaceSettings): WorkspaceSe
 
 export async function togglePageSelection(platform: string, pageId: string, selected: boolean) {
     const supabase = await createClient()
-    const activeWorkspace = await getActiveWorkspace()
-    if (!activeWorkspace) return
+    // Write action: require an explicit, membership-verified workspace selection.
+    const activeWorkspace = await getExplicitActiveWorkspace()
+    if (!activeWorkspace) {
+        throw new Error("No active workspace. Create or switch to a workspace first.")
+    }
 
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error("Unauthorized")
@@ -56,6 +59,7 @@ export async function togglePageSelection(platform: string, pageId: string, sele
             }
         })
         .eq('id', account.id)
+        .eq('workspace_id', activeWorkspace.id)
 
     revalidatePath('/dashboard/settings')
 }
@@ -169,12 +173,34 @@ export async function updateWorkspaceSettings(
 
     const updatePayload: Record<string, unknown> = {
         workspace_id: workspaceId,
-        ...settings,
-        ai_text_model_name: settings.ai_text_model_name?.trim() || settings.ai_model_name?.trim(),
-        ai_image_model_name: settings.ai_image_model_name?.trim() || null,
-        ai_model_name: settings.ai_text_model_name?.trim() || settings.ai_model_name?.trim(),
     }
 
+    if (typeof settings.ai_provider === 'string') {
+        updatePayload.ai_provider = settings.ai_provider
+    }
+
+    const textModelName = settings.ai_text_model_name?.trim() || settings.ai_model_name?.trim()
+    if (textModelName) {
+        updatePayload.ai_text_model_name = textModelName
+        updatePayload.ai_model_name = textModelName
+    }
+
+    if (Object.prototype.hasOwnProperty.call(settings, 'ai_image_model_name')) {
+        updatePayload.ai_image_model_name = settings.ai_image_model_name?.trim() || null
+    }
+
+    if (typeof settings.ai_temperature === 'number' && Number.isFinite(settings.ai_temperature)) {
+        updatePayload.ai_temperature = settings.ai_temperature
+    }
+    if (typeof settings.ai_max_tokens === 'number' && Number.isFinite(settings.ai_max_tokens)) {
+        updatePayload.ai_max_tokens = settings.ai_max_tokens
+    }
+    if (typeof settings.timezone === 'string') {
+        updatePayload.timezone = settings.timezone
+    }
+    if (typeof settings.default_language === 'string') {
+        updatePayload.default_language = settings.default_language
+    }
     if (typeof settings.openrouter_api_key === 'string') {
         const normalized = normalizeOptionalSecretInput(settings.openrouter_api_key)
         if (normalized !== null) {
@@ -215,7 +241,8 @@ export async function updateWorkspaceSettings(
 export async function updateCurrentWorkspaceSettings(
     settings: UpdateSettingsInput
 ): Promise<void> {
-    const activeWorkspace = await getActiveWorkspace()
+    // Write action: require an explicit, membership-verified workspace selection.
+    const activeWorkspace = await getExplicitActiveWorkspace()
     if (!activeWorkspace) {
         const { cookies } = await import('next/headers')
         const cookieStore = await cookies()
@@ -229,7 +256,8 @@ export async function updateCurrentWorkspaceSettings(
 export async function removeCurrentWorkspaceProviderKey(
     provider: 'openrouter' | 'gemini' | 'openai'
 ): Promise<void> {
-    const activeWorkspace = await getActiveWorkspace()
+    // Write action: require an explicit, membership-verified workspace selection.
+    const activeWorkspace = await getExplicitActiveWorkspace()
     if (!activeWorkspace) {
         throw new Error("No active workspace. Create or switch to a workspace first.")
     }

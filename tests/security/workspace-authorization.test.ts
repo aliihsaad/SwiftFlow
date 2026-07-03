@@ -49,6 +49,7 @@ describe("workspace authorization matrix", () => {
       "integrations:write": ["owner", "admin"],
       "members:manage": ["owner"],
       "analytics:sync": ["owner", "admin"],
+      "billing:manage": ["owner"],
     }
 
     expect(WORKSPACE_PERMISSION_ROLE_MAP).toEqual(expected)

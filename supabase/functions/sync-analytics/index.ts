@@ -2,11 +2,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { canReadAnalyticsWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
-import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
+import { META_GRAPH_API_BASE_URL, metaGraphFetch } from "../_shared/meta-graph.ts";
 import { redactSensitiveLogValue, redactSensitiveString } from "../_shared/log-redaction.ts";
+import { assertWorkspaceAccess } from "../_shared/workspace-auth.ts";
 
-// Use v21.0 to maintain compatibility with older metric names
-// v22.0+ removed 'impressions' metric for Instagram media
+// Metric requests are best-effort per group: v22.0+ removed 'impressions' /
+// 'plays' / 'video_views' for Instagram media in favor of 'views', so each
+// name is tried separately and unavailable metrics degrade to 0.
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 const corsHeaders = {
@@ -68,11 +70,12 @@ async function fetchInstagramMediaInsightsBestEffort(mediaId: string, accessToke
         impressions: 0,
         video_views: 0,
         plays: 0,
+        views: 0,
     };
 
     const tryMetricRequest = async (metricNames: string[]) => {
         const url = `${META_GRAPH_URL}/${mediaId}/insights?metric=${metricNames.join(',')}&access_token=${accessToken}`;
-        const res = await fetch(url);
+        const res = await metaGraphFetch(url);
         const data = await res.json();
 
         if (!res.ok) {
@@ -93,14 +96,19 @@ async function fetchInstagramMediaInsightsBestEffort(mediaId: string, accessToke
     // Common media metrics (usually available when insights access is granted).
     await tryMetricRequest(['reach', 'saved', 'shares']);
 
-    // Request impressions separately since it can be unsupported for some media types/API versions.
-    await tryMetricRequest(['impressions']);
+    // 'views' is the v22.0+ replacement for impressions/plays/video_views.
+    const gotViews = await tryMetricRequest(['views']);
 
-    const normalizedMediaType = String(mediaType || '').toUpperCase();
-    if (normalizedMediaType.includes('VIDEO') || normalizedMediaType.includes('REEL')) {
-        const gotVideoViews = await tryMetricRequest(['video_views']);
-        if (!gotVideoViews) {
-            await tryMetricRequest(['plays']);
+    // Older metric names as fallback for media that predates the change.
+    if (!gotViews) {
+        await tryMetricRequest(['impressions']);
+
+        const normalizedMediaType = String(mediaType || '').toUpperCase();
+        if (normalizedMediaType.includes('VIDEO') || normalizedMediaType.includes('REEL')) {
+            const gotVideoViews = await tryMetricRequest(['video_views']);
+            if (!gotVideoViews) {
+                await tryMetricRequest(['plays']);
+            }
         }
     }
 
@@ -112,7 +120,7 @@ async function fetchInstagramMediaInsightsBestEffort(mediaId: string, accessToke
         video_views: metrics.video_views || 0,
         plays: metrics.plays || 0,
         // Normalize "views" for UI/storage fallback preference
-        views: metrics.impressions || metrics.video_views || metrics.plays || metrics.reach || 0,
+        views: metrics.views || metrics.impressions || metrics.video_views || metrics.plays || metrics.reach || 0,
     };
 }
 
@@ -126,7 +134,7 @@ async function fetchFacebookPostInsightsBestEffort(postId: string, accessToken: 
 
     const tryMetricRequest = async (metricNames: string[]) => {
         const url = `${META_GRAPH_URL}/${postId}/insights?metric=${metricNames.join(',')}&access_token=${accessToken}`;
-        const res = await fetch(url);
+        const res = await metaGraphFetch(url);
         const data = await res.json();
 
         if (!res.ok) {
@@ -345,7 +353,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                     const basicUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=like_count,comments_count,media_type&access_token=${account.access_token}`;
                     console.log(`[Sync] Fetching Instagram basic info for ${publishedPost.platform_post_id}`);
 
-                    const basicResponse = await fetch(basicUrl);
+                    const basicResponse = await metaGraphFetch(basicUrl);
                     const basicData = await basicResponse.json();
 
                     if (basicResponse.ok) {
@@ -392,7 +400,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
 
                     try {
                         const metricsUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=shares,likes.summary(true),comments.summary(true)&access_token=${account.access_token}`;
-                        const metricsResponse = await fetch(metricsUrl);
+                        const metricsResponse = await metaGraphFetch(metricsUrl);
                         const metricsData = await metricsResponse.json();
 
                         if (metricsResponse.ok) {
@@ -481,7 +489,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
 
                 // Keep list call on safe fields, then fetch optional counts per media.
                 const listUrl = `${META_GRAPH_URL}/${igUserId}/media?fields=id,caption,timestamp,permalink,media_type&limit=50&access_token=${account.access_token}`;
-                const listRes = await fetch(listUrl);
+                const listRes = await metaGraphFetch(listUrl);
                 const listData = await listRes.json();
 
                 if (!listRes.ok) {
@@ -507,7 +515,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
 
                         try {
                             const detailUrl = `${META_GRAPH_URL}/${media.id}?fields=like_count,comments_count,caption,timestamp,permalink,media_type&access_token=${account.access_token}`;
-                            const detailRes = await fetch(detailUrl);
+                            const detailRes = await metaGraphFetch(detailUrl);
                             const detailData = await detailRes.json();
 
                             if (detailRes.ok) {
@@ -573,7 +581,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
 
                 // Request minimal fields first so posts are still ingested even without insights permissions.
                 const listUrl = `${META_GRAPH_URL}/${pageId}/posts?fields=id,message,created_time,permalink_url&limit=50&access_token=${account.access_token}`;
-                const listRes = await fetch(listUrl);
+                const listRes = await metaGraphFetch(listUrl);
                 const listData = await listRes.json();
 
                 if (!listRes.ok) {
@@ -594,7 +602,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
 
                         try {
                             const metricsUrl = `${META_GRAPH_URL}/${fbPost.id}?fields=shares,likes.summary(true),comments.summary(true)&access_token=${account.access_token}`;
-                            const metricsRes = await fetch(metricsUrl);
+                            const metricsRes = await metaGraphFetch(metricsUrl);
                             const metricsData = await metricsRes.json();
 
                             if (metricsRes.ok) {
@@ -715,7 +723,7 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
 
                 console.log(`[AccountSync] Fetching Instagram account data for ${igUserId}`);
 
-                const response = await fetch(url);
+                const response = await metaGraphFetch(url);
                 const data = await response.json();
 
                 if (response.ok) {
@@ -735,7 +743,7 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
 
                 console.log(`[AccountSync] Fetching Facebook page data for ${pageId}`);
 
-                const response = await fetch(url);
+                const response = await metaGraphFetch(url);
                 const data = await response.json();
 
                 if (response.ok) {
@@ -803,6 +811,10 @@ serve(async (req) => {
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
             );
         }
+
+        // Non-internal callers must present a user JWT with workspace membership.
+        const unauthorized = await assertWorkspaceAccess(req, supabase, workspaceId, corsHeaders);
+        if (unauthorized) return unauthorized;
 
         // Sync both post-level insights and account-level analytics
         const postResults = await syncPostInsights(supabase, workspaceId);

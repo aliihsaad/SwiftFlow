@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { exchangeCodeForToken } from '@/utils/meta-oauth';
+import { exchangeCodeForToken, exchangeForLongLivedUserToken } from '@/utils/meta-oauth';
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { encryptMetaToken } from '@/lib/meta-account';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
@@ -25,8 +25,17 @@ type MetaDebugTokenResponse = {
             scope?: unknown;
             target_ids?: unknown[];
         }>;
+        expires_at?: unknown;
+        is_valid?: unknown;
     };
 };
+
+/** Meta reports expires_at=0 for tokens that never expire. */
+function parseDebugTokenExpiry(parsed: MetaDebugTokenResponse | null): string | null {
+    const raw = parsed?.data?.expires_at;
+    if (typeof raw !== 'number' || !Number.isFinite(raw) || raw <= 0) return null;
+    return new Date(raw * 1000).toISOString();
+}
 
 function parseDebugTokenScopes(parsedDebugToken: MetaDebugTokenResponse | null): {
     scopes: string[];
@@ -193,12 +202,30 @@ export async function GET(request: NextRequest) {
         }
         log(`Step 1 SUCCESS: Got user access token`);
 
+        // Step 1a: Exchange for a long-lived user token. Page tokens fetched
+        // with a long-lived user token do not expire; without this exchange
+        // every connection dies when the short-lived token does (~hours).
+        let effectiveUserToken = userAccessToken;
+        try {
+            const longLived = await exchangeForLongLivedUserToken(userAccessToken);
+            if (longLived.access_token) {
+                effectiveUserToken = longLived.access_token;
+                log(`Step 1a SUCCESS: Long-lived user token acquired (expires_in: ${longLived.expires_in ?? 'n/a'})`);
+            }
+        } catch (exchangeError) {
+            // Degraded but functional: connections will need the token-health
+            // sweep / reconnect flow sooner.
+            log(`Step 1a WARNING: Long-lived exchange failed, continuing with short-lived token: ${
+                exchangeError instanceof Error ? exchangeError.message : String(exchangeError)
+            }`);
+        }
+
         // Step 1b: Debug token to check scopes
         log('Step 1b: Debugging token...');
         let grantedScopes: string[] = [];
         let grantedGranularScopes: Array<{ scope: string; target_ids?: string[] }> = [];
         try {
-            const debuggedUserToken = await debugMetaTokenScopes({ inputToken: userAccessToken, appId, appSecret });
+            const debuggedUserToken = await debugMetaTokenScopes({ inputToken: effectiveUserToken, appId, appSecret });
             log(`Step 1b debug_token status: ${debuggedUserToken.status}`);
             grantedScopes = debuggedUserToken.scopes;
             grantedGranularScopes = debuggedUserToken.granularScopes;
@@ -209,7 +236,7 @@ export async function GET(request: NextRequest) {
 
         // Step 2: Fetch pages
         log('Step 2: Fetching pages from /me/accounts...');
-        const pagesUrl = `${META_GRAPH_URL}/me/accounts?fields=id,name,access_token,category&access_token=${userAccessToken}`;
+        const pagesUrl = `${META_GRAPH_URL}/me/accounts?fields=id,name,access_token,category&access_token=${effectiveUserToken}`;
 
         const pagesResponse = await fetch(pagesUrl, { cache: 'no-store' });
 
@@ -252,7 +279,7 @@ export async function GET(request: NextRequest) {
 
                 for (const pageId of targetIds) {
                     try {
-                        const pageUrl = `${META_GRAPH_URL}/${pageId}?fields=id,name,access_token,category&access_token=${userAccessToken}`;
+                        const pageUrl = `${META_GRAPH_URL}/${pageId}?fields=id,name,access_token,category&access_token=${effectiveUserToken}`;
                         const pageResp = await fetch(pageUrl, { cache: 'no-store' });
                         if (pageResp.ok) {
                             const pageData = await pageResp.json();
@@ -288,6 +315,7 @@ export async function GET(request: NextRequest) {
             let igUsername = null;
             let pageGrantedScopes = grantedScopes;
             let pageGrantedGranularScopes = grantedGranularScopes;
+            let pageTokenExpiresAt: string | null = null;
 
             try {
                 const debuggedPageToken = await debugMetaTokenScopes({
@@ -299,7 +327,8 @@ export async function GET(request: NextRequest) {
                     pageGrantedScopes = debuggedPageToken.scopes;
                     pageGrantedGranularScopes = debuggedPageToken.granularScopes;
                 }
-                log(`  Page "${page.name}": page token debug status ${debuggedPageToken.status}, scopes: ${pageGrantedScopes.join(',') || 'none'}`);
+                pageTokenExpiresAt = parseDebugTokenExpiry(debuggedPageToken.parsed);
+                log(`  Page "${page.name}": page token debug status ${debuggedPageToken.status}, scopes: ${pageGrantedScopes.join(',') || 'none'}, expires: ${pageTokenExpiresAt || 'never'}`);
             } catch (pageTokenDebugError) {
                 log(`  Page "${page.name}": page token debug skipped: ${pageTokenDebugError}`);
             }
@@ -339,6 +368,7 @@ export async function GET(request: NextRequest) {
                 ig_username: igUsername,
                 granted_scopes: pageGrantedScopes,
                 granted_granular_scopes: pageGrantedGranularScopes,
+                token_expires_at: pageTokenExpiresAt,
             });
         }
 
@@ -352,7 +382,7 @@ export async function GET(request: NextRequest) {
             .insert({
                 id: sessionId,
                 workspace_id: workspaceId,
-                user_access_token: encryptMetaToken(userAccessToken),
+                user_access_token: encryptMetaToken(effectiveUserToken),
                 pages_data: pagesWithIg,
                 expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 min expiry
             });

@@ -2,7 +2,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
+import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 import { keywordMatch } from "../_shared/automation-context.ts"
+import { commentTriggerScopeMatches } from "../_shared/comment-scope.ts"
 import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
 
 const corsHeaders = {
@@ -68,9 +70,7 @@ function matchesAutomationTrigger(
   switch (triggerType) {
     case 'trigger_new_comment': {
       if (eventType !== 'comment') return false;
-      if (config.post_id && webhookContext?.post_id && config.post_id !== webhookContext.post_id) {
-        return false;
-      }
+      if (!commentTriggerScopeMatches(config, webhookContext)) return false;
       const mode = config.trigger_type === 'keywords' ? 'keywords' : 'any';
       return keywordMatch(String(webhookContext?.comment_text || ''), config.keywords || [], mode);
     }
@@ -94,6 +94,11 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  // Defense-in-depth: the gateway's verify_jwt accepts the public anon key,
+  // so internal callers must still present the service role key.
+  const unauthorized = assertInternalInvoke(req, corsHeaders);
+  if (unauthorized) return unauthorized;
 
   try {
     const body = await req.json();
@@ -210,18 +215,17 @@ serve(async (req) => {
         .eq('id', eventId);
     }
 
-    let dispatched = 0;
-    let failed = 0;
+    // Insert queued run rows synchronously (cheap), then dispatch the workers
+    // in the background so webhook delivery responds within Meta's timeout.
+    // Graph execution can take seconds (AI calls); awaiting it here caused
+    // retry storms. Runs that lose their dispatcher stay 'queued' and are
+    // reclaimed by process-scheduled-executions.
+    let queuedFailures = 0;
+    const queuedRuns: Array<{ automationId: string; runId: string; triggerType: string | null }> = [];
 
     for (const automation of matched) {
       const triggerNode = getTriggerNode(automation);
-      const runPayload = {
-        workspace_id: workspaceId,
-        automation_id: automation.id,
-        event_id: eventId,
-        trigger_type: triggerNode?.data?.type || triggerTypeHint,
-        trigger_context: webhookContext,
-      };
+      const triggerType = triggerNode?.data?.type || triggerTypeHint;
 
       const { data: runRow, error: runInsertError } = await supabase
         .from('automation_runs')
@@ -230,7 +234,7 @@ serve(async (req) => {
           automation_id: automation.id,
           event_id: eventId,
           status: 'queued',
-          trigger_type: triggerNode?.data?.type || triggerTypeHint,
+          trigger_type: triggerType,
           trigger_context: webhookContext,
         })
         .select('id')
@@ -238,46 +242,52 @@ serve(async (req) => {
 
       if (runInsertError || !runRow) {
         console.error('[ORCHESTRATOR] Failed to create run row:', redactSensitiveLogValue(runInsertError));
-        failed++;
+        queuedFailures++;
         continue;
       }
 
-      const invokeResult = await invokeEdgeFunction('automation-worker-run', {
-        ...runPayload,
-        run_id: runRow.id,
-      });
-
-      if (!invokeResult.ok || invokeResult.data?.success === false) {
-        console.error('[ORCHESTRATOR] Run worker invocation failed', redactSensitiveLogValue({
-          automation_id: automation.id,
-          run_id: runRow.id,
-          status: invokeResult.status,
-          error: invokeResult.error,
-          data: invokeResult.data,
-        }));
-        failed++;
-        await supabase
-          .from('automation_runs')
-          .update({
-            status: 'failed',
-            error_message: invokeResult.error || invokeResult.data?.error || 'Run worker invocation failed',
-            finished_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', runRow.id);
-      } else {
-        dispatched++;
-      }
+      queuedRuns.push({ automationId: automation.id, runId: runRow.id, triggerType });
     }
 
     if (eventId) {
       await supabase
         .from('automation_events')
         .update({
-          status: failed > 0 ? 'failed' : (matched.length > 0 ? 'processed' : 'ignored'),
+          status: queuedFailures > 0 ? 'failed' : (matched.length > 0 ? 'processed' : 'ignored'),
           processed_at: new Date().toISOString(),
         })
         .eq('id', eventId);
+    }
+
+    const dispatchQueuedRuns = async () => {
+      for (const run of queuedRuns) {
+        const invokeResult = await invokeEdgeFunction('automation-worker-run', {
+          workspace_id: workspaceId,
+          automation_id: run.automationId,
+          event_id: eventId,
+          trigger_type: run.triggerType,
+          trigger_context: webhookContext,
+          run_id: run.runId,
+        });
+
+        if (!invokeResult.ok || invokeResult.data?.success === false) {
+          // Leave the row 'queued' so the stalled-run reclaim retries it.
+          console.error('[ORCHESTRATOR] Run worker invocation failed (will be reclaimed)', redactSensitiveLogValue({
+            automation_id: run.automationId,
+            run_id: run.runId,
+            status: invokeResult.status,
+            error: invokeResult.error,
+          }));
+        }
+      }
+    };
+
+    if (queuedRuns.length > 0) {
+      if (typeof EdgeRuntime !== 'undefined' && typeof EdgeRuntime.waitUntil === 'function') {
+        EdgeRuntime.waitUntil(dispatchQueuedRuns());
+      } else {
+        await dispatchQueuedRuns();
+      }
     }
 
     return new Response(JSON.stringify({
@@ -285,8 +295,8 @@ serve(async (req) => {
       event_type: eventType,
       event_id: eventId,
       matched: matched.length,
-      dispatched,
-      failed,
+      queued: queuedRuns.length,
+      failed: queuedFailures,
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

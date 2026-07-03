@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { assertJsonBodySize } from "@/lib/security/phase1-validation"
 import { withDeveloperApiAuth } from "@/lib/developer-api/http"
+import { recordStorageObject } from "@/lib/storage/objects"
+import { incrementWorkspaceUsage } from "@/lib/billing/usage"
 
 export const runtime = "nodejs"
 
@@ -98,6 +100,17 @@ export async function POST(request: NextRequest) {
       if (error) return NextResponse.json({ error: error.message || "Failed to upload media" }, { status: 500 })
 
       const { data } = admin.storage.from(BUCKET).getPublicUrl(path)
+
+      await recordStorageObject(admin, {
+        workspaceId: context.workspaceId,
+        bucket: BUCKET,
+        objectPath: path,
+        contentType: media.contentType,
+        sizeBytes: buffer.byteLength,
+        publicUrl: data.publicUrl,
+      })
+      await incrementWorkspaceUsage(admin, context.workspaceId, "media_upload_bytes", buffer.byteLength)
+
       return NextResponse.json({
         bucket: BUCKET,
         path,

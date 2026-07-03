@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { executeWorkflowGraph } from "./graph-executor.ts"
+import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 import { canManageMessagesWithMetaAccount, canReadCommentsWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
 import { resolveAIConfig } from "../_shared/ai-config.ts"
 import { generateText, requireGeneratedText } from "../_shared/generate-text.ts"
@@ -795,6 +796,10 @@ serve(async (req) => {
     if (req.method === 'OPTIONS') {
         return new Response('ok', { headers: corsHeaders });
     }
+
+    // Internal dispatcher only (webhook routes via admin client, scheduler).
+    const unauthorized = assertInternalInvoke(req, corsHeaders);
+    if (unauthorized) return unauthorized;
 
     try {
         // Create Supabase client with service role for full access

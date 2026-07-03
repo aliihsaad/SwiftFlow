@@ -5,7 +5,7 @@ import {
     sanitizeMergedPublishingAutomationPayload,
     sanitizeUpdatePublishingAutomationPayload,
 } from '@/lib/publishing-automation-validation'
-import { getActiveWorkspace } from '@/lib/workspace-utils'
+import { getActiveWorkspace, getExplicitActiveWorkspace } from '@/lib/workspace-utils'
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions'
 import { assertJsonBodySize, assertUuid } from '@/lib/security/phase1-validation'
 import { createClient } from '@/utils/supabase/server'
@@ -85,7 +85,7 @@ export async function PUT(
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        const activeWorkspace = await getActiveWorkspace()
+        const activeWorkspace = await getExplicitActiveWorkspace()
         if (!activeWorkspace) return NextResponse.json({ error: 'No active workspace found' }, { status: 404 })
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write')
 
@@ -165,7 +165,7 @@ export async function DELETE(
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        const activeWorkspace = await getActiveWorkspace()
+        const activeWorkspace = await getExplicitActiveWorkspace()
         if (!activeWorkspace) return NextResponse.json({ error: 'No active workspace found' }, { status: 404 })
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write')
 

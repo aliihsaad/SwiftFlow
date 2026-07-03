@@ -7,6 +7,10 @@ export const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 export interface TriggerContext {
   comment_id?: string
   post_id?: string
+  /** Caption/message of the commented media (enriched at run time). */
+  post_caption?: string
+  /** Instagram media_product_type of the commented media (FEED | REELS | ...). */
+  media_type?: string
   commenter_id?: string
   commenter_username?: string
   comment_text?: string
@@ -47,6 +51,7 @@ export function interpolateTemplate(template: string, ctx: TriggerContext): stri
     alert_source_node_type: ctx.alert_source_node_type || '',
     alert_source_node_label: ctx.alert_source_node_label || '',
     post_id: ctx.post_id || '',
+    post_caption: ctx.post_caption || '',
     comment_id: ctx.comment_id || '',
     commenter_id: ctx.commenter_id || '',
     message_id: ctx.message_id || '',
@@ -66,6 +71,57 @@ export function interpolateTemplate(template: string, ctx: TriggerContext): stri
 
 export function getRecipientId(ctx: TriggerContext): string | undefined {
   return ctx.commenter_id || ctx.sender_id || ctx.follower_id;
+}
+
+const MAX_ENRICHED_CAPTION_LENGTH = 1000;
+
+/**
+ * Ensures comment-trigger runs carry the commented media's caption so AI
+ * responses (and {{post_caption}} templates) are grounded in the actual post
+ * instead of replying blindly. Needed for broad trigger scopes (any post /
+ * any Reel) where no post is pre-selected in the trigger config.
+ *
+ * Resolution order: the trigger config's stored caption for specific-post
+ * automations (no network), then a Meta Graph lookup with the automation's
+ * account token. Enrichment is best-effort: failures never block the run.
+ */
+export async function enrichCommentPostContext(
+  triggerContext: TriggerContext,
+  automation: any,
+  account: { access_token?: string; platform?: string } | null,
+): Promise<TriggerContext> {
+  const ctx: TriggerContext = { ...triggerContext };
+  if (!ctx.post_id || ctx.post_caption) return ctx;
+
+  const triggerNode = automation?.workflow_graph?.nodes?.find(
+    (node: any) => String(node?.data?.type || '').startsWith('trigger_'),
+  );
+  const config = triggerNode?.data?.config || {};
+  if (config.post_id && config.post_id === ctx.post_id && config.post_caption) {
+    ctx.post_caption = String(config.post_caption).slice(0, MAX_ENRICHED_CAPTION_LENGTH);
+    return ctx;
+  }
+
+  if (!account?.access_token) return ctx;
+
+  try {
+    // IG media exposes caption/media_product_type; FB page posts expose message.
+    const fields = account.platform === 'facebook' ? 'message' : 'caption,media_product_type';
+    const response = await fetch(
+      `${META_GRAPH_URL}/${ctx.post_id}?fields=${fields}&access_token=${account.access_token}`,
+    );
+    if (!response.ok) return ctx;
+
+    const media = await response.json();
+    const caption = typeof media?.caption === 'string' ? media.caption : (typeof media?.message === 'string' ? media.message : '');
+    if (caption) ctx.post_caption = caption.slice(0, MAX_ENRICHED_CAPTION_LENGTH);
+    if (!ctx.media_type && typeof media?.media_product_type === 'string') {
+      ctx.media_type = media.media_product_type;
+    }
+  } catch (error) {
+    console.error('[AUTOMATION] Post context enrichment failed:', error?.message || error);
+  }
+  return ctx;
 }
 
 export function keywordMatch(text: string, keywords: string[], mode: 'any' | 'keywords'): boolean {
@@ -150,6 +206,10 @@ export function buildAutomationAiPrompt(config: Record<string, unknown> | undefi
   if (ctx.sender_username) contextLines.push(`Sender: ${ctx.sender_username}`);
   if (ctx.comment_text) contextLines.push(`Comment text: ${ctx.comment_text}`);
   if (ctx.message_text) contextLines.push(`Message text: ${ctx.message_text}`);
+  if (ctx.post_caption) {
+    const isReel = String(ctx.media_type || '').toUpperCase().startsWith('REEL');
+    contextLines.push(`The comment is on ${isReel ? 'a Reel' : 'a post'} with caption: "${ctx.post_caption}"`);
+  }
 
   const contextBlock = contextLines.length > 0
     ? contextLines.join('\n')

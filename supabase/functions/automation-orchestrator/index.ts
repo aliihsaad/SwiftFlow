@@ -97,7 +97,7 @@ serve(async (req) => {
 
   // Defense-in-depth: the gateway's verify_jwt accepts the public anon key,
   // so internal callers must still present the service role key.
-  const unauthorized = assertInternalInvoke(req, corsHeaders);
+  const unauthorized = await assertInternalInvoke(req, corsHeaders);
   if (unauthorized) return unauthorized;
 
   try {

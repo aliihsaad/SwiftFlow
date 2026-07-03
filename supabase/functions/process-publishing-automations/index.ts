@@ -12,6 +12,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
+import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 import {
   claimDuePublishingAutomations,
   releasePublishingAutomationClaim,
@@ -460,23 +461,13 @@ async function processPublishingAutomations(limit = 1) {
   return results
 }
 
-function isInternalRequest(req: Request) {
-  const expectedApiKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
-  const providedApiKey = req.headers.get("apikey") || ""
-  return expectedApiKey && providedApiKey === expectedApiKey
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
 
-  if (!isInternalRequest(req)) {
-    return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    })
-  }
+  const unauthorized = await assertInternalInvoke(req, corsHeaders)
+  if (unauthorized) return unauthorized
 
   try {
     const startedAt = Date.now()

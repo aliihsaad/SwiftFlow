@@ -4,6 +4,7 @@ import { getActiveWorkspace, getExplicitActiveWorkspace } from '@/lib/workspace-
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
 import { validateSendEmailNodeConfigs } from '@/lib/automation-send-email-validation';
+import { resolveCommentPostScope } from '@/supabase/functions/_shared/comment-scope';
 import type { WorkflowGraph } from '@/types/automation-graph';
 
 interface UpdateAutomationBody {
@@ -197,15 +198,22 @@ export async function PUT(
             if (graphTriggerType === 'trigger_new_comment') {
                 const graphPostId = graphConfigValue(graphTriggerConfig, 'post_id');
                 if (!graphPostId) {
-                    return NextResponse.json(
-                        { error: 'Comment trigger requires post_id' },
-                        { status: 400 }
-                    );
+                    // Broad scopes (any / any_post / any_reel) run without a post
+                    // selection; only the "specific post" scope requires one.
+                    if (resolveCommentPostScope(graphTriggerConfig) === 'specific') {
+                        return NextResponse.json(
+                            { error: 'Comment trigger requires post_id' },
+                            { status: 400 }
+                        );
+                    }
+                    updateData.platform_post_id = '__canvas__';
+                    updateData.post_thumbnail_url = null;
+                    updateData.post_caption = null;
+                } else {
+                    updateData.platform_post_id = assertMetaGraphNodeId(graphPostId, 'post_id');
+                    updateData.post_thumbnail_url = graphConfigValue(graphTriggerConfig, 'post_thumbnail_url') || null;
+                    updateData.post_caption = graphConfigValue(graphTriggerConfig, 'post_caption') || null;
                 }
-
-                updateData.platform_post_id = assertMetaGraphNodeId(graphPostId, 'post_id');
-                updateData.post_thumbnail_url = graphConfigValue(graphTriggerConfig, 'post_thumbnail_url') || null;
-                updateData.post_caption = graphConfigValue(graphTriggerConfig, 'post_caption') || null;
             } else {
                 updateData.platform_post_id = '__canvas__';
             }

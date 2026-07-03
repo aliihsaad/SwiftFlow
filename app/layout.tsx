@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { Toaster as RadixToaster } from "@/components/ui/toaster";
 import NextTopLoader from "nextjs-toploader";
 
 const geistSans = Geist({
@@ -72,6 +73,10 @@ export default function RootLayout({
         />
         {children}
         <Toaster position="top-right" richColors />
+        {/* Renders toasts from components using @/components/ui/use-toast
+            (automation builder, posts, settings, …) — without this mount
+            those toasts are silently dropped. */}
+        <RadixToaster />
       </body>
     </html>
   );

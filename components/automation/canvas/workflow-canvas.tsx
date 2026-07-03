@@ -544,8 +544,12 @@ export function WorkflowCanvas({
     try {
       await onSave({ nodes, edges }, automationName, isActive)
       toast({ title: 'Saved', description: 'Workflow saved successfully.' })
-    } catch {
-      toast({ title: 'Error', description: 'Failed to save workflow.', variant: 'destructive' })
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error instanceof Error && error.message ? error.message : 'Failed to save workflow.',
+        variant: 'destructive',
+      })
     } finally {
       setIsSaving(false)
     }

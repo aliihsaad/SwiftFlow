@@ -17,7 +17,7 @@ export async function assertWorkspaceAccess(
   workspaceId: unknown,
   corsHeaders: Record<string, string> = {},
 ): Promise<Response | null> {
-  if (isAuthorizedInternalInvoke(req)) return null;
+  if (await isAuthorizedInternalInvoke(req)) return null;
 
   const deny = (status: number, error: string) =>
     new Response(JSON.stringify({ success: false, error }), {

@@ -798,7 +798,7 @@ serve(async (req) => {
     }
 
     // Internal dispatcher only (webhook routes via admin client, scheduler).
-    const unauthorized = assertInternalInvoke(req, corsHeaders);
+    const unauthorized = await assertInternalInvoke(req, corsHeaders);
     if (unauthorized) return unauthorized;
 
     try {

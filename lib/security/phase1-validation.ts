@@ -675,6 +675,9 @@ export function sanitizeWorkspaceSettingsPayload(body: unknown): {
     if (typeof body.ai_max_tokens === 'number' && Number.isFinite(body.ai_max_tokens)) {
         settings.ai_max_tokens = Math.min(8192, Math.max(256, Math.round(body.ai_max_tokens)))
     }
+    if (typeof body.floating_assistant_enabled === 'boolean') {
+        settings.floating_assistant_enabled = body.floating_assistant_enabled
+    }
 
     return { workspaceId, settings }
 }

@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 
 import type { AssistantFunctionName, AssistantMode } from "@/app/dashboard/assistant/assistant-types"
 import { AssistantAuthError, resolveAssistantWorkspace } from "@/lib/assistant/auth"
+import {
+  assertAssistantSurfaceCapability,
+  isFloatingReadonlySurface,
+  normalizeAssistantSurface,
+} from "@/lib/assistant/capabilities"
 import { buildAssistantContext } from "@/lib/assistant/context-packs"
 import { summarizeAssistantContext } from "@/lib/assistant/context-selection"
 import type { AssistantCommandRequest } from "@/lib/assistant/context-types"
@@ -22,6 +27,7 @@ function readCommandBody(value: unknown): AssistantCommandRequest {
   if (!message) throw new Error("message is required")
   if (!Array.isArray(body.messages)) throw new Error("messages array is required")
 
+  const surface = normalizeAssistantSurface(body.surface)
   const selectedMode = typeof body.mode === "string" ? body.mode as AssistantMode : "ask"
   const overrideFunctionName = typeof body.functionName === "string"
     ? body.functionName as AssistantFunctionName
@@ -30,6 +36,12 @@ function readCommandBody(value: unknown): AssistantCommandRequest {
     message,
     selectedMode,
     overrideFunctionName,
+  })
+  assertAssistantSurfaceCapability({
+    surface,
+    mode: routed.mode,
+    action: routed.action,
+    functionName: routed.functionName,
   })
 
   return {
@@ -42,6 +54,7 @@ function readCommandBody(value: unknown): AssistantCommandRequest {
     needsClarification: routed.needsClarification,
     workspaceId: body.workspaceId,
     selectedContext: body.selectedContext,
+    surface,
   }
 }
 
@@ -74,6 +87,7 @@ export async function POST(request: NextRequest) {
       mode: command.mode,
       action: command.action,
       selectedContext: command.selectedContext,
+      readThroughSync: !isFloatingReadonlySurface(command.surface || "full"),
     })
     const contextReceipt = summarizeAssistantContext(assistantContext)
 
@@ -126,7 +140,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: error.status })
     }
 
-    if (error instanceof Error && /message is required|messages array is required|Invalid assistant payload|Request payload too large|Invalid content length/i.test(error.message)) {
+    if (error instanceof Error && /message is required|messages array is required|Invalid assistant payload|Floating assistant|Request payload too large|Invalid content length/i.test(error.message)) {
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 

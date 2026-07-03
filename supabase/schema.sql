@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS workspace_settings (
     ai_model_name TEXT DEFAULT 'openai/gpt-4o-mini',
     ai_temperature NUMERIC DEFAULT 0.7,
     ai_max_tokens INTEGER DEFAULT 2048,
+    floating_assistant_enabled BOOLEAN NOT NULL DEFAULT false,
     timezone TEXT DEFAULT 'UTC',
     default_language TEXT DEFAULT 'en',
     -- Meta App Credentials (per-workspace to bypass app review)

@@ -119,6 +119,7 @@ export async function GET(request: NextRequest) {
                 has_openrouter_api_key: false,
                 has_gemini_api_key: false,
                 has_openai_api_key: false,
+                floating_assistant_enabled: false,
                 timezone: 'UTC',
                 default_language: 'en'
             });

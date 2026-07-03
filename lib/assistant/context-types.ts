@@ -5,6 +5,7 @@ import type {
   AssistantMode,
 } from "@/app/dashboard/assistant/assistant-types"
 import type { AnalyticsReadThroughSyncResult } from "@/lib/analytics/read-through-sync"
+import type { AssistantSurface } from "@/lib/assistant/capabilities"
 
 export type AssistantContextKind = "brand" | "content" | "analytics" | "automations" | "accounts"
 
@@ -33,6 +34,7 @@ export interface AssistantCommandRequest {
   needsClarification: boolean
   workspaceId?: string
   selectedContext?: AssistantSelectedContext
+  surface?: AssistantSurface
 }
 
 export interface AssistantBrandContext {

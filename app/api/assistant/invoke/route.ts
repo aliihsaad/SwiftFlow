@@ -3,6 +3,7 @@ import { assertJsonBodySize, sanitizeAssistantInvokePayload } from '@/lib/securi
 import { enforceRateLimit, getClientIp, RateLimitExceededError } from '@/lib/security/rate-limit'
 import { redactSensitiveLogValue } from '@/lib/security/redaction'
 import { AssistantAuthError, resolveAssistantWorkspace } from '@/lib/assistant/auth'
+import { assertAssistantSurfaceCapability, normalizeAssistantSurface } from '@/lib/assistant/capabilities'
 import { assertAssistantEdgeFunctionName, invokeAssistantEdgeFunction } from '@/lib/assistant/edge-invoke'
 
 export const dynamic = 'force-dynamic'
@@ -23,6 +24,9 @@ export async function POST(request: NextRequest) {
                 { status: 400 },
             )
         }
+
+        const surface = normalizeAssistantSurface(payload?.surface ?? body?.surface)
+        assertAssistantSurfaceCapability({ surface, functionName })
 
         const workspace = await resolveAssistantWorkspace(request, body?.workspaceId)
 
@@ -71,7 +75,7 @@ export async function POST(request: NextRequest) {
                 { status: error.status }
             )
         }
-        if (error instanceof Error && /Invalid assistant payload|Invalid workspaceId|Request payload too large|Invalid content length/i.test(error.message)) {
+        if (error instanceof Error && /Invalid assistant payload|Invalid workspaceId|Floating assistant|Request payload too large|Invalid content length/i.test(error.message)) {
             return NextResponse.json(
                 { error: error.message },
                 { status: 400 }

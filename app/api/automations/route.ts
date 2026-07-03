@@ -6,6 +6,7 @@ import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@
 import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
 import { validateSendEmailNodeConfigs } from '@/lib/automation-send-email-validation';
+import { resolveCommentPostScope } from '@/supabase/functions/_shared/comment-scope';
 import { gateWorkspaceLimit } from '@/lib/billing/gate';
 import { createAdminClient } from '@/utils/supabase/admin';
 import type { WorkflowGraph } from '@/types/automation-graph';
@@ -345,14 +346,19 @@ export async function POST(request: NextRequest) {
 
             if (graphTriggerType === 'trigger_new_comment') {
                 if (!graphPostId) {
-                    if (requestedIsActive) {
+                    // Broad scopes (any / any_post / any_reel) run without a post
+                    // selection; only the "specific post" scope requires one.
+                    const isSpecificScope = resolveCommentPostScope(graphTriggerConfig) === 'specific';
+                    if (isSpecificScope && requestedIsActive) {
                         return NextResponse.json(
                             { error: 'Comment trigger requires post_id' },
                             { status: 400 }
                         );
                     }
 
-                    insertData.platform_post_id = '__wizard_draft__';
+                    // Same sentinel the developer API stores for broad-scope
+                    // comment triggers; specific-scope drafts keep the wizard one.
+                    insertData.platform_post_id = isSpecificScope ? '__wizard_draft__' : '__canvas__';
                     insertData.post_thumbnail_url = null;
                     insertData.post_caption = null;
                     insertData.trigger_config = {

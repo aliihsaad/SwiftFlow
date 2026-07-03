@@ -3,6 +3,7 @@ import type { TriggerNodeType, WorkflowGraph } from '@/types/automation-graph'
 import { isTriggerNode, SUPPORTED_CANVAS_TRIGGER_TYPES } from '@/types/automation-graph'
 import { validateSendEmailNodeConfigs } from '@/lib/automation-send-email-validation'
 import { isMetaGraphNodeId } from '@/lib/security/phase1-validation'
+import { resolveCommentPostScope } from '@/supabase/functions/_shared/comment-scope'
 
 interface ValidationError {
   code: string
@@ -252,7 +253,9 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
 
     switch (node.data?.type) {
       case 'trigger_new_comment':
-        if (!config.post_id) {
+        // Broad scopes (any / any_post / any_reel) need no post selection;
+        // only the "specific post" scope requires a post ID.
+        if (resolveCommentPostScope(config) === 'specific' && !config.post_id) {
           errors.push({ code: 'MISSING_FIELD', message: 'Comment trigger requires a post ID.', nodeId: node.id })
         }
         if (config.post_id && !isMetaGraphNodeId(config.post_id)) {

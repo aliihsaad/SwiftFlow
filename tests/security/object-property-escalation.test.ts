@@ -134,6 +134,7 @@ describe("object-property escalation guards", () => {
       ai_provider: "openrouter",
       ai_temperature: 99,
       ai_max_tokens: 1_000_000,
+      floating_assistant_enabled: true,
       timezone: "Europe/Berlin",
       unsupported: "ignored",
     })
@@ -144,6 +145,7 @@ describe("object-property escalation guards", () => {
         ai_provider: "openrouter",
         ai_temperature: 2,
         ai_max_tokens: 8192,
+        floating_assistant_enabled: true,
         timezone: "Europe/Berlin",
       },
     })

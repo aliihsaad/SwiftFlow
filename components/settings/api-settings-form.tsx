@@ -16,8 +16,9 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Eye, EyeOff, Save, CheckCircle2, XCircle } from "lucide-react"
+import { Loader2, Eye, EyeOff, Save, CheckCircle2, XCircle, Bot } from "lucide-react"
 import { WorkspaceSettings } from "@/types/settings"
 import { removeCurrentWorkspaceProviderKey, updateCurrentWorkspaceSettings } from "@/app/actions/settings"
 import { toast } from "sonner"
@@ -65,6 +66,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
         ai_image_model_name: settings?.ai_image_model_name || getDefaultImageModelForProvider(initialProvider) || '',
         ai_temperature: settings?.ai_temperature || 0.7,
         ai_max_tokens: settings?.ai_max_tokens || 2048,
+        floating_assistant_enabled: settings?.floating_assistant_enabled ?? false,
     })
 
     const fetcher = async (url: string) => {
@@ -114,7 +116,6 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
 
     useEffect(() => {
         if (!textModelOptions.length) return
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setFormData((prev) => {
             if (textModelOptions.includes(prev.ai_text_model_name)) return prev
             return { ...prev, ai_text_model_name: textModelOptions[0] }
@@ -123,7 +124,6 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
 
     useEffect(() => {
         if (!imageModelOptions.length) return
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setFormData((prev) => {
             if (imageModelOptions.includes(prev.ai_image_model_name)) return prev
             return { ...prev, ai_image_model_name: imageModelOptions[0] }
@@ -208,6 +208,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                 ai_image_model_name: formData.ai_image_model_name || undefined,
                 ai_temperature: formData.ai_temperature,
                 ai_max_tokens: formData.ai_max_tokens,
+                floating_assistant_enabled: formData.floating_assistant_enabled,
             }
 
             if (formData.openrouter_api_key.trim()) {
@@ -314,6 +315,30 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                         <p className={helperClass}>
                             OpenRouter is the preferred provider for model switching. Gemini and OpenAI remain available during migration.
                         </p>
+                    </div>
+
+                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex min-w-0 gap-3">
+                                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-400/10 text-cyan-200">
+                                    <Bot className="h-4 w-4" />
+                                </span>
+                                <div className="space-y-1">
+                                    <Label htmlFor="floating_assistant_enabled" className="text-white/80">
+                                        Floating AI assistant
+                                    </Label>
+                                    <p className={helperClass}>
+                                        Show a compact read-only assistant on dashboard pages. It can answer workspace questions without creating content or changing data.
+                                    </p>
+                                </div>
+                            </div>
+                            <Switch
+                                id="floating_assistant_enabled"
+                                checked={formData.floating_assistant_enabled}
+                                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, floating_assistant_enabled: checked }))}
+                                className="mt-1 data-[state=checked]:bg-cyan-400/80"
+                            />
+                        </div>
                     </div>
 
                     {/* OpenRouter API Key */}

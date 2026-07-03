@@ -1,5 +1,8 @@
 import type { AssistantAction, AssistantMode } from "@/app/dashboard/assistant/assistant-types"
-import { maybeSyncWorkspaceAnalytics } from "@/lib/analytics/read-through-sync"
+import {
+  ANALYTICS_READ_THROUGH_SYNC_TTL_MS,
+  maybeSyncWorkspaceAnalytics,
+} from "@/lib/analytics/read-through-sync"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { contextKindsForIntent } from "./context-selection"
 import type {
@@ -155,8 +158,19 @@ async function buildAnalyticsContext(
   workspaceId: string,
   accountIds: string[],
   range: "7d" | "30d" | "90d",
+  readThroughSync = true,
 ): Promise<AssistantAnalyticsContext> {
-  const sync = await maybeSyncWorkspaceAnalytics({ workspaceId, accountIds, admin })
+  const sync = readThroughSync
+    ? await maybeSyncWorkspaceAnalytics({ workspaceId, accountIds, admin })
+    : {
+      attempted: false,
+      success: true,
+      skipped: true,
+      reason: "fresh_cache" as const,
+      checkedAt: new Date().toISOString(),
+      staleAfterSeconds: Math.floor(ANALYTICS_READ_THROUGH_SYNC_TTL_MS / 1000),
+      latestSyncedAt: null,
+    }
   const { data: publishedPosts } = accountIds.length
     ? await admin
       .from("published_posts")
@@ -221,12 +235,14 @@ export async function buildAssistantContext({
   mode,
   action,
   selectedContext,
+  readThroughSync = true,
   admin = createAdminClient(),
 }: {
   workspaceId: string
   mode: AssistantMode
   action: AssistantAction
   selectedContext?: AssistantSelectedContext
+  readThroughSync?: boolean
   admin?: SupabaseAdmin
 }): Promise<AssistantContextPack> {
   const requestedKinds = contextKindsForIntent(mode, action)
@@ -258,7 +274,7 @@ export async function buildAssistantContext({
   if (requestedKinds.includes("analytics")) {
     const accountIds = context.accounts?.items.map((account) => account.id) || []
     const range = selectedContext?.analyticsRange || "30d"
-    context.analytics = await buildAnalyticsContext(admin, workspaceId, accountIds, range)
+    context.analytics = await buildAnalyticsContext(admin, workspaceId, accountIds, range, readThroughSync)
     if (!context.analytics.sync.success) warnings.push("Analytics sync did not complete; cached analytics were used.")
   }
 

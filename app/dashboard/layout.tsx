@@ -1,6 +1,8 @@
 import { Sidebar } from "@/components/layout/sidebar"
 import { MobileNav } from "@/components/layout/mobile-nav"
+import { FloatingAssistant } from "@/components/assistant/floating-assistant"
 import { WorkspaceRoleProvider } from "@/components/workspace/workspace-role-provider"
+import { getCurrentWorkspaceSettingsForDisplay } from "@/app/actions/settings"
 import { getActiveWorkspace } from "@/lib/workspace-utils"
 import { isReviewPhase1Release } from "@/lib/release-channel"
 import { createClient } from "@/utils/supabase/server"
@@ -17,6 +19,9 @@ export default async function DashboardLayout({
     if (!user) return null
 
     const activeWorkspace = await getActiveWorkspace()
+    const workspaceSettings = activeWorkspace
+        ? await getCurrentWorkspaceSettingsForDisplay()
+        : null
 
     const { data: members } = await supabase
         .from('workspace_members')
@@ -131,6 +136,10 @@ export default async function DashboardLayout({
                     </nav>
                 </footer>
             </div>
+
+            {activeWorkspace && workspaceSettings?.floating_assistant_enabled ? (
+                <FloatingAssistant workspaceId={activeWorkspace.id} />
+            ) : null}
             </div>
         </WorkspaceRoleProvider>
     )

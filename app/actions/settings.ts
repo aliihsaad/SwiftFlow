@@ -97,6 +97,7 @@ export async function getWorkspaceSettings(workspaceId: string): Promise<Workspa
             ai_model_name: getDefaultModelForProvider('openrouter'),
             ai_temperature: 0.7,
             ai_max_tokens: 2048,
+            floating_assistant_enabled: false,
             timezone: 'UTC',
             default_language: 'en',
             created_at: new Date().toISOString(),
@@ -194,6 +195,9 @@ export async function updateWorkspaceSettings(
     }
     if (typeof settings.ai_max_tokens === 'number' && Number.isFinite(settings.ai_max_tokens)) {
         updatePayload.ai_max_tokens = settings.ai_max_tokens
+    }
+    if (typeof settings.floating_assistant_enabled === 'boolean') {
+        updatePayload.floating_assistant_enabled = settings.floating_assistant_enabled
     }
     if (typeof settings.timezone === 'string') {
         updatePayload.timezone = settings.timezone

@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
+import { maybeSyncWorkspaceAnalytics } from "@/lib/analytics/read-through-sync"
 import { buildAssistantContext } from "@/lib/assistant/context-packs"
 
 vi.mock("@/lib/analytics/read-through-sync", () => ({
+  ANALYTICS_READ_THROUGH_SYNC_TTL_MS: 900_000,
   maybeSyncWorkspaceAnalytics: vi.fn(async () => ({
     attempted: false,
     success: true,
@@ -117,6 +119,25 @@ describe("buildAssistantContext", () => {
     expect(context.brand?.businessName).toBe("Aldievlab")
     expect(context.accounts?.connectedCount).toBe(1)
     expect(context.content?.recentPosts[0]).toMatchObject({ id: "post-1", status: "scheduled", mediaCount: 1 })
+    expect(context.analytics?.totals).toMatchObject({ views: 100, likes: 10, publishedPosts: 1 })
+  })
+
+  it("uses cached analytics without read-through sync when requested", async () => {
+    const context = await buildAssistantContext({
+      workspaceId,
+      mode: "analyze",
+      action: "analyze_workspace",
+      readThroughSync: false,
+      admin: fakeAdmin() as never,
+    })
+
+    expect(maybeSyncWorkspaceAnalytics).not.toHaveBeenCalled()
+    expect(context.analytics?.sync).toMatchObject({
+      attempted: false,
+      success: true,
+      skipped: true,
+      reason: "fresh_cache",
+    })
     expect(context.analytics?.totals).toMatchObject({ views: 100, likes: 10, publishedPosts: 1 })
   })
 

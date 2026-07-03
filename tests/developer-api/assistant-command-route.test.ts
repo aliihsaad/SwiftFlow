@@ -6,6 +6,7 @@ const workspaceId = "11111111-1111-4111-8111-111111111111"
 const state = vi.hoisted(() => ({
   edgeBody: null as null | Record<string, unknown>,
   contextAction: "",
+  contextReadThroughSync: undefined as undefined | boolean,
 }))
 
 vi.mock("@/lib/assistant/auth", () => ({
@@ -26,8 +27,9 @@ vi.mock("@/lib/security/rate-limit", () => ({
 }))
 
 vi.mock("@/lib/assistant/context-packs", () => ({
-  buildAssistantContext: vi.fn(async ({ action }: { action: string }) => {
+  buildAssistantContext: vi.fn(async ({ action, readThroughSync }: { action: string; readThroughSync?: boolean }) => {
     state.contextAction = action
+    state.contextReadThroughSync = readThroughSync
     return {
       requestedKinds: action === "analyze_workspace" ? ["brand", "accounts", "analytics", "content"] : ["brand", "accounts", "content"],
       brand: {
@@ -61,6 +63,7 @@ describe("assistant command route", () => {
   beforeEach(() => {
     state.edgeBody = null
     state.contextAction = ""
+    state.contextReadThroughSync = undefined
   })
 
   it("builds analytics context and passes it to chat-assistant", async () => {
@@ -82,6 +85,43 @@ describe("assistant command route", () => {
       data: { response: "Context-aware answer" },
       assistantIntent: { mode: "analyze", action: "analyze_workspace" },
       contextReceipt: { packs: ["brand", "accounts", "analytics", "content"] },
+    })
+  })
+
+  it("disables analytics read-through sync for floating read-only commands", async () => {
+    const request = new NextRequest("https://social.swiftdigital-s.com/api/assistant/command", {
+      method: "POST",
+      body: JSON.stringify({
+        surface: "floating_readonly",
+        message: "Analyze my best posts this month",
+        messages: [{ role: "user", content: "Analyze my best posts this month" }],
+        mode: "analyze",
+        functionName: "chat-assistant",
+      }),
+    })
+
+    const response = await commandRoute.POST(request)
+    expect(response.status).toBe(200)
+    expect(state.contextAction).toBe("analyze_workspace")
+    expect(state.contextReadThroughSync).toBe(false)
+  })
+
+  it("rejects generation intent from floating read-only commands", async () => {
+    const request = new NextRequest("https://social.swiftdigital-s.com/api/assistant/command", {
+      method: "POST",
+      body: JSON.stringify({
+        surface: "floating_readonly",
+        message: "Create an image for my next post",
+        messages: [{ role: "user", content: "Create an image for my next post" }],
+        mode: "ask",
+        functionName: "chat-assistant",
+      }),
+    })
+
+    const response = await commandRoute.POST(request)
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({
+      error: expect.stringContaining("Floating assistant"),
     })
   })
 

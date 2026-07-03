@@ -17,6 +17,7 @@ export interface WorkspaceSettings {
   ai_model_name: string
   ai_temperature: number
   ai_max_tokens: number
+  floating_assistant_enabled: boolean
 
 
   // Other Settings
@@ -40,6 +41,7 @@ export interface UpdateSettingsInput {
   ai_model_name?: string
   ai_temperature?: number
   ai_max_tokens?: number
+  floating_assistant_enabled?: boolean
 
 
   // Other Settings

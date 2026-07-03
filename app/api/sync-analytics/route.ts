@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { getExplicitActiveWorkspace } from '@/lib/workspace-utils';
 import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
+import { buildSupabaseFunctionHeaders, getSupabaseServiceRoleKey } from '@/lib/supabase/service-key';
 
 // This route proxies a long-running Supabase Edge Function call (analytics sync).
 // Using Node runtime + a higher maxDuration avoids Vercel Edge timeouts (504) on larger workspaces.
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
         }
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'analytics:sync');
 
-        const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+        const serviceKey = getSupabaseServiceRoleKey();
         if (!serviceKey) {
             return NextResponse.json({ error: 'Missing Supabase service key' }, { status: 500 });
         }
@@ -91,11 +92,7 @@ export async function POST(request: NextRequest) {
         const functionUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/sync-analytics`;
         const response = await fetch(functionUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'apikey': serviceKey,
-                'Authorization': `Bearer ${serviceKey}`
-            },
+            headers: buildSupabaseFunctionHeaders(serviceKey),
             body: JSON.stringify({
                 workspaceId: activeWorkspace.id
             })

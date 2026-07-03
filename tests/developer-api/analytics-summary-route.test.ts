@@ -157,7 +157,6 @@ describe("developer API analytics summary route", () => {
         method: "POST",
         headers: expect.objectContaining({
           apikey: "service-role-key",
-          Authorization: "Bearer service-role-key",
         }),
         body: JSON.stringify({ workspaceId }),
       }),

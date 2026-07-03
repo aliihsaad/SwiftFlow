@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 import { canPublishWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts";
+import { assertInternalInvoke } from "../_shared/internal-auth.ts";
 import { normalizeMetaGraphError } from "../_shared/meta-graph-errors.ts";
 import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
 import { redactSensitiveLogValue, redactSensitiveString } from "../_shared/log-redaction.ts";
@@ -66,18 +67,6 @@ function isSafePublicMediaUrl(value: string): boolean {
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-function isAuthorizedInternalInvoke(req: Request): boolean {
-    const expectedApiKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-    const providedApiKey = req.headers.get('apikey') || ''
-
-    if (!expectedApiKey) {
-        console.error('[process-scheduled-posts] Missing SUPABASE_SERVICE_ROLE_KEY for internal auth check')
-        return false
-    }
-
-    return providedApiKey === expectedApiKey
 }
 
 interface PublishResult {
@@ -520,12 +509,8 @@ serve(async (req) => {
         return new Response('ok', { headers: corsHeaders });
     }
 
-    if (!isAuthorizedInternalInvoke(req)) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 401
-        });
-    }
+    const unauthorized = await assertInternalInvoke(req, corsHeaders);
+    if (unauthorized) return unauthorized;
 
     try {
         const supabase = createClient(

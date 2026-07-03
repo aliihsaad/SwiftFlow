@@ -43,7 +43,7 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders })
   }
 
-  const unauthorized = assertInternalInvoke(req, corsHeaders)
+  const unauthorized = await assertInternalInvoke(req, corsHeaders)
   if (unauthorized) return unauthorized
 
   const appId = Deno.env.get("META_APP_ID") || Deno.env.get("NEXT_PUBLIC_META_APP_ID") || ""

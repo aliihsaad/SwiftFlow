@@ -185,7 +185,7 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders })
   }
 
-  const unauthorized = assertInternalInvoke(req, corsHeaders)
+  const unauthorized = await assertInternalInvoke(req, corsHeaders)
   if (unauthorized) return unauthorized
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")

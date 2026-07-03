@@ -19,11 +19,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 }
 
-type JobName = "process-scheduled-posts" | "process-scheduled-executions" | "process-publishing-automations"
+type JobName =
+  | "process-scheduled-posts"
+  | "process-scheduled-executions"
+  | "process-publishing-automations"
+  | "retention-cleanup"
+  | "token-health-sweep"
 
-async function runJob(job: JobName) {
+async function runJob(job: JobName, payload: Record<string, unknown> = {}) {
   const startedAt = Date.now()
-  const result = await invokeEdgeFunction(job, {})
+  const result = await invokeEdgeFunction(job, payload)
   const durationMs = Date.now() - startedAt
 
   if (!result.ok) {
@@ -65,13 +70,25 @@ serve(async (req) => {
 
   try {
     const tickStartedAt = Date.now()
-    const [scheduledPosts, scheduledExecutions, publishingAutomations] = await Promise.all([
+    const jobRuns = [
       runJob("process-scheduled-posts"),
       runJob("process-scheduled-executions"),
       runJob("process-publishing-automations"),
-    ])
+    ]
 
-    const jobs = [scheduledPosts, scheduledExecutions, publishingAutomations]
+    // Hourly jobs piggyback on the minute tick at fixed offsets. Retention
+    // cleanup enforces RETENTION_CLEANUP_MODE (off by default), a ~daily
+    // interval guard, and dry-run-by-default semantics. The token health
+    // sweep self-limits to one debug_token check per account per ~day.
+    const tickMinute = new Date(tickStartedAt).getMinutes()
+    if (tickMinute === 0) {
+      jobRuns.push(runJob("retention-cleanup", { triggeredBy: "scheduler" }))
+    }
+    if (tickMinute === 30) {
+      jobRuns.push(runJob("token-health-sweep", { triggeredBy: "scheduler" }))
+    }
+
+    const jobs = await Promise.all(jobRuns)
     const hasFailure = jobs.some((job) => !job.ok)
     const payload = {
       success: !hasFailure,

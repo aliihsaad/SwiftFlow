@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { META_GRAPH_URL, interpolateTemplate } from "../_shared/automation-context.ts"
 import { toMetaGraphFormBody } from "../_shared/meta-graph.ts"
+import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,9 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  const unauthorized = assertInternalInvoke(req, corsHeaders);
+  if (unauthorized) return unauthorized;
 
   try {
     const body = await req.json();

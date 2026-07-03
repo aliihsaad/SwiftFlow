@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canReadAnalyticsWithMetaAccount } from '@/lib/meta-account';
 import { createClient } from '@/utils/supabase/server';
-import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { getExplicitActiveWorkspace } from '@/lib/workspace-utils';
 import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Get active workspace
-        const activeWorkspace = await getActiveWorkspace();
+        const activeWorkspace = await getExplicitActiveWorkspace();
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }

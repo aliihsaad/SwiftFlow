@@ -21,6 +21,7 @@ const state = vi.hoisted(() => ({
 
 vi.mock("@/lib/workspace-utils", () => ({
   getActiveWorkspace: async () => ({ id: state.activeWorkspaceId, name: "Owned workspace" }),
+  getExplicitActiveWorkspace: async () => ({ id: state.activeWorkspaceId, name: "Owned workspace" }),
 }))
 
 vi.mock("@/lib/workspace-permissions", () => {
@@ -69,6 +70,10 @@ vi.mock("@/lib/ai-models", () => ({
   getDefaultModelForProvider: () => "openrouter/test-model",
 }))
 
+vi.mock("next/cache", () => ({
+  revalidatePath: vi.fn(),
+}))
+
 function rowsForTable(table: string) {
   if (table === "posts") return state.posts
   if (table === "workspace_brand_profiles") return state.brandProfiles
@@ -89,9 +94,10 @@ function createSupabaseClient() {
 
 function createQuery(table: string) {
   const filters: Record<string, unknown> = {}
-  let operation: "select" | "insert" | "update" | "delete" = "select"
+  let operation: "select" | "insert" | "update" | "upsert" | "delete" = "select"
   let insertPayload: Record<string, unknown> | null = null
   let updatePayload: Record<string, unknown> | null = null
+  let upsertPayload: Record<string, unknown> | null = null
 
   const findRows = () => rowsForTable(table).filter((row) => (
     Object.entries(filters).every(([key, value]) => row[key] === value)
@@ -99,7 +105,25 @@ function createQuery(table: string) {
   const findIndex = () => rowsForTable(table).findIndex((row) => (
     Object.entries(filters).every(([key, value]) => row[key] === value)
   ))
-  const selected = async () => ({ data: findRows().map((row) => ({ ...row })), error: null })
+  const selected = async () => {
+    if (operation === "upsert" && upsertPayload) {
+      const rows = rowsForTable(table)
+      const conflictIndex = rows.findIndex((row) => row.workspace_id === upsertPayload?.workspace_id)
+      if (conflictIndex >= 0) {
+        rows[conflictIndex] = { ...rows[conflictIndex], ...upsertPayload }
+      } else {
+        rows.push({
+          id: `${table}-created`,
+          created_at: "2026-05-18T00:00:00.000Z",
+          updated_at: "2026-05-18T00:00:00.000Z",
+          ...upsertPayload,
+        })
+      }
+      return { data: null, error: null }
+    }
+
+    return { data: findRows().map((row) => ({ ...row })), error: null }
+  }
 
   const query = {
     select: vi.fn(() => query),
@@ -117,6 +141,11 @@ function createQuery(table: string) {
     update: vi.fn((payload: Record<string, unknown>) => {
       operation = "update"
       updatePayload = payload
+      return query
+    }),
+    upsert: vi.fn((payload: Record<string, unknown>) => {
+      operation = "upsert"
+      upsertPayload = payload
       return query
     }),
     delete: vi.fn(() => {
@@ -168,6 +197,7 @@ import * as brandProfileRoute from "@/app/api/brand-profile/route"
 import * as chatSessionsRoute from "@/app/api/chat/sessions/route"
 import * as chatSessionByIdRoute from "@/app/api/chat/sessions/[id]/route"
 import * as workspaceSettingsRoute from "@/app/api/workspace/settings/route"
+import { updateWorkspaceSettings } from "@/app/actions/settings"
 import { resolveAssistantWorkspace } from "@/lib/assistant/auth"
 
 describe("cross-workspace route mutations", () => {
@@ -312,7 +342,23 @@ describe("cross-workspace route mutations", () => {
     })
   })
 
-  it("assistant workspace resolution ignores unauthorized body and cookie workspace ids", async () => {
+  it("ignores over-posted workspace_id in settings server actions", async () => {
+    await updateWorkspaceSettings(OWNED_WORKSPACE_ID, {
+      ai_provider: "openai",
+      workspace_id: OTHER_WORKSPACE_ID,
+    } as unknown as Parameters<typeof updateWorkspaceSettings>[1])
+
+    expect(state.workspaceSettings.find((row) => row.workspace_id === OWNED_WORKSPACE_ID)).toMatchObject({
+      ai_provider: "openai",
+      workspace_id: OWNED_WORKSPACE_ID,
+    })
+    expect(state.workspaceSettings.find((row) => row.workspace_id === OTHER_WORKSPACE_ID)).toMatchObject({
+      ai_provider: "gemini",
+      workspace_id: OTHER_WORKSPACE_ID,
+    })
+  })
+
+  it("assistant workspace resolution rejects unauthorized body and cookie workspace ids", async () => {
     const request = new NextRequest(`${ORIGIN}/api/assistant/command`, {
       method: "POST",
       headers: {
@@ -321,7 +367,32 @@ describe("cross-workspace route mutations", () => {
       body: JSON.stringify({ workspaceId: OTHER_WORKSPACE_ID }),
     })
 
-    await expect(resolveAssistantWorkspace(request, OTHER_WORKSPACE_ID)).resolves.toEqual({
+    await expect(resolveAssistantWorkspace(request, OTHER_WORKSPACE_ID)).rejects.toMatchObject({
+      status: 403,
+    })
+  })
+
+  it("assistant workspace resolution rejects missing workspace selection", async () => {
+    const request = new NextRequest(`${ORIGIN}/api/assistant/command`, {
+      method: "POST",
+      body: JSON.stringify({}),
+    })
+
+    await expect(resolveAssistantWorkspace(request, undefined)).rejects.toMatchObject({
+      status: 400,
+    })
+  })
+
+  it("assistant workspace resolution accepts an owned workspace selection", async () => {
+    const request = new NextRequest(`${ORIGIN}/api/assistant/command`, {
+      method: "POST",
+      headers: {
+        cookie: `active_workspace_id=${OWNED_WORKSPACE_ID}`,
+      },
+      body: JSON.stringify({}),
+    })
+
+    await expect(resolveAssistantWorkspace(request, undefined)).resolves.toEqual({
       userId: USER_ID,
       workspaceId: OWNED_WORKSPACE_ID,
     })

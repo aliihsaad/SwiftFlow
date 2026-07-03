@@ -2,8 +2,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { canReadCommentsWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
-import { isSafeMetaGraphNodeId, META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts";
+import { isSafeMetaGraphNodeId, META_GRAPH_API_BASE_URL, metaGraphFetch } from "../_shared/meta-graph.ts";
 import { redactSensitiveLogValue } from "../_shared/log-redaction.ts";
+import { assertWorkspaceAccess } from "../_shared/workspace-auth.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
@@ -141,7 +142,7 @@ async function syncComments(supabase: any, workspaceId: string) {
 
                     console.log(`[CommentSync] Fetching Instagram comments for ${publishedPost.platform_post_id}`);
 
-                    const response = await fetch(url);
+                    const response = await metaGraphFetch(url);
                     const data = await response.json();
 
                     if (response.ok && data.data) {
@@ -156,7 +157,7 @@ async function syncComments(supabase: any, workspaceId: string) {
 
                     console.log(`[CommentSync] Fetching Facebook comments for ${publishedPost.platform_post_id}`);
 
-                    const response = await fetch(url);
+                    const response = await metaGraphFetch(url);
                     const data = await response.json();
 
                     if (response.ok && data.data) {
@@ -272,7 +273,7 @@ async function syncComments(supabase: any, workspaceId: string) {
                 console.log(`[CommentSync] Fetching comments for automation post ${automation.platform_post_id}`);
                 const url = `${META_GRAPH_URL}/${automation.platform_post_id}/comments?fields=id,text,timestamp,username,from{id,username},replies{id,text,timestamp,username,from{id,username}}&access_token=${account.access_token}`;
 
-                const response = await fetch(url);
+                const response = await metaGraphFetch(url);
                 const data = await response.json();
 
                 if (response.ok && data.data) {
@@ -335,6 +336,10 @@ serve(async (req) => {
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
             );
         }
+
+        // Non-internal callers must present a user JWT with workspace membership.
+        const unauthorized = await assertWorkspaceAccess(req, supabase, workspaceId, corsHeaders);
+        if (unauthorized) return unauthorized;
 
         const results = await syncComments(supabase, workspaceId);
 

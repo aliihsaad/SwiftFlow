@@ -31,6 +31,8 @@ type SanitizedMetaPageData = {
     ig_username: string | null
     granted_scopes: string[]
     granted_granular_scopes: MetaGranularScope[]
+    /** ISO expiry of the page token; null means the token does not expire. */
+    token_expires_at: string | null
 }
 
 const MAX_MESSAGES = 40
@@ -272,6 +274,49 @@ function sanitizeChatSessionMessages(value: unknown) {
         .slice(0, MAX_MESSAGES)
 }
 
+export class RequestBodyTooLargeError extends Error {
+    constructor() {
+        super('Request payload too large')
+        this.name = 'RequestBodyTooLargeError'
+    }
+}
+
+/**
+ * Read a request body into memory with a hard byte cap enforced while streaming.
+ * Use for unauthenticated/signed-payload endpoints (webhooks) where the body must be
+ * buffered before verification and Content-Length cannot be trusted.
+ */
+export async function readRawBodyWithLimit(request: Request, maxBytes: number): Promise<Uint8Array> {
+    const declaredLength = Number(request.headers.get('content-length') || '0')
+    if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+        throw new RequestBodyTooLargeError()
+    }
+
+    if (!request.body) return new Uint8Array(0)
+
+    const reader = request.body.getReader()
+    const chunks: Uint8Array[] = []
+    let totalBytes = 0
+    for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        totalBytes += value.byteLength
+        if (totalBytes > maxBytes) {
+            await reader.cancel()
+            throw new RequestBodyTooLargeError()
+        }
+        chunks.push(value)
+    }
+
+    const combined = new Uint8Array(totalBytes)
+    let offset = 0
+    for (const chunk of chunks) {
+        combined.set(chunk, offset)
+        offset += chunk.byteLength
+    }
+    return combined
+}
+
 export function assertJsonBodySize(request: Request, maxBytes = MAX_JSON_BODY_BYTES) {
     const rawLength = request.headers.get('content-length')
     if (!rawLength) return
@@ -305,6 +350,12 @@ export function sanitizeMetaSelectPagePayload(body: unknown): { sessionId: strin
     }
 }
 
+function sanitizeNullableIsoDate(value: unknown): string | null {
+    if (typeof value !== 'string' || !value) return null
+    const parsed = new Date(value)
+    return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : null
+}
+
 export function sanitizeMetaPageSessionData(value: unknown): SanitizedMetaPageData[] {
     if (!Array.isArray(value)) return []
 
@@ -319,6 +370,7 @@ export function sanitizeMetaPageSessionData(value: unknown): SanitizedMetaPageDa
             ig_username: clampNullableString(item.ig_username, 120),
             granted_scopes: sanitizeStringArray(item.granted_scopes, 100, 120),
             granted_granular_scopes: sanitizeGranularScopes(item.granted_granular_scopes),
+            token_expires_at: sanitizeNullableIsoDate(item.token_expires_at),
         }))
         .filter((item) => item.id.length > 0 && item.name.length > 0)
         .slice(0, 50)

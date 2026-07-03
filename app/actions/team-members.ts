@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache"
 import { createClient } from "@/utils/supabase/server"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { sendWorkspaceInviteEmail } from "@/lib/email/send-workspace-invite-email"
+import { checkWorkspaceLimit } from "@/lib/billing/entitlements"
 import type { WorkspaceRole } from "@/types/workspace"
 import type { TeamInviteRole } from "@/types/team"
 
@@ -146,6 +147,18 @@ export async function createWorkspaceInvite(workspaceId: string, email: string, 
     const normalizedEmail = assertValidEmail(email)
     const { user } = await requireWorkspaceManageRole(workspaceId, ["owner"])
     const supabaseAdmin = createAdminClient()
+
+    // Plan seat gate (no-op unless BILLING_ENFORCEMENT_MODE is log/enforce).
+    const seatDecision = await checkWorkspaceLimit(workspaceId, "team_seats", async () => {
+        const { count } = await supabaseAdmin
+            .from("workspace_members")
+            .select("user_id", { count: "exact", head: true })
+            .eq("workspace_id", workspaceId)
+        return count ?? 0
+    })
+    if (!seatDecision.allowed) {
+        throw new Error("No team seats left on the current plan. Upgrade to invite more members.")
+    }
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
     const token = generateInviteToken()

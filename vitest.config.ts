@@ -5,8 +5,10 @@ export default defineConfig({
   test: {
     environment: "node",
     include: [
+      "tests/billing/**/*.test.ts",
       "tests/content-intelligence/**/*.test.ts",
       "tests/developer-api/**/*.test.ts",
+      "tests/publishing-automations/**/*.test.ts",
       "tests/security/**/*.test.ts",
     ],
     globals: false,
@@ -15,6 +17,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./", import.meta.url)),
+      "server-only": fileURLToPath(new URL("./tests/mocks/server-only.ts", import.meta.url)),
     },
   },
 })

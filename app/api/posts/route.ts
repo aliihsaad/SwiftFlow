@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { PostData } from '@/types/post'
-import { getActiveWorkspace } from '@/lib/workspace-utils'
+import { getExplicitActiveWorkspace } from '@/lib/workspace-utils'
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions'
 import { assertJsonBodySize, sanitizePostPayload, assertUuid } from '@/lib/security/phase1-validation'
+import { gateWorkspaceLimit } from '@/lib/billing/gate'
+import { getWorkspaceUsage, incrementWorkspaceUsage } from '@/lib/billing/usage'
 
 /**
  * Trigger the process-scheduled-posts edge function (fire-and-forget).
@@ -39,7 +41,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Get user's active workspace
-        const activeWorkspace = await getActiveWorkspace()
+        const activeWorkspace = await getExplicitActiveWorkspace()
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 })
         }
@@ -58,6 +60,16 @@ export async function POST(request: NextRequest) {
 
         const mainCaption = captionByPlatform?.instagram || captionByPlatform?.facebook || ''
         const shouldPublishNow = status === 'published'
+
+        // Plan quota gate (no-op unless BILLING_ENFORCEMENT_MODE is log/enforce).
+        if (status === 'scheduled' || shouldPublishNow) {
+            const quotaGate = await gateWorkspaceLimit(
+                activeWorkspace.id,
+                'scheduled_posts_per_month',
+                () => getWorkspaceUsage(createAdminClient(), activeWorkspace.id, 'scheduled_posts'),
+            )
+            if (quotaGate) return quotaGate
+        }
 
         // For "Post Now": save as 'scheduled' with scheduled_for = now
         // so the edge function picks it up immediately
@@ -82,6 +94,10 @@ export async function POST(request: NextRequest) {
         if (error) {
             console.error('Database Error:', error)
             return NextResponse.json({ error: error.message }, { status: 500 })
+        }
+
+        if (status === 'scheduled' || shouldPublishNow) {
+            await incrementWorkspaceUsage(createAdminClient(), activeWorkspace.id, 'scheduled_posts')
         }
 
         // If "Post Now", fire off the edge function (don't wait for it)
@@ -121,7 +137,7 @@ export async function PUT(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        const activeWorkspace = await getActiveWorkspace()
+        const activeWorkspace = await getExplicitActiveWorkspace()
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 })
         }
@@ -201,7 +217,7 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: 'Scheduled date is required' }, { status: 400 })
         }
 
-        const activeWorkspace = await getActiveWorkspace()
+        const activeWorkspace = await getExplicitActiveWorkspace()
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 })
         }

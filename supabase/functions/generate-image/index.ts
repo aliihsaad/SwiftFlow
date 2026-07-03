@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
+import { assertWorkspaceAccess } from "../_shared/workspace-auth.ts"
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -588,6 +589,9 @@ serve(async (req) => {
         }
 
         supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!)
+        // Non-internal callers must present a user JWT with workspace membership.
+        const unauthorized = await assertWorkspaceAccess(req, supabase, workspaceId, corsHeaders);
+        if (unauthorized) return unauthorized;
         const aiConfig = await resolveAIConfig({ supabase, workspaceId, capability: "image" })
         const primaryKey = aiConfig.apiKey
         const envKey = normalizeApiKey(Deno.env.get("GEMINI_API_KEY"))
@@ -652,6 +656,23 @@ serve(async (req) => {
                 if (!uploadError) {
                     const { data: publicData } = supabase.storage.from("generated_assets").getPublicUrl(fileName)
                     finalAssetUrl = publicData.publicUrl
+
+                    // Track the object for workspace quotas and retention cleanup.
+                    const { error: trackError } = await supabase
+                        .from("workspace_storage_objects")
+                        .upsert({
+                            workspace_id: workspaceId,
+                            bucket: "generated_assets",
+                            object_path: fileName,
+                            content_type: "image/png",
+                            size_bytes: blob.size,
+                            public_url: finalAssetUrl,
+                            source_table: "generated_assets",
+                            status: "active",
+                        }, { onConflict: "bucket,object_path" })
+                    if (trackError) {
+                        console.error("Storage tracking error:", redactSensitiveLogValue(trackError))
+                    }
                 } else {
                     console.error("Upload Error:", redactSensitiveLogValue(uploadError))
                 }

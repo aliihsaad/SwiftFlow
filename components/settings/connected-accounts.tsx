@@ -63,6 +63,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
         facebookMissingReadScopes: string[]
         instagramPublishReady: boolean
         publishReady: boolean
+        tokenHealth?: 'valid' | 'expiring_soon' | 'invalid' | null
         accounts: ConnectedAccountStatus[]
     }>({
         facebook: false,
@@ -73,6 +74,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
         facebookMissingReadScopes: [],
         instagramPublishReady: false,
         publishReady: false,
+        tokenHealth: null,
         accounts: []
     });
     const [loading, setLoading] = useState(true);
@@ -280,6 +282,25 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                         </>
                     ) : (
                         <>
+                            {(status.tokenHealth === 'invalid' || status.tokenHealth === 'expiring_soon') && (
+                                <div className={status.tokenHealth === 'invalid'
+                                    ? "rounded-xl border border-red-300/20 bg-red-500/10 p-4 text-red-100/90"
+                                    : "rounded-xl border border-amber-300/20 bg-amber-400/8 p-4 text-amber-100/90"
+                                }>
+                                    <div className="flex items-center gap-2 font-medium">
+                                        <AlertCircle className="h-4 w-4" />
+                                        {status.tokenHealth === 'invalid'
+                                            ? 'Connection expired — reconnect required'
+                                            : 'Connection expiring soon'}
+                                    </div>
+                                    <div className="mt-1 text-sm">
+                                        {status.tokenHealth === 'invalid'
+                                            ? 'Meta reports the saved access token is no longer valid. Publishing, syncing, and automations will fail until you reconnect the account.'
+                                            : 'The saved Meta access token expires within 7 days. Reconnect the account to refresh it before anything stops working.'}
+                                    </div>
+                                </div>
+                            )}
+
                             {!status.publishReady && (status.facebook || status.instagram) && (
                                 <div className="rounded-xl border border-amber-300/20 bg-amber-400/8 p-4 text-amber-100/90">
                                     <div className="flex items-center gap-2 font-medium">

@@ -12,6 +12,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
+import {
+  claimDuePublishingAutomations,
+  releasePublishingAutomationClaim,
+} from "./claim-locking.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -241,17 +245,31 @@ async function dailyCapReached(supabase: ReturnType<typeof createClient>, automa
   return (count || 0) >= dailyCap
 }
 
-async function processAutomation(supabase: ReturnType<typeof createClient>, row: JsonRecord) {
+async function processAutomation(supabase: ReturnType<typeof createClient>, row: JsonRecord, claimToken: string) {
   const automationId = String(row.id || "")
   const workspaceId = String(row.workspace_id || "")
   const automation = automationFromRow(row)
 
-  if (!automationId || !workspaceId) return { automationId, ok: false, error: "Invalid automation row" }
-  if (await hasRecentRunningRun(supabase, automationId)) return { automationId, ok: true, skipped: "already_running" }
-  if (await dailyCapReached(supabase, automationId, Number(automation.daily_cap) || 1)) return { automationId, ok: true, skipped: "daily_cap_reached" }
+  if (!automationId) return { automationId, ok: false, error: "Invalid automation row" }
 
   let runId = ""
+  // Set once the claim has been released with the advanced next_run_at, so the
+  // failure path knows the row is no longer held by this invocation.
+  let claimReleased = false
   try {
+    if (!workspaceId) throw new Error("Invalid automation row")
+
+    if (await hasRecentRunningRun(supabase, automationId)) {
+      const releaseError = await releasePublishingAutomationClaim(supabase, automationId, claimToken)
+      if (releaseError) return { automationId, ok: false, error: releaseError }
+      return { automationId, ok: true, skipped: "already_running" }
+    }
+    if (await dailyCapReached(supabase, automationId, Number(automation.daily_cap) || 1)) {
+      const releaseError = await releasePublishingAutomationClaim(supabase, automationId, claimToken)
+      if (releaseError) return { automationId, ok: false, error: releaseError }
+      return { automationId, ok: true, skipped: "daily_cap_reached" }
+    }
+
     const recentLimit = Number(asRecord(automation.consistency_config).recent_posts_limit) || 12
     const { data: recentRows, error: recentError } = await supabase
       .from("posts")
@@ -357,16 +375,17 @@ async function processAutomation(supabase: ReturnType<typeof createClient>, row:
       .eq("id", runId)
     if (runUpdateError) throw runUpdateError
 
-    const { error: automationUpdateError } = await supabase
-      .from("publishing_automations")
-      .update({
-        last_run_at: new Date().toISOString(),
-        last_error: null,
-        next_run_at: nextRunAt(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", automationId)
-    if (automationUpdateError) throw automationUpdateError
+    // Finalize the claim before delegating image generation, keeping the
+    // previous ordering: next_run_at is advanced even if the caller times out
+    // while generate-image runs. The token guard makes this a no-op if the
+    // lease went stale and another invocation re-claimed the row.
+    const releaseError = await releasePublishingAutomationClaim(supabase, automationId, claimToken, {
+      last_run_at: new Date().toISOString(),
+      last_error: null,
+      next_run_at: nextRunAt(),
+    })
+    if (releaseError) throw new Error(releaseError)
+    claimReleased = true
 
     if (asRecord(automation.workflow_config).media_mode === "generated_image") {
       const imageResponse = await invokeEdgeFunction("generate-image", {
@@ -402,14 +421,22 @@ async function processAutomation(supabase: ReturnType<typeof createClient>, row:
         .eq("id", runId)
     }
 
-    await supabase
-      .from("publishing_automations")
-      .update({
+    if (claimReleased) {
+      // The claim was already finalized (next_run_at advanced); only record
+      // the late failure, e.g. from generate-image.
+      await supabase
+        .from("publishing_automations")
+        .update({
+          last_error: message,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", automationId)
+    } else {
+      await releasePublishingAutomationClaim(supabase, automationId, claimToken, {
         last_error: message,
         next_run_at: nextRunAt(),
-        updated_at: new Date().toISOString(),
       })
-      .eq("id", automationId)
+    }
 
     return { automationId, ok: false, runId: runId || undefined, error: message }
   }
@@ -421,20 +448,14 @@ async function processPublishingAutomations(limit = 1) {
   if (!supabaseUrl || !serviceRoleKey) throw new Error("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY is missing")
 
   const supabase = createClient(supabaseUrl, serviceRoleKey)
-  const { data, error } = await supabase
-    .from("publishing_automations")
-    .select("*")
-    .eq("is_active", true)
-    .or(`next_run_at.is.null,next_run_at.lte.${new Date().toISOString()}`)
-    .order("next_run_at", { ascending: true, nullsFirst: true })
-    .limit(limit)
+  // Atomically claim due rows with a per-invocation token so overlapping
+  // scheduler ticks cannot pick up and fire the same automation twice.
+  const claimToken = crypto.randomUUID()
+  const rows = await claimDuePublishingAutomations(supabase, claimToken, limit)
 
-  if (error) throw error
-
-  const rows = (data || []) as JsonRecord[]
   const results = []
   for (const row of rows) {
-    results.push(await processAutomation(supabase, row))
+    results.push(await processAutomation(supabase, row, claimToken))
   }
   return results
 }

@@ -428,4 +428,19 @@ describe("developer API scope matrix", () => {
       }),
     }))
   })
+
+  it("skips the last_used_at write when the key was used within the refresh window", async () => {
+    const recent = createActiveApiKey(["brand:read"], { last_used_at: new Date().toISOString() })
+    await authenticateDeveloperApiRequest(bearerRequest(recent.plaintext), ["brand:read"], "read")
+    expect(state.updates.filter((update) => update.table === "workspace_api_keys")).toEqual([])
+
+    const stale = createActiveApiKey(["brand:read"], {
+      last_used_at: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
+    })
+    await authenticateDeveloperApiRequest(bearerRequest(stale.plaintext), ["brand:read"], "read")
+    expect(state.updates).toContainEqual(expect.objectContaining({
+      table: "workspace_api_keys",
+      payload: expect.objectContaining({ last_used_at: expect.any(String) }),
+    }))
+  })
 })

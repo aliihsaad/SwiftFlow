@@ -2,7 +2,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { executeWorkflowGraph } from "../process-automations/graph-executor.ts"
+import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
+import { enrichCommentPostContext } from "../_shared/automation-context.ts"
 import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
 import {
   getAutomationFailureAlertRecipients,
@@ -119,6 +121,9 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  const unauthorized = assertInternalInvoke(req, corsHeaders);
+  if (unauthorized) return unauthorized;
+
   try {
     const body = await req.json();
     const runId = body?.run_id as string | undefined;
@@ -161,14 +166,33 @@ serve(async (req) => {
       effectiveRunId = createdRun.id;
     }
 
-    await supabase
+    // Atomic claim: only a 'queued' run may transition to 'running'. Both the
+    // orchestrator's background dispatch and the stalled-run reclaim invoke
+    // this worker, so the claim is what guarantees exactly-once execution.
+    const { data: claimedRows, error: claimError } = await supabase
       .from('automation_runs')
       .update({
         status: 'running',
         started_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
-      .eq('id', effectiveRunId);
+      .eq('id', effectiveRunId)
+      .eq('status', 'queued')
+      .select('id');
+
+    if (claimError) {
+      throw new Error(`Failed to claim automation run: ${claimError.message}`);
+    }
+    if (!claimedRows || claimedRows.length === 0) {
+      return new Response(JSON.stringify({
+        success: true,
+        run_id: effectiveRunId,
+        status: 'already_claimed',
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const { data: automation, error: automationError } = await supabase
       .from('automations')
@@ -216,8 +240,11 @@ serve(async (req) => {
       throw new Error('Missing social account access token for automation');
     }
 
-    const graphResult = await executeWorkflowGraph(supabase, automation, triggerContext, account);
-    await upsertNodeRuns(supabase, workspaceId, automation, effectiveRunId, triggerContext, graphResult.nodeResults || {});
+    // Ground AI replies and {{post_caption}} templates in the commented media.
+    const enrichedContext = await enrichCommentPostContext(triggerContext, automation, account);
+
+    const graphResult = await executeWorkflowGraph(supabase, automation, enrichedContext, account);
+    await upsertNodeRuns(supabase, workspaceId, automation, effectiveRunId, enrichedContext, graphResult.nodeResults || {});
 
     const runStatus = graphResult.errors > 0 ? 'failed' : 'completed';
     await supabase

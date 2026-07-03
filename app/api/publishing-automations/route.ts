@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getActiveWorkspace } from '@/lib/workspace-utils'
+import { getActiveWorkspace, getExplicitActiveWorkspace } from '@/lib/workspace-utils'
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions'
 import { checkPublishingAutomationReadiness } from '@/lib/publishing-automation-readiness'
 import { sanitizeCreatePublishingAutomationPayload } from '@/lib/publishing-automation-validation'
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        const activeWorkspace = await getActiveWorkspace()
+        const activeWorkspace = await getExplicitActiveWorkspace()
         if (!activeWorkspace) return NextResponse.json({ error: 'No active workspace found' }, { status: 404 })
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write')
 
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({ success: true, automation })
     } catch (error: unknown) {
-        if (error instanceof Error && /Invalid publishing automation payload|Automation name is required|Content goal is required|At least one valid platform|Workflow platform mode|Workflow approval mode|Scheduled automation|Instagram scheduled automation|Request payload too large|Invalid content length/i.test(error.message)) {
+        if (error instanceof Error && /Invalid publishing automation payload|Automation name is required|Content goal is required|At least one valid platform|Workflow platform mode|Workflow approval mode|approval modes are not yet supported|Scheduled automation|Instagram scheduled automation|Request payload too large|Invalid content length/i.test(error.message)) {
             return NextResponse.json({ error: error.message }, { status: 400 })
         }
         const permissionStatus = getWorkspacePermissionErrorStatus(error)

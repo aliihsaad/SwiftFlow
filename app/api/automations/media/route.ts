@@ -15,6 +15,7 @@ interface MetaGraphError {
 interface InstagramMediaItem {
   id: string
   media_type: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM'
+  media_product_type?: string
   media_url?: string
   thumbnail_url?: string
   caption?: string
@@ -125,7 +126,7 @@ export async function GET(request: NextRequest) {
     if (platform === 'instagram') {
       const mediaUrl =
         `${META_GRAPH_URL}/${decryptedAccount.account_id}/media` +
-        `?fields=id,media_type,media_url,thumbnail_url,caption,timestamp,permalink` +
+        `?fields=id,media_type,media_product_type,media_url,thumbnail_url,caption,timestamp,permalink` +
         `&limit=${limit}&access_token=${decryptedAccount.access_token}`
 
       const response = await fetch(mediaUrl, { cache: 'no-store' })
@@ -138,6 +139,7 @@ export async function GET(request: NextRequest) {
       const media = (result.data || []).map((item) => ({
         id: item.id,
         media_type: item.media_type,
+        media_product_type: item.media_product_type,
         media_url: item.media_url,
         thumbnail_url: item.thumbnail_url || item.media_url || '',
         caption: item.caption || '',

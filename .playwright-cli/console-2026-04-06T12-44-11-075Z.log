@@ -1,5 +1,0 @@
-Total messages: 3 (Errors: 1, Warnings: 0)
-
-[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://host.docker.internal:3000/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
-[LOG] [HMR] connected @ http://host.docker.internal:3000/_next/static/chunks/node_modules_next_dist_f3530cac._.js:2297
-[ERROR] Failed to load resource: net::ERR_UNKNOWN_URL_SCHEME @ javascript:alert(document.domain):0

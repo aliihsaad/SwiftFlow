@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/utils/supabase/server"
-import { getActiveWorkspace } from "@/lib/workspace-utils"
+import { getExplicitActiveWorkspace } from "@/lib/workspace-utils"
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
 import { assertJsonBodySize } from "@/lib/security/phase1-validation"
 import { enforceRateLimit, getClientIp, RateLimitExceededError } from "@/lib/security/rate-limit"
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ valid: false, error: "Unauthorized" }, { status: 401 })
         }
 
-        const activeWorkspace = await getActiveWorkspace()
+        const activeWorkspace = await getExplicitActiveWorkspace()
         if (!activeWorkspace) {
             return NextResponse.json({ valid: false, error: "No active workspace" }, { status: 400 })
         }

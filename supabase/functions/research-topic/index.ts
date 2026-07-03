@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { decryptSecretIfNeeded } from "../_shared/secret-crypto.ts"
 import { toUserFriendlyError } from "../_shared/ai-config.ts"
 import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
+import { assertWorkspaceAccess } from "../_shared/workspace-auth.ts"
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -57,6 +58,9 @@ serve(async (req) => {
         }
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey)
+        // Non-internal callers must present a user JWT with workspace membership.
+        const unauthorized = await assertWorkspaceAccess(req, supabase, workspaceId, corsHeaders)
+        if (unauthorized) return unauthorized
 
         const { data: brandProfile } = await supabase
             .from("workspace_brand_profiles")

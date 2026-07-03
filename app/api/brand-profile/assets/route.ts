@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
-import { getActiveWorkspace } from '@/lib/workspace-utils'
+import { getExplicitActiveWorkspace } from '@/lib/workspace-utils'
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions'
+import { recordStorageObject } from '@/lib/storage/objects'
 
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 const MAX_FILE_BYTES = 10 * 1024 * 1024
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        const activeWorkspace = await getActiveWorkspace()
+        const activeWorkspace = await getExplicitActiveWorkspace()
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace' }, { status: 404 })
         }
@@ -66,6 +67,16 @@ export async function POST(request: NextRequest) {
         }
 
         const { data } = supabaseAdmin.storage.from('brand_assets').getPublicUrl(path)
+
+        await recordStorageObject(supabaseAdmin, {
+            workspaceId: activeWorkspace.id,
+            bucket: 'brand_assets',
+            objectPath: path,
+            contentType: fileEntry.type,
+            sizeBytes: fileEntry.size,
+            publicUrl: data.publicUrl,
+            sourceTable: 'workspace_brand_profiles',
+        })
 
         return NextResponse.json({
             url: data.publicUrl,

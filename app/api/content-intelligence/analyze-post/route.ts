@@ -4,7 +4,7 @@ import { recommendHashtags } from "@/lib/content-intelligence/hashtags"
 import { scorePostStrength } from "@/lib/content-intelligence/scoring"
 import { recommendSlots } from "@/lib/content-intelligence/timing"
 import { createClient } from "@/utils/supabase/server"
-import { getActiveWorkspace } from "@/lib/workspace-utils"
+import { getExplicitActiveWorkspace } from "@/lib/workspace-utils"
 import type { ContentPlatform, PostIntelligenceInput, PostIntelligenceResult } from "@/lib/content-intelligence/types"
 
 export const runtime = "edge"
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-    const activeWorkspace = await getActiveWorkspace()
+    const activeWorkspace = await getExplicitActiveWorkspace()
     if (!activeWorkspace) return NextResponse.json({ error: "No active workspace found" }, { status: 404 })
 
     const body = await request.json().catch(() => ({}))

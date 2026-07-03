@@ -12,6 +12,7 @@
 
 # testing
 /coverage
+.playwright-cli/
 
 # next.js
 /.next/
@@ -36,6 +37,9 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# supabase local metadata
+supabase/.temp/
 
 # typescript
 *.tsbuildinfo

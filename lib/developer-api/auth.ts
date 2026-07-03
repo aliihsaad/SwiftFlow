@@ -29,7 +29,12 @@ type KeyRow = {
   status: DeveloperApiKeyStatus
   created_by_role_snapshot: WorkspaceRole | null
   expires_at: string | null
+  last_used_at: string | null
 }
+
+// last_used_at is informational ("key was recently active"); writing it on
+// every request churns a hot row at volume, so refresh it at most every 5 min.
+const LAST_USED_AT_REFRESH_MS = 5 * 60 * 1000
 
 function getBearerToken(request: Request): string {
   if (new URL(request.url).searchParams.has("api_key")) {
@@ -59,7 +64,7 @@ export async function authenticateDeveloperApiRequest(
   const admin = createAdminClient()
   const { data, error } = await admin
     .from("workspace_api_keys")
-    .select("id, workspace_id, key_prefix, key_hash, scopes, status, created_by_role_snapshot, expires_at")
+    .select("id, workspace_id, key_prefix, key_hash, scopes, status, created_by_role_snapshot, expires_at, last_used_at")
     .eq("key_prefix", keyPrefix)
     .maybeSingle()
 
@@ -106,13 +111,17 @@ export async function authenticateDeveloperApiRequest(
   }
 
   await enforceDeveloperApiRateLimit({ kind: rateLimitKind, context, request })
-  await admin
-    .from("workspace_api_keys")
-    .update({
-      last_used_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", row.id)
+
+  const lastUsedAt = row.last_used_at ? new Date(row.last_used_at).getTime() : 0
+  if (!Number.isFinite(lastUsedAt) || Date.now() - lastUsedAt >= LAST_USED_AT_REFRESH_MS) {
+    await admin
+      .from("workspace_api_keys")
+      .update({
+        last_used_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", row.id)
+  }
 
   return context
 }

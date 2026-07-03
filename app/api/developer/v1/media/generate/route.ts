@@ -5,6 +5,8 @@ import type { DeveloperApiScope } from "@/lib/developer-api/types"
 import { assertJsonBodySize, assertUuid } from "@/lib/security/phase1-validation"
 import { getExistingMediaUrls, isJsonRecord } from "@/lib/publishing-automation-run-media"
 import { createAdminClient } from "@/utils/supabase/admin"
+import { recordStorageObject } from "@/lib/storage/objects"
+import { incrementWorkspaceUsage } from "@/lib/billing/usage"
 
 export const runtime = "nodejs"
 export const maxDuration = 120
@@ -257,6 +259,16 @@ export async function POST(request: NextRequest) {
 
       const { data: publicData } = admin.storage.from(BUCKET).getPublicUrl(path)
       const publicUrl = publicData.publicUrl
+
+      await recordStorageObject(admin, {
+        workspaceId: context.workspaceId,
+        bucket: BUCKET,
+        objectPath: path,
+        contentType: media.contentType,
+        sizeBytes: media.buffer.byteLength,
+        publicUrl,
+      })
+      await incrementWorkspaceUsage(admin, context.workspaceId, "generated_asset_bytes", media.buffer.byteLength)
       const mediaResult = {
         bucket: BUCKET,
         path,
@@ -266,7 +278,8 @@ export async function POST(request: NextRequest) {
         size: media.buffer.byteLength,
         model: generated.model,
         promptUsed: generated.promptUsed || effectivePrompt,
-        sourceImageUrl: generated.imageUrl,
+        // data: URLs can be multi-MB base64 blobs; never echo them back.
+        sourceImageUrl: generated.imageUrl.startsWith("data:") ? null : generated.imageUrl,
       }
 
       if (!payload.postId || !post) {

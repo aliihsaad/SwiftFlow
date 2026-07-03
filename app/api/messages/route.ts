@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageMessagesWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
-import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
-import { getActiveWorkspace } from '@/lib/workspace-utils';
+import { getActiveWorkspace, getExplicitActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, hasWorkspacePermission, requireWorkspacePermission } from '@/lib/workspace-permissions';
+import { MAX_OUTBOUND_MESSAGE_LENGTH, requiredMessagingPermissions, sendMetaTextMessage } from '@/lib/meta-messaging';
+import { assertJsonBodySize } from '@/lib/security/phase1-validation';
+import { enforceRateLimit, getClientIp, RateLimitExceededError } from '@/lib/security/rate-limit';
+import { redactSensitiveLogValue } from '@/lib/security/redaction';
 
-const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
-
-function requiredMessagingPermissions(platform: string): string[] {
-    return platform === 'facebook' ? ['pages_messaging'] : ['instagram_manage_messages'];
-}
+const MAX_SEND_BODY_BYTES = 64 * 1024;
 
 // GET - List conversations or messages
 export async function GET(request: NextRequest) {
@@ -22,13 +21,15 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Get active workspace
-        const activeWorkspace = await getActiveWorkspace();
+        // Reads may fall back to the first workspace, but the mark-read writes
+        // below require an explicit, membership-verified workspace selection.
+        const explicitWorkspace = await getExplicitActiveWorkspace();
+        const activeWorkspace = explicitWorkspace ?? await getActiveWorkspace();
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
         const workspaceRole = await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'workspace:read');
-        const canMutateMessageState = hasWorkspacePermission(workspaceRole, 'content:write');
+        const canMutateMessageState = explicitWorkspace !== null && hasWorkspacePermission(workspaceRole, 'content:write');
 
         // Parse query params
         const { searchParams } = new URL(request.url);
@@ -51,19 +52,21 @@ export async function GET(request: NextRequest) {
                 throw error;
             }
 
-            // Mark messages as read
+            // Mark messages as read (workspace-scoped writes)
             if (canMutateMessageState) {
                 await supabase
                     .from('messages')
                     .update({ is_read: true })
                     .eq('conversation_id', conversationId)
+                    .eq('workspace_id', activeWorkspace.id)
                     .eq('is_read', false);
 
                 // Update conversation unread count
                 await supabase
                     .from('conversations')
                     .update({ unread_count: 0 })
-                    .eq('id', conversationId);
+                    .eq('id', conversationId)
+                    .eq('workspace_id', activeWorkspace.id);
             }
 
             return NextResponse.json({
@@ -95,6 +98,7 @@ export async function GET(request: NextRequest) {
                         .from('messages')
                         .select('*')
                         .eq('conversation_id', conv.id)
+                        .eq('workspace_id', activeWorkspace.id)
                         .order('platform_created_at', { ascending: false })
                         .limit(1)
                         .single();
@@ -145,22 +149,38 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Get active workspace
-        const activeWorkspace = await getActiveWorkspace();
+        // Mutations require an explicit, membership-verified workspace selection
+        const activeWorkspace = await getExplicitActiveWorkspace();
         if (!activeWorkspace) {
-            return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
+            return NextResponse.json({ error: 'No valid workspace selected' }, { status: 400 });
         }
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'content:write');
 
+        assertJsonBodySize(request, MAX_SEND_BODY_BYTES);
         const body = await request.json();
         const { conversationId, message } = body;
 
-        if (!conversationId || !message) {
+        if (!conversationId || typeof message !== 'string' || !message.trim()) {
             return NextResponse.json(
                 { error: 'conversationId and message are required' },
                 { status: 400 }
             );
         }
+        if (message.length > MAX_OUTBOUND_MESSAGE_LENGTH) {
+            return NextResponse.json(
+                { error: `Message must be at most ${MAX_OUTBOUND_MESSAGE_LENGTH} characters` },
+                { status: 400 }
+            );
+        }
+
+        await enforceRateLimit(
+            { scope: 'messages:send:user', subject: `${user.id}:${activeWorkspace.id}`, limit: 30, windowSeconds: 60 },
+            'Too many messages sent. Please wait a moment and try again.'
+        );
+        await enforceRateLimit(
+            { scope: 'messages:send:ip', subject: getClientIp(request), limit: 60, windowSeconds: 60 },
+            'Too many messages sent. Please wait a moment and try again.'
+        );
 
         // Get the conversation details
         const { data: conversation, error: convError } = await supabase
@@ -203,35 +223,23 @@ export async function POST(request: NextRequest) {
         // Send message via Meta API
         // Instagram messaging requires the Page ID, not the IG user ID
         const pageId = account.metadata?.connected_page_id || account.account_id;
-        const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
-
-        const response = await fetch(sendUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                recipient: {
-                    id: conversation.participant_id
-                },
-                message: {
-                    text: message
-                },
-                access_token: account.access_token
-            })
+        const result = await sendMetaTextMessage({
+            pageId,
+            recipientId: conversation.participant_id,
+            text: message,
+            accessToken: account.access_token,
+            platform: account.platform || 'instagram',
         });
 
-        const result = await response.json();
-
-        if (!response.ok) {
-            throw new Error(result.error?.message || 'Failed to send message');
+        if (!result.ok) {
+            throw new Error((result.error?.message as string | undefined) || 'Failed to send message');
         }
 
         // Store the sent message locally
         const messageRecord = {
             workspace_id: activeWorkspace.id,
             conversation_id: conversation.id,
-            platform_message_id: result.message_id || `local_${Date.now()}`,
+            platform_message_id: result.messageId || `local_${Date.now()}`,
             sender_id: pageId,
             is_from_page: true,
             message,
@@ -253,15 +261,22 @@ export async function POST(request: NextRequest) {
         await supabase
             .from('conversations')
             .update({ last_message_at: new Date().toISOString() })
-            .eq('id', conversationId);
+            .eq('id', conversationId)
+            .eq('workspace_id', activeWorkspace.id);
 
         return NextResponse.json({
             success: true,
-            messageId: result.message_id,
+            messageId: result.messageId,
             message: savedMessage
         });
 
     } catch (error: any) {
+        if (error instanceof RateLimitExceededError) {
+            return NextResponse.json(
+                { error: error.message },
+                { status: 429, headers: { 'Retry-After': String(error.retryAfterSeconds) } }
+            );
+        }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
             return NextResponse.json(
@@ -269,7 +284,10 @@ export async function POST(request: NextRequest) {
                 { status: permissionStatus }
             );
         }
-        console.error('Send message API error:', error);
+        if (error instanceof Error && /Request payload too large|Invalid content length/i.test(error.message)) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        console.error('Send message API error:', redactSensitiveLogValue(error));
         return NextResponse.json(
             { error: error.message || 'Failed to send message' },
             { status: 500 }

@@ -4,6 +4,10 @@ import { createClient } from '@supabase/supabase-js';
 import { decryptMetaAccountRow } from '@/lib/meta-account';
 import { isReviewPhase1Release } from '@/lib/release-channel';
 import { buildInstagramMessagingAutomationEvents } from '@/lib/webhooks/instagram-automation-events';
+import { readRawBodyWithLimit, RequestBodyTooLargeError } from '@/lib/security/phase1-validation';
+
+// Meta webhook payloads are small (batched entries stay well under this cap).
+const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
 
 /** Build a deterministic key from a payload object, falling back to a hash when no stable ID exists */
 function stableEventKey(prefix: string, value: Record<string, unknown> | undefined): string {
@@ -123,15 +127,25 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
     }
 
-    // Step 1: Read raw body as bytes and verify signature
-    const rawBuffer = Buffer.from(await request.arrayBuffer());
-    const rawBody = rawBuffer.toString('utf8');
+    // Step 1: Read raw body as bytes (bounded) and verify signature
     const signature = request.headers.get('x-hub-signature-256');
 
     if (!signature) {
         console.warn('[WEBHOOK] Missing X-Hub-Signature-256 header');
         return new NextResponse('Missing signature', { status: 401 });
     }
+
+    let rawBuffer: Buffer;
+    try {
+        rawBuffer = Buffer.from(await readRawBodyWithLimit(request, MAX_WEBHOOK_BODY_BYTES));
+    } catch (error) {
+        if (error instanceof RequestBodyTooLargeError) {
+            console.warn('[WEBHOOK] Payload exceeded size cap; rejecting');
+            return new NextResponse('Payload too large', { status: 413 });
+        }
+        throw error;
+    }
+    const rawBody = rawBuffer.toString('utf8');
 
     const expectedSignatures = candidateSecrets.map((secret) => ({
         source:
@@ -477,6 +491,10 @@ async function handleCommentEvent(value: Record<string, unknown>, account: Resol
     const webhookContext = {
         comment_id: value?.id,
         post_id: media?.id,
+        // Instagram sends media_product_type (FEED | REELS | ...) on comment
+        // webhooks; Facebook feed comments have none. Used by post/Reel
+        // trigger scoping in the orchestrator.
+        media_type: media?.media_product_type || undefined,
         commenter_id: commenterId || undefined,
         commenter_username: from?.username,
         comment_text: value?.text,
@@ -542,7 +560,10 @@ async function handleMessageAutomationTrigger(value: Record<string, unknown>, ac
 }
 
 async function handleStoryMentionEvent(value: Record<string, unknown>, account: ResolvedAccount) {
-    console.log('[WEBHOOK] Story mention event received but trigger is temporarily disabled:', value);
+    console.log('[WEBHOOK] Story mention event received but trigger is temporarily disabled:', {
+        platform: account.platform,
+        value,
+    });
 }
 
 async function handleStoryReplyEvent(value: Record<string, unknown>, account: ResolvedAccount) {
@@ -592,33 +613,6 @@ async function handleStoryReplyEvent(value: Record<string, unknown>, account: Re
     }
 }
 
-// ============================================
-// Follower Handler (from messaging entries)
-// ============================================
-
-async function handleFollowEvent(value: Record<string, unknown>, account: ResolvedAccount) {
-    const followerId = (value?.from as Record<string, unknown>)?.id as string;
-
-    if (!followerId) return;
-
-    try {
-        await invokeAutomationOrchestrator({
-            workspace_id: account.workspace_id,
-            social_account_id: account.social_account_id,
-            trigger_type: 'trigger_new_follower',
-            event_type: 'follower',
-            source: 'webhook',
-            webhook_context: {
-                follower_id: followerId,
-                follower_username: (value?.from as Record<string, unknown>)?.username as string,
-                timestamp: new Date().toISOString(),
-            },
-        });
-    } catch (error) {
-        console.error('[WEBHOOK] Follower automation trigger error:', error);
-    }
-}
-
 async function handleMessageEvent(value: Record<string, unknown>, account: ResolvedAccount) {
     const sender = value?.sender as Record<string, unknown> | undefined;
     const recipient = value?.recipient as Record<string, unknown> | undefined;
@@ -651,17 +645,20 @@ async function handleMessageEvent(value: Record<string, unknown>, account: Resol
     // Best-effort persistence so we can render attachments/shares that Meta may omit in historical fetches.
     // This is intentionally non-fatal; webhook processing should continue even if local persistence fails.
     try {
-        const normalizePayloadList = (raw: any): any[] => {
+        const normalizePayloadList = (raw: unknown): unknown[] => {
             if (!raw) return [];
             if (Array.isArray(raw)) return raw;
-            if (Array.isArray(raw.data)) return raw.data;
-            if (raw.data && typeof raw.data === 'object') return [raw.data];
-            if (typeof raw === 'object') return [raw];
+            if (typeof raw === 'object') {
+                const container = raw as Record<string, unknown>;
+                if (Array.isArray(container.data)) return container.data;
+                if (container.data && typeof container.data === 'object') return [container.data];
+                return [raw];
+            }
             return [];
         };
 
-        const rawAttachments = (message?.attachments || value?.attachments) as any;
-        const rawShares = (message?.shares || message?.share || value?.shares || value?.share) as any;
+        const rawAttachments: unknown = message?.attachments || value?.attachments;
+        const rawShares: unknown = message?.shares || message?.share || value?.shares || value?.share;
         const attachments = normalizePayloadList(rawAttachments);
         const shares = normalizePayloadList(rawShares).map((share) => ({
             type: 'share',
@@ -670,7 +667,7 @@ async function handleMessageEvent(value: Record<string, unknown>, account: Resol
         const persistedPayload = [...attachments, ...shares];
 
         if (messageId && participantId) {
-            let conversation: any = null;
+            let conversation: { id: string; platform_conversation_id: string | null } | null = null;
 
             const { data: existingConv } = await supabaseAdmin
                 .from('conversations')

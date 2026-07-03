@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import useSWR from 'swr'
-import { X, Check, Image as ImageIcon, Video, LayoutGrid, Instagram, Facebook } from 'lucide-react'
+import { X, Check, Clapperboard, Image as ImageIcon, Video, LayoutGrid, Instagram, Facebook } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,6 +21,7 @@ import type { InstagramMedia } from '@/types/automation'
 import type {
   WorkflowNode,
   WorkflowNodeData,
+  CommentPostScope,
   TriggerNewCommentConfig,
   TriggerNewMessageConfig,
   TriggerCronConfig,
@@ -173,9 +174,23 @@ function PlatformAccountIcon({ platform }: { platform: TriggerPlatform }) {
     : <Instagram className="h-3.5 w-3.5 text-pink-500" />
 }
 
+/** Media scope options; Reel filters are Instagram-only concepts. */
+const COMMENT_SCOPE_OPTIONS: Array<{ value: CommentPostScope; label: string; instagramOnly?: boolean }> = [
+  { value: 'any', label: 'Any post or Reel' },
+  { value: 'any_post', label: 'Posts only', instagramOnly: true },
+  { value: 'any_reel', label: 'Reels only', instagramOnly: true },
+  { value: 'specific', label: 'A specific post or Reel' },
+]
+
+function resolveScopeValue(config: TriggerNewCommentConfig): CommentPostScope {
+  if (config.post_scope) return config.post_scope
+  return config.post_id ? 'specific' : 'any'
+}
+
 function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentConfig; onUpdate: (u: Record<string, unknown>) => void }) {
   const platform = getTriggerPlatformValue(config.platform)
   const accountId = config.social_account_id || ''
+  const postScope = resolveScopeValue(config)
 
   // Fetch platform accounts
   const { data: accountsData, isLoading: accountsLoading } = useSWR<{ accounts: SocialAccount[] }>(
@@ -183,9 +198,9 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
     configFetcher,
   )
 
-  // Fetch posts/media for selected account (IG media or FB posts)
+  // Fetch posts/media only when picking a specific post (IG media or FB posts)
   const { data: postsData, isLoading: postsLoading } = useSWR<{ media: InstagramMedia[] }>(
-    accountId ? `/api/automations/media?account_id=${accountId}` : null,
+    accountId && postScope === 'specific' ? `/api/automations/media?account_id=${accountId}` : null,
     configFetcher,
   )
 
@@ -206,9 +221,21 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
     onUpdate({
       platform: nextPlatform,
       social_account_id: '',
+      // Reel scopes are Instagram-only; fall back to "any" on Facebook.
+      post_scope: nextPlatform === 'facebook' && (postScope === 'any_post' || postScope === 'any_reel') ? 'any' : postScope,
       post_id: '',
       post_thumbnail_url: undefined,
       post_caption: undefined,
+    })
+  }
+
+  const handleScopeChange = (value: string) => {
+    const nextScope = value as CommentPostScope
+    onUpdate({
+      post_scope: nextScope,
+      ...(nextScope !== 'specific'
+        ? { post_id: '', post_thumbnail_url: undefined, post_caption: undefined }
+        : {}),
     })
   }
 
@@ -291,9 +318,29 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
         )}
       </div>
 
-      {/* Post grid */}
+      {/* Media scope */}
       <div>
-        <Label className="text-xs">Select {platform === 'instagram' ? 'Post' : 'Page Post'}</Label>
+        <Label className="text-xs">Applies To</Label>
+        <Select value={postScope} onValueChange={handleScopeChange}>
+          <SelectTrigger className="mt-1 w-full">
+            <SelectValue placeholder="Select scope" />
+          </SelectTrigger>
+          <SelectContent>
+            {COMMENT_SCOPE_OPTIONS
+              .filter((option) => platform === 'instagram' || !option.instagramOnly)
+              .map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  <span className="text-sm">{option.label}</span>
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Post grid (specific scope only) */}
+      {postScope === 'specific' && (
+      <div>
+        <Label className="text-xs">Select {platform === 'instagram' ? 'Post or Reel' : 'Page Post'}</Label>
         {postsLoading ? (
           <div className="grid grid-cols-3 gap-1.5 mt-1">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -333,7 +380,12 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
                     </div>
                   )}
 
-                  {post.media_type !== 'IMAGE' && (
+                  {post.media_product_type === 'REELS' ? (
+                    <div className="absolute top-0.5 right-0.5 flex items-center gap-0.5 px-1 py-0.5 bg-black/60 rounded">
+                      <Clapperboard className="h-2.5 w-2.5 text-white" />
+                      <span className="text-[8px] font-semibold text-white uppercase">Reel</span>
+                    </div>
+                  ) : post.media_type !== 'IMAGE' && (
                     <div className="absolute top-0.5 right-0.5 p-0.5 bg-black/50 rounded">
                       <MediaIcon className="h-2.5 w-2.5 text-white" />
                     </div>
@@ -352,9 +404,10 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
           </div>
         )}
       </div>
+      )}
 
       {/* Selected post preview */}
-      {config.post_id && config.post_caption && (
+      {postScope === 'specific' && config.post_id && config.post_caption && (
         <div className="rounded-md border border-border/50 bg-muted/30 p-2">
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Selected Post</p>
           <div className="flex items-start gap-2">

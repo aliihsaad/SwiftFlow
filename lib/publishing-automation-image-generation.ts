@@ -58,7 +58,9 @@ export function rowToPublishingAutomationPayload(row: JsonRecord): CreatePublish
         workflow_config: row.workflow_config,
         schedule_config: row.schedule_config,
         daily_cap: row.daily_cap,
-    })
+        // Re-validating an existing DB row, not user input; legacy auto_* rows
+        // must stay loadable for image generation on their draft posts.
+    }, { allowUnsupportedApprovalModes: true })
 }
 
 export function summarizeBrandProfile(profile: BrandProfileSummary | null): string {

@@ -23,6 +23,8 @@ interface PageData {
     ig_username: string | null;
     granted_scopes?: string[];
     granted_granular_scopes?: Array<{ scope: string; target_ids?: string[] }>;
+    /** Real page-token expiry from debug_token; null = does not expire. */
+    token_expires_at?: string | null;
 }
 
 /**
@@ -160,13 +162,17 @@ export async function POST(request: NextRequest) {
         }
 
         // Step 5: Insert the selected Facebook page
+        // Real expiry from the OAuth debug_token check; null means the page
+        // token does not expire (long-lived user token flow).
+        const tokenExpiresAt = selectedPage.token_expires_at ?? null;
+
         const fbAccountData = {
             workspace_id: workspaceId,
             platform: 'facebook',
             account_name: selectedPage.name,
             account_id: selectedPage.id,
             access_token: encryptedPageAccessToken,
-            token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // ~60 days
+            token_expires_at: tokenExpiresAt,
             metadata: buildMetaAccountMetadata({
                 existingMetadata: { category: selectedPage.category },
                 userAccessToken: encryptedUserAccessToken,
@@ -203,7 +209,7 @@ export async function POST(request: NextRequest) {
                     : `${selectedPage.name} (Instagram)`,
                 account_id: selectedPage.ig_account_id,
                 access_token: encryptedPageAccessToken, // IG uses the parent page's token
-                token_expires_at: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+                token_expires_at: tokenExpiresAt,
                 metadata: buildMetaAccountMetadata({
                     connectedPageId: selectedPage.id,
                     igUsername: selectedPage.ig_username,

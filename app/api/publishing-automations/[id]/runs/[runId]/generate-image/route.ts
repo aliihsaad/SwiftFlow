@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { assertUuid } from '@/lib/security/phase1-validation'
-import { getActiveWorkspace } from '@/lib/workspace-utils'
+import { getExplicitActiveWorkspace } from '@/lib/workspace-utils'
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { createClient } from '@/utils/supabase/server'
@@ -41,7 +41,7 @@ export async function POST(
         const { data: { user } } = await supabase.auth.getUser()
         if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        const activeWorkspace = await getActiveWorkspace()
+        const activeWorkspace = await getExplicitActiveWorkspace()
         if (!activeWorkspace) return NextResponse.json({ error: 'No active workspace found' }, { status: 404 })
         await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write')
 

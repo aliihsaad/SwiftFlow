@@ -8,19 +8,20 @@ type JobName = 'process-scheduled-posts' | 'process-scheduled-executions' | 'pro
 
 function isAuthorizedCronRequest(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET
-  const authHeader = request.headers.get('authorization')
-  const vercelCronHeader = request.headers.get('x-vercel-cron')
 
-  // Preferred: shared secret (works for Vercel Cron if CRON_SECRET is configured).
   if (cronSecret) {
-    return authHeader === `Bearer ${cronSecret}`
+    return request.headers.get('authorization') === `Bearer ${cronSecret}`
   }
 
-  // Fallback for projects not yet using CRON_SECRET.
-  if (vercelCronHeader) return true
+  // Production must never run scheduler ticks without a configured shared secret.
+  // Headers like x-vercel-cron are spoofable and must not grant access.
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[CRON] CRON_SECRET is not configured; rejecting scheduler request')
+    return false
+  }
 
   // Allow local manual testing without auth in development.
-  return process.env.NODE_ENV !== 'production'
+  return true
 }
 
 async function invokeJob(supabaseAdmin: ReturnType<typeof createAdminClient>, jobName: JobName) {

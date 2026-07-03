@@ -10,7 +10,6 @@ const reviewPhase1Required = [
   "NEXT_PUBLIC_META_APP_ID",
   "META_APP_SECRET",
   "META_WEBHOOK_VERIFY_TOKEN",
-  "SUPABASE_SERVICE_KEY",
   "APP_SECRETS_ENCRYPTION_KEY",
 ]
 
@@ -29,6 +28,9 @@ if (missingShared.length > 0) {
 
 if (channel === "review_phase_1") {
   const missingReview = getMissing(reviewPhase1Required)
+  if (!String(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || "").trim()) {
+    missingReview.push("SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SERVICE_KEY")
+  }
   if (missingReview.length > 0) {
     console.error("[validate-env] review_phase_1 deployment is missing required environment variables:")
     for (const key of missingReview) {

@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/utils/supabase/admin"
+import { buildSupabaseFunctionHeaders, getSupabaseServiceRoleKey } from "@/lib/supabase/service-key"
 
 export const ANALYTICS_READ_THROUGH_SYNC_TTL_MS = 15 * 60 * 1000
 
@@ -87,7 +88,7 @@ export async function maybeSyncWorkspaceAnalytics({
   now?: Date
   ttlMs?: number
 }): Promise<AnalyticsReadThroughSyncResult> {
-  const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
+  const serviceKey = getSupabaseServiceRoleKey()
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 
   if (!admin && !serviceKey) {
@@ -226,11 +227,7 @@ export async function maybeSyncWorkspaceAnalytics({
   try {
     const response = await fetch(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/sync-analytics`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
-      },
+      headers: buildSupabaseFunctionHeaders(serviceKey),
       body: JSON.stringify({ workspaceId }),
     })
     const result = await parseSyncResponse(response)

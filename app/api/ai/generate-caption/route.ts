@@ -6,13 +6,10 @@ import { enforceRateLimit, getClientIp, RateLimitExceededError } from '@/lib/sec
 import { gateAiGeneration } from '@/lib/billing/gate'
 import { incrementWorkspaceUsage } from '@/lib/billing/usage'
 import { createAdminClient } from '@/utils/supabase/admin'
+import { buildSupabaseFunctionHeaders, getSupabaseServiceRoleKey } from '@/lib/supabase/service-key'
 
 export const runtime = 'edge'
 
-function looksLikeJwt(value: string | null | undefined): boolean {
-    const normalized = String(value || '').trim()
-    return normalized.startsWith('eyJ') && normalized.split('.').length === 3
-}
 
 export async function POST(request: NextRequest) {
     try {
@@ -68,24 +65,13 @@ export async function POST(request: NextRequest) {
         if (quotaGate) return quotaGate
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-        const serviceKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
-        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || null
+        const serviceKey = getSupabaseServiceRoleKey()
 
         if (!supabaseUrl || !serviceKey) {
             throw new Error('Server config missing Supabase URL or service key')
         }
 
-        const authJwt = looksLikeJwt(serviceKey)
-            ? serviceKey
-            : (looksLikeJwt(anonKey) ? anonKey : null)
-        const headers: Record<string, string> = {
-            'Content-Type': 'application/json',
-            apikey: serviceKey,
-        }
-
-        if (authJwt) {
-            headers.Authorization = `Bearer ${authJwt}`
-        }
+        const headers = buildSupabaseFunctionHeaders(serviceKey)
 
         const edgeResponse = await fetch(`${supabaseUrl}/functions/v1/generate-caption`, {
             method: 'POST',

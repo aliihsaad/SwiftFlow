@@ -16,7 +16,8 @@
     "test:postgres:up": "docker compose -p swiftflow-webhook-test -f compose.postgres-test.yaml up -d --wait",
     "test:postgres:down": "docker compose -p swiftflow-webhook-test -f compose.postgres-test.yaml down --volumes --remove-orphans",
     "test:ci": "vitest run",
-    "validate:env": "node scripts/validate-env.mjs"
+    "validate:env": "node scripts/validate-env.mjs",
+    "automation:simulate": "tsx workers/automation-simulation.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

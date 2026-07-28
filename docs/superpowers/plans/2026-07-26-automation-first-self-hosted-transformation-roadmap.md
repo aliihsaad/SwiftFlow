@@ -543,17 +543,17 @@ Instagram comment webhook
 - [ ] Add a provider side-effect key before sending the Meta action.
 - [ ] Record provider response IDs and safe error metadata.
 - [ ] Add policy-aware activation checks for the selected flow.
-- [ ] Add an automation simulation mode using synthetic fixtures.
+- [x] Add an automation simulation mode using synthetic fixtures.
 - [ ] Add per-node run status and retry visibility.
-- [ ] Add a reclaim test for a worker terminated mid-run.
-- [ ] Test duplicate Meta delivery and duplicate worker execution.
+- [x] Add a reclaim test for a worker terminated mid-run.
+- [x] Test duplicate Meta delivery and duplicate worker execution.
 - [ ] Run the slice against a real Meta tester/admin account.
 
 ### Exit gate
 
 - [ ] Three consecutive live executions succeed without manual database repair.
 - [ ] Duplicate delivery cannot create a duplicate private reply.
-- [ ] A simulated worker crash is recovered automatically.
+- [x] A simulated worker crash is recovered automatically.
 - [ ] Failure is visible and actionable from the SwiftFlow UI or operator logs.
 
 ### Rollback

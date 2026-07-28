@@ -1,11 +1,16 @@
-# SwiftFlow Automation-First Self-Hosted Transformation Roadmap
+# SwiftFlow Automation-First Self-Hosted Transformation Roadmap (Superseded)
 
-**Status:** Draft for approval
-**Last updated:** 2026-07-26
-**Target:** Stable self-hosted v1 with a premium-grade product experience
-**Estimated duration:** 14-20 weeks with one focused implementer and a feature freeze
-**Early milestones:** Automation-first beta in 3-5 weeks; premium experience beta in 7-10 weeks
+**Status:** Superseded by the managed Supabase roadmap
+**Last updated:** 2026-07-28
+**Former target:** Stable fully self-hosted v1 with a premium-grade product experience
+**Replacement:** `docs/superpowers/plans/2026-07-28-automation-first-managed-supabase-roadmap.md`
 **Canonical project name:** `Social-Media-Manager-AI-Tool` (product name: SwiftFlow)
+
+> This document is retained as historical design and portability research.
+> Supabase removal, Better Auth, S3, replacement Realtime, Graphile Worker,
+> and full VPS/Compose packaging are no longer stable-v1 requirements. Where
+> this document conflicts with the replacement roadmap, the replacement
+> roadmap controls.
 
 ## 1. Purpose
 
@@ -23,9 +28,8 @@ open-source product that:
 - reaches a stable release through staged migration rather than a big-bang
   rewrite.
 
-This document is the implementation source of truth for the transformation.
-Older Supabase self-hosting and production-readiness plans remain useful
-references, but where they conflict with this roadmap, this roadmap controls.
+This document is no longer the implementation source of truth. The managed
+Supabase roadmap linked above controls current implementation.
 
 ## 2. Executive Decision
 

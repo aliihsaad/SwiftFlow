@@ -82,7 +82,7 @@ describe("action executor timeline readiness", () => {
     >[0]
 
     await expect(assertActionExecutorDatabaseReady(database))
-      .rejects.toThrow(/outbox and timeline migrations/i)
+      .rejects.toThrow(/outbox, timeline, and runtime-guard migrations/i)
   })
 
   it("requires append-only timeline access for the executor role", async () => {
@@ -98,6 +98,8 @@ describe("action executor timeline readiness", () => {
       outbox_status_update: true,
       timeline_required_inserts: true,
       claim_execute: true,
+      reserve_guard_execute: true,
+      record_guard_execute: true,
       token_select: true,
       outbox_insert: false,
       outbox_delete: false,

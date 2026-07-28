@@ -22,8 +22,9 @@ export interface SingleReplicaLock {
  * to start. The lock is released automatically if the process dies, so a crash
  * does not wedge the deployment.
  *
- * This protects the per-process rate limiter only. Send-once is guaranteed
- * independently by the outbox identity and the transactional claim.
+ * This is a conservative staging rollout constraint. Distributed budgets and
+ * circuit state are enforced independently by PostgreSQL, while send-once is
+ * guaranteed by the outbox identity and transactional claim.
  */
 export async function acquireSingleReplicaLock(pool: Pool): Promise<SingleReplicaLock> {
   const client: PoolClient = await pool.connect()
@@ -37,7 +38,7 @@ export async function acquireSingleReplicaLock(pool: Pool): Promise<SingleReplic
     if (result.rows[0]?.locked !== true) {
       throw new Error(
         "Another action executor instance already holds the single-replica lock. "
-        + "The in-process rate limiter is only correct at one replica; refusing to start.",
+        + "This staging rollout is intentionally pinned to one executor; refusing to start.",
       )
     }
   } catch (error) {
@@ -75,9 +76,17 @@ const READINESS_SQL = `
   select
     to_regclass('public.automation_action_outbox')::text as outbox_table,
     to_regclass('public.automation_execution_events')::text as timeline_table,
+    to_regclass('public.automation_runtime_budget_buckets')::text as budget_table,
+    to_regclass('public.automation_runtime_circuits')::text as circuit_table,
     to_regprocedure(
       'public.claim_automation_actions(text,integer,integer)'
-    )::text as claim_function
+    )::text as claim_function,
+    to_regprocedure(
+      'public.reserve_automation_runtime_budget(uuid,uuid,uuid,text,integer,integer,integer,integer)'
+    )::text as reserve_guard_function,
+    to_regprocedure(
+      'public.record_automation_runtime_outcome(uuid,uuid,uuid,text,boolean,text,integer,integer)'
+    )::text as record_guard_function
 `
 
 const ACCESS_SQL = `
@@ -123,6 +132,16 @@ const ACCESS_SQL = `
       'public.claim_automation_actions(text,integer,integer)',
       'execute'
     ) as claim_execute,
+    has_function_privilege(
+      current_user,
+      'public.reserve_automation_runtime_budget(uuid,uuid,uuid,text,integer,integer,integer,integer)',
+      'execute'
+    ) as reserve_guard_execute,
+    has_function_privilege(
+      current_user,
+      'public.record_automation_runtime_outcome(uuid,uuid,uuid,text,boolean,text,integer,integer)',
+      'execute'
+    ) as record_guard_execute,
     has_column_privilege(current_user, 'public.social_accounts', 'access_token', 'select') as token_select,
     has_table_privilege(current_user, 'public.automation_action_outbox', 'insert') as outbox_insert,
     has_table_privilege(current_user, 'public.automation_action_outbox', 'delete') as outbox_delete,
@@ -132,7 +151,17 @@ const ACCESS_SQL = `
     has_table_privilege(current_user, 'public.automation_execution_events', 'truncate') as timeline_truncate,
     has_column_privilege(current_user, 'public.social_accounts', 'refresh_token', 'select') as refresh_token_select,
     has_table_privilege(current_user, 'public.webhook_inbox_events', 'select') as inbox_select,
-    has_table_privilege(current_user, 'public.workspaces', 'select') as workspaces_select
+    has_table_privilege(current_user, 'public.workspaces', 'select') as workspaces_select,
+    has_table_privilege(
+      current_user,
+      'public.automation_runtime_budget_buckets',
+      'select'
+    ) as budget_table_select,
+    has_table_privilege(
+      current_user,
+      'public.automation_runtime_circuits',
+      'select'
+    ) as circuit_table_select
   from pg_roles as role
   where role.rolname = current_user
 `
@@ -143,6 +172,8 @@ const REQUIRED_ACCESS = [
   "outbox_status_update",
   "timeline_required_inserts",
   "claim_execute",
+  "reserve_guard_execute",
+  "record_guard_execute",
   "token_select",
 ] as const
 
@@ -162,6 +193,8 @@ const FORBIDDEN_ACCESS = [
   "refresh_token_select",
   "inbox_select",
   "workspaces_select",
+  "budget_table_select",
+  "circuit_table_select",
 ] as const
 
 export async function assertActionExecutorDatabaseReady(
@@ -169,9 +202,17 @@ export async function assertActionExecutorDatabaseReady(
 ): Promise<void> {
   const result = await database.query(READINESS_SQL)
   const row = result.rows[0]
-  if (!row?.outbox_table || !row?.timeline_table || !row?.claim_function) {
+  if (
+    !row?.outbox_table
+    || !row?.timeline_table
+    || !row?.budget_table
+    || !row?.circuit_table
+    || !row?.claim_function
+    || !row?.reserve_guard_function
+    || !row?.record_guard_function
+  ) {
     throw new Error(
-      "Action execution schema is not ready; apply the outbox and timeline migrations before starting the executor",
+      "Action execution schema is not ready; apply the outbox, timeline, and runtime-guard migrations before starting the executor",
     )
   }
 }

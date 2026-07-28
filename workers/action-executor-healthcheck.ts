@@ -28,6 +28,10 @@ export async function runActionExecutorHealthcheck(
   console.info("[ACTION_EXECUTOR] Healthy", {
     providerActionsEnabled: config.providerActionsEnabled,
     allowlistSize: config.allowlist.length,
+    durableRuntimeGuardsRequired: config.durableRuntimeGuardsRequired,
+    providerSendAccountBudget: config.providerSendAccountBudget,
+    providerSendAutomationBudget: config.providerSendAutomationBudget,
+    providerSendBudgetWindowSeconds: config.providerSendBudgetWindowSeconds,
   })
 }
 

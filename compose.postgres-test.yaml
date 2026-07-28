@@ -20,11 +20,13 @@ services:
       - ./supabase/migrations/20260727091000_add_automation_action_executor_role.sql:/docker-entrypoint-initdb.d/230-action-executor-role.sql:ro
       - ./supabase/migrations/20260728100000_add_immutable_automation_workflow_versions.sql:/docker-entrypoint-initdb.d/240-workflow-versions.sql:ro
       - ./supabase/migrations/20260728110000_add_automation_execution_timeline.sql:/docker-entrypoint-initdb.d/250-execution-timeline.sql:ro
+      - ./supabase/migrations/20260728120000_add_automation_runtime_guards.sql:/docker-entrypoint-initdb.d/260-runtime-guards.sql:ro
       - ./tests/integration/postgres/300-worker-login.sql:/docker-entrypoint-initdb.d/300-worker-login.sql:ro
       - ./tests/integration/postgres/310-ingress-login.sql:/docker-entrypoint-initdb.d/310-ingress-login.sql:ro
       - ./tests/integration/postgres/320-executor-login.sql:/docker-entrypoint-initdb.d/320-executor-login.sql:ro
       - ./scripts/postgres/verify-webhook-comparison-role.sql:/opt/swiftflow/verify-webhook-comparison-role.sql:ro
       - ./scripts/postgres/verify-webhook-ingress-role.sql:/opt/swiftflow/verify-webhook-ingress-role.sql:ro
+      - ./scripts/postgres/verify-action-executor-role.sql:/opt/swiftflow/verify-action-executor-role.sql:ro
     healthcheck:
       test:
         - CMD-SHELL

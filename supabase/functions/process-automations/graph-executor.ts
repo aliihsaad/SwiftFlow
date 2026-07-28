@@ -7,6 +7,12 @@
  * condition nodes and parallel edges.
  */
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
+import {
+  recordAutomationRuntimeOutcome,
+  reserveAutomationRuntimeBudget,
+  resolveAutomationRuntimeGuardPolicy,
+  type AutomationRuntimeResource,
+} from "../_shared/automation-runtime-guard.ts"
 import { buildAutomationAiPrompt } from "../_shared/automation-context.ts"
 import { buildAutomationEmailMessage } from "../_shared/automation-email.ts"
 import { sendResendEmail, textToSimpleHtml } from "../_shared/resend-email.ts"
@@ -810,7 +816,80 @@ export async function resumeFromDelay(
 
 // ─── Node Executors ──────────────────────────────────────────────
 
+const GUARDED_RESOURCE_BY_NODE_TYPE: Readonly<Record<string, AutomationRuntimeResource>> = {
+  action_reply_comment: 'provider_send',
+  action_send_dm: 'provider_send',
+  action_private_reply: 'provider_send',
+  action_ai_response: 'ai_generation',
+};
+
 async function executeNode(
+  supabase: any,
+  automation: any,
+  node: WorkflowNode,
+  triggerContext: TriggerContext,
+  account: any,
+  pageId: string,
+): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
+  const resourceKind = GUARDED_RESOURCE_BY_NODE_TYPE[node.data.type];
+  if (!resourceKind) {
+    return executeNodeUnchecked(supabase, automation, node, triggerContext, account, pageId);
+  }
+
+  const socialAccountId = String(automation.social_account_id || account?.id || '').trim();
+  if (!automation.workspace_id || !automation.id || !socialAccountId) {
+    return { success: false, error: 'runtime_guard_scope_missing' };
+  }
+
+  const scope = {
+    workspaceId: String(automation.workspace_id),
+    socialAccountId,
+    automationId: String(automation.id),
+    resourceKind,
+  };
+  const policy = resolveAutomationRuntimeGuardPolicy(resourceKind);
+  const reservation = await reserveAutomationRuntimeBudget(supabase, scope, policy);
+  if (!reservation.allowed) {
+    return {
+      success: false,
+      error: reservation.reason,
+      output: {
+        guarded: true,
+        retry_after_seconds: reservation.retryAfterSeconds,
+        account_remaining: reservation.accountRemaining,
+        automation_remaining: reservation.automationRemaining,
+      },
+    };
+  }
+
+  let result: { success: boolean; output?: any; error?: string; dmSent?: boolean };
+  try {
+    result = await executeNodeUnchecked(
+      supabase,
+      automation,
+      node,
+      triggerContext,
+      account,
+      pageId,
+    );
+  } catch (error) {
+    await recordAutomationRuntimeOutcome(supabase, scope, policy, {
+      succeeded: false,
+      failureCode: error instanceof Error ? error.name : 'node_exception',
+    });
+    throw error;
+  }
+
+  await recordAutomationRuntimeOutcome(supabase, scope, policy, {
+    succeeded: result.success,
+    failureCode: result.success
+      ? undefined
+      : String(result.error || 'node_failed').split(':', 1)[0],
+  });
+  return result;
+}
+
+async function executeNodeUnchecked(
   supabase: any,
   automation: any,
   node: WorkflowNode,

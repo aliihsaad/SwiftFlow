@@ -14,6 +14,7 @@ import {
   type ExecutorAutomation,
 } from "../lib/automation/action-safety-gates"
 import { PostgresActionOutboxRepository } from "../lib/automation/postgres-action-outbox"
+import { PostgresAutomationRuntimeGuard } from "../lib/automation/automation-runtime-guard"
 import { createMetaPrivateReplyAdapter } from "../lib/automation/meta-private-reply-adapter"
 import {
   resolveProviderActionAdapter,
@@ -118,6 +119,7 @@ export async function runActionExecutorProcess(
       repository: new PostgresActionOutboxRepository(database),
       lookup: createPostgresExecutorLookup(database),
       adapter,
+      runtimeGuard: new PostgresAutomationRuntimeGuard(database),
       onEvent: (event) => console.info("[ACTION_EXECUTOR]", event),
     })
 
@@ -129,6 +131,10 @@ export async function runActionExecutorProcess(
       adapter: adapter.name,
       providerActionsEnabled: config.providerActionsEnabled,
       allowlistSize: config.allowlist.length,
+      durableRuntimeGuardsRequired: config.durableRuntimeGuardsRequired,
+      providerSendAccountBudget: config.providerSendAccountBudget,
+      providerSendAutomationBudget: config.providerSendAutomationBudget,
+      providerSendBudgetWindowSeconds: config.providerSendBudgetWindowSeconds,
     })
 
     if (config.runOnce) {

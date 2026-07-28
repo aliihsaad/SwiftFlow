@@ -8,6 +8,7 @@ import {
   buildProviderActionIdentityKey,
   type ActionOutboxRecord,
 } from "@/lib/automation/action-outbox-contract"
+import type { AutomationRuntimeGuard } from "@/lib/automation/automation-runtime-guard"
 import {
   AccountRateLimiter,
   resolveActionExecutorConfig,
@@ -75,6 +76,12 @@ function config(overrides: Partial<ActionExecutorConfig> = {}): ActionExecutorCo
     allowlist: [ACCOUNT_ID],
     maxActionsPerAccount: 5,
     rateWindowMs: 60_000,
+    durableRuntimeGuardsRequired: false,
+    providerSendAccountBudget: 60,
+    providerSendAutomationBudget: 20,
+    providerSendBudgetWindowSeconds: 3_600,
+    providerSendCircuitFailureThreshold: 5,
+    providerSendCircuitCooldownSeconds: 300,
     workerId: "test-worker",
     batchSize: 3,
     leaseSeconds: 60,
@@ -161,6 +168,7 @@ describe("kill switch and gates", () => {
   it("defaults to disabled when the environment says nothing", () => {
     expect(resolveActionExecutorConfig({}).providerActionsEnabled).toBe(false)
     expect(resolveActionExecutorConfig({}).allowlist).toEqual([])
+    expect(resolveActionExecutorConfig({}).durableRuntimeGuardsRequired).toBe(true)
   })
 
   it("blocks every external call when the kill switch is off", async () => {
@@ -319,6 +327,102 @@ describe("kill switch and gates", () => {
     expect(adapter.calls).toHaveLength(1)
     expect(run.sent).toBe(1)
     expect(repository.state.suppressed[0]!.reason).toBe("rate_limited")
+  })
+
+  it("fails closed before the adapter when the durable guard is required but missing", async () => {
+    const adapter = createRecordingProviderActionAdapter()
+    const repository = fakeRepository([record()])
+    const executor = new ActionExecutor({
+      config: config({ durableRuntimeGuardsRequired: true }),
+      repository,
+      lookup: lookup(account()),
+      adapter,
+    })
+
+    const run = await executor.runOnce()
+
+    expect(adapter.calls).toHaveLength(0)
+    expect(run.suppressed).toBe(1)
+    expect(repository.state.suppressed[0]!.reason).toBe("runtime_guard_unavailable")
+  })
+
+  it("suppresses a durable budget denial before the adapter can send", async () => {
+    const adapter = createRecordingProviderActionAdapter()
+    const repository = fakeRepository([record()])
+    const runtimeGuard: AutomationRuntimeGuard = {
+      async reserve() {
+        return {
+          allowed: false,
+          reason: "automation_budget_exhausted",
+          retryAfterSeconds: 60,
+          accountRemaining: 10,
+          automationRemaining: 0,
+        }
+      },
+      async recordOutcome() {
+        throw new Error("a denied reservation must not record an outcome")
+      },
+    }
+    const executor = new ActionExecutor({
+      config: config({ durableRuntimeGuardsRequired: true }),
+      repository,
+      lookup: lookup(account()),
+      adapter,
+      runtimeGuard,
+    })
+
+    await executor.runOnce()
+
+    expect(adapter.calls).toHaveLength(0)
+    expect(repository.state.suppressed[0]!.reason).toBe("automation_budget_exhausted")
+  })
+
+  it("records provider success against the same durable scopes that were reserved", async () => {
+    const adapter = createRecordingProviderActionAdapter()
+    const repository = fakeRepository([record()])
+    const calls: Array<{ kind: string; value: unknown }> = []
+    const runtimeGuard: AutomationRuntimeGuard = {
+      async reserve(scope, policy) {
+        calls.push({ kind: "reserve", value: { scope, policy } })
+        return {
+          allowed: true,
+          reason: "allowed",
+          retryAfterSeconds: 0,
+          accountRemaining: 59,
+          automationRemaining: 19,
+        }
+      },
+      async recordOutcome(scope, policy, outcome) {
+        calls.push({ kind: "outcome", value: { scope, policy, outcome } })
+      },
+    }
+    const executor = new ActionExecutor({
+      config: config({ durableRuntimeGuardsRequired: true }),
+      repository,
+      lookup: lookup(account()),
+      adapter,
+      runtimeGuard,
+    })
+
+    await executor.runOnce()
+
+    expect(adapter.calls).toHaveLength(1)
+    expect(calls).toHaveLength(2)
+    expect(calls[0]).toMatchObject({
+      kind: "reserve",
+      value: {
+        scope: {
+          workspaceId: record().workspaceId,
+          socialAccountId: record().socialAccountId,
+          automationId: record().identity.automationId,
+          resourceKind: "provider_send",
+        },
+      },
+    })
+    expect(calls[1]).toMatchObject({
+      kind: "outcome",
+      value: { outcome: { succeeded: true } },
+    })
   })
 
   it("sends exactly once when every gate passes", async () => {

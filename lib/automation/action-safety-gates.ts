@@ -11,6 +11,12 @@ export interface ActionExecutorEnvironment
   AUTOMATION_PROVIDER_ACTIONS_ALLOWLIST?: string
   AUTOMATION_PROVIDER_ACTIONS_MAX_PER_ACCOUNT?: string
   AUTOMATION_PROVIDER_ACTIONS_WINDOW_MS?: string
+  AUTOMATION_RUNTIME_GUARDS_REQUIRED?: string
+  AUTOMATION_PROVIDER_SEND_ACCOUNT_BUDGET?: string
+  AUTOMATION_PROVIDER_SEND_AUTOMATION_BUDGET?: string
+  AUTOMATION_PROVIDER_SEND_BUDGET_WINDOW_SECONDS?: string
+  AUTOMATION_PROVIDER_SEND_CIRCUIT_FAILURE_THRESHOLD?: string
+  AUTOMATION_PROVIDER_SEND_CIRCUIT_COOLDOWN_SECONDS?: string
   ACTION_EXECUTOR_WORKER_ID?: string
   ACTION_EXECUTOR_BATCH_SIZE?: string
   ACTION_EXECUTOR_LEASE_SECONDS?: string
@@ -25,6 +31,12 @@ export interface ActionExecutorConfig {
   allowlist: readonly string[]
   maxActionsPerAccount: number
   rateWindowMs: number
+  durableRuntimeGuardsRequired: boolean
+  providerSendAccountBudget: number
+  providerSendAutomationBudget: number
+  providerSendBudgetWindowSeconds: number
+  providerSendCircuitFailureThreshold: number
+  providerSendCircuitCooldownSeconds: number
   workerId: string
   batchSize: number
   leaseSeconds: number
@@ -51,6 +63,12 @@ export type GateDecision =
 function booleanValue(value: string | undefined): boolean {
   const normalized = value?.trim().toLowerCase()
   return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on"
+}
+
+function booleanDefaultTrue(value: string | undefined): boolean {
+  if (value === undefined || value.trim() === "") return true
+  const normalized = value.trim().toLowerCase()
+  return !["false", "0", "no", "off"].includes(normalized)
 }
 
 function boundedInteger(
@@ -87,6 +105,39 @@ export function resolveActionExecutorConfig(
       1_000,
       60 * 60_000,
     ),
+    durableRuntimeGuardsRequired: booleanDefaultTrue(
+      environment.AUTOMATION_RUNTIME_GUARDS_REQUIRED,
+    ),
+    providerSendAccountBudget: boundedInteger(
+      environment.AUTOMATION_PROVIDER_SEND_ACCOUNT_BUDGET,
+      60,
+      1,
+      100_000,
+    ),
+    providerSendAutomationBudget: boundedInteger(
+      environment.AUTOMATION_PROVIDER_SEND_AUTOMATION_BUDGET,
+      20,
+      1,
+      100_000,
+    ),
+    providerSendBudgetWindowSeconds: boundedInteger(
+      environment.AUTOMATION_PROVIDER_SEND_BUDGET_WINDOW_SECONDS,
+      3_600,
+      1,
+      86_400,
+    ),
+    providerSendCircuitFailureThreshold: boundedInteger(
+      environment.AUTOMATION_PROVIDER_SEND_CIRCUIT_FAILURE_THRESHOLD,
+      5,
+      1,
+      100,
+    ),
+    providerSendCircuitCooldownSeconds: boundedInteger(
+      environment.AUTOMATION_PROVIDER_SEND_CIRCUIT_COOLDOWN_SECONDS,
+      300,
+      1,
+      86_400,
+    ),
     workerId: environment.ACTION_EXECUTOR_WORKER_ID?.trim().slice(0, 120) || "swiftflow-action-executor",
     batchSize: boundedInteger(environment.ACTION_EXECUTOR_BATCH_SIZE, 3, 1, 50),
     leaseSeconds: boundedInteger(environment.ACTION_EXECUTOR_LEASE_SECONDS, 60, 5, 3_600),
@@ -98,13 +149,13 @@ export function resolveActionExecutorConfig(
 /**
  * Fixed-window counter, bounded in memory, scoped to ONE worker process.
  *
- * SINGLE-REPLICA CONSTRAINT: this limiter is per-process, so N replicas permit
- * N times the intended rate. The staging deployment therefore runs exactly one
- * action-executor replica, and must continue to until a shared limiter exists.
- * Do not scale this service. Correctness of the send-once guarantee does not
- * depend on this - that comes from the outbox identity and transactional claim,
- * both of which remain correct with multiple replicas - only the rate ceiling
- * does.
+ * LOCAL BURST GUARD: this remains useful for smoothing one process, but it is
+ * not the authority for product budgets. The PostgreSQL runtime guard consumes
+ * both account and automation budgets atomically and owns the distributed
+ * ceiling and circuit state. Correctness of the send-once guarantee remains in
+ * the outbox identity and transactional claim. Staging still uses one replica
+ * as a conservative rollout posture, not because budgets multiply with worker
+ * count.
  */
 export class AccountRateLimiter {
   private readonly counters = new Map<string, { count: number; resetAt: number }>()

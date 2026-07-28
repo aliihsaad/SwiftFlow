@@ -32,6 +32,20 @@ begin
   ) then
     raise exception 'Executor login % cannot claim actions', current_user;
   end if;
+  if not has_function_privilege(
+    current_user,
+    'public.reserve_automation_runtime_budget(uuid,uuid,uuid,text,integer,integer,integer,integer)',
+    'execute'
+  ) then
+    raise exception 'Executor login % cannot reserve durable runtime budgets', current_user;
+  end if;
+  if not has_function_privilege(
+    current_user,
+    'public.record_automation_runtime_outcome(uuid,uuid,uuid,text,boolean,text,integer,integer)',
+    'execute'
+  ) then
+    raise exception 'Executor login % cannot record durable runtime outcomes', current_user;
+  end if;
   if not has_column_privilege(current_user, 'public.social_accounts', 'access_token', 'select') then
     raise exception 'Executor login % cannot read the access token it needs to send', current_user;
   end if;
@@ -102,6 +116,13 @@ begin
 
   if has_table_privilege(current_user, 'public.workspaces', 'select') then
     raise exception 'Executor login % can read workspaces unexpectedly', current_user;
+  end if;
+  if has_table_privilege(
+    current_user, 'public.automation_runtime_budget_buckets', 'select'
+  ) or has_table_privilege(
+    current_user, 'public.automation_runtime_circuits', 'select'
+  ) then
+    raise exception 'Executor login % can read runtime guard state directly', current_user;
   end if;
 end
 $verify$;

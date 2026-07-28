@@ -106,7 +106,7 @@ decision, not an automatic one.
 ## Gates, in evaluation order
 
 Every gate fails closed. The kill switch is first so a disabled deployment never
-even resolves a credential.
+reaches later gate checks or the provider adapter.
 
 1. `AUTOMATION_PROVIDER_ACTIONS_ENABLED` - default **false**
 2. account resolved
@@ -115,19 +115,29 @@ even resolves a credential.
 5. self-loop protection - compares the comment author against the account's
    identity set, including `ig_user_id` and `webhook_account_id`
 6. token present, not a placeholder, not expired, and required permissions held
-7. bounded per-account rate limit
+7. local per-process burst limit
+8. durable PostgreSQL reservation against both account and automation budgets
+9. account and automation circuit breakers
 
-Credentials are resolved only after gate 7 passes.
+The provider adapter receives the credential only after every gate and the
+durable reservation pass.
 
-## Single-replica constraint
+## Distributed budgets and circuits
 
-`AccountRateLimiter` is per-process. Running N executor replicas permits N times
-the intended rate, so **the staging deployment runs exactly one
-action-executor replica and must continue to** until a shared limiter exists.
+`reserve_automation_runtime_budget` serializes each account and automation scope
+with transaction advisory locks, then consumes one unit from both scopes in the
+same transaction. A missing or broken guard fails closed before the adapter.
 
-This is a rate ceiling concern only. The send-once guarantee comes from the
-outbox unique identity and the transactional `FOR UPDATE SKIP LOCKED` claim,
-both of which stay correct with multiple replicas.
+Repeated provider failures open both scoped circuits. After cooldown, exactly
+one half-open probe is admitted; a successful probe closes the circuits and a
+failed probe reopens them. AI graph nodes use the same contract with independent
+budgets and circuit state.
+
+The in-memory `AccountRateLimiter` remains as a local burst smoother. The
+staging Compose file still declares one executor as a conservative rollout
+posture, but distributed budget correctness no longer depends on replica count.
+The send-once guarantee remains the outbox unique identity plus transactional
+`FOR UPDATE SKIP LOCKED` claim.
 
 ## Database roles
 
@@ -152,4 +162,6 @@ auth, that no token appears in any URL, body, log, or audit record, single send
 on duplicate delivery, retry on rate limit with `Retry-After`, dead-letter on
 terminal codes, dead-letter rather than retry on ambiguity, suppression for a
 disabled switch / non-allowlisted account / self-authored event / missing
-permission, and safety when the adapter is misconfigured.
+permission, safety when the adapter is misconfigured, atomic concurrent budget
+enforcement, shared-account limits across automations, circuit opening, and
+single-probe recovery.

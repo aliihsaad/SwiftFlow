@@ -150,7 +150,8 @@ describe("side-effect separation", () => {
     const executorService = compose.slice(compose.indexOf("  action-executor:"))
     expect(executorService).toMatch(/AUTOMATION_PROVIDER_ACTIONS_ENABLED:\s*"false"/)
     expect(executorService).toMatch(/AUTOMATION_PROVIDER_ACTIONS_ALLOWLIST:\s*""/)
-    // The in-process limiter is only correct at one replica.
+    expect(executorService).toMatch(/AUTOMATION_RUNTIME_GUARDS_REQUIRED:\s*"true"/)
+    // Staging remains intentionally conservative even though budgets are distributed.
     expect(executorService).not.toMatch(/replicas:\s*[2-9]/)
     expect(executorService).not.toMatch(/scale:\s*[2-9]/)
   })
@@ -185,8 +186,9 @@ describe("meta private reply adapter contract", () => {
     expect(retryPolicy).toContain('if (failure.ambiguous === true) return "terminal"')
   })
 
-  it("documents the single-replica constraint next to the limiter", () => {
-    expect(gates).toContain("SINGLE-REPLICA CONSTRAINT")
+  it("documents that the local limiter is not the distributed budget authority", () => {
+    expect(gates).toContain("LOCAL BURST GUARD")
+    expect(gates).toContain("PostgreSQL runtime guard")
   })
 })
 

@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
 
 import { Pool } from "pg"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
@@ -6,6 +8,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 import { ActionExecutor } from "@/lib/automation/action-executor"
 import type { ProviderActionRequest } from "@/lib/automation/action-outbox-contract"
 import type { ActionExecutorConfig } from "@/lib/automation/action-safety-gates"
+import {
+  PostgresAutomationRuntimeGuard,
+  type AutomationRuntimeGuardPolicy,
+  type AutomationRuntimeGuardScope,
+} from "@/lib/automation/automation-runtime-guard"
 import { PostgresActionOutboxRepository } from "@/lib/automation/postgres-action-outbox"
 import { createRecordingProviderActionAdapter } from "@/lib/automation/provider-action-adapter"
 import { createPostgresQueryClient } from "@/lib/webhooks/postgres-inbox-repository"
@@ -57,6 +64,12 @@ function config(overrides: Partial<ActionExecutorConfig> = {}): ActionExecutorCo
     allowlist: [EXTERNAL_ACCOUNT],
     maxActionsPerAccount: 50,
     rateWindowMs: 60_000,
+    durableRuntimeGuardsRequired: false,
+    providerSendAccountBudget: 60,
+    providerSendAutomationBudget: 20,
+    providerSendBudgetWindowSeconds: 3_600,
+    providerSendCircuitFailureThreshold: 5,
+    providerSendCircuitCooldownSeconds: 300,
     workerId: "integration-executor",
     batchSize: 10,
     leaseSeconds: 60,
@@ -128,6 +141,8 @@ beforeAll(async () => {
 beforeEach(async () => {
   await adminPool.query(`
     truncate table
+      public.automation_runtime_budget_buckets,
+      public.automation_runtime_circuits,
       public.automation_execution_events,
       public.automation_action_outbox,
       public.automation_scheduled_executions,
@@ -640,6 +655,140 @@ describe("comparison-path enqueueing through the insert-only role", () => {
   })
 })
 
+describe("durable automation runtime guards", () => {
+  const guardPolicy: AutomationRuntimeGuardPolicy = {
+    accountLimit: 100,
+    automationLimit: 100,
+    windowSeconds: 3_600,
+    failureThreshold: 2,
+    cooldownSeconds: 60,
+  }
+  const guardScope: AutomationRuntimeGuardScope = {
+    workspaceId: WORKSPACE_ID,
+    socialAccountId: ACCOUNT_ID,
+    automationId: AUTOMATION_ID,
+    resourceKind: "provider_send",
+  }
+
+  function guard() {
+    return new PostgresAutomationRuntimeGuard(createPostgresQueryClient(executorPool))
+  }
+
+  it("replays the additive migration safely during upgrades", async () => {
+    const migration = readFileSync(
+      join(
+        process.cwd(),
+        "supabase",
+        "migrations",
+        "20260728120000_add_automation_runtime_guards.sql",
+      ),
+      "utf8",
+    )
+
+    await expect(adminPool.query(migration)).resolves.toBeDefined()
+  })
+
+  it("rejects fabricated account and automation scopes", async () => {
+    await expect(guard().reserve({
+      ...guardScope,
+      automationId: randomUUID(),
+    }, guardPolicy)).rejects.toThrow(
+      /automation runtime guard scope does not resolve/i,
+    )
+  })
+
+  it("serializes concurrent reservations at the configured distributed limit", async () => {
+    const runtimeGuard = guard()
+    const decisions = await Promise.all(
+      Array.from({ length: 12 }, () => runtimeGuard.reserve(guardScope, {
+        ...guardPolicy,
+        accountLimit: 3,
+        automationLimit: 3,
+      })),
+    )
+
+    expect(decisions.filter((decision) => decision.allowed)).toHaveLength(3)
+    expect(decisions.filter((decision) => !decision.allowed)).toHaveLength(9)
+    expect(decisions.filter((decision) => !decision.allowed).every(
+      (decision) => decision.reason === "account_budget_exhausted",
+    )).toBe(true)
+
+    const usage = await adminPool.query<{ scope_kind: string; used_units: number }>(`
+      select scope_kind, used_units
+      from public.automation_runtime_budget_buckets
+      order by scope_kind
+    `)
+    expect(usage.rows).toEqual([
+      { scope_kind: "account", used_units: 3 },
+      { scope_kind: "automation", used_units: 3 },
+    ])
+  })
+
+  it("shares the account budget across separate automations", async () => {
+    const secondAutomationId = "50000000-0000-4000-8000-000000000004"
+    await adminPool.query(`
+      insert into public.automations (
+        id, workspace_id, social_account_id, is_active, editor_version, workflow_graph
+      )
+      values ($1, $2, $3, true, 'canvas', '{"nodes":[],"edges":[]}'::jsonb)
+    `, [secondAutomationId, WORKSPACE_ID, ACCOUNT_ID])
+
+    const runtimeGuard = guard()
+    const first = await runtimeGuard.reserve(guardScope, {
+      ...guardPolicy,
+      accountLimit: 1,
+      automationLimit: 10,
+    })
+    const second = await runtimeGuard.reserve({
+      ...guardScope,
+      automationId: secondAutomationId,
+    }, {
+      ...guardPolicy,
+      accountLimit: 1,
+      automationLimit: 10,
+    })
+
+    expect(first.allowed).toBe(true)
+    expect(second).toMatchObject({
+      allowed: false,
+      reason: "account_budget_exhausted",
+    })
+  })
+
+  it("opens after repeated failures, permits one half-open probe, and closes on success", async () => {
+    const runtimeGuard = guard()
+
+    expect((await runtimeGuard.reserve(guardScope, guardPolicy)).allowed).toBe(true)
+    await runtimeGuard.recordOutcome(guardScope, guardPolicy, {
+      succeeded: false,
+      failureCode: "provider_503",
+    })
+    expect((await runtimeGuard.reserve(guardScope, guardPolicy)).allowed).toBe(true)
+    await runtimeGuard.recordOutcome(guardScope, guardPolicy, {
+      succeeded: false,
+      failureCode: "provider_503",
+    })
+
+    await expect(runtimeGuard.reserve(guardScope, guardPolicy)).resolves.toMatchObject({
+      allowed: false,
+      reason: "account_circuit_open",
+    })
+
+    await adminPool.query(`
+      update public.automation_runtime_circuits
+      set retry_at = now() - interval '1 second'
+    `)
+    expect((await runtimeGuard.reserve(guardScope, guardPolicy)).allowed).toBe(true)
+    await expect(runtimeGuard.reserve(guardScope, guardPolicy)).resolves.toMatchObject({
+      allowed: false,
+      reason: "account_circuit_probe_in_flight",
+    })
+
+    await runtimeGuard.recordOutcome(guardScope, guardPolicy, { succeeded: true })
+    expect((await runtimeGuard.reserve(guardScope, guardPolicy)).allowed).toBe(true)
+  })
+})
+
 describe("database role separation", () => {
   it("lets the comparison role append but never read, mutate, or claim", async () => {
     await expect(comparisonPool.query(`
@@ -695,5 +844,11 @@ describe("database role separation", () => {
       .rejects.toThrow(/permission denied/i)
     await expect(executorPool.query("select refresh_token from public.social_accounts"))
       .rejects.toThrow(/permission denied/i)
+    await expect(executorPool.query(
+      "select * from public.automation_runtime_budget_buckets",
+    )).rejects.toThrow(/permission denied/i)
+    await expect(executorPool.query(
+      "select * from public.automation_runtime_circuits",
+    )).rejects.toThrow(/permission denied/i)
   })
 })

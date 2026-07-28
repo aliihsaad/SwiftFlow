@@ -21,6 +21,7 @@ services:
       - ./supabase/migrations/20260727091000_add_automation_action_executor_role.sql:/docker-entrypoint-initdb.d/230-action-executor-role.sql:ro
       - ./supabase/migrations/20260728100000_add_immutable_automation_workflow_versions.sql:/docker-entrypoint-initdb.d/240-workflow-versions.sql:ro
       - ./supabase/migrations/20260728110000_add_automation_execution_timeline.sql:/docker-entrypoint-initdb.d/250-execution-timeline.sql:ro
+      - ./supabase/migrations/20260728120000_add_automation_runtime_guards.sql:/docker-entrypoint-initdb.d/260-runtime-guards.sql:ro
       - ./scripts/postgres/staging/300-worker-login.sh:/docker-entrypoint-initdb.d/300-worker-login.sh:ro
       - ./scripts/postgres/staging/310-ingress-login.sh:/docker-entrypoint-initdb.d/310-ingress-login.sh:ro
       - ./scripts/postgres/staging/320-executor-login.sh:/docker-entrypoint-initdb.d/320-executor-login.sh:ro
@@ -164,6 +165,13 @@ services:
       AUTOMATION_PROVIDER_ACTIONS_ENABLED: "false"
       # Empty allowlist means no account may send even if the switch flips.
       AUTOMATION_PROVIDER_ACTIONS_ALLOWLIST: ""
+      # Durable distributed limits remain required even at one replica.
+      AUTOMATION_RUNTIME_GUARDS_REQUIRED: "true"
+      AUTOMATION_PROVIDER_SEND_ACCOUNT_BUDGET: ${AUTOMATION_PROVIDER_SEND_ACCOUNT_BUDGET:-60}
+      AUTOMATION_PROVIDER_SEND_AUTOMATION_BUDGET: ${AUTOMATION_PROVIDER_SEND_AUTOMATION_BUDGET:-20}
+      AUTOMATION_PROVIDER_SEND_BUDGET_WINDOW_SECONDS: ${AUTOMATION_PROVIDER_SEND_BUDGET_WINDOW_SECONDS:-3600}
+      AUTOMATION_PROVIDER_SEND_CIRCUIT_FAILURE_THRESHOLD: ${AUTOMATION_PROVIDER_SEND_CIRCUIT_FAILURE_THRESHOLD:-5}
+      AUTOMATION_PROVIDER_SEND_CIRCUIT_COOLDOWN_SECONDS: ${AUTOMATION_PROVIDER_SEND_CIRCUIT_COOLDOWN_SECONDS:-300}
       ACTION_EXECUTOR_WORKER_ID: ${ACTION_EXECUTOR_WORKER_ID:-swiftflow-staging-executor-1}
       ACTION_EXECUTOR_BATCH_SIZE: ${ACTION_EXECUTOR_BATCH_SIZE:-3}
       ACTION_EXECUTOR_LEASE_SECONDS: ${ACTION_EXECUTOR_LEASE_SECONDS:-60}

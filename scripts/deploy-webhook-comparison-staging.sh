@@ -60,6 +60,11 @@ ensure_literal_value SWIFTFLOW_WEBHOOK_COMPARISON_IMAGE \
   swiftflow/webhook-comparison:staging
 ensure_literal_value WEBHOOK_COMPARISON_WORKER_ID \
   swiftflow-staging-comparison-1
+ensure_literal_value AUTOMATION_PROVIDER_SEND_ACCOUNT_BUDGET 60
+ensure_literal_value AUTOMATION_PROVIDER_SEND_AUTOMATION_BUDGET 20
+ensure_literal_value AUTOMATION_PROVIDER_SEND_BUDGET_WINDOW_SECONDS 3600
+ensure_literal_value AUTOMATION_PROVIDER_SEND_CIRCUIT_FAILURE_THRESHOLD 5
+ensure_literal_value AUTOMATION_PROVIDER_SEND_CIRCUIT_COOLDOWN_SECONDS 300
 
 set -a
 . "$environment_file"
@@ -94,6 +99,22 @@ compose_exec psql -v ON_ERROR_STOP=1 -U postgres -d swiftflow_staging \
   -f /docker-entrypoint-initdb.d/220-action-outbox.sql
 compose_exec psql -v ON_ERROR_STOP=1 -U postgres -d swiftflow_staging \
   -f /docker-entrypoint-initdb.d/230-action-executor-role.sql
+if [ "$(compose_exec psql -v ON_ERROR_STOP=1 -U postgres -d swiftflow_staging \
+  -Atc "select to_regclass('public.automation_workflow_versions') is not null")" != "t" ]
+then
+  compose_exec psql -v ON_ERROR_STOP=1 -U postgres -d swiftflow_staging \
+    -f /docker-entrypoint-initdb.d/240-workflow-versions.sql
+fi
+if [ "$(compose_exec psql -v ON_ERROR_STOP=1 -U postgres -d swiftflow_staging \
+  -Atc "select to_regclass('public.automation_execution_events') is not null")" != "t" ]
+then
+  compose_exec psql -v ON_ERROR_STOP=1 -U postgres -d swiftflow_staging \
+    -f /docker-entrypoint-initdb.d/250-execution-timeline.sql
+fi
+# The runtime-guard migration is additive and fully repeatable, so reapply it to
+# repair grants/functions as well as create it on first upgrade.
+compose_exec psql -v ON_ERROR_STOP=1 -U postgres -d swiftflow_staging \
+  -f /docker-entrypoint-initdb.d/260-runtime-guards.sql
 compose_exec sh /docker-entrypoint-initdb.d/300-worker-login.sh
 compose_exec sh /docker-entrypoint-initdb.d/310-ingress-login.sh
 compose_exec sh /docker-entrypoint-initdb.d/320-executor-login.sh

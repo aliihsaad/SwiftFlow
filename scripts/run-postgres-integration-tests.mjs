@@ -153,6 +153,24 @@ try {
     "/opt/swiftflow/verify-webhook-ingress-role.sql",
   ], { env: testEnvironment })
   await run("docker", [
+    ...composeArgs,
+    "exec",
+    "-T",
+    "--env",
+    "PGPASSWORD=swiftflow_executor_test",
+    "postgres",
+    "psql",
+    "--no-psqlrc",
+    "--host",
+    "127.0.0.1",
+    "--username",
+    "swiftflow_executor_test",
+    "--dbname",
+    "swiftflow_test",
+    "--file",
+    "/opt/swiftflow/verify-action-executor-role.sql",
+  ], { env: testEnvironment })
+  await run("docker", [
     "build",
     "--file",
     "Dockerfile.webhook-comparison",

@@ -9,6 +9,11 @@ import {
 import { decideRetry, redactProviderError } from "./action-retry-policy"
 import type { ActionOutboxRepository } from "./postgres-action-outbox"
 import type { ProviderActionAdapter } from "./provider-action-adapter"
+import type {
+  AutomationRuntimeGuard,
+  AutomationRuntimeGuardPolicy,
+  AutomationRuntimeGuardScope,
+} from "./automation-runtime-guard"
 
 export interface ExecutorLookup {
   findAccount(socialAccountId: string | null): Promise<ExecutorAccount | null>
@@ -30,6 +35,7 @@ export interface ActionExecutorOptions {
   lookup: ExecutorLookup
   adapter: ProviderActionAdapter
   rateLimiter?: AccountRateLimiter
+  runtimeGuard?: AutomationRuntimeGuard
   onEvent?: (event: Record<string, unknown>) => void
 }
 
@@ -103,6 +109,54 @@ export class ActionExecutor {
       return
     }
 
+    const guardScope: AutomationRuntimeGuardScope | null =
+      record.workspaceId && record.socialAccountId
+        ? {
+            workspaceId: record.workspaceId,
+            socialAccountId: record.socialAccountId,
+            automationId: record.identity.automationId,
+            resourceKind: "provider_send",
+          }
+        : null
+    const guardPolicy: AutomationRuntimeGuardPolicy = {
+      accountLimit: config.providerSendAccountBudget,
+      automationLimit: config.providerSendAutomationBudget,
+      windowSeconds: config.providerSendBudgetWindowSeconds,
+      failureThreshold: config.providerSendCircuitFailureThreshold,
+      cooldownSeconds: config.providerSendCircuitCooldownSeconds,
+    }
+
+    let guardDeniedReason: string | null = null
+    if (!guardScope && config.durableRuntimeGuardsRequired) {
+      guardDeniedReason = "runtime_guard_scope_missing"
+    } else if (!this.options.runtimeGuard && config.durableRuntimeGuardsRequired) {
+      guardDeniedReason = "runtime_guard_unavailable"
+    } else if (guardScope && this.options.runtimeGuard) {
+      try {
+        const reservation = await this.options.runtimeGuard.reserve(guardScope, guardPolicy)
+        if (!reservation.allowed) guardDeniedReason = reservation.reason
+      } catch {
+        guardDeniedReason = "runtime_guard_unavailable"
+      }
+    }
+
+    if (guardDeniedReason) {
+      const result = await repository.suppress(
+        record.id,
+        config.workerId,
+        guardDeniedReason,
+      )
+      if (result.updated) run.suppressed += 1
+      else run.lostLease += 1
+      this.emit({
+        event: "action_suppressed",
+        actionId: record.id,
+        actionType: record.identity.actionType,
+        reason: guardDeniedReason,
+      })
+      return
+    }
+
     // Only reachable once every gate has passed.
     const resolvedAccount = account as ExecutorAccount
     let outcome
@@ -115,6 +169,21 @@ export class ActionExecutor {
       outcome = {
         ok: false as const,
         failure: { message: redactProviderError(error), ambiguous: true },
+      }
+    }
+
+    if (guardScope && this.options.runtimeGuard) {
+      try {
+        await this.options.runtimeGuard.recordOutcome(guardScope, guardPolicy, {
+          succeeded: outcome.ok,
+          failureCode: outcome.ok ? undefined : String(outcome.failure.code ?? "provider_error"),
+        })
+      } catch {
+        this.emit({
+          event: "runtime_guard_outcome_record_failed",
+          actionId: record.id,
+          actionType: record.identity.actionType,
+        })
       }
     }
 

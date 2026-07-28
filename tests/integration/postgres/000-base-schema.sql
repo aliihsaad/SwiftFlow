@@ -25,6 +25,26 @@ create table public.automations (
   created_at timestamptz not null default now()
 );
 
+create table public.automation_runs (
+  id uuid primary key default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id) on delete cascade,
+  automation_id uuid not null references public.automations(id) on delete cascade,
+  status text not null default 'queued',
+  trigger_context jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table public.automation_scheduled_executions (
+  id uuid primary key default gen_random_uuid(),
+  automation_id uuid not null references public.automations(id) on delete cascade,
+  execution_id uuid not null,
+  node_id text not null,
+  execution_context jsonb not null,
+  scheduled_for timestamptz not null,
+  status text not null default 'pending',
+  created_at timestamptz not null default now()
+);
+
 create index automations_workspace_active_idx
   on public.automations (workspace_id, is_active, editor_version);
 

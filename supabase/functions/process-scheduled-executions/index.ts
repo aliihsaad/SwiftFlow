@@ -41,7 +41,7 @@ async function reclaimStalledAutomationRuns(supabase): Promise<{ reclaimed: numb
   const queuedCutoff = new Date(Date.now() - STALLED_RUN_AGE_MINUTES * 60 * 1000).toISOString()
   const { data: stalledRuns, error } = await supabase
     .from('automation_runs')
-    .select('id, workspace_id, automation_id, event_id, trigger_type, trigger_context')
+    .select('id, workspace_id, automation_id, workflow_version_id, event_id, trigger_type, trigger_context')
     .eq('status', 'queued')
     .lt('created_at', queuedCutoff)
     .order('created_at', { ascending: true })
@@ -58,6 +58,7 @@ async function reclaimStalledAutomationRuns(supabase): Promise<{ reclaimed: numb
         run_id: run.id,
         workspace_id: run.workspace_id,
         automation_id: run.automation_id,
+        workflow_version_id: run.workflow_version_id,
         event_id: run.event_id,
         trigger_type: run.trigger_type,
         trigger_context: run.trigger_context || {},

@@ -129,6 +129,7 @@ serve(async (req) => {
     const runId = body?.run_id as string | undefined;
     const automationId = body?.automation_id as string | undefined;
     const workspaceId = body?.workspace_id as string | undefined;
+    const requestedWorkflowVersionId = body?.workflow_version_id as string | undefined;
     const eventId = body?.event_id as string | undefined;
     const triggerType = body?.trigger_type as string | undefined;
     const triggerContext = (body?.trigger_context || {}) as Record<string, unknown>;
@@ -153,6 +154,7 @@ serve(async (req) => {
         .insert({
           workspace_id: workspaceId,
           automation_id: automationId,
+          workflow_version_id: requestedWorkflowVersionId || null,
           event_id: eventId || null,
           status: 'queued',
           trigger_type: triggerType || null,
@@ -178,7 +180,7 @@ serve(async (req) => {
       })
       .eq('id', effectiveRunId)
       .eq('status', 'queued')
-      .select('id');
+      .select('id, workflow_version_id');
 
     if (claimError) {
       throw new Error(`Failed to claim automation run: ${claimError.message}`);
@@ -212,6 +214,29 @@ serve(async (req) => {
 
     if (automationError || !automation) {
       throw new Error(`Automation not found: ${automationError?.message || automationId}`);
+    }
+
+    const pinnedWorkflowVersionId = claimedRows[0]?.workflow_version_id as string | undefined;
+    if (automation.editor_version === 'canvas') {
+      if (!pinnedWorkflowVersionId) {
+        throw new Error('Canvas automation run is missing its immutable workflow version');
+      }
+
+      const { data: workflowVersion, error: workflowVersionError } = await supabase
+        .from('automation_workflow_versions')
+        .select('id, workflow_graph')
+        .eq('id', pinnedWorkflowVersionId)
+        .eq('automation_id', automationId)
+        .maybeSingle();
+
+      if (workflowVersionError || !workflowVersion) {
+        throw new Error(
+          `Pinned workflow version not found: ${workflowVersionError?.message || pinnedWorkflowVersionId}`,
+        );
+      }
+
+      automation.workflow_graph = workflowVersion.workflow_graph;
+      automation.workflow_version_id = workflowVersion.id;
     }
 
     if (!automation.is_active) {

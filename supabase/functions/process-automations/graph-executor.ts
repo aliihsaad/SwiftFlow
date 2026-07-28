@@ -514,6 +514,8 @@ export async function executeWorkflowGraph(
         if (remainingNodes.length > 0) {
           await supabase.from('automation_scheduled_executions').insert({
             automation_id: automation.id,
+            workflow_version_id:
+              automation.workflow_version_id || automation.current_workflow_version_id,
             execution_id: crypto.randomUUID(),
             node_id: nodeId,
             execution_context: {
@@ -554,7 +556,7 @@ export async function resumeFromDelay(
   supabase: any,
   scheduledExec: any,
 ): Promise<ExecutionResult> {
-  const { automation_id, execution_context } = scheduledExec;
+  const { automation_id, workflow_version_id, execution_context } = scheduledExec;
   const { trigger_data, next_nodes, node_outputs } = execution_context;
 
   // Fetch the automation
@@ -573,6 +575,29 @@ export async function resumeFromDelay(
     console.log(`[GRAPH_RESUME] Automation ${automation_id} is inactive, skipping`);
     return { processed: 0, dmsSent: 0, errors: 0, nodeResults: {} };
   }
+
+  if (!workflow_version_id) {
+    console.error(`[GRAPH_RESUME] Scheduled execution for ${automation_id} has no workflow version`);
+    return { processed: 0, dmsSent: 0, errors: 1, nodeResults: {} };
+  }
+
+  const { data: workflowVersion, error: workflowVersionError } = await supabase
+    .from('automation_workflow_versions')
+    .select('id, workflow_graph')
+    .eq('id', workflow_version_id)
+    .eq('automation_id', automation_id)
+    .maybeSingle();
+
+  if (workflowVersionError || !workflowVersion) {
+    console.error(
+      `[GRAPH_RESUME] Workflow version ${workflow_version_id} not found for ${automation_id}`,
+      redactSensitiveLogValue(workflowVersionError),
+    );
+    return { processed: 0, dmsSent: 0, errors: 1, nodeResults: {} };
+  }
+
+  automation.workflow_graph = workflowVersion.workflow_graph;
+  automation.workflow_version_id = workflowVersion.id;
 
   const account = automation.social_accounts ? await decryptMetaAccountRow(automation.social_accounts) : null;
   if (!account?.access_token) {
@@ -658,6 +683,7 @@ export async function resumeFromDelay(
         if (remainingNodes.length > 0) {
           await supabase.from('automation_scheduled_executions').insert({
             automation_id: automation.id,
+            workflow_version_id: automation.workflow_version_id,
             execution_id: crypto.randomUUID(),
             node_id: nodeId,
             execution_context: {

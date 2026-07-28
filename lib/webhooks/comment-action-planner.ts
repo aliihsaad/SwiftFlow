@@ -1,7 +1,4 @@
-import {
-  deriveWorkflowVersionId,
-  type ProviderActionRequest,
-} from "../automation/action-outbox-contract"
+import type { ProviderActionRequest } from "../automation/action-outbox-contract"
 
 /**
  * Decides whether a matched comment automation may enqueue a provider action.
@@ -30,6 +27,7 @@ export type ActionPlanRefusal =
   | "private_reply_not_configured"
   | "ai_response_not_supported"
   | "missing_target_comment"
+  | "missing_workflow_version"
 
 export type ActionPlan =
   | { supported: true; request: ProviderActionRequest }
@@ -38,6 +36,7 @@ export type ActionPlan =
 export interface ActionPlanContext {
   providerEventKey: string
   automationId: string
+  workflowVersionId: string
   workflowGraph: Record<string, unknown>
   matchedTriggerNodeId: string
   workspaceId: string | null
@@ -149,6 +148,8 @@ export function planCommentPrivateReplyAction(context: ActionPlanContext): Actio
 
   const commentId = boundedIdentifier(context.commentId)
   if (!commentId) return { supported: false, reason: "missing_target_comment" }
+  const workflowVersionId = text(context.workflowVersionId)
+  if (!workflowVersionId) return { supported: false, reason: "missing_workflow_version" }
 
   return {
     supported: true,
@@ -157,7 +158,7 @@ export function planCommentPrivateReplyAction(context: ActionPlanContext): Actio
         provider: "meta",
         providerEventKey: context.providerEventKey,
         automationId: context.automationId,
-        workflowVersionId: deriveWorkflowVersionId(context.workflowGraph),
+        workflowVersionId,
         nodeId: text(targetNode.id),
         actionType: "action_private_reply",
         targetId: commentId,

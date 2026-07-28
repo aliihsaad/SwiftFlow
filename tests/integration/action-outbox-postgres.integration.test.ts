@@ -31,6 +31,7 @@ const EXTERNAL_ACCOUNT = "17841478478450461"
 let adminPool: Pool
 let comparisonPool: Pool
 let executorPool: Pool
+let workflowVersionId: string
 
 function request(overrides: Partial<ProviderActionRequest["identity"]> = {}): ProviderActionRequest {
   return {
@@ -38,7 +39,7 @@ function request(overrides: Partial<ProviderActionRequest["identity"]> = {}): Pr
       provider: "meta",
       providerEventKey: "instagram:acct:change:comments:comment-1",
       automationId: AUTOMATION_ID,
-      workflowVersionId: "wfv1",
+      workflowVersionId,
       nodeId: "reply-node",
       actionType: "action_private_reply",
       targetId: "comment-1",
@@ -117,8 +118,11 @@ beforeEach(async () => {
   await adminPool.query(`
     truncate table
       public.automation_action_outbox,
+      public.automation_scheduled_executions,
+      public.automation_runs,
       public.webhook_inbox_events,
       public.automations,
+      public.automation_workflow_versions,
       public.social_accounts,
       public.workspaces
     restart identity cascade
@@ -135,6 +139,11 @@ beforeEach(async () => {
     insert into public.automations (id, workspace_id, social_account_id, is_active, editor_version, workflow_graph)
     values ($1, $2, $3, true, 'canvas', '{"nodes":[],"edges":[]}'::jsonb)
   `, [AUTOMATION_ID, WORKSPACE_ID, ACCOUNT_ID])
+  const version = await adminPool.query<{ current_workflow_version_id: string }>(
+    "select current_workflow_version_id from public.automations where id = $1",
+    [AUTOMATION_ID],
+  )
+  workflowVersionId = version.rows[0]!.current_workflow_version_id
 })
 
 afterAll(async () => {
@@ -164,12 +173,24 @@ describe("action outbox idempotency", () => {
     expect(await outboxRows()).toHaveLength(2)
   })
 
-  it("treats a different node or workflow version as a distinct action", async () => {
+  it("treats a different node or persisted workflow version as a distinct action", async () => {
     const repository = new PostgresActionOutboxRepository(createPostgresQueryClient(adminPool))
 
     await repository.enqueue([request()])
     await repository.enqueue([request({ nodeId: "other-node" })])
-    await repository.enqueue([request({ workflowVersionId: "wfv2" })])
+    await adminPool.query(
+      `update public.automations
+       set workflow_graph = '{"nodes":[{"id":"v2"}],"edges":[]}'::jsonb
+       where id = $1`,
+      [AUTOMATION_ID],
+    )
+    const nextVersion = await adminPool.query<{ current_workflow_version_id: string }>(
+      "select current_workflow_version_id from public.automations where id = $1",
+      [AUTOMATION_ID],
+    )
+    await repository.enqueue([
+      request({ workflowVersionId: nextVersion.rows[0]!.current_workflow_version_id }),
+    ])
 
     expect(await outboxRows()).toHaveLength(3)
   })
@@ -186,6 +207,83 @@ describe("action outbox idempotency", () => {
       "p:automation_action_outbox_pkey",
       "u:automation_action_outbox_identity_unique",
     ].sort())
+  })
+})
+
+describe("immutable workflow version pinning", () => {
+  it("keeps runs and delayed continuations on the graph version that created them", async () => {
+    const initialVersionId = workflowVersionId
+
+    await adminPool.query(`
+      insert into public.automation_runs (workspace_id, automation_id)
+      values ($1, $2)
+    `, [WORKSPACE_ID, AUTOMATION_ID])
+    await adminPool.query(`
+      insert into public.automation_scheduled_executions (
+        automation_id, execution_id, node_id, execution_context, scheduled_for
+      ) values ($1, $2, 'delay', '{}'::jsonb, now() + interval '1 minute')
+    `, [AUTOMATION_ID, randomUUID()])
+
+    await adminPool.query(
+      `update public.automations
+       set workflow_graph = '{"nodes":[{"id":"new-node"}],"edges":[]}'::jsonb
+       where id = $1`,
+      [AUTOMATION_ID],
+    )
+
+    const current = await adminPool.query<{ current_workflow_version_id: string }>(
+      "select current_workflow_version_id from public.automations where id = $1",
+      [AUTOMATION_ID],
+    )
+    const pins = await adminPool.query<{ workflow_version_id: string }>(`
+      select workflow_version_id from public.automation_runs
+      union all
+      select workflow_version_id from public.automation_scheduled_executions
+    `)
+    const versions = await adminPool.query<{
+      id: string
+      version_number: string
+      workflow_graph: { nodes?: Array<{ id?: string }> }
+    }>(`
+      select id, version_number, workflow_graph
+      from public.automation_workflow_versions
+      where automation_id = $1
+      order by version_number
+    `, [AUTOMATION_ID])
+
+    expect(current.rows[0]!.current_workflow_version_id).not.toBe(initialVersionId)
+    expect(pins.rows.map((row) => row.workflow_version_id))
+      .toEqual([initialVersionId, initialVersionId])
+    expect(versions.rows).toHaveLength(2)
+    expect(versions.rows[0]!.workflow_graph).toEqual({ nodes: [], edges: [] })
+    expect(versions.rows[1]!.workflow_graph.nodes?.[0]?.id).toBe("new-node")
+
+    await expect(adminPool.query(
+      "update public.automation_workflow_versions set workflow_graph = '{}'::jsonb where id = $1",
+      [initialVersionId],
+    )).rejects.toThrow(/immutable/i)
+    await expect(adminPool.query(
+      "delete from public.automation_workflow_versions where id = $1",
+      [initialVersionId],
+    )).rejects.toThrow(/immutable/i)
+  })
+
+  it("rejects a version row that belongs to another automation", async () => {
+    const secondAutomationId = "50000000-0000-4000-8000-000000000099"
+    await adminPool.query(`
+      insert into public.automations (
+        id, workspace_id, social_account_id, is_active, editor_version, workflow_graph
+      ) values ($1, $2, $3, true, 'canvas', '{"nodes":[],"edges":[]}'::jsonb)
+    `, [secondAutomationId, WORKSPACE_ID, ACCOUNT_ID])
+    const secondVersion = await adminPool.query<{ current_workflow_version_id: string }>(
+      "select current_workflow_version_id from public.automations where id = $1",
+      [secondAutomationId],
+    )
+
+    const repository = new PostgresActionOutboxRepository(createPostgresQueryClient(adminPool))
+    await expect(repository.enqueue([
+      request({ workflowVersionId: secondVersion.rows[0]!.current_workflow_version_id }),
+    ])).rejects.toThrow(/foreign key/i)
   })
 })
 
@@ -330,6 +428,7 @@ describe("comparison-path enqueueing through the insert-only role", () => {
             automations: [{
               id: AUTOMATION_ID,
               socialAccountId: ACCOUNT_ID,
+              workflowVersionId,
               workflowGraph: SUPPORTED_GRAPH,
             }],
           }
@@ -380,6 +479,7 @@ describe("comparison-path enqueueing through the insert-only role", () => {
             automations: [{
               id: AUTOMATION_ID,
               socialAccountId: ACCOUNT_ID,
+              workflowVersionId,
               workflowGraph: SUPPORTED_GRAPH,
             }],
           }
@@ -426,9 +526,15 @@ describe("database role separation", () => {
       insert into public.automation_action_outbox (
         provider, provider_event_key, automation_id, workflow_version_id,
         node_id, action_type, target_id, workspace_id, social_account_id, action_payload
-      ) values ('meta', $1, $2, 'wfv1', 'n1', 'action_private_reply', 'c1', $3, $4, '{}'::jsonb)
+      ) values ('meta', $1, $2, $3::uuid, 'n1', 'action_private_reply', 'c1', $4, $5, '{}'::jsonb)
       on conflict do nothing
-    `, [`evt-${randomUUID()}`, AUTOMATION_ID, WORKSPACE_ID, ACCOUNT_ID])).resolves.toBeDefined()
+    `, [
+      `evt-${randomUUID()}`,
+      AUTOMATION_ID,
+      workflowVersionId,
+      WORKSPACE_ID,
+      ACCOUNT_ID,
+    ])).resolves.toBeDefined()
 
     await expect(comparisonPool.query("select id from public.automation_action_outbox"))
       .rejects.toThrow(/permission denied/i)
@@ -461,8 +567,8 @@ describe("database role separation", () => {
       insert into public.automation_action_outbox (
         provider, provider_event_key, automation_id, workflow_version_id,
         node_id, action_type, target_id
-      ) values ('meta', 'x', $1, 'v', 'n', 'a', 't')
-    `, [AUTOMATION_ID])).rejects.toThrow(/permission denied/i)
+      ) values ('meta', 'x', $1, $2::uuid, 'n', 'a', 't')
+    `, [AUTOMATION_ID, workflowVersionId])).rejects.toThrow(/permission denied/i)
     await expect(executorPool.query("delete from public.automation_action_outbox"))
       .rejects.toThrow(/permission denied/i)
     await expect(executorPool.query("select refresh_token from public.social_accounts"))

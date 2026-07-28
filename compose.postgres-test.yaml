@@ -18,6 +18,7 @@ services:
       - ./supabase/migrations/20260726213000_add_webhook_ingress_role.sql:/docker-entrypoint-initdb.d/210-webhook-ingress-role.sql:ro
       - ./supabase/migrations/20260727090000_add_automation_action_outbox.sql:/docker-entrypoint-initdb.d/220-action-outbox.sql:ro
       - ./supabase/migrations/20260727091000_add_automation_action_executor_role.sql:/docker-entrypoint-initdb.d/230-action-executor-role.sql:ro
+      - ./supabase/migrations/20260728100000_add_immutable_automation_workflow_versions.sql:/docker-entrypoint-initdb.d/240-workflow-versions.sql:ro
       - ./tests/integration/postgres/300-worker-login.sql:/docker-entrypoint-initdb.d/300-worker-login.sql:ro
       - ./tests/integration/postgres/310-ingress-login.sql:/docker-entrypoint-initdb.d/310-ingress-login.sql:ro
       - ./tests/integration/postgres/320-executor-login.sql:/docker-entrypoint-initdb.d/320-executor-login.sql:ro

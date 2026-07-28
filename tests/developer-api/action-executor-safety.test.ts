@@ -6,7 +6,6 @@ import {
 } from "@/lib/automation/action-executor"
 import {
   buildProviderActionIdentityKey,
-  deriveWorkflowVersionId,
   type ActionOutboxRecord,
 } from "@/lib/automation/action-outbox-contract"
 import {
@@ -156,14 +155,6 @@ describe("provider action identity", () => {
     expect(buildProviderActionIdentityKey({ ...base, providerEventKey: "other" })).not.toBe(key)
   })
 
-  it("derives a workflow version that ignores key order but tracks content", () => {
-    const a = deriveWorkflowVersionId({ nodes: [{ id: "x", type: "t" }], edges: [] })
-    const b = deriveWorkflowVersionId({ edges: [], nodes: [{ type: "t", id: "x" }] })
-    const c = deriveWorkflowVersionId({ nodes: [{ id: "y", type: "t" }], edges: [] })
-
-    expect(a).toBe(b)
-    expect(a).not.toBe(c)
-  })
 })
 
 describe("kill switch and gates", () => {

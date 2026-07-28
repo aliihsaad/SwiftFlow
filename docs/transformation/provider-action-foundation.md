@@ -35,6 +35,27 @@ Enqueue uses an untargeted `on conflict do nothing` with no `returning`, because
 naming an arbiter or returning rows both require `select` privilege that the
 insert-only comparison role deliberately lacks.
 
+## Immutable workflow versions
+
+`automation_workflow_versions` is the append-only graph ledger. Every
+`workflow_graph` change captures a new numbered row and updates
+`automations.current_workflow_version_id`. Version rows reject updates and
+deletes, and composite foreign keys ensure a version UUID cannot be paired with
+the wrong automation.
+
+The same version ID is now stored on:
+
+- `automation_action_outbox` for provider-action identity;
+- `automation_runs` before a queued worker starts;
+- `automation_scheduled_executions` for every delayed continuation.
+
+Workers load the graph from the pinned version row, never from the editable
+automation record. The interim content hash is retained only as nullable
+`legacy_workflow_snapshot_id` audit data on pre-migration outbox rows.
+
+This is the persistence and execution foundation. A separate product step will
+add explicit draft-versus-published controls and rollback selection in the UI.
+
 ## The Meta private-reply endpoint
 
 Verified against Meta's Instagram Platform private-replies documentation on

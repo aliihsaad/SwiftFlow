@@ -33,7 +33,7 @@ export const ENQUEUE_ACTION_SQL = `
   insert into public.automation_action_outbox (
     ${ACTION_OUTBOX_INSERT_COLUMNS.join(",\n    ")}
   )
-  values ($1, $2, $3::uuid, $4, $5, $6, $7, $8::uuid, $9::uuid, $10::jsonb)
+  values ($1, $2, $3::uuid, $4::uuid, $5, $6, $7, $8::uuid, $9::uuid, $10::jsonb)
   on conflict do nothing
 `
 

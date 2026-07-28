@@ -149,7 +149,9 @@ Known immediate automation risks:
 1. `action_http_request` can perform unrestricted outbound fetches.
 2. `follower_count` and `comment_count` condition placeholders currently
    evaluate as true.
-3. Workflow runs are not explicitly pinned to an immutable workflow version.
+3. Resolved in the transformation foundation: workflow runs, delayed
+   continuations, and provider actions are pinned to append-only workflow
+   version rows.
 4. The webhook route performs more synchronous work before acknowledging
    Meta than the target architecture should allow.
 
@@ -266,7 +268,7 @@ the following gates must pass.
       expensive automation work.
 - [ ] Replaying the same webhook cannot duplicate an external side effect.
 - [ ] Worker restart during execution does not lose a queued run.
-- [ ] Delayed executions resume the workflow version that created them.
+- [x] Delayed executions resume the workflow version that created them.
 - [ ] Each run has a per-node timeline and a human-readable terminal state.
 - [ ] Failed transient jobs retry with bounded exponential backoff.
 - [ ] Terminal failures move to an inspectable dead-letter state.
@@ -487,7 +489,7 @@ Re-enable a disabled node only after the replacement behavior and tests ship.
 - [ ] Move browser-side direct data access behind authenticated Next.js APIs.
 - [ ] Add `automation_events`, `automation_runs`, job, attempt, and
       side-effect ledger semantics required by the new worker.
-- [ ] Define immutable workflow versions and pin every run/delayed continuation
+- [x] Define immutable workflow versions and pin every run/delayed continuation
       to a version ID.
 - [ ] Implement the durable inbox/outbox pattern:
   1. verify and normalize event;

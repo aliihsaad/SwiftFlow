@@ -27,11 +27,13 @@ const SUPPORTED_GRAPH = {
   nodes: [TRIGGER, REPLY],
   edges: [{ source: "trigger", target: "reply" }],
 }
+const WORKFLOW_VERSION_ID = "44444444-4444-4444-8444-444444444444"
 
 function planContext(overrides: Partial<ActionPlanContext> = {}): ActionPlanContext {
   return {
     providerEventKey: "instagram:acct:change:comments:c1",
     automationId: "11111111-1111-4111-8111-111111111111",
+    workflowVersionId: WORKFLOW_VERSION_ID,
     workflowGraph: SUPPORTED_GRAPH,
     matchedTriggerNodeId: "trigger",
     workspaceId: "22222222-2222-4222-8222-222222222222",
@@ -59,7 +61,7 @@ describe("supported graph", () => {
       actionType: "action_private_reply",
       targetId: "comment-1",
     })
-    expect(plan.request.identity.workflowVersionId).toMatch(/^[0-9a-f]{32}$/)
+    expect(plan.request.identity.workflowVersionId).toBe(WORKFLOW_VERSION_ID)
 
     expect(plan.request.payload).toEqual({
       message: "Sent you the details.",
@@ -94,9 +96,11 @@ describe("supported graph", () => {
     expect(plan.request.payload.authorExternalId).toBe("author1")
   })
 
-  it("changes the workflow version when the graph changes", () => {
+  it("uses the immutable version row supplied with the stored graph", () => {
+    const nextVersionId = "55555555-5555-4555-8555-555555555555"
     const a = planCommentPrivateReplyAction(planContext())
     const b = planCommentPrivateReplyAction(planContext({
+      workflowVersionId: nextVersionId,
       workflowGraph: {
         nodes: [TRIGGER, {
           id: "reply",
@@ -108,7 +112,8 @@ describe("supported graph", () => {
 
     expect(a.supported && b.supported).toBe(true)
     if (!a.supported || !b.supported) return
-    expect(a.request.identity.workflowVersionId).not.toBe(b.request.identity.workflowVersionId)
+    expect(a.request.identity.workflowVersionId).toBe(WORKFLOW_VERSION_ID)
+    expect(b.request.identity.workflowVersionId).toBe(nextVersionId)
   })
 })
 
@@ -196,6 +201,7 @@ describe("unsupported graphs enqueue nothing and say why", () => {
     }, "trigger_has_no_action"],
 
     ["a missing comment id", { commentId: "" }, "missing_target_comment"],
+    ["a missing workflow version", { workflowVersionId: "" }, "missing_workflow_version"],
   ]
 
   for (const [label, overrides, expectedReason] of cases) {
@@ -254,6 +260,7 @@ describe("comparison handler enqueueing", () => {
       automations: [{
         id: "11111111-1111-4111-8111-111111111111",
         socialAccountId: "33333333-3333-4333-8333-333333333333",
+        workflowVersionId: WORKFLOW_VERSION_ID,
         workflowGraph: graph,
       }],
     }

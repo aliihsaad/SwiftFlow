@@ -70,6 +70,7 @@ function account(overrides: Partial<CommentComparisonAccount> = {}): CommentComp
     automations: [{
       id: "automation-1",
       socialAccountId: "social-1",
+      workflowVersionId: "44444444-4444-4444-8444-444444444444",
       workflowGraph: privateReplyGraph(),
     }],
     ...overrides,

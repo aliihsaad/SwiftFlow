@@ -27,6 +27,7 @@ export interface CommentWebhookContext {
 interface StoredAutomation {
   id: string
   socialAccountId: string
+  workflowVersionId: string
   workflowGraph: Record<string, unknown>
 }
 
@@ -70,6 +71,7 @@ export const FIND_COMMENT_COMPARISON_AUTOMATIONS_SQL = `
         jsonb_build_object(
           'id', automation.id,
           'social_account_id', automation.social_account_id,
+          'workflow_version_id', automation.current_workflow_version_id,
           'workflow_graph', automation.workflow_graph
         )
         order by automation.created_at asc
@@ -82,6 +84,7 @@ export const FIND_COMMENT_COMPARISON_AUTOMATIONS_SQL = `
     and automation.social_account_id = account.id
     and automation.is_active = true
     and automation.editor_version = 'canvas'
+    and automation.current_workflow_version_id is not null
     and automation.workflow_graph is not null
   group by
     account.workspace_id,
@@ -277,8 +280,13 @@ export class PostgresCommentComparisonLookup implements CommentComparisonLookup 
     const automations = asRecords(row.automations).map((automation) => ({
       id: stringValue(automation.id) || "",
       socialAccountId: stringValue(automation.social_account_id) || "",
+      workflowVersionId: stringValue(automation.workflow_version_id) || "",
       workflowGraph: asRecord(automation.workflow_graph) || {},
-    })).filter((automation) => automation.id && automation.socialAccountId)
+    })).filter((automation) =>
+      automation.id
+      && automation.socialAccountId
+      && automation.workflowVersionId
+    )
 
     return {
       workspaceId: stringValue(row.workspace_id) || "",
@@ -382,6 +390,7 @@ export function createCommentPrivateReplyComparisonHandler(
           plan: planCommentPrivateReplyAction({
             providerEventKey: event.providerEventKey,
             automationId: comparison.automationId,
+            workflowVersionId: automation.workflowVersionId,
             workflowGraph: automation.workflowGraph,
             matchedTriggerNodeId: comparison.triggerNodeId as string,
             workspaceId: account.workspaceId,

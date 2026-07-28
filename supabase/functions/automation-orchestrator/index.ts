@@ -184,7 +184,7 @@ serve(async (req) => {
 
     let query = supabase
       .from('automations')
-      .select('id, workspace_id, social_account_id, is_active, editor_version, workflow_graph')
+      .select('id, workspace_id, social_account_id, is_active, editor_version, current_workflow_version_id, workflow_graph')
       .eq('workspace_id', workspaceId)
       .eq('is_active', true)
       .eq('editor_version', 'canvas');
@@ -221,7 +221,12 @@ serve(async (req) => {
     // retry storms. Runs that lose their dispatcher stay 'queued' and are
     // reclaimed by process-scheduled-executions.
     let queuedFailures = 0;
-    const queuedRuns: Array<{ automationId: string; runId: string; triggerType: string | null }> = [];
+    const queuedRuns: Array<{
+      automationId: string;
+      runId: string;
+      workflowVersionId: string;
+      triggerType: string | null;
+    }> = [];
 
     for (const automation of matched) {
       const triggerNode = getTriggerNode(automation);
@@ -232,12 +237,13 @@ serve(async (req) => {
         .insert({
           workspace_id: workspaceId,
           automation_id: automation.id,
+          workflow_version_id: automation.current_workflow_version_id,
           event_id: eventId,
           status: 'queued',
           trigger_type: triggerType,
           trigger_context: webhookContext,
         })
-        .select('id')
+        .select('id, workflow_version_id')
         .single();
 
       if (runInsertError || !runRow) {
@@ -246,7 +252,28 @@ serve(async (req) => {
         continue;
       }
 
-      queuedRuns.push({ automationId: automation.id, runId: runRow.id, triggerType });
+      if (!runRow.workflow_version_id) {
+        console.error('[ORCHESTRATOR] Canvas run was created without a workflow version');
+        await supabase
+          .from('automation_runs')
+          .update({
+            status: 'failed',
+            error_message: 'Canvas run is missing its immutable workflow version',
+            finished_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', runRow.id)
+          .eq('status', 'queued');
+        queuedFailures++;
+        continue;
+      }
+
+      queuedRuns.push({
+        automationId: automation.id,
+        runId: runRow.id,
+        workflowVersionId: runRow.workflow_version_id,
+        triggerType,
+      });
     }
 
     if (eventId) {
@@ -264,6 +291,7 @@ serve(async (req) => {
         const invokeResult = await invokeEdgeFunction('automation-worker-run', {
           workspace_id: workspaceId,
           automation_id: run.automationId,
+          workflow_version_id: run.workflowVersionId,
           event_id: eventId,
           trigger_type: run.triggerType,
           trigger_context: webhookContext,

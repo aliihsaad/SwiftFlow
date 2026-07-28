@@ -24,8 +24,8 @@ export default function CreateFirstWorkspace() {
             await createWorkspace(name)
             toast.success("Workspace created successfully!")
             router.push('/dashboard')
-        } catch (error: any) {
-            const errorMessage = error.message || "Failed to create workspace"
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : "Failed to create workspace"
             setError(errorMessage)
             toast.error(errorMessage)
             console.error(error)

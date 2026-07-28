@@ -35,10 +35,11 @@ export async function GET(request: NextRequest) {
             accounts: accounts || []
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch accounts';
         console.error('Get Instagram accounts API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to fetch accounts' },
+            { error: errorMessage },
             { status: 500 }
         );
     }

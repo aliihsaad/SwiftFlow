@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import useSWR from "swr"
 import { InstagramMedia } from "@/types/automation"
 import { Label } from "@/components/ui/label"
@@ -47,28 +47,23 @@ export function PostSelector({
         '/api/automations/instagram-accounts',
         fetcher
     )
+    const instagramAccounts = accountsData?.accounts?.filter((account) => account.platform === 'instagram') ?? []
+    const effectiveAccountId = accountId || instagramAccounts[0]?.id || ''
+
 
     // Fetch posts for selected account
     const { data: postsData, isLoading: postsLoading } = useSWR<{ media: InstagramMedia[] }>(
-        accountId ? `/api/automations/instagram-media?account_id=${accountId}` : null,
+        effectiveAccountId ? `/api/automations/instagram-media?account_id=${effectiveAccountId}` : null,
         fetcher
     )
 
-    const instagramAccounts = accountsData?.accounts?.filter(a => a.platform === 'instagram') || []
-
-    // Auto-select first account if none selected
-    useEffect(() => {
-        if (!accountId && instagramAccounts.length > 0) {
-            setAccountId(instagramAccounts[0].id)
-        }
-    }, [instagramAccounts, accountId])
 
     const handleAccountChange = (newAccountId: string) => {
         setAccountId(newAccountId)
     }
 
     const handlePostSelect = (post: InstagramMedia) => {
-        onSelect(post, accountId)
+        onSelect(post, effectiveAccountId)
     }
 
     const getMediaIcon = (mediaType: string) => {
@@ -101,7 +96,7 @@ export function PostSelector({
                         No Instagram accounts connected. Please connect an Instagram Business account first.
                     </div>
                 ) : (
-                    <Select value={accountId} onValueChange={handleAccountChange}>
+                    <Select value={effectiveAccountId} onValueChange={handleAccountChange}>
                         <SelectTrigger className="w-full max-w-xs">
                             <SelectValue placeholder="Select an account" />
                         </SelectTrigger>
@@ -130,7 +125,7 @@ export function PostSelector({
                     </div>
                 ) : !postsData?.media || postsData.media.length === 0 ? (
                     <div className="text-sm text-muted-foreground bg-muted/50 rounded-lg p-8 text-center">
-                        {accountId ? 'No posts found for this account.' : 'Select an account to see posts.'}
+                        {effectiveAccountId ? 'No posts found for this account.' : 'Select an account to see posts.'}
                     </div>
                 ) : (
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">

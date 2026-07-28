@@ -122,17 +122,18 @@ export async function GET(request: NextRequest) {
             });
         }
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch messages';
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
             return NextResponse.json(
-                { error: error.message || 'Forbidden' },
+                { error: errorMessage },
                 { status: permissionStatus }
             );
         }
         console.error('Get messages API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to fetch messages' },
+            { error: errorMessage },
             { status: 500 }
         );
     }
@@ -270,7 +271,8 @@ export async function POST(request: NextRequest) {
             message: savedMessage
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to send message';
         if (error instanceof RateLimitExceededError) {
             return NextResponse.json(
                 { error: error.message },
@@ -280,7 +282,7 @@ export async function POST(request: NextRequest) {
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
             return NextResponse.json(
-                { error: error.message || 'Forbidden' },
+                { error: errorMessage },
                 { status: permissionStatus }
             );
         }
@@ -289,7 +291,7 @@ export async function POST(request: NextRequest) {
         }
         console.error('Send message API error:', redactSensitiveLogValue(error));
         return NextResponse.json(
-            { error: error.message || 'Failed to send message' },
+            { error: errorMessage },
             { status: 500 }
         );
     }

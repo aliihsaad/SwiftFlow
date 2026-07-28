@@ -14,7 +14,7 @@ export async function generateIdeasAction(topic: string, platform: string) {
     return await generateContentIdeas(topic, platform, activeWorkspaceId)
 }
 
-export async function chatAction(messages: any[]) {
+export async function chatAction(messages: Array<{ role: string; content: string }>) {
     const cookieStore = await cookies()
     const activeWorkspaceId = cookieStore.get('active_workspace_id')?.value
 

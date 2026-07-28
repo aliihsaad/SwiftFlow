@@ -1137,7 +1137,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                         {/* Image preview */}
                                         {msg.type === 'image' && msg.data && (
                                             <div className="mt-1 w-full min-w-0 max-w-none overflow-hidden animate-in fade-in zoom-in-50 md:max-w-sm">
-                                                <ImagePreview id={msg.data.id} imageUrl={msg.data.imageUrl} promptUsed={msg.data.prompt_used} onDownload={handleDownloadImage} onUseInPost={handleUseImage} onRegenerate={(prompt) => handleSend(`Regenerate: ${prompt}`, "generate-image")} />
+                                                <ImagePreview id={msg.data.id ?? ''} imageUrl={msg.data.imageUrl ?? ''} promptUsed={msg.data.prompt_used ?? ''} onDownload={handleDownloadImage} onUseInPost={handleUseImage} onRegenerate={(prompt) => handleSend(`Regenerate: ${prompt}`, "generate-image")} />
                                             </div>
                                         )}
 
@@ -1151,7 +1151,7 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                         {/* Carousel style selector */}
                                         {msg.type === 'carousel_style_selector' && msg.data && (
                                             <div className="mt-1 w-full min-w-0 max-w-full overflow-hidden animate-in fade-in slide-in-from-bottom-2">
-                                                <CarouselStyleSelector topic={msg.data.topic} onGenerate={handleCarouselGenerate} isGenerating={isLoading} />
+                                                <CarouselStyleSelector topic={msg.data.topic ?? ''} onGenerate={handleCarouselGenerate} isGenerating={isLoading} />
                                             </div>
                                         )}
 
@@ -1173,10 +1173,10 @@ export function ChatInterface({ workspaceId }: ChatInterfaceProps) {
                                         {msg.type === 'brand_image_options' && msg.data && (
                                             <div className="mt-1 w-full min-w-0 max-w-full overflow-hidden animate-in fade-in slide-in-from-bottom-2">
                                                 <BrandImageOptions
-                                                    mode={msg.data.mode}
-                                                    prompt={msg.data.prompt}
-                                                    hasReferenceImages={msg.data.hasReferenceImages}
-                                                    referenceCount={msg.data.referenceCount}
+                                                    mode={msg.data.mode ?? 'generate'}
+                                                    prompt={msg.data.prompt ?? ''}
+                                                    hasReferenceImages={msg.data.hasReferenceImages ?? false}
+                                                    referenceCount={msg.data.referenceCount ?? 0}
                                                     onGenerate={handleBrandImageGenerate}
                                                     isGenerating={isLoading}
                                                 />

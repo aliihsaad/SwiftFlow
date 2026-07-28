@@ -50,7 +50,7 @@ export function InstagramConnectDialog({ workspaceId, trigger, isConnecting = fa
                         Connect Instagram Business
                     </DialogTitle>
                     <DialogDescription className="pt-2 text-white/50">
-                        To connect Instagram, your account must meet Meta's API requirements.
+                        To connect Instagram, your account must meet Meta&apos;s API requirements.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -62,7 +62,7 @@ export function InstagramConnectDialog({ workspaceId, trigger, isConnecting = fa
                         <div className="space-y-1">
                             <h4 className="text-sm font-medium text-white/85">Switch to Professional Account</h4>
                             <p className="text-xs leading-relaxed text-white/50">
-                                Your Instagram account must be a <strong>Business</strong> or <strong>Creator</strong> account. Public Personal accounts are not supported by Meta's API.
+                                Your Instagram account must be a <strong>Business</strong> or <strong>Creator</strong> account. Public Personal accounts are not supported by Meta&apos;s API.
                             </p>
                         </div>
                     </div>

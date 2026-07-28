@@ -18,6 +18,10 @@ import {
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { InstagramMedia } from '@/types/automation'
+import {
+  getAutomationConditionPolicyIssue,
+  SUPPORTED_AUTOMATION_CONDITION_TYPES,
+} from '@/supabase/functions/_shared/automation-condition-policy'
 import type {
   WorkflowNode,
   WorkflowNodeData,
@@ -904,18 +908,27 @@ function ActionDelayFields({ config, onUpdate }: { config: ActionDelayConfig; on
 }
 
 function ActionConditionFields({ config, onUpdate }: { config: ActionConditionConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+  const conditionType = config.condition_type || 'keyword_match'
+  const conditionIssue = getAutomationConditionPolicyIssue(conditionType)
   return (
     <>
       <div>
         <Label className="text-xs">Condition Type</Label>
         <select
-          value={config.condition_type || 'keyword_match'}
+          value={conditionType}
           onChange={(e) => onUpdate({ condition_type: e.target.value })}
           className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
         >
-          <option value="keyword_match">Keyword Match</option>
-          <option value="follower_count">Follower Count</option>
-          <option value="comment_count">Comment Count</option>
+          {conditionIssue && (
+            <option value={conditionType} disabled>
+              Unavailable legacy condition
+            </option>
+          )}
+          {SUPPORTED_AUTOMATION_CONDITION_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {type === 'keyword_match' ? 'Keyword Match' : type}
+            </option>
+          ))}
         </select>
       </div>
       <div>
@@ -928,11 +941,9 @@ function ActionConditionFields({ config, onUpdate }: { config: ActionConditionCo
           <option value="contains">Contains</option>
           <option value="not_contains">Does Not Contain</option>
           <option value="equals">Equals</option>
-          <option value="greater_than">Greater Than</option>
-          <option value="less_than">Less Than</option>
         </select>
       </div>
-      {config.condition_type === 'keyword_match' && (
+      {conditionType === 'keyword_match' && (
         <div>
           <Label className="text-xs">Keywords (comma separated)</Label>
           <Input
@@ -942,16 +953,10 @@ function ActionConditionFields({ config, onUpdate }: { config: ActionConditionCo
           />
         </div>
       )}
-      {(config.condition_type === 'follower_count' || config.condition_type === 'comment_count') && (
-        <div>
-          <Label className="text-xs">Threshold</Label>
-          <Input
-            type="number"
-            value={config.threshold || 0}
-            onChange={(e) => onUpdate({ threshold: parseInt(e.target.value) || 0 })}
-            className="mt-1"
-          />
-        </div>
+      {conditionIssue && (
+        <p className="text-xs text-amber-300" role="alert">
+          {conditionIssue.message}
+        </p>
       )}
     </>
   )

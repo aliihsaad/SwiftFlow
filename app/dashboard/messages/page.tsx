@@ -256,10 +256,11 @@ export default function MessagesPage() {
                 title: "Messages refreshed",
                 description: "Conversation and thread data were updated.",
             })
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : "Could not refresh messages."
             toast({
                 title: "Refresh failed",
-                description: error?.message || "Could not refresh messages.",
+                description: errorMessage,
                 variant: "destructive",
             })
         } finally {

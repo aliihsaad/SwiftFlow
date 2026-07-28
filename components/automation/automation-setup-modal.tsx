@@ -199,11 +199,12 @@ export function AutomationSetupModal({
             })
 
             onSave()
-        } catch (error: any) {
-            setInlineError(error.message || "Failed to save automation")
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : "Failed to save automation"
+            setInlineError(errorMessage)
             toast({
                 title: "Error",
-                description: error.message || "Failed to save automation",
+                description: errorMessage,
                 variant: "destructive",
             })
         } finally {

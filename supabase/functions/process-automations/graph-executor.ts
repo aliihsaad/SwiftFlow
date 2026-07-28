@@ -20,6 +20,9 @@ import {
 } from "../_shared/meta-account.ts"
 
 import { META_GRAPH_API_BASE_URL, toMetaGraphFormBody } from "../_shared/meta-graph.ts";
+import {
+  getAutomationConditionPolicyIssue,
+} from "../_shared/automation-condition-policy.ts";
 
 const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
@@ -1077,7 +1080,12 @@ async function executePrivateReply(
 function executeCondition(
   config: any,
   ctx: TriggerContext,
-): { success: boolean; output: { conditionResult: boolean } } {
+): { success: boolean; output?: { conditionResult: boolean }; error?: string } {
+  const conditionIssue = getAutomationConditionPolicyIssue(config.condition_type);
+  if (conditionIssue) {
+    return { success: false, error: conditionIssue.message };
+  }
+
   let conditionResult = false;
   const text = (ctx.comment_text || ctx.message_text || '').toLowerCase();
 
@@ -1093,11 +1101,8 @@ function executeCondition(
       }
       break;
     }
-    case 'follower_count':
-    case 'comment_count':
-      // These would need API calls — placeholder
-      conditionResult = true;
-      break;
+    default:
+      return { success: false, error: 'Unsupported automation condition.' };
   }
 
   return { success: true, output: { conditionResult } };

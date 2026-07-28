@@ -7,6 +7,14 @@
     "build": "node scripts/validate-env.mjs && next build",
     "start": "next start",
     "lint": "eslint",
+    "worker:webhook-comparison": "tsx workers/comment-comparison.ts",
+    "worker:webhook-comparison:health": "tsx workers/comment-comparison-healthcheck.ts",
+    "worker:webhook-ingress": "tsx workers/webhook-ingress.ts",
+    "worker:webhook-ingress:health": "tsx workers/webhook-ingress-healthcheck.ts",
+    "worker:webhook-ingress:smoke": "tsx workers/webhook-ingress-smoke.ts",
+    "test:postgres": "node scripts/run-postgres-integration-tests.mjs",
+    "test:postgres:up": "docker compose -p swiftflow-webhook-test -f compose.postgres-test.yaml up -d --wait",
+    "test:postgres:down": "docker compose -p swiftflow-webhook-test -f compose.postgres-test.yaml down --volumes --remove-orphans",
     "test:ci": "vitest run",
     "validate:env": "node scripts/validate-env.mjs"
   },
@@ -44,6 +52,7 @@
     "next": "16.2.10",
     "next-themes": "^0.4.6",
     "nextjs-toploader": "^3.9.17",
+    "pg": "^8.22.0",
     "react": "19.2.3",
     "react-day-picker": "^9.13.0",
     "react-dom": "19.2.3",
@@ -52,11 +61,13 @@
     "sonner": "^2.0.7",
     "stripe": "^22.3.0",
     "swr": "^2.3.8",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "^3.4.0",
+    "tsx": "^4.23.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.20.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

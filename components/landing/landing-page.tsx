@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useEffect, useState } from "react"
-import type { Variants } from "framer-motion"
+import type { MotionValue, Variants } from "framer-motion"
 import {
     motion,
     useScroll,
@@ -40,6 +40,7 @@ import {
     X,
 } from "lucide-react"
 
+import type { LucideIcon } from "lucide-react"
 /* ─────────────────────────────────
    Shared animation variants
 ───────────────────────────────── */
@@ -464,7 +465,7 @@ function MagneticButton({ children, className = "" }: { children: React.ReactNod
     )
 }
 
-function HeroAppWindow({ scrollYProgress }: { scrollYProgress: any }) {
+function HeroAppWindow({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) {
     // The window scales up and becomes fully opaque as you scroll down
     const scale = useTransform(scrollYProgress, [0, 0.4], [0.85, 1])
     const opacity = useTransform(scrollYProgress, [0, 0.2], [0.5, 1])
@@ -809,7 +810,7 @@ function FakeAutomationFlow() {
                             </div>
                             <div>
                                 <div className="text-white/90 text-sm font-medium">New Comment</div>
-                                <div className="text-white/40 text-[10px] font-light mt-0.5">Contains word: "link"</div>
+                                <div className="text-white/40 text-[10px] font-light mt-0.5">Contains word: &quot;link&quot;</div>
                             </div>
                         </div>
                     </motion.div>
@@ -833,7 +834,7 @@ function FakeAutomationFlow() {
                             </div>
                             <div>
                                 <div className="text-white/90 text-sm font-medium">Send Direct Message</div>
-                                <div className="text-white/40 text-[10px] font-light mt-0.5">"Hey! Here is the link..."</div>
+                                <div className="text-white/40 text-[10px] font-light mt-0.5">&quot;Hey! Here is the link...&quot;</div>
                             </div>
                         </div>
                     </motion.div>
@@ -1023,10 +1024,10 @@ function FeaturePhase({
     total,
     scrollYProgress
 }: {
-    item: any
+    item: (typeof SHOWCASE_ITEMS)[number]
     idx: number
     total: number
-    scrollYProgress: any
+    scrollYProgress: MotionValue<number>
 }) {
     const step = 1 / (total - 1)
     const start = idx * step
@@ -1115,7 +1116,7 @@ function FeatureShowcase() {
                     >
                         <div className="w-full md:w-1/2 pl-0 md:pl-12 lg:pl-24">
                             <p className="text-sm font-bold uppercase tracking-[0.2em] mb-4 text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-fuchsia-500">
-                                0{idx + 1} // Phase
+                                0{idx + 1} {"//"} Phase
                             </p>
                             <h3 className="text-4xl md:text-5xl lg:text-6xl font-black text-white mb-6 leading-[1.1] tracking-tight drop-shadow-lg">
                                 {item.title}
@@ -1136,7 +1137,7 @@ function LandingCanvasSidebarRow({
     label,
     color,
 }: {
-    icon: any
+    icon: LucideIcon
     label: string
     color: string
 }) {
@@ -1171,7 +1172,7 @@ function LandingCanvasNodeCard({
     y: number
     label: string
     description: string
-    icon: any
+    icon: LucideIcon
     headerBg: string
     borderColor: string
     handleColor: string

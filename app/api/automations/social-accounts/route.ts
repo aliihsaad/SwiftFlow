@@ -44,10 +44,11 @@ export async function GET(request: NextRequest) {
     if (error) throw error;
 
     return NextResponse.json({ accounts: accounts || [] });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to fetch social accounts';
     console.error('Get automation social accounts API error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch social accounts' },
+      { error: errorMessage },
       { status: 500 }
     );
   }

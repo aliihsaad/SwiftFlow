@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
         // Determine which account to use
         // For Instagram DMs, we need the IG account but use the Page ID for the API
         // For Facebook messages, we use the Facebook page directly
-        let accountPlatform = platform;
+        const accountPlatform = platform;
 
         const { data: account, error: accountError } = await supabase
             .from('social_accounts')

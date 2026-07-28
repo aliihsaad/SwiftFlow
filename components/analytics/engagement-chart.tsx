@@ -7,8 +7,20 @@ import { TrendingUp, Calendar, BarChart3, Info } from "lucide-react"
 interface FollowerGrowthChartProps {
     data: FollowerGrowthData
 }
+type TooltipEntry = {
+    name: string
+    color: string
+    value?: number
+}
 
-function DarkTooltip({ active, payload, label }: any) {
+type ChartTooltipProps = {
+    active?: boolean
+    payload?: TooltipEntry[]
+    label?: string
+}
+
+
+function DarkTooltip({ active, payload, label }: ChartTooltipProps) {
     if (!active || !payload?.length) return null
     return (
         <div
@@ -22,7 +34,7 @@ function DarkTooltip({ active, payload, label }: any) {
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.4)' }}>
                 {label}
             </p>
-            {payload.map((entry: any) => (
+            {payload.map((entry) => (
                 <div key={entry.name} className="flex items-center gap-2 text-xs">
                     <span className="h-2 w-2 rounded-full" style={{ background: entry.color }} />
                     <span style={{ color: 'rgba(255,255,255,0.55)' }}>

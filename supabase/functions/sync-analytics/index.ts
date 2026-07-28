@@ -287,7 +287,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
             platform_caption: payload.platform_caption || null
         };
 
-        let upsertResult = await supabase
+        const upsertResult = await supabase
             .from('published_posts')
             .upsert(basePayload, { onConflict: 'platform,platform_post_id' })
             .select('id, post_id')

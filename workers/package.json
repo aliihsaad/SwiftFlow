@@ -1,0 +1,10 @@
+{
+  "name": "@swiftflow/webhook-comparison-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "pg": "8.22.0",
+    "tsx": "4.23.1"
+  }
+}

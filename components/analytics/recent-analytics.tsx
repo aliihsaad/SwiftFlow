@@ -12,8 +12,23 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { formatDistanceToNow } from "date-fns"
 
+type RecentPostAnalytics = {
+    views?: number
+    likes?: number
+    comments?: number
+    shares?: number
+    engagement_rate?: number
+}
+
+type RecentAnalyticsPost = {
+    id: string
+    platform: string
+    published_at: string
+    post_analytics?: RecentPostAnalytics[] | null
+}
+
 interface RecentAnalyticsProps {
-    posts: any[]
+    posts: RecentAnalyticsPost[]
 }
 
 export function RecentAnalytics({ posts }: RecentAnalyticsProps) {

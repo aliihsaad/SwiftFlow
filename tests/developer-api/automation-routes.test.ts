@@ -5,6 +5,20 @@ const workspaceId = "11111111-1111-4111-8111-111111111111"
 const accountId = "22222222-2222-4222-8222-222222222222"
 const postId = "17895695668004550"
 const origin = "https://social.swiftdigital-s.com"
+type RawWorkflowGraph = {
+  nodes: Array<{
+    id: string
+    type: string
+    position: { x: number; y: number }
+    data: {
+      type: string
+      label: string
+      config: Record<string, unknown>
+    }
+  }>
+  edges: Array<{ id: string; source: string; target: string }>
+}
+
 
 const state = vi.hoisted(() => ({
   socialAccounts: [] as Array<Record<string, unknown>>,
@@ -94,7 +108,7 @@ function createQuery(table: string) {
   return query
 }
 
-function validCommentAiGraph(overrides: Record<string, unknown> = {}) {
+function validCommentAiGraph(overrides: Record<string, unknown> = {}): RawWorkflowGraph {
   return {
     nodes: [
       {

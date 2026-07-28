@@ -34,8 +34,8 @@ export function AddWorkspaceModal({ open, onOpenChange }: AddWorkspaceModalProps
             onOpenChange(false)
             setName("")
             router.refresh()
-        } catch (error: any) {
-            const errorMessage = error.message || "Failed to create workspace"
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : "Failed to create workspace"
             toast.error(errorMessage)
             console.error(error)
         } finally {

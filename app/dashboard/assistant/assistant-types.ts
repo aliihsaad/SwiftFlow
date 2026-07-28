@@ -48,11 +48,38 @@ export type AssistantMessageType =
   | 'brand_image_mode_selector'
   | 'brand_image_options'
 
+export interface AssistantMessageItem {
+  id?: string
+  title: string
+  body: string
+  slide_number: number
+  content: string
+  image_prompt?: string
+  caption?: string
+  imageUrl?: string
+  isGenerating?: boolean
+}
+
+export interface AssistantMessageData {
+  style?: string
+  data?: AssistantMessageItem[]
+  caption?: string
+  id?: string
+  imageUrl?: string
+  prompt_used?: string
+  topic?: string
+  mode?: 'generate' | 'transform' | null
+  prompt?: string
+  hasReferenceImages?: boolean
+  referenceCount?: number
+  [key: string]: unknown
+}
+
 export interface AssistantMessage {
   role: 'user' | 'assistant'
   content: string
   type?: AssistantMessageType
-  data?: any
+  data?: AssistantMessageData
   images?: MessageImage[]
   contextReceipt?: AssistantContextReceipt
 }

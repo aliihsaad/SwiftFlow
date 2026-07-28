@@ -224,7 +224,7 @@ function buildAnalyticsMeta(params: {
 
     const totalPublishedPosts = (publishedPosts || []).length
     const postsWithAnalyticsRows = new Set((postAnalytics || []).map((row) => row.published_post_id)).size
-    let postStatus: MetricStatus =
+    const postStatus: MetricStatus =
         totalPublishedPosts === 0
             ? 'unavailable'
             : postsWithAnalyticsRows === 0
@@ -265,7 +265,7 @@ function buildAnalyticsMeta(params: {
         const accountMetricsStatus: MetricStatus =
             platformAccountMetricsRows.length === 0 ? 'unavailable' : 'available'
 
-        let postMetricsStatus: MetricStatus =
+        const postMetricsStatus: MetricStatus =
             platformPublishedRows.length === 0
                 ? 'unavailable'
                 : platformAnalyticsRows.length === 0

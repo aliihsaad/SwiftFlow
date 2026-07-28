@@ -26,12 +26,13 @@ export async function createPostAction(formData: FormData) {
 
     // Get workspace (using admin client to bypass RLS) using user.id
     // We query for a workspace owned by this user
-    let { data: workspace, error: wsError } = await supabaseAdmin
+    const { data: existingWorkspace, error: wsError } = await supabaseAdmin
         .from('workspaces')
         .select('id')
         .eq('owner_id', user.id)
         .maybeSingle()
 
+    let workspace = existingWorkspace
     if (wsError) {
         console.error("Workspace fetch error:", wsError)
         throw new Error("Could not access workspace: " + wsError.message)

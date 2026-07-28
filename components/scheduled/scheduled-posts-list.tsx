@@ -43,7 +43,7 @@ type PublishedPostRow = {
     post_analytics?: PublishedPostAnalytics[] | null
 }
 
-type ScheduledPostCard = FailedPostShape & {
+export type ScheduledPostCard = FailedPostShape & {
     id: string
     status: 'scheduled' | 'draft' | 'published' | 'failed' | string
     content?: string | null

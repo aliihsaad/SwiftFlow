@@ -117,7 +117,7 @@ export function CommentReplyConfigPanel({ config, onChange }: CommentReplyConfig
                     <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg text-sm text-blue-700 dark:text-blue-300">
                         <Info className="h-4 w-4 mt-0.5 shrink-0" />
                         <p>
-                            The reply will be posted publicly on Instagram as a response to the user's comment.
+                            The reply will be posted publicly on Instagram as a response to the user&apos;s comment.
                         </p>
                     </div>
                 </div>

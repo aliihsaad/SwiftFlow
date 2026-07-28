@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest"
 
 import { validateSendEmailNodeConfigs } from "@/lib/automation-send-email-validation"
 import { validateDeveloperAutomationGraph } from "@/lib/developer-api/automation-graph"
+import type { ActionSendEmailConfig, WorkflowGraph } from "@/types/automation-graph"
 import { buildAutomationEmailMessage } from "../../supabase/functions/_shared/automation-email.ts"
 
-function emailGraph(config: Record<string, unknown>) {
+function emailGraph(config: ActionSendEmailConfig): WorkflowGraph {
   return {
     nodes: [
       {

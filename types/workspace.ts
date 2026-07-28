@@ -23,7 +23,7 @@ export interface SocialConnection {
     account_name: string
     account_id: string
     created_at: string
-    meta: Record<string, any>
+    meta: Record<string, unknown>
 }
 
 // Session state interface attached to requests

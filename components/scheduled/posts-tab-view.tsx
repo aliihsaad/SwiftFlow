@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ScheduledPostsList } from "./scheduled-posts-list"
+import type { ScheduledPostCard } from "./scheduled-posts-list"
 import { Calendar, FileText, CheckCircle2, XCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useRouter } from "next/navigation"
@@ -15,10 +16,10 @@ import {
 } from "@/components/ui/select"
 
 interface PostsTabViewProps {
-    scheduledPosts: any[]
-    draftPosts: any[]
-    postedPosts: any[]
-    failedPosts: any[]
+    scheduledPosts: ScheduledPostCard[]
+    draftPosts: ScheduledPostCard[]
+    postedPosts: ScheduledPostCard[]
+    failedPosts: ScheduledPostCard[]
     workspaceId: string
     defaultTab?: string
 }

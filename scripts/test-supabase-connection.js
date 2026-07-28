@@ -1,8 +1,11 @@
 // Test script to verify Supabase admin client connection
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config({ path: '.env.local' });
 
 async function testConnection() {
+    const [{ createClient }, { config }] = await Promise.all([
+        import('@supabase/supabase-js'),
+        import('dotenv'),
+    ]);
+    config({ path: '.env.local' });
     console.log('Testing Supabase Admin Connection...\n');
 
     // Check environment variables

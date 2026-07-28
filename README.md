@@ -179,6 +179,10 @@ INVITE_EMAIL_REPLY_TO=support@yourdomain.com
 
 # Secret Encryption (must be identical in Vercel + Supabase Edge Functions)
 APP_SECRETS_ENCRYPTION_KEY=your_long_random_secret
+APP_SECRETS_ENCRYPTION_VERSION=v1
+APP_SECRETS_ENCRYPTION_KEY_PREVIOUS=
+DEVELOPER_API_KEY_PEPPER=your_different_long_random_secret
+DEVELOPER_API_KEY_PEPPER_PREVIOUS=
 
 # Instagram Webhooks
 INSTAGRAM_APP_SECRET=your_instagram_app_secret
@@ -273,11 +277,13 @@ supabase functions deploy automation-worker-send-email --no-verify-jwt
 supabase secrets set OPENROUTER_API_KEY=your_openrouter_api_key
 supabase secrets set GEMINI_API_KEY=your_gemini_api_key
 supabase secrets set APP_SECRETS_ENCRYPTION_KEY=your_long_random_secret
+supabase secrets set APP_SECRETS_ENCRYPTION_VERSION=v1
 ```
 
 > [!IMPORTANT]
 > `APP_SECRETS_ENCRYPTION_KEY` must use the **same value** in Vercel env vars and Supabase function secrets.
-> Rotating this key without migration will make previously encrypted values unreadable.
+> Follow [Credential storage and rotation](docs/security/credential-storage.md) before enabling v2 writes or changing the key.
+> Never rotate only one runtime.
 
 ### 6. Run Development Server
 ```bash
@@ -532,6 +538,10 @@ RESEND_API_KEY
 INVITE_EMAIL_FROM
 INVITE_EMAIL_REPLY_TO
 APP_SECRETS_ENCRYPTION_KEY
+APP_SECRETS_ENCRYPTION_VERSION
+APP_SECRETS_ENCRYPTION_KEY_PREVIOUS
+DEVELOPER_API_KEY_PEPPER
+DEVELOPER_API_KEY_PEPPER_PREVIOUS
 ```
 
 ### Supabase Edge Functions

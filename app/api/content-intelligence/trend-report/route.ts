@@ -12,7 +12,7 @@ import { createClient } from "@/utils/supabase/server"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { getExplicitActiveWorkspace } from "@/lib/workspace-utils"
 import { getWorkspaceEntitlements } from "@/lib/billing/entitlements"
-import { getWorkspaceSettings } from "@/app/actions/settings"
+import { getWorkspaceSettingsWithSecrets } from "@/lib/workspace-settings"
 import type { ContentPlatform, ResearchProviderId, TrendReportResult } from "@/lib/content-intelligence/types"
 import type { WorkspaceSettings } from "@/types/settings"
 
@@ -158,7 +158,7 @@ export async function POST(request: NextRequest) {
       const cached = await readCachedReport(admin, cacheKey)
       if (cached) return NextResponse.json(cached)
 
-      const settings = await getWorkspaceSettings(activeWorkspace.id)
+      const settings = await getWorkspaceSettingsWithSecrets(activeWorkspace.id)
       const geminiKey = normalizeApiKey(settings?.gemini_api_key) || normalizeApiKey(process.env.GEMINI_API_KEY)
       geminiAdapter = createGeminiResearchAdapter({
         apiKey: geminiKey,

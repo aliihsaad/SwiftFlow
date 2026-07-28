@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { getWorkspaceSettings } from "@/app/actions/settings";
 import { getDefaultModelForProvider } from "@/lib/ai-models";
+import { getWorkspaceSettingsWithSecrets } from "@/lib/workspace-settings";
 
 function normalizeApiKey(value: string | null | undefined): string {
     return String(value || '').trim().replace(/^['"]|['"]$/g, '');
@@ -43,7 +43,7 @@ export function toUserFriendlyAIError(error: unknown): string {
 }
 
 async function getGeminiModel(workspaceId: string) {
-    const settings = await getWorkspaceSettings(workspaceId);
+    const settings = await getWorkspaceSettingsWithSecrets(workspaceId);
 
     // Resolve API key: workspace settings → env fallback
     const apiKey = normalizeApiKey(settings?.gemini_api_key) || normalizeApiKey(process.env.GEMINI_API_KEY);

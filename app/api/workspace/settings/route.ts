@@ -3,7 +3,12 @@ import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { getDefaultModelForProvider } from '@/lib/ai-models';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
-import { encryptSecretIfNeeded, isEncryptedSecret, normalizeOptionalSecretInput } from '@/lib/secret-crypto';
+import {
+    encryptSecret,
+    needsSecretReencryption,
+    normalizeOptionalSecretInput,
+    reencryptSecretIfNeeded,
+} from '@/lib/secret-crypto';
 import { assertJsonBodySize, assertUuid, sanitizeWorkspaceSettingsPayload } from '@/lib/security/phase1-validation';
 
 /**
@@ -38,7 +43,7 @@ function buildWorkspaceSettingsUpdatePayload(settings: Record<string, unknown>) 
         if (normalized === null) {
             delete payload.openrouter_api_key
         } else {
-            payload.openrouter_api_key = encryptSecretIfNeeded(normalized)
+            payload.openrouter_api_key = encryptSecret(normalized)
         }
     }
     if ('gemini_api_key' in settings) {
@@ -46,7 +51,7 @@ function buildWorkspaceSettingsUpdatePayload(settings: Record<string, unknown>) 
         if (normalized === null) {
             delete payload.gemini_api_key
         } else {
-            payload.gemini_api_key = encryptSecretIfNeeded(normalized)
+            payload.gemini_api_key = encryptSecret(normalized)
         }
     }
     if ('openai_api_key' in settings) {
@@ -54,7 +59,7 @@ function buildWorkspaceSettingsUpdatePayload(settings: Record<string, unknown>) 
         if (normalized === null) {
             delete payload.openai_api_key
         } else {
-            payload.openai_api_key = encryptSecretIfNeeded(normalized)
+            payload.openai_api_key = encryptSecret(normalized)
         }
     }
     if (typeof payload.ai_text_model_name === 'string') {
@@ -126,18 +131,17 @@ export async function GET(request: NextRequest) {
         }
 
         const needsMigration =
-            (typeof data.openrouter_api_key === 'string' && data.openrouter_api_key.length > 0 && !isEncryptedSecret(data.openrouter_api_key)) ||
-            (typeof data.gemini_api_key === 'string' && data.gemini_api_key.length > 0 && !isEncryptedSecret(data.gemini_api_key)) ||
-            (typeof data.openai_api_key === 'string' && data.openai_api_key.length > 0 && !isEncryptedSecret(data.openai_api_key))
-
+            needsSecretReencryption(data.openrouter_api_key) ||
+            needsSecretReencryption(data.gemini_api_key) ||
+            needsSecretReencryption(data.openai_api_key)
         if (needsMigration) {
             try {
                 await supabaseAdmin
                     .from('workspace_settings')
                     .update({
-                        openrouter_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(data.openrouter_api_key)),
-                        gemini_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(data.gemini_api_key)),
-                        openai_api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(data.openai_api_key)),
+                        openrouter_api_key: reencryptSecretIfNeeded(data.openrouter_api_key),
+                        gemini_api_key: reencryptSecretIfNeeded(data.gemini_api_key),
+                        openai_api_key: reencryptSecretIfNeeded(data.openai_api_key),
                     })
                     .eq('workspace_id', workspaceId)
             } catch (migrationError) {

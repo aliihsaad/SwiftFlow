@@ -33,6 +33,18 @@ type ConnectedAccountStatus = {
     } | null
 }
 
+type InstagramAutomationHealth = {
+    status: "not_connected" | "action_required" | "ready"
+    ready: boolean
+    checks: {
+        connected: boolean
+        professionalAccount: boolean
+        requiredPermissions: boolean
+        tokenValid: boolean
+        commentsWebhook: boolean
+    }
+}
+
 function ConnectedAccountSkeleton({ accent }: { accent: "blue" | "pink" }) {
     const iconBg = accent === "blue" ? "bg-cyan-400/10 border border-cyan-300/15" : "bg-rose-400/10 border border-rose-300/15"
     return (
@@ -64,6 +76,8 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
         instagramPublishReady: boolean
         publishReady: boolean
         tokenHealth?: 'valid' | 'expiring_soon' | 'invalid' | null
+        instagramConnectionMethod?: "instagram_login" | "facebook_login" | null
+        instagramAutomationHealth: InstagramAutomationHealth
         accounts: ConnectedAccountStatus[]
     }>({
         facebook: false,
@@ -75,6 +89,18 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
         instagramPublishReady: false,
         publishReady: false,
         tokenHealth: null,
+        instagramConnectionMethod: null,
+        instagramAutomationHealth: {
+            status: "not_connected",
+            ready: false,
+            checks: {
+                connected: false,
+                professionalAccount: false,
+                requiredPermissions: false,
+                tokenValid: false,
+                commentsWebhook: false,
+            },
+        },
         accounts: []
     });
     const [loading, setLoading] = useState(true);
@@ -135,7 +161,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
             toast({
                 title: disconnectTarget === 'facebook' ? 'Meta accounts disconnected' : 'Instagram disconnected',
                 description: disconnectTarget === 'facebook'
-                    ? 'Facebook and any linked Instagram account were removed from this workspace.'
+                    ? 'Facebook and any Instagram account linked through that Page were removed. Direct Instagram Login connections are preserved.'
                     : 'Instagram was removed from this workspace.',
             })
         } catch (error: unknown) {
@@ -188,6 +214,21 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                     Please switch to that workspace or reconnect.
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {success === 'instagram_connected' && (
+                        <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/8 p-4 text-emerald-100/90">
+                            <div className="flex items-center gap-2 font-medium">
+                                <CheckCircle className="h-4 w-4" />
+                                Instagram connected directly
+                            </div>
+                            <div className="mt-1 text-sm">
+                                The professional account is connected without requiring a Facebook Page.
+                                {status.instagramAutomationHealth.ready
+                                    ? ' Comment automations are ready.'
+                                    : ' Finish the webhook check in Quick Start before enabling automations.'}
+                            </div>
                         </div>
                     )}
 
@@ -393,9 +434,13 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                         <h4 className="font-semibold text-white/85">Instagram</h4>
                                         <p className="text-sm text-white/50">
                                             {status.instagram
-                                                ? status.instagramPublishReady
-                                                    ? "Connected via Facebook and publish-ready"
-                                                    : "Connected via Facebook but needs publish re-auth"
+                                                ? status.instagramAutomationHealth.ready
+                                                    ? status.instagramConnectionMethod === "instagram_login"
+                                                        ? "Directly connected and automation-ready"
+                                                        : "Connected and automation-ready"
+                                                    : status.instagramConnectionMethod === "instagram_login"
+                                                        ? "Directly connected — setup needs attention"
+                                                        : "Connected through a Facebook Page"
                                                 : "Not connected"}
                                         </p>
                                     </div>
@@ -446,8 +491,8 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                         <p className="flex items-start gap-2">
                             <Info className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
                             <span>
-                                <strong>Note:</strong> Instagram Business accounts are connected through Facebook Pages.
-                                Connect your Facebook Page first, and any linked Instagram Business accounts will be available automatically.
+                                <strong>Recommended:</strong> connect Instagram directly for the shortest automation setup.
+                                Facebook Page connection remains available above when you also need Facebook publishing and Page features.
                             </span>
                         </p>
                     </div>
@@ -469,7 +514,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                         </AlertDialogTitle>
                         <AlertDialogDescription style={{ color: "rgba(255,255,255,0.58)" }}>
                             {disconnectTarget === "facebook"
-                                ? "This removes the connected Facebook Page from the workspace and also removes any linked Instagram business account connected through that Meta flow."
+                                ? "This removes the connected Facebook Page and any Instagram account connected through that Page. A direct Instagram Login connection is kept."
                                 : "This removes the Instagram account from the workspace. You can reconnect it later from Brand Settings."}
                         </AlertDialogDescription>
                     </AlertDialogHeader>

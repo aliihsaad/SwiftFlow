@@ -66,6 +66,8 @@ ensure_literal_value AUTOMATION_PROVIDER_SEND_BUDGET_WINDOW_SECONDS 3600
 ensure_literal_value AUTOMATION_PROVIDER_SEND_CIRCUIT_FAILURE_THRESHOLD 5
 ensure_literal_value AUTOMATION_PROVIDER_SEND_CIRCUIT_COOLDOWN_SECONDS 300
 
+sh "$deployment_dir/scripts/self-host/preflight.sh" "$deployment_dir"
+
 set -a
 . "$environment_file"
 set +a
@@ -211,3 +213,4 @@ docker compose \
   --env-file "$environment_file" \
   -f "$compose_file" \
   ps
+sh "$deployment_dir/scripts/self-host/doctor.sh" "$deployment_dir"

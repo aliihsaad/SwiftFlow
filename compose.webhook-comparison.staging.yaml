@@ -31,6 +31,8 @@ services:
       - ./scripts/postgres/verify-action-executor-role.sql:/opt/swiftflow/verify-action-executor-role.sql:ro
       - ./scripts/postgres/staging/verify-smoke-result.sql:/opt/swiftflow/verify-smoke-result.sql:ro
       - ./scripts/postgres/staging/verify-ingress-result.sql:/opt/swiftflow/verify-ingress-result.sql:ro
+      - ./scripts/postgres/self-host-inventory.sql:/opt/swiftflow/self-host-inventory.sql:ro
+      - ./scripts/postgres/self-host-health.sql:/opt/swiftflow/self-host-health.sql:ro
     healthcheck:
       test:
         - CMD-SHELL

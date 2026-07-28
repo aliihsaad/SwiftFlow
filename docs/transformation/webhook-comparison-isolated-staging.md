@@ -6,8 +6,9 @@ The comparison worker can run with its own private PostgreSQL 15 database,
 persistent volume, synthetic automation fixture, and dedicated least-privilege
 login. The stack publishes no ports and uses an internal container network.
 
-This is the safe staging target for worker validation. It does not receive live
-Meta traffic yet.
+This is the safe staging target for worker validation. The callback, signature
+verification, durable inbox, matching path, and disabled-side-effect execution
+path have been verified with real Meta tester traffic.
 
 ## Why the existing web preview is not staging
 
@@ -84,12 +85,14 @@ HTTPS exposure is also complete. The host's Caddy instance serves
 path to the ingress at its pinned internal address. No container publishes a
 host port, and PostgreSQL has no host listener.
 
-The remaining gate is real provider traffic. Until a Meta tester account is
-deliberately connected:
+The real-provider staging gate is complete. The steady safety posture is:
 
-1. keep `WEBHOOK_INBOX_SHADOW_ENABLED` unset;
-2. do not point a Meta callback at this stack;
-3. do not open PostgreSQL port 5432;
-4. keep `META_APP_SECRET` and `META_WEBHOOK_VERIFY_TOKEN` set to the generated
-   staging placeholders;
-5. use only the synthetic fixtures for staging health checks.
+1. keep `WEBHOOK_INBOX_SHADOW_ENABLED` unset so the hosted route does not
+   receive a duplicate copy;
+2. route only the reviewed Meta callback path to this ingress;
+3. never publish PostgreSQL port 5432;
+4. use the real app secret and verification token only in the protected
+   on-host environment file;
+5. keep `AUTOMATION_PROVIDER_ACTIONS_ENABLED=false` and the provider allowlist
+   empty until the separately approved controlled-reply gate;
+6. retain the synthetic fixtures as deployment and health checks.

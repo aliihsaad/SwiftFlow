@@ -27,6 +27,7 @@ services:
       - ./scripts/postgres/verify-webhook-comparison-role.sql:/opt/swiftflow/verify-webhook-comparison-role.sql:ro
       - ./scripts/postgres/verify-webhook-ingress-role.sql:/opt/swiftflow/verify-webhook-ingress-role.sql:ro
       - ./scripts/postgres/verify-action-executor-role.sql:/opt/swiftflow/verify-action-executor-role.sql:ro
+      - ./scripts/postgres/self-host-inventory.sql:/opt/swiftflow/self-host-inventory.sql:ro
     healthcheck:
       test:
         - CMD-SHELL

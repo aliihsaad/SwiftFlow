@@ -42,6 +42,31 @@ async function run(command, args, options = {}) {
   return exitCode
 }
 
+async function capture(command, args, options = {}) {
+  return await new Promise((resolveCapture, reject) => {
+    const child = spawn(command, args, {
+      cwd: repositoryRoot,
+      env: options.env || process.env,
+      stdio: ["ignore", "pipe", "pipe"],
+      windowsHide: true,
+    })
+    const stdout = []
+    const stderr = []
+    child.stdout.on("data", (chunk) => stdout.push(chunk))
+    child.stderr.on("data", (chunk) => stderr.push(chunk))
+    child.once("error", reject)
+    child.once("exit", (code) => {
+      if ((code ?? 1) !== 0) {
+        reject(new Error(
+          `${command} exited with code ${code ?? 1}: ${Buffer.concat(stderr).toString("utf8")}`,
+        ))
+        return
+      }
+      resolveCapture(Buffer.concat(stdout).toString("utf8"))
+    })
+  })
+}
+
 const port = resolveTestPort(process.env.SWIFTFLOW_TEST_POSTGRES_PORT)
 const databaseUrl =
   `postgresql://swiftflow_test:swiftflow_test@127.0.0.1:${port}/swiftflow_test`
@@ -170,6 +195,83 @@ try {
     "--file",
     "/opt/swiftflow/verify-action-executor-role.sql",
   ], { env: testEnvironment })
+  const backupFile = "/tmp/swiftflow-self-host-rehearsal.dump"
+  const restoredDatabase = "swiftflow_restore_rehearsal"
+  const inventoryCommand = [
+    ...composeArgs,
+    "exec",
+    "-T",
+    "postgres",
+    "psql",
+    "--no-psqlrc",
+    "--quiet",
+    "--tuples-only",
+    "--no-align",
+    "--username",
+    "swiftflow_test",
+    "--file",
+    "/opt/swiftflow/self-host-inventory.sql",
+  ]
+  const sourceInventory = await capture("docker", [
+    ...inventoryCommand,
+    "--dbname",
+    "swiftflow_test",
+  ], { env: testEnvironment })
+  await run("docker", [
+    ...composeArgs,
+    "exec",
+    "-T",
+    "postgres",
+    "pg_dump",
+    "--no-password",
+    "--format=custom",
+    "--no-owner",
+    "--no-privileges",
+    "--username",
+    "swiftflow_test",
+    "--dbname",
+    "swiftflow_test",
+    "--file",
+    backupFile,
+  ], { env: testEnvironment })
+  await run("docker", [
+    ...composeArgs,
+    "exec",
+    "-T",
+    "postgres",
+    "createdb",
+    "--username",
+    "swiftflow_test",
+    "--template",
+    "template0",
+    "--encoding",
+    "UTF8",
+    restoredDatabase,
+  ], { env: testEnvironment })
+  await run("docker", [
+    ...composeArgs,
+    "exec",
+    "-T",
+    "postgres",
+    "pg_restore",
+    "--exit-on-error",
+    "--no-owner",
+    "--no-privileges",
+    "--username",
+    "swiftflow_test",
+    "--dbname",
+    restoredDatabase,
+    backupFile,
+  ], { env: testEnvironment })
+  const restoredInventory = await capture("docker", [
+    ...inventoryCommand,
+    "--dbname",
+    restoredDatabase,
+  ], { env: testEnvironment })
+  if (sourceInventory.trim() !== restoredInventory.trim()) {
+    throw new Error("PostgreSQL backup/restore rehearsal inventory mismatch")
+  }
+  console.log("[SELF_HOST_RESTORE] Backup and fresh-database restore verified")
   await run("docker", [
     "build",
     "--file",

@@ -399,6 +399,7 @@ export class InMemoryActionOutbox implements ActionOutboxRepository {
       message: string
       retryAt: Date
       deadLetter: boolean
+      ambiguous?: boolean
     },
   ): Promise<ActionFinalizeResult> {
     const row = this.rows.find((candidate) => candidate.id === id)

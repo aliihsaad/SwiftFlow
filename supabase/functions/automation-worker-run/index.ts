@@ -93,12 +93,12 @@ async function upsertNodeRuns(
       node_id: nodeId,
       node_type: node?.data?.type || 'unknown',
       status: nodeResult.success ? 'completed' : 'failed',
-      input: {
+      input: redactSensitiveLogValue({
         config: node?.data?.config || {},
         trigger_context: triggerContext || {},
-      },
-      output: nodeResult.output || {},
-      error_message: nodeResult.error || null,
+      }),
+      output: redactSensitiveLogValue(nodeResult.output || {}),
+      error_message: redactSensitiveLogValue(String(nodeResult.error || '')) || null,
       started_at: new Date().toISOString(),
       finished_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -268,7 +268,9 @@ serve(async (req) => {
     // Ground AI replies and {{post_caption}} templates in the commented media.
     const enrichedContext = await enrichCommentPostContext(triggerContext, automation, account);
 
-    const graphResult = await executeWorkflowGraph(supabase, automation, enrichedContext, account);
+    const graphResult = await executeWorkflowGraph(
+      supabase, automation, enrichedContext, account, { runId: effectiveRunId },
+    );
     await upsertNodeRuns(supabase, workspaceId, automation, effectiveRunId, enrichedContext, graphResult.nodeResults || {});
 
     const runStatus = graphResult.errors > 0 ? 'failed' : 'completed';

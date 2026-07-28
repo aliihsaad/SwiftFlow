@@ -144,6 +144,7 @@ export class ActionExecutor {
       message: redactProviderError(outcome.failure.message),
       retryAt: new Date(Date.now() + retry.delayMs),
       deadLetter: !retry.retryable,
+      ambiguous: outcome.failure.ambiguous === true,
     })
 
     if (!result.updated) run.lostLease += 1

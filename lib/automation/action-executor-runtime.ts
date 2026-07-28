@@ -74,6 +74,7 @@ export async function countActionExecutorInstances(
 const READINESS_SQL = `
   select
     to_regclass('public.automation_action_outbox')::text as outbox_table,
+    to_regclass('public.automation_execution_events')::text as timeline_table,
     to_regprocedure(
       'public.claim_automation_actions(text,integer,integer)'
     )::text as claim_function
@@ -90,6 +91,33 @@ const ACCESS_SQL = `
     has_schema_privilege(current_user, 'public', 'create') as schema_create,
     has_table_privilege(current_user, 'public.automation_action_outbox', 'select') as outbox_select,
     has_column_privilege(current_user, 'public.automation_action_outbox', 'status', 'update') as outbox_status_update,
+    (
+      select bool_and(has_column_privilege(
+        current_user,
+        'public.automation_execution_events',
+        required.column_name,
+        'insert'
+      ))
+      from unnest(array[
+        'event_key',
+        'workspace_id',
+        'automation_id',
+        'workflow_version_id',
+        'action_outbox_id',
+        'provider_event_key',
+        'source',
+        'event_type',
+        'node_id',
+        'node_type',
+        'attempt_number',
+        'replay_number',
+        'input_redacted',
+        'output_redacted',
+        'error_code',
+        'error_message',
+        'duration_ms'
+      ]) as required(column_name)
+    ) as timeline_required_inserts,
     has_function_privilege(
       current_user,
       'public.claim_automation_actions(text,integer,integer)',
@@ -99,6 +127,9 @@ const ACCESS_SQL = `
     has_table_privilege(current_user, 'public.automation_action_outbox', 'insert') as outbox_insert,
     has_table_privilege(current_user, 'public.automation_action_outbox', 'delete') as outbox_delete,
     has_table_privilege(current_user, 'public.automation_action_outbox', 'truncate') as outbox_truncate,
+    has_table_privilege(current_user, 'public.automation_execution_events', 'update') as timeline_update,
+    has_table_privilege(current_user, 'public.automation_execution_events', 'delete') as timeline_delete,
+    has_table_privilege(current_user, 'public.automation_execution_events', 'truncate') as timeline_truncate,
     has_column_privilege(current_user, 'public.social_accounts', 'refresh_token', 'select') as refresh_token_select,
     has_table_privilege(current_user, 'public.webhook_inbox_events', 'select') as inbox_select,
     has_table_privilege(current_user, 'public.workspaces', 'select') as workspaces_select
@@ -110,6 +141,7 @@ const REQUIRED_ACCESS = [
   "schema_usage",
   "outbox_select",
   "outbox_status_update",
+  "timeline_required_inserts",
   "claim_execute",
   "token_select",
 ] as const
@@ -124,6 +156,9 @@ const FORBIDDEN_ACCESS = [
   "outbox_insert",
   "outbox_delete",
   "outbox_truncate",
+  "timeline_update",
+  "timeline_delete",
+  "timeline_truncate",
   "refresh_token_select",
   "inbox_select",
   "workspaces_select",
@@ -134,9 +169,9 @@ export async function assertActionExecutorDatabaseReady(
 ): Promise<void> {
   const result = await database.query(READINESS_SQL)
   const row = result.rows[0]
-  if (!row?.outbox_table || !row?.claim_function) {
+  if (!row?.outbox_table || !row?.timeline_table || !row?.claim_function) {
     throw new Error(
-      "Action outbox schema is not ready; apply the action outbox migration before starting the executor",
+      "Action execution schema is not ready; apply the outbox and timeline migrations before starting the executor",
     )
   }
 }

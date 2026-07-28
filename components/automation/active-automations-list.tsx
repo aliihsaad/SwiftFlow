@@ -33,6 +33,7 @@ import {
     Layers,
     Activity,
     Loader2,
+    History,
 } from "lucide-react"
 
 const AUTO_THEME = {
@@ -49,6 +50,7 @@ interface ActiveAutomationsListProps {
     onEdit: (automation: Automation) => void
     onToggle: (automationId: string, isActive: boolean) => void
     onDelete: (automationId: string) => Promise<void> | void
+    onViewRuns: (automation: Automation) => void
     togglingAutomationIds?: string[]
     deletingAutomationIds?: string[]
     readOnly?: boolean
@@ -212,6 +214,7 @@ export function ActiveAutomationsList({
     onEdit,
     onToggle,
     onDelete,
+    onViewRuns,
     togglingAutomationIds = [],
     deletingAutomationIds = [],
     readOnly = false,
@@ -424,7 +427,7 @@ export function ActiveAutomationsList({
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
                                                 <button
-                                                    disabled={readOnly || isDeleting}
+                                                    disabled={isDeleting}
                                                 className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150"
                                                     style={{ background: 'rgba(255,255,255,0.05)', color: AUTO_THEME.muted }}
                                                 >
@@ -435,6 +438,14 @@ export function ActiveAutomationsList({
                                                 align="end"
                                                 style={{ background: AUTO_THEME.panelAlt, border: `1px solid ${AUTO_THEME.border}` }}
                                             >
+                                                <DropdownMenuItem
+                                                    onClick={() => onViewRuns(automation)}
+                                                    style={{ color: 'rgba(255,255,255,0.7)' }}
+                                                >
+                                                    <History className="h-4 w-4 mr-2" />
+                                                    Execution history
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator style={{ background: 'rgba(255,255,255,0.06)' }} />
                                                 <DropdownMenuItem
                                                     disabled={readOnly || isDeleting}
                                                     onClick={() => {

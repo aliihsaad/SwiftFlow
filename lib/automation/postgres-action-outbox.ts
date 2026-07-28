@@ -5,6 +5,7 @@ import {
   type ProviderActionRequest,
   buildProviderActionIdentityKey,
 } from "./action-outbox-contract"
+import { redactAutomationTimelineRecord } from "./timeline-redaction"
 
 /** Columns the enqueue path is granted, in statement order. */
 export const ACTION_OUTBOX_INSERT_COLUMNS = [
@@ -18,6 +19,7 @@ export const ACTION_OUTBOX_INSERT_COLUMNS = [
   "workspace_id",
   "social_account_id",
   "action_payload",
+  "timeline_input_redacted",
 ] as const
 
 /**
@@ -33,7 +35,7 @@ export const ENQUEUE_ACTION_SQL = `
   insert into public.automation_action_outbox (
     ${ACTION_OUTBOX_INSERT_COLUMNS.join(",\n    ")}
   )
-  values ($1, $2, $3::uuid, $4::uuid, $5, $6, $7, $8::uuid, $9::uuid, $10::jsonb)
+  values ($1, $2, $3::uuid, $4::uuid, $5, $6, $7, $8::uuid, $9::uuid, $10::jsonb, $11::jsonb)
   on conflict do nothing
 `
 
@@ -42,59 +44,192 @@ export const CLAIM_ACTIONS_SQL = `
 `
 
 export const COMPLETE_ACTION_SQL = `
-  update public.automation_action_outbox
-  set
-    status = 'succeeded',
-    provider_response_id = $3,
-    provider_response = $4::jsonb,
-    last_error_code = null,
-    last_error_message = null,
-    locked_at = null,
-    lock_expires_at = null,
-    locked_by = null,
-    processed_at = now(),
-    updated_at = now()
-  where id = $1::uuid
-    and status = 'claimed'
-    and locked_by = $2
-    and lock_expires_at > now()
-  returning status
+  with completed as (
+    update public.automation_action_outbox
+    set
+      status = 'succeeded',
+      provider_response_id = $3,
+      provider_response = $4::jsonb,
+      last_error_code = null,
+      last_error_message = null,
+      outcome_ambiguous = false,
+      locked_at = null,
+      lock_expires_at = null,
+      locked_by = null,
+      processed_at = now(),
+      updated_at = now()
+    where id = $1::uuid
+      and status = 'claimed'
+      and locked_by = $2
+      and lock_expires_at > now()
+    returning *
+  ),
+  timeline as (
+    insert into public.automation_execution_events (
+      event_key,
+      workspace_id,
+      automation_id,
+      workflow_version_id,
+      action_outbox_id,
+      provider_event_key,
+      source,
+      event_type,
+      node_id,
+      node_type,
+      attempt_number,
+      replay_number,
+      input_redacted,
+      output_redacted
+    )
+    select
+      'provider-action:' || action.id || ':attempt:' || action.attempt_count || ':succeeded',
+      action.workspace_id,
+      action.automation_id,
+      action.workflow_version_id,
+      action.id,
+      action.provider_event_key,
+      'provider_action',
+      'succeeded',
+      action.node_id,
+      action.action_type,
+      action.attempt_count,
+      action.replay_count,
+      action.timeline_input_redacted,
+      action.provider_response
+    from completed as action
+    where action.workspace_id is not null
+    on conflict (event_key) do nothing
+    returning id
+  )
+  select status from completed
 `
 
 export const FAIL_ACTION_SQL = `
-  update public.automation_action_outbox
-  set
-    status = case when $6::boolean then 'dead_lettered' else 'retry_scheduled' end,
-    available_at = case when $6::boolean then available_at else $5::timestamptz end,
-    last_error_code = $3,
-    last_error_message = $4,
-    locked_at = null,
-    lock_expires_at = null,
-    locked_by = null,
-    processed_at = case when $6::boolean then now() else null end,
-    updated_at = now()
-  where id = $1::uuid
-    and status = 'claimed'
-    and locked_by = $2
-    and lock_expires_at > now()
-  returning status
+  with failed as (
+    update public.automation_action_outbox
+    set
+      status = case when $6::boolean then 'dead_lettered' else 'retry_scheduled' end,
+      available_at = case when $6::boolean then available_at else $5::timestamptz end,
+      last_error_code = $3,
+      last_error_message = $4,
+      outcome_ambiguous = $7::boolean,
+      locked_at = null,
+      lock_expires_at = null,
+      locked_by = null,
+      processed_at = case when $6::boolean then now() else null end,
+      updated_at = now()
+    where id = $1::uuid
+      and status = 'claimed'
+      and locked_by = $2
+      and lock_expires_at > now()
+    returning *
+  ),
+  timeline as (
+    insert into public.automation_execution_events (
+      event_key,
+      workspace_id,
+      automation_id,
+      workflow_version_id,
+      action_outbox_id,
+      provider_event_key,
+      source,
+      event_type,
+      node_id,
+      node_type,
+      attempt_number,
+      replay_number,
+      input_redacted,
+      output_redacted,
+      error_code,
+      error_message
+    )
+    select
+      'provider-action:' || action.id || ':attempt:' || action.attempt_count || ':'
+        || case when $6::boolean then 'dead-lettered' else 'retry-scheduled' end,
+      action.workspace_id,
+      action.automation_id,
+      action.workflow_version_id,
+      action.id,
+      action.provider_event_key,
+      'provider_action',
+      case when $6::boolean then 'dead_lettered' else 'retry_scheduled' end,
+      action.node_id,
+      action.action_type,
+      action.attempt_count,
+      action.replay_count,
+      action.timeline_input_redacted,
+      case
+        when $6::boolean then '{}'::jsonb
+        else jsonb_build_object('retry_at', $5::timestamptz)
+      end,
+      action.last_error_code,
+      action.last_error_message
+    from failed as action
+    where action.workspace_id is not null
+    on conflict (event_key) do nothing
+    returning id
+  )
+  select status from failed
 `
 
 export const SUPPRESS_ACTION_SQL = `
-  update public.automation_action_outbox
-  set
-    status = 'suppressed',
-    suppressed_reason = $3,
-    locked_at = null,
-    lock_expires_at = null,
-    locked_by = null,
-    processed_at = now(),
-    updated_at = now()
-  where id = $1::uuid
-    and status = 'claimed'
-    and locked_by = $2
-    and lock_expires_at > now()
-  returning status
+  with suppressed as (
+    update public.automation_action_outbox
+    set
+      status = 'suppressed',
+      suppressed_reason = $3,
+      outcome_ambiguous = false,
+      locked_at = null,
+      lock_expires_at = null,
+      locked_by = null,
+      processed_at = now(),
+      updated_at = now()
+    where id = $1::uuid
+      and status = 'claimed'
+      and locked_by = $2
+      and lock_expires_at > now()
+    returning *
+  ),
+  timeline as (
+    insert into public.automation_execution_events (
+      event_key,
+      workspace_id,
+      automation_id,
+      workflow_version_id,
+      action_outbox_id,
+      provider_event_key,
+      source,
+      event_type,
+      node_id,
+      node_type,
+      attempt_number,
+      replay_number,
+      input_redacted,
+      error_code,
+      error_message
+    )
+    select
+      'provider-action:' || action.id || ':attempt:' || action.attempt_count || ':suppressed',
+      action.workspace_id,
+      action.automation_id,
+      action.workflow_version_id,
+      action.id,
+      action.provider_event_key,
+      'provider_action',
+      'suppressed',
+      action.node_id,
+      action.action_type,
+      action.attempt_count,
+      action.replay_count,
+      action.timeline_input_redacted,
+      'safety_gate',
+      action.suppressed_reason
+    from suppressed as action
+    where action.workspace_id is not null
+    on conflict (event_key) do nothing
+    returning id
+  )
+  select status from suppressed
 `
 
 export const EXTEND_ACTION_LEASE_SQL = `
@@ -123,7 +258,13 @@ export interface ActionOutboxRepository {
   fail(
     id: string,
     workerId: string,
-    failure: { code: string; message: string; retryAt: Date; deadLetter: boolean },
+    failure: {
+      code: string
+      message: string
+      retryAt: Date
+      deadLetter: boolean
+      ambiguous?: boolean
+    },
   ): Promise<ActionFinalizeResult>
   suppress(id: string, workerId: string, reason: string): Promise<ActionFinalizeResult>
   extendLease(id: string, workerId: string, leaseSeconds: number): Promise<boolean>
@@ -217,6 +358,7 @@ export class PostgresActionOutboxRepository implements ActionOutboxRepository {
         request.workspaceId,
         request.socialAccountId,
         JSON.stringify(request.payload ?? {}),
+        JSON.stringify(redactAutomationTimelineRecord(request.payload)),
       ])
       inserted += result.rowCount || 0
     }
@@ -243,7 +385,7 @@ export class PostgresActionOutboxRepository implements ActionOutboxRepository {
       id,
       requiredWorkerId(workerId),
       providerResponseId,
-      JSON.stringify(providerResponse ?? {}),
+      JSON.stringify(redactAutomationTimelineRecord(providerResponse)),
     ])
     return finalizeResult(result.rows)
   }
@@ -251,7 +393,13 @@ export class PostgresActionOutboxRepository implements ActionOutboxRepository {
   async fail(
     id: string,
     workerId: string,
-    failure: { code: string; message: string; retryAt: Date; deadLetter: boolean },
+    failure: {
+      code: string
+      message: string
+      retryAt: Date
+      deadLetter: boolean
+      ambiguous?: boolean
+    },
   ): Promise<ActionFinalizeResult> {
     const result = await this.database.query(FAIL_ACTION_SQL, [
       id,
@@ -260,6 +408,7 @@ export class PostgresActionOutboxRepository implements ActionOutboxRepository {
       safeText(failure.message || "Provider action failed", 1_000),
       failure.retryAt.toISOString(),
       failure.deadLetter === true,
+      failure.ambiguous === true,
     ])
     return finalizeResult(result.rows)
   }

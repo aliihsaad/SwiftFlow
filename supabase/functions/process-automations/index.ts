@@ -729,6 +729,7 @@ async function processWebhookComment(
                     timestamp: webhookCtx.timestamp,
                 },
                 account,
+                { executionKey: `comment:${webhookCtx.comment_id}` },
             );
 
             totalStats.processed += graphResult.processed;

@@ -7,6 +7,7 @@ import { AutomationCard } from "@/components/automation/automation-card"
 import { AutomationSetupModal } from "@/components/automation/automation-setup-modal"
 import { ActiveAutomationsList } from "@/components/automation/active-automations-list"
 import { AutomationTemplatePicker } from "@/components/automation/automation-template-picker"
+import { AutomationRunsDialog } from "@/components/automation/automation-runs-dialog"
 import { PublishingAutomationsPanel } from "@/components/automation/publishing-automations-panel"
 import { WorkflowCanvas } from "@/components/automation/canvas/workflow-canvas"
 import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
@@ -47,6 +48,7 @@ export default function AutomationPage() {
     const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false)
     const [togglingAutomationIds, setTogglingAutomationIds] = useState<string[]>([])
     const [deletingAutomationIds, setDeletingAutomationIds] = useState<string[]>([])
+    const [runsAutomation, setRunsAutomation] = useState<Automation | null>(null)
     const { toast } = useToast()
     const canWriteAutomations = useWorkspacePermission("automation:write")
 
@@ -456,6 +458,7 @@ export default function AutomationPage() {
                         onEdit={handleEdit}
                         onToggle={handleToggle}
                         onDelete={handleDelete}
+                        onViewRuns={setRunsAutomation}
                         togglingAutomationIds={togglingAutomationIds}
                         deletingAutomationIds={deletingAutomationIds}
                         readOnly={!canWriteAutomations}
@@ -467,6 +470,15 @@ export default function AutomationPage() {
                 open={canWriteAutomations && isTemplatePickerOpen}
                 onOpenChange={setIsTemplatePickerOpen}
                 onSelectTemplate={handleApplyTemplate}
+            />
+
+            <AutomationRunsDialog
+                automation={runsAutomation}
+                open={!!runsAutomation}
+                onOpenChange={(open) => {
+                    if (!open) setRunsAutomation(null)
+                }}
+                canReplay={canWriteAutomations}
             />
 
             {/* Wizard modal */}

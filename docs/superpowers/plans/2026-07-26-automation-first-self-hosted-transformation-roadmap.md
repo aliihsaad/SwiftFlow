@@ -269,7 +269,7 @@ the following gates must pass.
 - [ ] Replaying the same webhook cannot duplicate an external side effect.
 - [ ] Worker restart during execution does not lose a queued run.
 - [x] Delayed executions resume the workflow version that created them.
-- [ ] Each run has a per-node timeline and a human-readable terminal state.
+- [x] Each run has a per-node timeline and a human-readable terminal state.
 - [ ] Failed transient jobs retry with bounded exponential backoff.
 - [ ] Terminal failures move to an inspectable dead-letter state.
 - [ ] Repeated provider failures can automatically pause an automation.
@@ -692,7 +692,7 @@ For every journey:
       windows, missing values, and possible side effects.
 - [ ] Make test mode clearly distinct from live mode and prevent accidental
       external sends.
-- [ ] Add a readable execution timeline with node inputs, sanitized outputs,
+- [x] Add a readable execution timeline with node inputs, sanitized outputs,
       duration, retries, provider IDs, and terminal reason.
 - [ ] Support keyboard selection, navigation, deletion, and undo/redo for core
       builder operations.

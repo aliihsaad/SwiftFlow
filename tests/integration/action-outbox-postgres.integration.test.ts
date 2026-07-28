@@ -88,9 +88,20 @@ function executorLookup() {
 async function outboxRows(): Promise<Record<string, unknown>[]> {
   const result = await adminPool.query(`
     select provider_event_key, target_id, status, attempt_count,
-           provider_response_id, suppressed_reason, last_error_code
+           provider_response_id, suppressed_reason, last_error_code,
+           outcome_ambiguous, replay_count
     from public.automation_action_outbox
     order by created_at
+  `)
+  return result.rows
+}
+
+async function timelineRows(): Promise<Record<string, unknown>[]> {
+  const result = await adminPool.query(`
+    select source, event_type, node_id, attempt_number, replay_number,
+           input_redacted, output_redacted, error_code, error_message
+    from public.automation_execution_events
+    order by created_at, event_type
   `)
   return result.rows
 }
@@ -117,6 +128,7 @@ beforeAll(async () => {
 beforeEach(async () => {
   await adminPool.query(`
     truncate table
+      public.automation_execution_events,
       public.automation_action_outbox,
       public.automation_scheduled_executions,
       public.automation_runs,
@@ -312,6 +324,114 @@ describe("duplicate delivery cannot cause a duplicate provider send", () => {
     const rows = await outboxRows()
     expect(rows).toHaveLength(1)
     expect(rows[0]).toMatchObject({ status: "succeeded", attempt_count: 1 })
+  })
+})
+
+describe("durable action attempt timeline and guarded replay", () => {
+  it("keeps the provider payload exact while appending redacted attempt events", async () => {
+    const repository = new PostgresActionOutboxRepository(createPostgresQueryClient(adminPool))
+    const adapter = createRecordingProviderActionAdapter()
+    await repository.enqueue([{
+      ...request(),
+      payload: {
+        message: "Your one-time code=SAVE20",
+        authorExternalId: "someone-else",
+      },
+    }])
+
+    const stored = await adminPool.query<{
+      action_payload: Record<string, unknown>
+      timeline_input_redacted: Record<string, unknown>
+    }>(`
+      select action_payload, timeline_input_redacted
+      from public.automation_action_outbox
+    `)
+    expect(stored.rows[0]!.action_payload.message).toBe("Your one-time code=SAVE20")
+    expect(JSON.stringify(stored.rows[0]!.timeline_input_redacted)).not.toContain("SAVE20")
+
+    const executor = new ActionExecutor({
+      config: config(),
+      repository,
+      lookup: executorLookup(),
+      adapter,
+    })
+    await executor.runOnce()
+
+    const events = await timelineRows()
+    expect(events.map((event) => event.event_type)).toEqual(["started", "succeeded"])
+    expect(events.every((event) => event.attempt_number === 1)).toBe(true)
+    expect(JSON.stringify(events)).not.toContain("SAVE20")
+  })
+
+  it("refuses replay after an ambiguous provider outcome", async () => {
+    const repository = new PostgresActionOutboxRepository(createPostgresQueryClient(adminPool))
+    await repository.enqueue([request()])
+    const executor = new ActionExecutor({
+      config: config(),
+      repository,
+      lookup: executorLookup(),
+      adapter: {
+        name: "ambiguous-integration-adapter",
+        async send() {
+          throw new Error("socket closed after dispatch")
+        },
+      },
+    })
+    await executor.runOnce()
+
+    const action = await adminPool.query<{ id: string }>(
+      "select id from public.automation_action_outbox",
+    )
+    await expect(adminPool.query(
+      "select * from public.request_automation_action_replay($1, $2, $3, $4)",
+      [action.rows[0]!.id, WORKSPACE_ID, randomUUID(), "unsafe replay"],
+    )).rejects.toThrow(/ambiguous provider outcomes/i)
+
+    expect(await outboxRows()).toMatchObject([{
+      status: "dead_lettered",
+      outcome_ambiguous: true,
+      replay_count: 0,
+    }])
+  })
+
+  it("requeues an unambiguous dead letter and records the operator event", async () => {
+    const repository = new PostgresActionOutboxRepository(createPostgresQueryClient(adminPool))
+    const adapter = createRecordingProviderActionAdapter()
+    adapter.enqueueOutcome({
+      ok: false,
+      failure: { status: 400, code: "100", message: "invalid target" },
+    })
+    await repository.enqueue([request()])
+    const executor = new ActionExecutor({
+      config: config(),
+      repository,
+      lookup: executorLookup(),
+      adapter,
+    })
+    await executor.runOnce()
+
+    const action = await adminPool.query<{ id: string }>(
+      "select id from public.automation_action_outbox",
+    )
+    const actorId = randomUUID()
+    const replay = await adminPool.query(
+      "select * from public.request_automation_action_replay($1, $2, $3, $4)",
+      [action.rows[0]!.id, WORKSPACE_ID, actorId, "target corrected"],
+    )
+
+    expect(replay.rows[0]).toMatchObject({
+      action_id: action.rows[0]!.id,
+      status: "pending",
+      replay_count: 1,
+    })
+    expect(await outboxRows()).toMatchObject([{
+      status: "pending",
+      attempt_count: 0,
+      outcome_ambiguous: false,
+      replay_count: 1,
+    }])
+    expect((await timelineRows()).map((event) => event.event_type))
+      .toEqual(["started", "dead_lettered", "replay_requested"])
   })
 })
 
@@ -546,6 +666,8 @@ describe("database role separation", () => {
     await expect(comparisonPool.query(
       "select * from public.claim_automation_actions('x', 1, 30)",
     )).rejects.toThrow(/permission denied/i)
+    await expect(comparisonPool.query("select id from public.automation_execution_events"))
+      .rejects.toThrow(/permission denied/i)
   })
 
   it("keeps provider tokens away from the enqueueing roles", async () => {

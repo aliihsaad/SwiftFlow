@@ -13,6 +13,10 @@ import { sendResendEmail, textToSimpleHtml } from "../_shared/resend-email.ts"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
 import {
+  recordAutomationNodeEvent,
+  type AutomationTimelineContext,
+} from "../_shared/automation-timeline.ts"
+import {
   canManageCommentsWithMetaAccount,
   canManageMessagesWithMetaAccount,
   canReadCommentsWithMetaAccount,
@@ -381,6 +385,7 @@ export async function executeWorkflowGraph(
   automation: any,
   triggerContext: TriggerContext,
   account: { account_id: string; access_token: string; metadata?: Record<string, any>; platform?: string },
+  timelineContext: AutomationTimelineContext = {},
 ): Promise<ExecutionResult> {
   const graph: WorkflowGraph = automation.workflow_graph;
   const result: ExecutionResult = { processed: 0, dmsSent: 0, errors: 0, nodeResults: {} };
@@ -423,6 +428,26 @@ export async function executeWorkflowGraph(
     return result;
   }
 
+  const triggerStartedAt = Date.now();
+  await recordAutomationNodeEvent({
+    supabase,
+    automation,
+    node: triggerNode,
+    context: timelineContext,
+    eventType: 'started',
+    input: { config: triggerNode.data?.config || {}, trigger_context: triggerContext },
+  });
+  await recordAutomationNodeEvent({
+    supabase,
+    automation,
+    node: triggerNode,
+    context: timelineContext,
+    eventType: 'succeeded',
+    input: { config: triggerNode.data?.config || {}, trigger_context: triggerContext },
+    output: { matched: true },
+    durationMs: Date.now() - triggerStartedAt,
+  });
+
   // Build adjacency map: sourceId → [{ targetId, sourceHandle }]
   const adjacency = new Map<string, { targetId: string; sourceHandle?: string }[]>();
   for (const edge of graph.edges) {
@@ -457,6 +482,16 @@ export async function executeWorkflowGraph(
     const node = graph.nodes.find(n => n.id === nodeId);
     if (!node) continue;
 
+    const nodeStartedAt = Date.now();
+    const timelineInput = { config: node.data?.config || {}, context: runtimeContext };
+    await recordAutomationNodeEvent({
+      supabase,
+      automation,
+      node,
+      context: timelineContext,
+      eventType: 'started',
+      input: timelineInput,
+    });
     console.log(`[GRAPH] Executing node: ${node.data.type} (${node.data.label})`);
 
     try {
@@ -465,6 +500,18 @@ export async function executeWorkflowGraph(
       );
 
       result.nodeResults[nodeId] = nodeResult;
+
+      await recordAutomationNodeEvent({
+        supabase,
+        automation,
+        node,
+        context: timelineContext,
+        eventType: nodeResult.success ? 'succeeded' : 'failed',
+        input: timelineInput,
+        output: nodeResult.output || {},
+        error: nodeResult.error,
+        durationMs: Date.now() - nodeStartedAt,
+      });
 
       // If an AI node produced a response, make it available to downstream nodes
       if (node.data.type === 'action_ai_response' && nodeResult.success && nodeResult.output?.response) {
@@ -520,6 +567,7 @@ export async function executeWorkflowGraph(
             node_id: nodeId,
             execution_context: {
               automation_id: automation.id,
+              run_id: timelineContext.runId || null,
               trigger_data: runtimeContext,
               next_nodes: remainingNodes,
               variables: {},
@@ -542,6 +590,17 @@ export async function executeWorkflowGraph(
       const failedNodeResult = { success: false, error: err?.message || 'Unknown error' };
       result.nodeResults[nodeId] = failedNodeResult;
       result.errors++;
+      await recordAutomationNodeEvent({
+        supabase,
+        automation,
+        node,
+        context: timelineContext,
+        eventType: 'failed',
+        input: timelineInput,
+        output: {},
+        error: failedNodeResult.error,
+        durationMs: Date.now() - nodeStartedAt,
+      });
       queueErrorBranchIfPresent(adjacency, nodeId, executionQueue, runtimeContext, node, failedNodeResult);
     }
   }
@@ -558,6 +617,10 @@ export async function resumeFromDelay(
 ): Promise<ExecutionResult> {
   const { automation_id, workflow_version_id, execution_context } = scheduledExec;
   const { trigger_data, next_nodes, node_outputs } = execution_context;
+  const timelineContext: AutomationTimelineContext = {
+    runId: execution_context?.run_id || undefined,
+    scheduledExecutionId: scheduledExec.id,
+  };
 
   // Fetch the automation
   const { data: automation, error } = await supabase
@@ -640,6 +703,16 @@ export async function resumeFromDelay(
     const node = graph.nodes.find(n => n.id === nodeId);
     if (!node) continue;
 
+    const nodeStartedAt = Date.now();
+    const timelineInput = { config: node.data?.config || {}, context: runtimeContext };
+    await recordAutomationNodeEvent({
+      supabase,
+      automation,
+      node,
+      context: timelineContext,
+      eventType: 'started',
+      input: timelineInput,
+    });
     try {
       const nodeResult = await executeNode(
         supabase, automation, node, runtimeContext, account, pageId
@@ -648,6 +721,17 @@ export async function resumeFromDelay(
       if (nodeResult.dmSent) result.dmsSent++;
       if (!nodeResult.success) result.errors++;
       result.processed++;
+      await recordAutomationNodeEvent({
+        supabase,
+        automation,
+        node,
+        context: timelineContext,
+        eventType: nodeResult.success ? 'succeeded' : 'failed',
+        input: timelineInput,
+        output: nodeResult.output || {},
+        error: nodeResult.error,
+        durationMs: Date.now() - nodeStartedAt,
+      });
 
       if (node.data.type === 'action_ai_response' && nodeResult.success && nodeResult.output?.response) {
         runtimeContext.ai_response = nodeResult.output.response;
@@ -688,6 +772,7 @@ export async function resumeFromDelay(
             node_id: nodeId,
             execution_context: {
               automation_id: automation.id,
+              run_id: timelineContext.runId || null,
               trigger_data: runtimeContext,
               next_nodes: remainingNodes,
               variables: {},
@@ -705,6 +790,17 @@ export async function resumeFromDelay(
       const failedNodeResult = { success: false, error: err?.message || 'Unknown error' };
       result.nodeResults[nodeId] = failedNodeResult;
       result.errors++;
+      await recordAutomationNodeEvent({
+        supabase,
+        automation,
+        node,
+        context: timelineContext,
+        eventType: 'failed',
+        input: timelineInput,
+        output: {},
+        error: failedNodeResult.error,
+        durationMs: Date.now() - nodeStartedAt,
+      });
       queueErrorBranchIfPresent(adjacency, nodeId, queue, runtimeContext, node, failedNodeResult);
     }
   }

@@ -38,7 +38,7 @@ begin
 
   foreach required_column in array array[
     'status', 'attempt_count', 'available_at', 'locked_by',
-    'provider_response_id', 'last_error_code', 'suppressed_reason', 'processed_at'
+    'provider_response_id', 'last_error_code', 'suppressed_reason', 'outcome_ambiguous', 'processed_at'
   ]
   loop
     if not has_column_privilege(
@@ -47,6 +47,42 @@ begin
       raise exception 'Executor login % cannot update required column %', current_user, required_column;
     end if;
   end loop;
+
+  foreach required_column in array array[
+    'event_key',
+    'workspace_id',
+    'automation_id',
+    'workflow_version_id',
+    'action_outbox_id',
+    'provider_event_key',
+    'source',
+    'event_type',
+    'node_id',
+    'node_type',
+    'attempt_number',
+    'replay_number',
+    'input_redacted',
+    'output_redacted',
+    'error_code',
+    'error_message',
+    'duration_ms'
+  ]
+  loop
+    if not has_column_privilege(
+      current_user, 'public.automation_execution_events', required_column, 'insert'
+    ) then
+      raise exception 'Executor login % cannot append required timeline column %', current_user, required_column;
+    end if;
+  end loop;
+
+  if exists (
+    select 1 from unnest(array['update','delete','truncate']) as forbidden(privilege)
+    where has_table_privilege(
+      current_user, 'public.automation_execution_events', forbidden.privilege
+    )
+  ) then
+    raise exception 'Executor login % can mutate or destroy timeline rows', current_user;
+  end if;
 
   -- Must NOT be able to exceed it.
   if exists (

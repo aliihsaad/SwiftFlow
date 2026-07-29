@@ -36,6 +36,7 @@ export interface ActionExecutorOptions {
   adapter: ProviderActionAdapter
   rateLimiter?: AccountRateLimiter
   runtimeGuard?: AutomationRuntimeGuard
+  now?: () => Date
   onEvent?: (event: Record<string, unknown>) => void
 }
 
@@ -211,7 +212,7 @@ export class ActionExecutor {
     const result = await repository.fail(record.id, config.workerId, {
       code: String(outcome.failure.code ?? retry.reason),
       message: redactProviderError(outcome.failure.message),
-      retryAt: new Date(Date.now() + retry.delayMs),
+      retryAt: new Date((this.options.now?.() ?? new Date()).getTime() + retry.delayMs),
       deadLetter: !retry.retryable,
       ambiguous: outcome.failure.ambiguous === true,
     })

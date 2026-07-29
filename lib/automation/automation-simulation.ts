@@ -295,6 +295,7 @@ function createSimulationEnvironment(
         repository: outbox,
         lookup: executorLookup,
         adapter,
+        now: clock.nowDate,
         onEvent(event) {
           executorEvents.push(event)
         },

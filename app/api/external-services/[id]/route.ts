@@ -6,7 +6,11 @@ import {
   type ExternalServiceRow,
 } from "@/lib/external-service-credentials"
 import { assertJsonBodySize, assertUuid } from "@/lib/security/phase1-validation"
-import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
+import {
+  getWorkspacePermissionErrorStatus,
+  requireWorkspacePermission,
+  WorkspacePermissionError,
+} from "@/lib/workspace-permissions"
 import { createAdminClient } from "@/utils/supabase/admin"
 import { createClient } from "@/utils/supabase/server"
 
@@ -19,7 +23,7 @@ async function requireAuthorizedWorkspace(workspaceId: string) {
   const validatedWorkspaceId = assertUuid(workspaceId, "workspaceId")
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error("Unauthorized")
+  if (!user) throw new WorkspacePermissionError("Unauthorized", 401)
   await requireWorkspacePermission(supabase, user.id, validatedWorkspaceId, "settings:write")
   return { supabaseAdmin: createAdminClient(), workspaceId: validatedWorkspaceId }
 }

@@ -194,6 +194,10 @@ describe("external-service credential boundary", () => {
     expect(revealRoute).toContain("assertSameOrigin(request)")
     expect(revealRoute).toContain("credential-reveal:user")
     expect(revealRoute).toContain('"Cache-Control": "private, no-store, max-age=0"')
+    expect(collectionRoute).toContain('new WorkspacePermissionError("Unauthorized", 401)')
+    expect(itemRoute).toContain('new WorkspacePermissionError("Unauthorized", 401)')
+    expect(collectionRoute).not.toContain('throw new Error("Unauthorized")')
+    expect(itemRoute).not.toContain('throw new Error("Unauthorized")')
   })
 })
 

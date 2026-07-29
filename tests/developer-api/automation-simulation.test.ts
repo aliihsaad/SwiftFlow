@@ -91,6 +91,20 @@ describe("deterministic automation simulation", () => {
     expect(result.providerCalls).toBe(3)
   })
 
+  it("uses the simulation clock for retries even when it predates wall-clock time", async () => {
+    const result = await runAutomationSimulation({
+      scenario: "retry_exhaustion",
+      initialTime: "2000-01-01T00:00:00.000Z",
+    })
+
+    expect(result.actionOutbox[0]).toMatchObject({
+      status: "dead_lettered",
+      attemptCount: 3,
+      maxAttempts: 3,
+    })
+    expect(result.passed).toBe(true)
+  })
+
   it("accepts a sanitized captured comment fixture", async () => {
     const fixture = createSyntheticCommentWebhookFixture({
       accountExternalId: "17890000000000999",

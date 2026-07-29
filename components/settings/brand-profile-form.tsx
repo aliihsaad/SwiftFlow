@@ -55,6 +55,16 @@ type BrandAssetUploadResponse = {
     error?: string
 }
 
+async function requestBrandProfile(): Promise<BrandProfileState> {
+    const response = await fetch('/api/brand-profile')
+    if (!response.ok) {
+        const text = await response.text()
+        console.error('API Error:', response.status, text)
+        throw new Error(`API Error: ${response.status}`)
+    }
+    return response.json()
+}
+
 export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -66,25 +76,23 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
     const canEditSettings = useWorkspacePermission("settings:write")
 
     useEffect(() => {
-        fetchProfile()
-    }, [workspaceId])
+        let cancelled = false
 
-    const fetchProfile = async () => {
-        try {
-            const res = await fetch('/api/brand-profile')
-            if (!res.ok) {
-                const text = await res.text()
-                console.error('API Error:', res.status, text)
-                throw new Error(`API Error: ${res.status}`)
-            }
-            const data = await res.json()
-            setProfile(data)
-        } catch (error) {
-            console.error('Failed to fetch profile:', error)
-        } finally {
-            setLoading(false)
+        void requestBrandProfile()
+            .then((data) => {
+                if (!cancelled) setProfile(data)
+            })
+            .catch((error) => {
+                if (!cancelled) console.error('Failed to fetch profile:', error)
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false)
+            })
+
+        return () => {
+            cancelled = true
         }
-    }
+    }, [workspaceId])
 
     const handleSave = async () => {
         if (!canEditSettings) return

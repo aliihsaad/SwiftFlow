@@ -483,6 +483,7 @@ export default function AutomationPage() {
 
             {/* Wizard modal */}
             <AutomationSetupModal
+                key={isSetupModalOpen ? (editingAutomation?.id ?? "new") : "closed"}
                 open={canWriteAutomations && isSetupModalOpen}
                 onOpenChange={setIsSetupModalOpen}
                 automation={editingAutomation}

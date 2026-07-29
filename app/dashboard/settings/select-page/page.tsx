@@ -28,16 +28,13 @@ export default function SelectPagePage() {
     const [session, setSession] = useState<SessionData | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    const displayedError = sessionId ? error : "No session ID provided. Please start the connection flow again."
     const [selectedPageId, setSelectedPageId] = useState<string | null>(null)
     const [saving, setSaving] = useState(false)
 
     // Fetch session data
     useEffect(() => {
-        if (!sessionId) {
-            setError("No session ID provided. Please start the connection flow again.")
-            setLoading(false)
-            return
-        }
+        if (!sessionId) return
 
         const fetchSession = async () => {
             try {
@@ -95,7 +92,7 @@ export default function SelectPagePage() {
     }
 
     // Loading state
-    if (loading) {
+    if (sessionId && loading) {
         return (
             <div className="container max-w-2xl py-16 flex flex-col items-center gap-4">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -105,7 +102,7 @@ export default function SelectPagePage() {
     }
 
     // Error state
-    if (error) {
+    if (displayedError) {
         return (
             <div className="container max-w-2xl py-16">
                 <Card className="border-destructive/50">
@@ -113,7 +110,7 @@ export default function SelectPagePage() {
                         <AlertCircle className="h-10 w-10 text-destructive" />
                         <div>
                             <p className="font-semibold text-lg">Something went wrong</p>
-                            <p className="text-muted-foreground mt-1">{error}</p>
+                            <p className="text-muted-foreground mt-1">{displayedError}</p>
                         </div>
                         <Button variant="outline" onClick={() => router.push("/dashboard/settings/brand")}>
                             <ArrowLeft className="mr-2 h-4 w-4" />

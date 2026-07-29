@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import useSWR from "swr"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -114,21 +114,8 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
             ? imageModelsData.curated
             : getCuratedModelsForProvider(formData.ai_provider, 'image')
 
-    useEffect(() => {
-        if (!textModelOptions.length) return
-        setFormData((prev) => {
-            if (textModelOptions.includes(prev.ai_text_model_name)) return prev
-            return { ...prev, ai_text_model_name: textModelOptions[0] }
-        })
-    }, [formData.ai_provider, textModelOptions])
-
-    useEffect(() => {
-        if (!imageModelOptions.length) return
-        setFormData((prev) => {
-            if (imageModelOptions.includes(prev.ai_image_model_name)) return prev
-            return { ...prev, ai_image_model_name: imageModelOptions[0] }
-        })
-    }, [formData.ai_provider, imageModelOptions])
+    const resolvedTextModelName = textModelOptions.includes(formData.ai_text_model_name) ? formData.ai_text_model_name : (textModelOptions[0] || '')
+    const resolvedImageModelName = imageModelOptions.includes(formData.ai_image_model_name) ? formData.ai_image_model_name : (imageModelOptions[0] || '')
 
     const handleTestKey = async () => {
         const key =
@@ -204,8 +191,8 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
         try {
             const payload: Parameters<typeof updateCurrentWorkspaceSettings>[0] = {
                 ai_provider: formData.ai_provider,
-                ai_text_model_name: formData.ai_text_model_name,
-                ai_image_model_name: formData.ai_image_model_name || undefined,
+                ai_text_model_name: resolvedTextModelName,
+                ai_image_model_name: resolvedImageModelName || undefined,
                 ai_temperature: formData.ai_temperature,
                 ai_max_tokens: formData.ai_max_tokens,
                 floating_assistant_enabled: formData.floating_assistant_enabled,
@@ -579,7 +566,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                     <div className="space-y-2">
                         <Label htmlFor="ai_text_model_name" className="text-white/80">Text Generation Model</Label>
                         <Select
-                            value={formData.ai_text_model_name}
+                            value={resolvedTextModelName}
                             onValueChange={(value) => setFormData({ ...formData, ai_text_model_name: value })}
                             disabled={isTextModelsLoading || textModelOptions.length === 0}
                         >
@@ -606,7 +593,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                     <div className="space-y-2">
                         <Label htmlFor="ai_image_model_name" className="text-white/80">Image Generation Model</Label>
                         <Select
-                            value={formData.ai_image_model_name}
+                            value={resolvedImageModelName}
                             onValueChange={(value) => setFormData({ ...formData, ai_image_model_name: value })}
                             disabled={imageModelOptions.length === 0}
                         >

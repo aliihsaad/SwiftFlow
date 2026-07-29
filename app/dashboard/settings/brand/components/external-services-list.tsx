@@ -44,6 +44,19 @@ interface ExternalServicesListProps {
 
 type SecretField = "password" | "api_key"
 
+async function requestServices(workspaceId: string): Promise<ExternalService[]> {
+    const response = await fetch(`/api/external-services?workspaceId=${encodeURIComponent(workspaceId)}`, {
+        cache: "no-store",
+    })
+    if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload?.error || "Failed to fetch external services")
+    }
+
+    const data = await response.json()
+    return Array.isArray(data) ? data : []
+}
+
 export function ExternalServicesList({ workspaceId }: ExternalServicesListProps) {
     const [services, setServices] = useState<ExternalService[]>([])
     const [isLoading, setIsLoading] = useState(true)
@@ -55,15 +68,7 @@ export function ExternalServicesList({ workspaceId }: ExternalServicesListProps)
         setIsLoading(true)
         setRevealedPasswords({})
         try {
-            const response = await fetch(`/api/external-services?workspaceId=${encodeURIComponent(workspaceId)}`, {
-                cache: "no-store",
-            })
-            if (!response.ok) {
-                const payload = await response.json().catch(() => ({}))
-                throw new Error(payload?.error || "Failed to fetch external services")
-            }
-            const data = await response.json()
-            setServices(Array.isArray(data) ? data : [])
+            setServices(await requestServices(workspaceId))
         } catch (error) {
             console.error("Error fetching services:", error)
             toast.error(error instanceof Error ? error.message : "Failed to load external services")
@@ -73,8 +78,27 @@ export function ExternalServicesList({ workspaceId }: ExternalServicesListProps)
     }, [workspaceId])
 
     useEffect(() => {
-        fetchServices()
-    }, [fetchServices])
+        let cancelled = false
+
+        void requestServices(workspaceId)
+            .then((nextServices) => {
+                if (cancelled) return
+                setServices(nextServices)
+                setRevealedPasswords({})
+            })
+            .catch((error) => {
+                if (cancelled) return
+                console.error("Error fetching services:", error)
+                toast.error(error instanceof Error ? error.message : "Failed to load external services")
+            })
+            .finally(() => {
+                if (!cancelled) setIsLoading(false)
+            })
+
+        return () => {
+            cancelled = true
+        }
+    }, [workspaceId])
 
     const handleDelete = async (id: string) => {
         try {

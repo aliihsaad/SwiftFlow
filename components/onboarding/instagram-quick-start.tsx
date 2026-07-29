@@ -61,6 +61,14 @@ const EMPTY_HEALTH: Health = {
   actions: [],
 }
 
+async function requestInstagramStatus(workspaceId: string): Promise<SocialStatus> {
+  const response = await fetch(`/api/brand/social-status?workspaceId=${encodeURIComponent(workspaceId)}`, {
+    cache: "no-store",
+  })
+  if (!response.ok) throw new Error("Could not load Instagram connection status")
+  return response.json()
+}
+
 export function InstagramQuickStart({
   workspaceId,
   workspaceName,
@@ -74,18 +82,24 @@ export function InstagramQuickStart({
   const [busy, setBusy] = useState<"verify" | "subscribe" | "refresh" | null>(null)
 
   const loadStatus = useCallback(async () => {
-    const response = await fetch(`/api/brand/social-status?workspaceId=${encodeURIComponent(workspaceId)}`, {
-      cache: "no-store",
-    })
-    if (!response.ok) throw new Error("Could not load Instagram connection status")
-    setStatus(await response.json())
+    setStatus(await requestInstagramStatus(workspaceId))
   }, [workspaceId])
 
   useEffect(() => {
-    loadStatus().catch((error) => {
-      toast.error(error instanceof Error ? error.message : "Could not load Instagram status")
-    })
-  }, [loadStatus])
+    let cancelled = false
+
+    void requestInstagramStatus(workspaceId)
+      .then((nextStatus) => {
+        if (!cancelled) setStatus(nextStatus)
+      })
+      .catch((error) => {
+        if (!cancelled) toast.error(error instanceof Error ? error.message : "Could not load Instagram status")
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [workspaceId])
 
   useEffect(() => {
     const success = searchParams.get("success")

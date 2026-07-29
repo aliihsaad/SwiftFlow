@@ -63,6 +63,12 @@ function ConnectedAccountSkeleton({ accent }: { accent: "blue" | "pink" }) {
     )
 }
 
+async function requestConnectedAccountStatus(workspaceId: string) {
+    const response = await fetch(`/api/brand/social-status?workspaceId=${workspaceId}`)
+    if (!response.ok) return null
+    return response.json()
+}
+
 export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     const searchParams = useSearchParams();
     const { toast } = useToast()
@@ -119,11 +125,8 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
 
     const fetchStatus = useCallback(async () => {
         try {
-            const statusRes = await fetch(`/api/brand/social-status?workspaceId=${workspaceId}`);
-            if (statusRes.ok) {
-                const data = await statusRes.json();
-                setStatus(data);
-            }
+            const data = await requestConnectedAccountStatus(workspaceId)
+            if (data) setStatus(data)
         } catch (error) {
             console.error("Failed to fetch data:", error);
         } finally {
@@ -132,8 +135,23 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     }, [workspaceId])
 
     useEffect(() => {
-        fetchStatus();
-    }, [fetchStatus]);
+        let cancelled = false
+
+        void requestConnectedAccountStatus(workspaceId)
+            .then((data) => {
+                if (!cancelled && data) setStatus(data)
+            })
+            .catch((error) => {
+                if (!cancelled) console.error("Failed to fetch data:", error)
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false)
+            })
+
+        return () => {
+            cancelled = true
+        }
+    }, [workspaceId]);
 
     const handleConnectPages = () => {
         if (!canManageIntegrations) return;

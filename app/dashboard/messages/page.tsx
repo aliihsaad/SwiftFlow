@@ -151,11 +151,6 @@ export default function MessagesPage() {
     )
 
     const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
-    const mutateConversationsRef = useRef(mutateConversations)
-    const mutateMessagesRef = useRef(mutateMessages)
-    mutateConversationsRef.current = mutateConversations
-    mutateMessagesRef.current = mutateMessages
-
     const workspaceId = conversationsData?.workspaceId
 
     useEffect(() => {
@@ -163,15 +158,15 @@ export default function MessagesPage() {
         const supabase = createClient()
         const channel = supabase.channel(`messages:${workspaceId}`)
         channel.on('broadcast', { event: 'new_message' }, () => {
-            mutateConversationsRef.current()
-            mutateMessagesRef.current()
+            void mutateConversations()
+            void mutateMessages()
         }).subscribe()
         channelRef.current = channel
         return () => {
             supabase.removeChannel(channel)
             channelRef.current = null
         }
-    }, [workspaceId])
+    }, [workspaceId, mutateConversations, mutateMessages])
 
     const conversations = conversationsData?.conversations || []
     const showInitialConversationsLoading = conversationsLoading && !conversationsData && !conversationsError

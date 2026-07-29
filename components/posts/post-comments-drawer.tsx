@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import useSWR from "swr"
 import {
     Sheet,
@@ -146,23 +146,20 @@ export function PostCommentsDrawer({
     const roleActionsBlocked = !canWriteContent
     const canManageFacebookPost = platform === 'facebook' && !!post
 
-    useEffect(() => {
-        if (!open) {
+    const handleDrawerOpenChange = (nextOpen: boolean) => {
+        if (!nextOpen) {
             setActionsBlocked(null)
             setReplyingTo(null)
             setReplyText("")
             setShowHiddenComments(false)
             setIsEditingPost(false)
             setEditPostText("")
-        }
-    }, [open, post?.id, platform])
-
-    useEffect(() => {
-        if (post) {
+        } else if (post) {
             setEditPostText(post.caption || "")
             setIsEditingPost(false)
         }
-    }, [post?.id, post])
+        onOpenChange(nextOpen)
+    }
 
     const handleAIReply = async (comment: CommentData) => {
         if (!canWriteContent) {
@@ -385,7 +382,7 @@ export function PostCommentsDrawer({
             }
 
             onPostDeleted?.(post.id)
-            onOpenChange(false)
+            handleDrawerOpenChange(false)
             toast({
                 title: "Facebook post deleted",
                 description: "The Page post was removed successfully.",
@@ -403,7 +400,7 @@ export function PostCommentsDrawer({
     }
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
+        <Sheet open={open} onOpenChange={handleDrawerOpenChange}>
             <SheetContent
                 side="right"
                 className="w-full sm:max-w-lg p-0 flex flex-col border-0"

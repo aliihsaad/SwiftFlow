@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -46,66 +46,35 @@ export function AutomationSetupModal({
     onSave
 }: AutomationSetupModalProps) {
     const { toast } = useToast()
-    const [currentStep, setCurrentStep] = useState<Step>('select-post')
+    const [currentStep, setCurrentStep] = useState<Step>(() => automation ? 'configure-trigger' : 'select-post')
     const [isSaving, setIsSaving] = useState(false)
     const [inlineError, setInlineError] = useState<string | null>(null)
 
     // Form state
-    const [name, setName] = useState('')
-    const [selectedPost, setSelectedPost] = useState<InstagramMedia | null>(null)
-    const [selectedAccountId, setSelectedAccountId] = useState<string>('')
-    const [triggerConfig, setTriggerConfig] = useState<TriggerConfig>({
+    const [name, setName] = useState(() => automation?.name ?? '')
+    const [selectedPost, setSelectedPost] = useState<InstagramMedia | null>(() => automation ? {
+        id: automation.platform_post_id,
+        media_type: 'IMAGE',
+        thumbnail_url: automation.post_thumbnail_url,
+        caption: automation.post_caption,
+        timestamp: '',
+        permalink: ''
+    } : null)
+    const [selectedAccountId, setSelectedAccountId] = useState<string>(() => automation?.social_account_id ?? '')
+    const [triggerConfig, setTriggerConfig] = useState<TriggerConfig>(() => automation?.trigger_config ?? {
         trigger_type: 'any_comment',
         keywords: []
     })
-    const [commentReplyConfig, setCommentReplyConfig] = useState<CommentReplyConfig>({
+    const [commentReplyConfig, setCommentReplyConfig] = useState<CommentReplyConfig>(() => automation?.comment_reply_config ?? {
         enabled: false,
         messages: ['Check your DMs!']
     })
-    const [dmConfig, setDmConfig] = useState<DMConfig>({
+    const [dmConfig, setDmConfig] = useState<DMConfig>(() => automation?.dm_config ?? {
         opening_message: "Thanks for your interest!",
         button_text: "Get the link",
         link_url: "",
         link_message: ""
     })
-
-    // Reset form when modal opens/closes or automation changes
-    useEffect(() => {
-        if (open) {
-            setInlineError(null)
-            if (automation) {
-                // Editing existing automation
-                setName(automation.name)
-                setSelectedPost({
-                    id: automation.platform_post_id,
-                    media_type: 'IMAGE',
-                    thumbnail_url: automation.post_thumbnail_url,
-                    caption: automation.post_caption,
-                    timestamp: '',
-                    permalink: ''
-                })
-                setSelectedAccountId(automation.social_account_id)
-                setTriggerConfig(automation.trigger_config)
-                setCommentReplyConfig(automation.comment_reply_config)
-                setDmConfig(automation.dm_config)
-                setCurrentStep('configure-trigger')
-            } else {
-                // Creating new automation
-                setName('')
-                setSelectedPost(null)
-                setSelectedAccountId('')
-                setTriggerConfig({ trigger_type: 'any_comment', keywords: [] })
-                setCommentReplyConfig({ enabled: false, messages: ['Check your DMs!'] })
-                setDmConfig({
-                    opening_message: "Thanks for your interest!",
-                    button_text: "Get the link",
-                    link_url: "",
-                    link_message: ""
-                })
-                setCurrentStep('select-post')
-            }
-        }
-    }, [open, automation])
 
     const currentStepIndex = STEPS.findIndex(s => s.id === currentStep)
 

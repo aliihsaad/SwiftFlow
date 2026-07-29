@@ -144,13 +144,14 @@ export function PublishingAutomationsPanel({ readOnly = false }: PublishingAutom
     const profileThemes = useMemo(() => brandProfile?.content_themes?.filter(Boolean) || [], [brandProfile?.content_themes])
     const hasBrandProfile = !!brandProfile?.business_name || !!brandProfile?.business_description || profileThemes.length > 0
 
+    /* eslint-disable react-hooks/set-state-in-effect -- Late-arriving profile data should populate only untouched create-form defaults. */
     useEffect(() => {
-        if (!open || !brandProfile) return
-        if (editingAutomation) return
+        if (!open || !brandProfile || editingAutomation) return
         if (!contentGoal) setContentGoal(buildProfileGoal(brandProfile))
         if (!visualStyle) setVisualStyle(buildProfileVisualStyle(brandProfile))
         if (selectedThemes.length === 0 && profileThemes.length > 0) setSelectedThemes(profileThemes.slice(0, 3))
     }, [open, brandProfile, contentGoal, visualStyle, selectedThemes.length, profileThemes, editingAutomation])
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     const resetFormForCreate = () => {
         setEditingAutomation(null)

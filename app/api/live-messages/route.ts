@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageMessagesWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
-import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
+import { getMetaGraphApiBaseUrl } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 import { normalizeMetaGraphError } from '@/lib/meta-graph-errors';
 
-const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 function isAttachmentPlaceholderMessage(value: unknown): boolean {
     const normalized = String(value || '').trim().toLowerCase();
@@ -133,6 +132,9 @@ export async function GET(request: NextRequest) {
             );
         }
         const decryptedAccount = decryptMetaAccountRow(account);
+        const graphBaseUrl = getMetaGraphApiBaseUrl(
+            decryptedAccount.metadata?.connection_method
+        );
         const canManageMessages = canManageMessagesWithMetaAccount(
             decryptedAccount.metadata,
             platform === 'facebook' ? 'facebook' : 'instagram',
@@ -187,7 +189,7 @@ export async function GET(request: NextRequest) {
             // MODE: Fetch messages for a specific conversation
             // ──────────────────────────────────────────────
             // Request rich attachment fields so the UI can render image/file/post-share attachments.
-            const messagesUrl = `${META_GRAPH_URL}/${conversationId}/messages?fields=id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}&limit=50&access_token=${decryptedAccount.access_token}`;
+            const messagesUrl = `${graphBaseUrl}/${conversationId}/messages?fields=id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}&limit=50&access_token=${decryptedAccount.access_token}`;
 
             console.log(`[LiveMessages] Fetching messages for conversation ${conversationId}`);
             const response = await fetch(messagesUrl);
@@ -277,7 +279,7 @@ export async function GET(request: NextRequest) {
             // ──────────────────────────────────────────────
             // MODE: List all conversations
             // ──────────────────────────────────────────────
-            let conversationsUrl = `${META_GRAPH_URL}/${pageId}/conversations?fields=id,participants,messages.limit(1){id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}},updated_time&limit=25&access_token=${decryptedAccount.access_token}`;
+            let conversationsUrl = `${graphBaseUrl}/${pageId}/conversations?fields=id,participants,messages.limit(1){id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}},updated_time&limit=25&access_token=${decryptedAccount.access_token}`;
 
             // For Instagram, add platform filter
             if (platform === 'instagram') {
@@ -338,7 +340,7 @@ export async function GET(request: NextRequest) {
                 // Hydrate the latest message directly so the UI can render a better preview label.
                 if (lastMsg?.id && isAttachmentPlaceholderMessage(lastMsg?.message) && lastMsgAttachments.length === 0) {
                     try {
-                        const previewMessageUrl = `${META_GRAPH_URL}/${conv.id}/messages?fields=id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}&limit=1&access_token=${decryptedAccount.access_token}`;
+                        const previewMessageUrl = `${graphBaseUrl}/${conv.id}/messages?fields=id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}&limit=1&access_token=${decryptedAccount.access_token}`;
                         const previewRes = await fetch(previewMessageUrl);
                         const previewData = await previewRes.json();
                         if (previewRes.ok && Array.isArray(previewData?.data) && previewData.data.length > 0) {

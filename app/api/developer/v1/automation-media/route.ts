@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { canReadConnectedMediaWithMetaAccount, decryptMetaAccountRow } from "@/lib/meta-account"
-import { META_GRAPH_API_BASE_URL } from "@/lib/meta-graph-version"
+import { getMetaGraphApiBaseUrl } from "@/lib/meta-graph-version"
 import { withDeveloperApiAuth } from "@/lib/developer-api/http"
 import { createAdminClient } from "@/utils/supabase/admin"
 
@@ -92,6 +92,9 @@ export async function GET(request: NextRequest) {
       }
 
       const decryptedAccount = decryptMetaAccountRow(account)
+      const graphBaseUrl = getMetaGraphApiBaseUrl(
+        decryptedAccount.metadata?.connection_method,
+      )
       if (!decryptedAccount.access_token) {
         return NextResponse.json({ error: "No access token available for this account" }, { status: 400 })
       }
@@ -108,7 +111,7 @@ export async function GET(request: NextRequest) {
 
       if (platform === "instagram") {
         const mediaUrl =
-          `${META_GRAPH_API_BASE_URL}/${decryptedAccount.account_id}/media`
+          `${graphBaseUrl}/${decryptedAccount.account_id}/media`
           + `?fields=id,media_type,media_url,thumbnail_url,caption,timestamp,permalink`
           + `&limit=${limit}&access_token=${decryptedAccount.access_token}`
 
@@ -133,7 +136,7 @@ export async function GET(request: NextRequest) {
       }
 
       const postsUrl =
-        `${META_GRAPH_API_BASE_URL}/${decryptedAccount.account_id}/posts`
+        `${graphBaseUrl}/${decryptedAccount.account_id}/posts`
         + `?fields=id,message,full_picture,created_time,permalink_url,attachments{media_type,media,url,subattachments}`
         + `&limit=${limit}&access_token=${decryptedAccount.access_token}`
 

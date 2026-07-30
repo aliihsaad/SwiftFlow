@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageCommentsWithMetaAccount, canReadCommentsWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
-import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
+import { getMetaGraphApiBaseUrl } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace, getExplicitActiveWorkspace } from '@/lib/workspace-utils';
 import { normalizeMetaGraphError, type MetaGraphErrorShape } from '@/lib/meta-graph-errors';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
 
-const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 type CommentData = {
     id: string;
@@ -170,7 +169,7 @@ export async function GET(request: NextRequest) {
 
         if (platform === 'instagram') {
             // Instagram: GET /{media-id}/comments
-            const url = `${META_GRAPH_URL}/${postId}/comments?fields=id,text,timestamp,username,from{id,username},replies{id,text,timestamp,username,from{id,username}}&access_token=${decryptedAccount.access_token}`;
+            const url = `${getMetaGraphApiBaseUrl(decryptedAccount.metadata?.connection_method)}/${postId}/comments?fields=id,text,timestamp,username,from{id,username},replies{id,text,timestamp,username,from{id,username}}&access_token=${decryptedAccount.access_token}`;
 
             console.log(`[PostComments] Fetching Instagram comments for ${postId}`);
             const response = await fetch(url);
@@ -201,7 +200,7 @@ export async function GET(request: NextRequest) {
 
         } else if (platform === 'facebook') {
             // Facebook: GET /{post-id}/comments
-            const url = `${META_GRAPH_URL}/${postId}/comments?fields=id,message,created_time,is_hidden,from{id,name},comments{id,message,created_time,is_hidden,from{id,name}}&access_token=${decryptedAccount.access_token}`;
+            const url = `${getMetaGraphApiBaseUrl(decryptedAccount.metadata?.connection_method)}/${postId}/comments?fields=id,message,created_time,is_hidden,from{id,name},comments{id,message,created_time,is_hidden,from{id,name}}&access_token=${decryptedAccount.access_token}`;
 
             console.log(`[PostComments] Fetching Facebook comments for ${postId}`);
             const response = await fetch(url);
@@ -314,9 +313,9 @@ export async function POST(request: NextRequest) {
         // Post reply via Meta API
         let replyUrl: string;
         if (platform === 'instagram') {
-            replyUrl = `${META_GRAPH_URL}/${commentId}/replies`;
+            replyUrl = `${getMetaGraphApiBaseUrl(decryptedAccount.metadata?.connection_method)}/${commentId}/replies`;
         } else {
-            replyUrl = `${META_GRAPH_URL}/${commentId}/comments`;
+            replyUrl = `${getMetaGraphApiBaseUrl(decryptedAccount.metadata?.connection_method)}/${commentId}/comments`;
         }
 
         const response = await fetch(replyUrl, {
@@ -406,7 +405,7 @@ export async function DELETE(request: NextRequest) {
 
         // Hide comment via Meta API (FB uses is_hidden, IG uses hide)
         const hideParam = platform === 'facebook' ? 'is_hidden=true' : 'hide=true';
-        const hideUrl = `${META_GRAPH_URL}/${commentId}?${hideParam}&access_token=${decryptedAccount.access_token}`;
+        const hideUrl = `${getMetaGraphApiBaseUrl(decryptedAccount.metadata?.connection_method)}/${commentId}?${hideParam}&access_token=${decryptedAccount.access_token}`;
         const response = await fetch(hideUrl, { method: 'POST' });
         const result = await response.json() as CommentActionApiResponse;
 
@@ -486,7 +485,7 @@ export async function PATCH(request: NextRequest) {
             ? `is_hidden=${hidden ? 'true' : 'false'}`
             : `hide=${hidden ? 'true' : 'false'}`;
 
-        const moderationUrl = `${META_GRAPH_URL}/${commentId}?${visibilityParam}&access_token=${decryptedAccount.access_token}`;
+        const moderationUrl = `${getMetaGraphApiBaseUrl(decryptedAccount.metadata?.connection_method)}/${commentId}?${visibilityParam}&access_token=${decryptedAccount.access_token}`;
         const response = await fetch(moderationUrl, { method: 'POST' });
         const result = await response.json() as CommentActionApiResponse;
 

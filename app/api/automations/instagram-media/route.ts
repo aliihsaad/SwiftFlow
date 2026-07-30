@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canReadConnectedMediaWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
-import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
+import { getMetaGraphApiBaseUrl } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 
-const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 type InstagramMediaApiItem = {
@@ -69,6 +68,9 @@ export async function GET(request: NextRequest) {
             );
         }
         const decryptedAccount = decryptMetaAccountRow(account);
+        const graphBaseUrl = getMetaGraphApiBaseUrl(
+            decryptedAccount.metadata?.connection_method
+        );
 
         if (!decryptedAccount.access_token) {
             return NextResponse.json(
@@ -90,7 +92,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Fetch media from Instagram Graph API
-        const mediaUrl = `${META_GRAPH_URL}/${decryptedAccount.account_id}/media?fields=id,media_type,media_url,thumbnail_url,caption,timestamp,permalink&limit=${limit}&access_token=${decryptedAccount.access_token}`;
+        const mediaUrl = `${graphBaseUrl}/${decryptedAccount.account_id}/media?fields=id,media_type,media_url,thumbnail_url,caption,timestamp,permalink&limit=${limit}&access_token=${decryptedAccount.access_token}`;
 
         const response = await fetch(mediaUrl, { cache: 'no-store' });
         const result = await response.json() as InstagramMediaApiResponse;

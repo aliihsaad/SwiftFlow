@@ -100,7 +100,7 @@ describe("developer API automation media route", () => {
         platform: "instagram",
         account_id: "ig-user-1",
         access_token: "ig-token",
-        metadata: {},
+        metadata: { connection_method: "instagram_login" },
       },
       {
         id: facebookAccountId,
@@ -108,7 +108,7 @@ describe("developer API automation media route", () => {
         platform: "facebook",
         account_id: "fb-page-1",
         access_token: "fb-token",
-        metadata: {},
+        metadata: { connection_method: "facebook_login" },
       },
     ]
   })
@@ -118,6 +118,7 @@ describe("developer API automation media route", () => {
 
     expect(response.status).toBe(200)
     expect(state.requiredScopes).toEqual(["automations:read"])
+    expect(state.fetchUrls[0]).toMatch(/^https:\/\/graph\.instagram\.com\/v25\.0\//)
     expect(state.fetchUrls[0]).toContain("/ig-user-1/media")
     expect(state.fetchUrls[0]).toContain("limit=3")
     await expect(response.json()).resolves.toMatchObject({
@@ -136,6 +137,7 @@ describe("developer API automation media route", () => {
     const response = await automationMediaRoute.GET(new NextRequest(`${origin}/api/developer/v1/automation-media?account_id=${facebookAccountId}`))
 
     expect(response.status).toBe(200)
+    expect(state.fetchUrls[0]).toMatch(/^https:\/\/graph\.facebook\.com\/v25\.0\//)
     expect(state.fetchUrls[0]).toContain("/fb-page-1/posts")
     await expect(response.json()).resolves.toMatchObject({
       platform: "facebook",

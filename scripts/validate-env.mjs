@@ -27,6 +27,14 @@ function failList(title, keys) {
   process.exit(1)
 }
 
+function assertCredentialPair(idName, secretName) {
+  const hasId = Boolean(String(process.env[idName] || "").trim())
+  const hasSecret = Boolean(String(process.env[secretName] || "").trim())
+  if (hasId !== hasSecret) {
+    failList(`[validate-env] ${idName} and ${secretName} must be configured together:`, [idName, secretName])
+  }
+}
+
 function assertStrongSecret(name, value) {
   if (value.length < 32) {
     console.error(`[validate-env] ${name} must contain at least 32 characters of random material`)
@@ -92,6 +100,9 @@ if (previousDeveloperPepper) {
 if (!developerPepper) {
   console.warn("[validate-env] DEVELOPER_API_KEY_PEPPER is not set; Developer API HMACs use the legacy server-secret fallback")
 }
+
+assertCredentialPair("NEXT_PUBLIC_META_APP_ID", "META_APP_SECRET")
+assertCredentialPair("INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET")
 
 if (channel === "review_phase_1") {
   const missingReview = getMissing(reviewPhase1Required)

@@ -36,13 +36,13 @@ export function deriveMetaCapabilities(scopes: readonly string[]) {
     facebook_publish: granted.has("pages_manage_posts"),
     facebook_user_content_read: granted.has("pages_read_user_content"),
     business_management: granted.has("business_management"),
-    instagram_basic: granted.has("instagram_basic"),
-    instagram_publish: granted.has("instagram_content_publish"),
+    instagram_basic: granted.has("instagram_basic") || granted.has("instagram_business_basic"),
+    instagram_publish: granted.has("instagram_content_publish") || granted.has("instagram_business_content_publish"),
     analytics_read: granted.has("pages_read_engagement") || granted.has("instagram_manage_insights"),
     facebook_comments_read: granted.has("pages_read_user_content") || granted.has("pages_read_engagement") || granted.has("pages_manage_engagement"),
     facebook_comments_manage: granted.has("pages_manage_engagement"),
-    comments_manage: granted.has("instagram_manage_comments"),
-    messages_manage: granted.has("instagram_manage_messages"),
+    comments_manage: granted.has("instagram_manage_comments") || granted.has("instagram_business_manage_comments"),
+    messages_manage: granted.has("instagram_manage_messages") || granted.has("instagram_business_manage_messages"),
     pages_messaging: granted.has("pages_messaging"),
   }
 }

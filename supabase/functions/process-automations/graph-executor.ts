@@ -29,12 +29,11 @@ import {
   decryptMetaAccountRow,
 } from "../_shared/meta-account.ts"
 
-import { META_GRAPH_API_BASE_URL, toMetaGraphFormBody } from "../_shared/meta-graph.ts";
+import { getMetaGraphApiBaseUrl, toMetaGraphFormBody } from "../_shared/meta-graph.ts";
 import {
   getAutomationConditionPolicyIssue,
 } from "../_shared/automation-condition-policy.ts";
 
-const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 const DM_FALLBACK_CODES = new Set([
   '551',
@@ -934,6 +933,7 @@ async function executeNodeUnchecked(
         access_token: account?.access_token,
         page_id: pageId,
         platform: account?.platform,
+        connection_method: account?.metadata?.connection_method,
       });
 
       if (workerResult.ok && workerResult.data) {
@@ -946,13 +946,13 @@ async function executeNodeUnchecked(
 
   switch (nodeType) {
     case 'action_reply_comment':
-      return await executeReplyComment(config, triggerContext, account.access_token, account?.platform);
+      return await executeReplyComment(config, triggerContext, account.access_token, account?.platform, account?.metadata?.connection_method);
 
     case 'action_send_dm':
-      return await executeSendDM(config, triggerContext, account.access_token, pageId);
+      return await executeSendDM(config, triggerContext, account.access_token, pageId, account?.metadata?.connection_method);
 
     case 'action_private_reply':
-      return await executePrivateReply(config, triggerContext, account.access_token, pageId);
+      return await executePrivateReply(config, triggerContext, account.access_token, pageId, account?.metadata?.connection_method);
 
     case 'action_condition':
       return executeCondition(config, triggerContext);
@@ -1036,6 +1036,7 @@ async function executeReplyComment(
   ctx: TriggerContext & { ai_response?: string },
   accessToken: string,
   platform?: string,
+  connectionMethod?: string,
 ): Promise<{ success: boolean; output?: any; error?: string }> {
   if (!ctx.comment_id) return { success: false, error: 'No comment_id in trigger context' };
 
@@ -1057,11 +1058,11 @@ async function executeReplyComment(
   message = normalizeCommentReply(message);
 
   const replyPath = String(platform || '').toLowerCase() === 'facebook' ? 'comments' : 'replies';
-  const url = `${META_GRAPH_URL}/${ctx.comment_id}/${replyPath}`;
+  const url = `${getMetaGraphApiBaseUrl(connectionMethod)}/${ctx.comment_id}/${replyPath}`;
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: await toMetaGraphFormBody({ message, access_token: accessToken }, accessToken),
+    body: await toMetaGraphFormBody({ message, access_token: accessToken }, accessToken, { connectionMethod }),
   });
 
   const result = await response.json();
@@ -1077,6 +1078,7 @@ async function executeSendDM(
   ctx: TriggerContext,
   accessToken: string,
   pageId: string,
+  connectionMethod?: string,
 ): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
   const recipientId = ctx.commenter_id || ctx.sender_id || ctx.follower_id;
   if (!recipientId) return { success: false, error: 'No recipient ID in trigger context' };
@@ -1118,7 +1120,7 @@ async function executeSendDM(
     };
   }
 
-  const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
+  const sendUrl = `${getMetaGraphApiBaseUrl(connectionMethod)}/${pageId}/messages`;
 
   // Try normal DM
   const openingResponse = await fetch(sendUrl, {
@@ -1128,7 +1130,7 @@ async function executeSendDM(
       recipient: { id: recipientId },
       message: { text: openingMessage },
       access_token: accessToken,
-    }, accessToken),
+    }, accessToken, { connectionMethod }),
   });
 
   const openingResult = await openingResponse.json();
@@ -1164,6 +1166,7 @@ async function executeSendDM(
       ctx,
       accessToken,
       pageId,
+      connectionMethod,
     );
 
     if (!privateReplyResult.success) {
@@ -1190,7 +1193,7 @@ async function executeSendDM(
           recipient: { id: recipientId },
           message: { text: linkMessage },
           access_token: accessToken,
-        }, accessToken),
+        }, accessToken, { connectionMethod }),
       });
     } else {
       const linkResp = await fetch(sendUrl, {
@@ -1209,7 +1212,7 @@ async function executeSendDM(
             },
           },
           access_token: accessToken,
-        }, accessToken),
+        }, accessToken, { connectionMethod }),
       });
 
       const linkResult = await linkResp.json();
@@ -1221,7 +1224,7 @@ async function executeSendDM(
             recipient: { id: recipientId },
             message: { text: linkMessage },
             access_token: accessToken,
-          }, accessToken),
+          }, accessToken, { connectionMethod }),
         });
       }
     }
@@ -1235,6 +1238,7 @@ async function executePrivateReply(
   ctx: TriggerContext & { ai_response?: string },
   accessToken: string,
   pageId: string,
+  connectionMethod?: string,
 ): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
   if (!ctx.comment_id) {
     return { success: false, error: 'Private Reply requires comment context' };
@@ -1255,7 +1259,7 @@ async function executePrivateReply(
     };
   }
 
-  const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
+  const sendUrl = `${getMetaGraphApiBaseUrl(connectionMethod)}/${pageId}/messages`;
   const response = await fetch(sendUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1263,7 +1267,7 @@ async function executePrivateReply(
       recipient: { comment_id: ctx.comment_id },
       message: { text: message },
       access_token: accessToken,
-    }, accessToken),
+    }, accessToken, { connectionMethod }),
   });
 
   const result = await response.json();

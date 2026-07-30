@@ -20,7 +20,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 import { decryptMetaToken } from "../_shared/meta-account.ts"
-import { META_GRAPH_API_BASE_URL } from "../_shared/meta-graph.ts"
+import { getMetaGraphApiBaseUrl } from "../_shared/meta-graph.ts"
 import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
 import { isTokenCheckDue, resolveTokenHealth } from "../_shared/token-health.ts"
 
@@ -38,6 +38,23 @@ function json(payload: unknown, status = 200): Response {
   })
 }
 
+function resolveAppCredentials(metadata: Record<string, unknown> | null | undefined) {
+  const connectionMethod = metadata?.connection_method === "instagram_login"
+    ? "instagram_login"
+    : "facebook_login"
+  const appId = connectionMethod === "instagram_login"
+    ? Deno.env.get("INSTAGRAM_APP_ID") || ""
+    : Deno.env.get("META_APP_ID") || Deno.env.get("NEXT_PUBLIC_META_APP_ID") || ""
+  const appSecret = connectionMethod === "instagram_login"
+    ? Deno.env.get("INSTAGRAM_APP_SECRET") || ""
+    : Deno.env.get("META_APP_SECRET") || ""
+  return {
+    connectionMethod,
+    appId: appId.trim(),
+    appSecret: appSecret.trim(),
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
@@ -46,11 +63,6 @@ serve(async (req) => {
   const unauthorized = await assertInternalInvoke(req, corsHeaders)
   if (unauthorized) return unauthorized
 
-  const appId = Deno.env.get("META_APP_ID") || Deno.env.get("NEXT_PUBLIC_META_APP_ID") || ""
-  const appSecret = Deno.env.get("META_APP_SECRET") || ""
-  if (!appId || !appSecret) {
-    return json({ success: false, error: "Missing META_APP_ID / META_APP_SECRET function secrets" }, 500)
-  }
 
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -82,9 +94,21 @@ serve(async (req) => {
           continue
         }
 
+        const { connectionMethod, appId, appSecret } = resolveAppCredentials(account.metadata)
+        if (!appId || !appSecret) {
+          results.errors++
+          console.warn("[TOKEN_HEALTH] Missing app credentials for account connection method", {
+            account_id: account.id,
+            workspace_id: account.workspace_id,
+            connection_method: connectionMethod,
+          })
+          continue
+        }
+        const graphApiBaseUrl = getMetaGraphApiBaseUrl(connectionMethod)
         const response = await fetch(
-          `${META_GRAPH_API_BASE_URL}/debug_token?input_token=${encodeURIComponent(token)}&access_token=${appId}|${appSecret}`,
+          `${graphApiBaseUrl}/debug_token?input_token=${encodeURIComponent(token)}&access_token=${appId}|${appSecret}`,
         )
+
         // Treat only definitive responses as authoritative: a transient error
         // must not flag a working token as invalid.
         if (!response.ok && response.status !== 400) {

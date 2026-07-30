@@ -65,7 +65,7 @@ Functions that require `--no-verify-jwt`:
 - `process-scheduled-executions`
 - `process-publishing-automations`
 - `retention-cleanup` (internal-only; guarded by `assertInternalInvoke`, dry-run unless `RETENTION_CLEANUP_MODE=enabled`)
-- `token-health-sweep` (internal-only; needs `META_APP_ID` + `META_APP_SECRET` function secrets; writes `token_health`/`token_checked_at` metadata and real `token_expires_at`)
+- `token-health-sweep` (internal-only; needs `META_APP_ID` + `META_APP_SECRET` for Facebook Login accounts and `INSTAGRAM_APP_ID` + `INSTAGRAM_APP_SECRET` for direct Instagram Login accounts; writes `token_health`/`token_checked_at` metadata and real `token_expires_at`)
 - `automation-worker-run`
 - `automation-worker-ai-response`
 - `automation-worker-condition`

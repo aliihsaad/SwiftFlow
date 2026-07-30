@@ -8,10 +8,9 @@ import { resolveAIConfig } from "../_shared/ai-config.ts"
 import { generateText, requireGeneratedText } from "../_shared/generate-text.ts"
 import { buildAutomationAiPrompt } from "../_shared/automation-context.ts"
 
-import { isSafeMetaGraphNodeId, META_GRAPH_API_BASE_URL, toMetaGraphFormBody } from "../_shared/meta-graph.ts";
+import { getMetaGraphApiBaseUrl, isSafeMetaGraphNodeId, toMetaGraphFormBody } from "../_shared/meta-graph.ts";
 import { redactSensitiveLogValue } from "../_shared/log-redaction.ts";
 
-const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -64,13 +63,14 @@ interface CommentData {
  */
 async function fetchPostComments(
     postId: string,
-    accessToken: string
+    accessToken: string,
+    connectionMethod?: string
 ): Promise<CommentData[]> {
     if (!isSafeMetaGraphNodeId(postId)) {
         console.error(`Rejected unsafe Meta post ID: ${postId}`);
         return [];
     }
-    const url = `${META_GRAPH_URL}/${postId}/comments?fields=id,text,from,timestamp&limit=50&access_token=${accessToken}`;
+    const url = `${getMetaGraphApiBaseUrl(connectionMethod)}/${postId}/comments?fields=id,text,from,timestamp&limit=50&access_token=${accessToken}`;
 
     const response = await fetch(url);
     const result = await response.json();
@@ -110,20 +110,21 @@ function doesCommentMatch(
 async function replyToComment(
     commentId: string,
     message: string,
-    accessToken: string
+    accessToken: string,
+    connectionMethod?: string
 ): Promise<{ success: boolean; replyId?: string; error?: string }> {
     try {
         if (!isSafeMetaGraphNodeId(commentId)) {
             return { success: false, error: 'Unsafe comment ID rejected' };
         }
-        const url = `${META_GRAPH_URL}/${commentId}/replies`;
+        const url = `${getMetaGraphApiBaseUrl(connectionMethod)}/${commentId}/replies`;
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: await toMetaGraphFormBody({
                 message,
                 access_token: accessToken
-            }, accessToken)
+            }, accessToken, { connectionMethod })
         });
 
         const result = await response.json();
@@ -180,9 +181,10 @@ async function sendDM(
     recipientId: string,
     commentId: string,
     dmConfig: AutomationRow['dm_config'],
-    accessToken: string
+    accessToken: string,
+    connectionMethod?: string
 ): Promise<DmResult> {
-    const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
+    const sendUrl = `${getMetaGraphApiBaseUrl(connectionMethod)}/${pageId}/messages`;
 
     // ── Attempt 1: Normal DM with recipient.id ──────────────────────
     try {
@@ -193,7 +195,7 @@ async function sendDM(
                 recipient: { id: recipientId },
                 message: { text: dmConfig.opening_message },
                 access_token: accessToken,
-            }, accessToken),
+            }, accessToken, { connectionMethod }),
         });
 
         const openingResult = await openingResponse.json();
@@ -205,7 +207,7 @@ async function sendDM(
             // Only fall back on window/recipient errors
             if (isDmFallbackError(err)) {
                 console.log(`[DM] Falling back to private reply for comment ${commentId}`);
-                return await sendPrivateReply(sendUrl, commentId, dmConfig, accessToken);
+                return await sendPrivateReply(sendUrl, commentId, dmConfig, accessToken, connectionMethod);
             }
 
             // Token/permission errors — don't retry
@@ -213,7 +215,7 @@ async function sendDM(
         }
 
         // Normal DM succeeded — now send the link/button follow-up
-        await sendLinkFollowUp(sendUrl, recipientId, dmConfig, accessToken);
+        await sendLinkFollowUp(sendUrl, recipientId, dmConfig, accessToken, connectionMethod);
 
         return { success: true, messageId: openingResult.message_id, channel: 'dm' };
     } catch (error) {
@@ -229,7 +231,8 @@ async function sendPrivateReply(
     sendUrl: string,
     commentId: string,
     dmConfig: AutomationRow['dm_config'],
-    accessToken: string
+    accessToken: string,
+    connectionMethod?: string
 ): Promise<DmResult> {
     try {
         if (!isSafeMetaGraphNodeId(commentId)) {
@@ -247,7 +250,7 @@ async function sendPrivateReply(
                 recipient: { comment_id: commentId },
                 message: { text },
                 access_token: accessToken,
-            }, accessToken),
+            }, accessToken, { connectionMethod }),
         });
 
         const result = await response.json();
@@ -273,7 +276,8 @@ async function sendLinkFollowUp(
     sendUrl: string,
     recipientId: string,
     dmConfig: AutomationRow['dm_config'],
-    accessToken: string
+    accessToken: string,
+    connectionMethod?: string
 ): Promise<void> {
     if (!dmConfig.link_url) return;
 
@@ -302,7 +306,7 @@ async function sendLinkFollowUp(
                 },
             },
             access_token: accessToken,
-        }, accessToken),
+        }, accessToken, { connectionMethod }),
     });
 
     const linkResult = await linkResponse.json();
@@ -317,7 +321,7 @@ async function sendLinkFollowUp(
                 recipient: { id: recipientId },
                 message: { text: linkMessage },
                 access_token: accessToken,
-            }, accessToken),
+            }, accessToken, { connectionMethod }),
         });
     }
 }
@@ -357,7 +361,8 @@ async function processAutomation(
     // 1. Fetch comments from Meta Graph API
     const comments = await fetchPostComments(
         automation.platform_post_id,
-        account.access_token
+        account.access_token,
+        account.metadata?.connection_method
     );
 
     if (comments.length === 0) {
@@ -392,7 +397,7 @@ async function processAutomation(
             continue;
         }
         const result = await processSingleComment(
-            supabase, automation, comment, pageId, account.access_token
+            supabase, automation, comment, pageId, account.access_token, account.metadata?.connection_method
         );
         stats.processed += result.processed;
         stats.dmsSent += result.dmsSent;
@@ -471,7 +476,8 @@ async function processSingleComment(
     automation: AutomationRow,
     comment: CommentData,
     pageId: string,
-    accessToken: string
+    accessToken: string,
+    connectionMethod?: string
 ): Promise<{ processed: number; dmsSent: number; errors: number }> {
     const stats = { processed: 0, dmsSent: 0, errors: 0 };
 
@@ -552,7 +558,7 @@ async function processSingleComment(
             }
 
             if (replyMessage) {
-                const replyResult = await replyToComment(comment.id, replyMessage, accessToken);
+                const replyResult = await replyToComment(comment.id, replyMessage, accessToken, connectionMethod);
                 commentReplySent = replyResult.success;
                 if (!replyResult.success) {
                     console.warn(`Automation ${automation.id}: Comment reply failed:`, redactSensitiveLogValue(replyResult.error));
@@ -572,7 +578,8 @@ async function processSingleComment(
                 comment.from.id,
                 comment.id,
                 dmConfigForSend,
-                accessToken
+                accessToken,
+                connectionMethod
             );
 
             dmSent = dmResult.success;
@@ -761,7 +768,7 @@ async function processWebhookComment(
 
         // Legacy wizard mode: use existing linear processing
         const result = await processSingleComment(
-            supabase, auto, comment, pageId, account.access_token
+            supabase, auto, comment, pageId, account.access_token, account.metadata?.connection_method
         );
 
         totalStats.processed += result.processed;

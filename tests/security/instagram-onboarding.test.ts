@@ -122,7 +122,7 @@ describe("direct Instagram onboarding", () => {
     expect(requests[2].method).toBe("GET")
   })
 
-  it("compares like-for-like Instagram user IDs instead of the app-scoped profile ID", () => {
+  it("accepts distinct OAuth, app-scoped, and professional-account IDs", () => {
     const profile = {
       id: "app-scoped-profile-id",
       user_id: ACCOUNT_ID,
@@ -137,11 +137,11 @@ describe("direct Instagram onboarding", () => {
     expect(resolveInstagramProfessionalAccountId({
       tokenUserId: "different-professional-account-id",
       profile,
-    })).toBeNull()
+    })).toBe(ACCOUNT_ID)
     expect(resolveInstagramProfessionalAccountId({
       tokenUserId: ACCOUNT_ID,
       profile: { ...profile, user_id: undefined },
-    })).toBe(ACCOUNT_ID)
+    })).toBe("app-scoped-profile-id")
   })
 
   it("marks automation ready only when every safety check passes", () => {
@@ -264,6 +264,7 @@ describe("Instagram onboarding route safety", () => {
     expect(callback).toContain('"Instagram connection callback failed"')
     expect(callback).toContain("resolveInstagramProfessionalAccountId")
     expect(callback).not.toContain("shortLived.user_id !== profile.id")
+    expect(callback).not.toContain("instagram_account_mismatch")
     expect(callback).not.toContain("error.message")
     expect(quickStart).toContain("Technical reference:")
   })

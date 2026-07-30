@@ -67,15 +67,15 @@ export class InstagramApiError extends Error {
 export function resolveInstagramProfessionalAccountId(input: {
   tokenUserId?: string
   profile: InstagramProfile
-}): string | null {
+}): string {
   const tokenUserId = String(input.tokenUserId || "").trim()
   const profileUserId = String(input.profile.user_id || "").trim()
+  const profileScopedId = String(input.profile.id || "").trim()
 
-  // Instagram Login can return two valid identifiers for the same account:
-  // profile.id is app-scoped, while user_id is the professional account ID
-  // used by webhooks and account-level Graph API endpoints.
-  if (tokenUserId && profileUserId && tokenUserId !== profileUserId) return null
-  return profileUserId || tokenUserId || input.profile.id
+  // Meta can expose distinct OAuth, app-scoped profile, and professional-account
+  // identifiers for one authorized account. The bearer-authenticated /me user_id
+  // is authoritative for webhooks; older responses fall back to /me.id.
+  return profileUserId || profileScopedId || tokenUserId
 }
 
 function normalizeAppUrl(value: string): string {

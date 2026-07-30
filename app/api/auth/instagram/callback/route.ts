@@ -155,10 +155,6 @@ export async function GET(request: NextRequest) {
       tokenUserId: shortLived.user_id,
       profile,
     })
-    if (!instagramAccountId) {
-      logFailure(stage, "instagram_account_mismatch")
-      return redirectError("instagram_account_mismatch", stage, "instagram_account_mismatch")
-    }
 
     stage = "subscribe_comments"
     let webhookStatus: "active" | "error" = "error"
@@ -218,6 +214,7 @@ export async function GET(request: NextRequest) {
       }),
       connection_method: "instagram_login",
       instagram_login_scoped_id: profile.id,
+      instagram_oauth_user_id: shortLived.user_id ?? null,
       account_type: profile.account_type,
       scope_source: shortLived.permissionsSource,
       token_health: "valid",

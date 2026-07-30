@@ -8,6 +8,7 @@ import {
   exchangeInstagramCode,
   fetchInstagramProfile,
   InstagramApiError,
+  resolveInstagramProfessionalAccountId,
   subscribeInstagramComments,
 } from "@/lib/instagram-onboarding"
 import {
@@ -87,7 +88,8 @@ describe("direct Instagram onboarding", () => {
       })
       if (String(url).includes("/me?")) {
         return jsonResponse(200, {
-          id: ACCOUNT_ID,
+          id: "app-scoped-profile-id",
+          user_id: ACCOUNT_ID,
           username: "alidevlab",
           account_type: "MEDIA_CREATOR",
         })
@@ -105,12 +107,41 @@ describe("direct Instagram onboarding", () => {
     }, fetcher)
 
     expect(profile.username).toBe("alidevlab")
+    expect(profile.id).toBe("app-scoped-profile-id")
+    expect(profile.user_id).toBe(ACCOUNT_ID)
+    expect(resolveInstagramProfessionalAccountId({
+      tokenUserId: ACCOUNT_ID,
+      profile,
+    })).toBe(ACCOUNT_ID)
     expect(subscription).toEqual({ active: true, subscribedFields: ["comments"] })
     expect(requests).toHaveLength(3)
     expect(requests.every((request) => request.authorization === `Bearer ${TOKEN}`)).toBe(true)
     expect(requests.every((request) => !request.url.includes(TOKEN))).toBe(true)
+    expect(requests[0].url).toContain("fields=id,user_id,username,account_type")
     expect(requests[1].method).toBe("POST")
     expect(requests[2].method).toBe("GET")
+  })
+
+  it("compares like-for-like Instagram user IDs instead of the app-scoped profile ID", () => {
+    const profile = {
+      id: "app-scoped-profile-id",
+      user_id: ACCOUNT_ID,
+      username: "alidevlab",
+      account_type: "MEDIA_CREATOR",
+    }
+
+    expect(resolveInstagramProfessionalAccountId({
+      tokenUserId: ACCOUNT_ID,
+      profile,
+    })).toBe(ACCOUNT_ID)
+    expect(resolveInstagramProfessionalAccountId({
+      tokenUserId: "different-professional-account-id",
+      profile,
+    })).toBeNull()
+    expect(resolveInstagramProfessionalAccountId({
+      tokenUserId: ACCOUNT_ID,
+      profile: { ...profile, user_id: undefined },
+    })).toBe(ACCOUNT_ID)
   })
 
   it("marks automation ready only when every safety check passes", () => {
@@ -231,6 +262,8 @@ describe("Instagram onboarding route safety", () => {
     expect(callback).toContain('"exchange_authorization_code"')
     expect(callback).toContain('"save_connection"')
     expect(callback).toContain('"Instagram connection callback failed"')
+    expect(callback).toContain("resolveInstagramProfessionalAccountId")
+    expect(callback).not.toContain("shortLived.user_id !== profile.id")
     expect(callback).not.toContain("error.message")
     expect(quickStart).toContain("Technical reference:")
   })

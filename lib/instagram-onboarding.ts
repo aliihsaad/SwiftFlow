@@ -19,6 +19,7 @@ export type InstagramWebhookStatus = "active" | "missing" | "error" | "unknown"
 
 export type InstagramProfile = {
   id: string
+  user_id?: string
   username: string
   account_type: string | null
 }
@@ -61,6 +62,20 @@ export class InstagramApiError extends Error {
     this.status = status
     this.code = code
   }
+}
+
+export function resolveInstagramProfessionalAccountId(input: {
+  tokenUserId?: string
+  profile: InstagramProfile
+}): string | null {
+  const tokenUserId = String(input.tokenUserId || "").trim()
+  const profileUserId = String(input.profile.user_id || "").trim()
+
+  // Instagram Login can return two valid identifiers for the same account:
+  // profile.id is app-scoped, while user_id is the professional account ID
+  // used by webhooks and account-level Graph API endpoints.
+  if (tokenUserId && profileUserId && tokenUserId !== profileUserId) return null
+  return profileUserId || tokenUserId || input.profile.id
 }
 
 function normalizeAppUrl(value: string): string {
@@ -251,7 +266,7 @@ export async function fetchInstagramProfile(
   fetchImpl: typeof fetch = fetch,
 ): Promise<InstagramProfile> {
   const response = await fetchImpl(
-    `${INSTAGRAM_GRAPH_URL}/me?fields=id,username,account_type`,
+    `${INSTAGRAM_GRAPH_URL}/me?fields=id,user_id,username,account_type`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
@@ -264,6 +279,9 @@ export async function fetchInstagramProfile(
   }
   return {
     id: parsed.id,
+    user_id: typeof parsed.user_id === "number" || typeof parsed.user_id === "string"
+      ? String(parsed.user_id)
+      : undefined,
     username: parsed.username,
     account_type: typeof parsed.account_type === "string" ? parsed.account_type : null,
   }

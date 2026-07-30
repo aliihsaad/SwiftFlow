@@ -7,6 +7,7 @@ import {
   getInstagramOAuthScopes,
   getInstagramRedirectUri,
   InstagramApiError,
+  resolveInstagramProfessionalAccountId,
   subscribeInstagramComments,
 } from "@/lib/instagram-onboarding"
 import { sanitizeInstagramDiagnosticValue } from "@/lib/instagram-onboarding-diagnostics"
@@ -150,7 +151,11 @@ export async function GET(request: NextRequest) {
     stage = "fetch_profile"
     const profile = await fetchInstagramProfile(accessToken)
     stage = "verify_account_identity"
-    if (shortLived.user_id && shortLived.user_id !== profile.id) {
+    const instagramAccountId = resolveInstagramProfessionalAccountId({
+      tokenUserId: shortLived.user_id,
+      profile,
+    })
+    if (!instagramAccountId) {
       logFailure(stage, "instagram_account_mismatch")
       return redirectError("instagram_account_mismatch", stage, "instagram_account_mismatch")
     }
@@ -161,7 +166,7 @@ export async function GET(request: NextRequest) {
     let webhookErrorCode: string | null = null
     try {
       const subscription = await subscribeInstagramComments({
-        accountId: profile.id,
+        accountId: instagramAccountId,
         accessToken,
       })
       webhookStatus = subscription.active ? "active" : "error"
@@ -177,7 +182,7 @@ export async function GET(request: NextRequest) {
       .from("social_accounts")
       .select("workspace_id")
       .eq("platform", "instagram")
-      .eq("account_id", profile.id)
+      .eq("account_id", instagramAccountId)
       .neq("workspace_id", workspaceId)
       .maybeSingle()
     if (duplicateError) throw duplicateError
@@ -206,12 +211,13 @@ export async function GET(request: NextRequest) {
           ? existing.metadata as MetaAccountMetadata
           : undefined,
         grantedScopes: shortLived.permissions,
-        instagramBusinessAccountId: profile.id,
+        instagramBusinessAccountId: instagramAccountId,
         igUsername: profile.username,
         tokenStatus: "available",
         syncedAt: now,
       }),
       connection_method: "instagram_login",
+      instagram_login_scoped_id: profile.id,
       account_type: profile.account_type,
       scope_source: shortLived.permissionsSource,
       token_health: "valid",
@@ -230,7 +236,7 @@ export async function GET(request: NextRequest) {
         workspace_id: workspaceId,
         platform: "instagram",
         account_name: `@${profile.username}`,
-        account_id: profile.id,
+        account_id: instagramAccountId,
         access_token: encryptMetaToken(accessToken),
         refresh_token: null,
         token_expires_at: tokenExpiry(expiresIn),

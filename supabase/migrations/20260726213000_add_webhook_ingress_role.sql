@@ -15,16 +15,30 @@ begin
   ) then
     create role swiftflow_webhook_ingress nologin;
   end if;
+
+  -- Managed Supabase's postgres role is intentionally not a superuser, so it
+  -- cannot change SUPERUSER, REPLICATION, or BYPASSRLS with ALTER ROLE.
+  -- CREATE ROLE already defaults to nologin, nosuperuser, nocreatedb,
+  -- nocreaterole, noreplication, and nobypassrls. Validate those defaults and
+  -- fail closed if a pre-existing role is broader.
+  if exists (
+    select 1
+    from pg_roles
+    where rolname = 'swiftflow_webhook_ingress'
+      and (
+        rolcanlogin
+        or rolsuper
+        or rolcreatedb
+        or rolcreaterole
+        or rolreplication
+        or rolbypassrls
+      )
+  ) then
+    raise exception
+      'Role swiftflow_webhook_ingress has unsafe attributes; refusing to continue';
+  end if;
 end
 $$;
-
-alter role swiftflow_webhook_ingress
-  nologin
-  nosuperuser
-  nocreatedb
-  nocreaterole
-  noreplication
-  nobypassrls;
 
 revoke all on schema public from swiftflow_webhook_ingress;
 grant usage on schema public to swiftflow_webhook_ingress;

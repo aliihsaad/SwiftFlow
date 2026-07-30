@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
+import { getInstagramConnectionNotice } from "@/lib/instagram-onboarding-diagnostics"
 
 type Health = {
   status: "not_connected" | "action_required" | "ready"
@@ -80,6 +81,10 @@ export function InstagramQuickStart({
   const canManage = useWorkspacePermission("integrations:write")
   const [status, setStatus] = useState<SocialStatus | null>(null)
   const [busy, setBusy] = useState<"verify" | "subscribe" | "refresh" | null>(null)
+  const connectionNotice = useMemo(
+    () => getInstagramConnectionNotice(searchParams),
+    [searchParams],
+  )
 
   const loadStatus = useCallback(async () => {
     setStatus(await requestInstagramStatus(workspaceId))
@@ -102,16 +107,10 @@ export function InstagramQuickStart({
   }, [workspaceId])
 
   useEffect(() => {
-    const success = searchParams.get("success")
-    const error = searchParams.get("error")
-    if (success === "instagram_connected") {
-      toast.success("Instagram connected")
-    } else if (error === "instagram_app_not_configured") {
-      toast.error("Add INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET to the server environment first.")
-    } else if (error) {
-      toast.error("Instagram connection did not complete. Review the setup and try again.")
-    }
-  }, [searchParams])
+    if (!connectionNotice) return
+    if (connectionNotice.tone === "success") toast.success(connectionNotice.title)
+    else toast.error(connectionNotice.title)
+  }, [connectionNotice])
 
   const runOperation = async (operation: "verify" | "subscribe" | "refresh") => {
     if (!canManage || busy) return
@@ -242,6 +241,38 @@ export function InstagramQuickStart({
           </div>
         </div>
       </section>
+
+      {connectionNotice && (
+        <section
+          aria-live="polite"
+          className={connectionNotice.tone === "success"
+            ? "mt-6 rounded-2xl border border-emerald-300/15 bg-emerald-400/[0.06] p-5"
+            : "mt-6 rounded-2xl border border-rose-300/15 bg-rose-400/[0.06] p-5"}
+        >
+          <div className="flex gap-3">
+            {connectionNotice.tone === "success"
+              ? <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-200" />
+              : <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-rose-200" />}
+            <div>
+              <h2 className={connectionNotice.tone === "success"
+                ? "font-semibold text-emerald-100"
+                : "font-semibold text-rose-100"}>
+                {connectionNotice.title}
+              </h2>
+              <p className={connectionNotice.tone === "success"
+                ? "mt-1 text-sm text-emerald-100/65"
+                : "mt-1 text-sm text-rose-100/65"}>
+                {connectionNotice.message}
+              </p>
+              {connectionNotice.reference && (
+                <p className="mt-2 font-mono text-xs text-white/35">
+                  Technical reference: {connectionNotice.reference}
+                </p>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="mt-6 grid gap-4 md:grid-cols-2">
         {steps.map((step, index) => {

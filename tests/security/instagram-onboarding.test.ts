@@ -11,6 +11,10 @@ import {
   subscribeInstagramComments,
 } from "@/lib/instagram-onboarding"
 import {
+  getInstagramConnectionNotice,
+  sanitizeInstagramDiagnosticValue,
+} from "@/lib/instagram-onboarding-diagnostics"
+import {
   deriveMetaCapabilities,
   sanitizeMetaAccountMetadataForClient,
 } from "@/lib/meta-account"
@@ -172,6 +176,29 @@ describe("direct Instagram onboarding", () => {
     expect(String(caught)).not.toContain(TOKEN)
     expect(String(caught)).not.toContain("Invalid token")
   })
+
+  it("turns callback outcomes into persistent, credential-safe UI notices", () => {
+    const failed = getInstagramConnectionNotice(new URLSearchParams({
+      error: "instagram_api_error",
+      stage: "exchange_authorization_code",
+      code: "OAuthException",
+    }))
+    expect(failed).toEqual({
+      tone: "error",
+      title: "Instagram connection did not complete",
+      message: expect.stringContaining("Instagram app ID and Instagram app secret"),
+      reference: "stage exchange_authorization_code · code OAuthException",
+    })
+
+    const connected = getInstagramConnectionNotice(new URLSearchParams({
+      success: "instagram_connected",
+    }))
+    expect(connected?.tone).toBe("success")
+    expect(connected?.message).toContain("comment webhook")
+
+    expect(sanitizeInstagramDiagnosticValue(TOKEN)).toBeNull()
+    expect(sanitizeInstagramDiagnosticValue("OAuthException")).toBe("OAuthException")
+  })
 })
 
 describe("Instagram onboarding route safety", () => {
@@ -196,6 +223,16 @@ describe("Instagram onboarding route safety", () => {
     expect(source).toContain('sameSite: "lax"')
     expect(source).toContain("60 * 10")
     expect(source).not.toContain("NEXT_PUBLIC_INSTAGRAM_APP_ID")
+  })
+
+  it("records safe callback stages and returns persistent diagnostic references", () => {
+    const callback = route("app/api/auth/instagram/callback/route.ts")
+    const quickStart = route("components/onboarding/instagram-quick-start.tsx")
+    expect(callback).toContain('"exchange_authorization_code"')
+    expect(callback).toContain('"save_connection"')
+    expect(callback).toContain('"Instagram connection callback failed"')
+    expect(callback).not.toContain("error.message")
+    expect(quickStart).toContain("Technical reference:")
   })
 
   it("preserves direct Instagram Login accounts when Facebook is disconnected", () => {

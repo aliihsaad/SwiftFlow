@@ -241,4 +241,17 @@ describe("browser-callable settings actions", () => {
     expect(edgeCrypto).toContain("APP_SECRETS_ENCRYPTION_VERSION")
     expect(edgeCrypto).toContain("additionalData")
   })
+
+  it("validates saved provider keys through the trusted server-only reader", () => {
+    const validationRoute = source("app", "api", "ai", "validate-key", "route.ts")
+    const settingsForm = source("components", "settings", "api-settings-form.tsx")
+
+    expect(validationRoute).toContain("getWorkspaceSettingsWithSecrets(activeWorkspace.id)")
+    expect(validationRoute).toContain("settings?.openrouter_api_key")
+    expect(validationRoute).toContain("settings?.gemini_api_key")
+    expect(validationRoute).toContain("settings?.openai_api_key")
+    expect(settingsForm).toContain("savedKeys[formData.ai_provider]")
+    expect(settingsForm).toContain("...(key.trim() ? { apiKey: key } : {})")
+    expect(settingsForm).toContain("'Test Saved Key'")
+  })
 })

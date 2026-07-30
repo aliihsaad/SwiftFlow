@@ -124,7 +124,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                 : formData.ai_provider === 'openai'
                     ? formData.openai_api_key
                     : formData.gemini_api_key
-        if (!key.trim()) {
+        if (!key.trim() && !savedKeys[formData.ai_provider]) {
             setTestResult({ valid: false, error: 'Enter an API key first.' })
             return
         }
@@ -134,7 +134,10 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
             const res = await fetch('/api/ai/validate-key', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ provider: formData.ai_provider, apiKey: key }),
+                body: JSON.stringify({
+                    provider: formData.ai_provider,
+                    ...(key.trim() ? { apiKey: key } : {}),
+                }),
             })
             const data = await res.json()
             setTestResult(data)
@@ -239,6 +242,17 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
     const hasSavedOpenRouterKey = savedKeys.openrouter
     const hasSavedGeminiKey = savedKeys.gemini
     const hasSavedOpenAIKey = savedKeys.openai
+    const activeDraftKey =
+        formData.ai_provider === 'openrouter'
+            ? formData.openrouter_api_key
+            : formData.ai_provider === 'openai'
+                ? formData.openai_api_key
+                : formData.gemini_api_key
+    const testKeyLabel = activeDraftKey.trim()
+        ? 'Test New Key'
+        : savedKeys[formData.ai_provider]
+            ? 'Test Saved Key'
+            : 'Test Key'
     const recommendationClassMap = {
         cost: "border-emerald-300/20 bg-emerald-400/10 text-emerald-100/90",
         balanced: "border-cyan-300/20 bg-cyan-400/10 text-cyan-100/90",
@@ -340,7 +354,10 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     id="openrouter_api_key"
                                     type={showOpenRouterKey ? "text" : "password"}
                                     value={formData.openrouter_api_key}
-                                    onChange={(e) => setFormData({ ...formData, openrouter_api_key: e.target.value })}
+                                    onChange={(e) => {
+                                        setTestResult(null)
+                                        setFormData((prev) => ({ ...prev, openrouter_api_key: e.target.value }))
+                                    }}
                                     placeholder={hasSavedOpenRouterKey ? "Saved key on file. Enter a new key to replace it." : "sk-or-v1-..."}
                                     className={`${fieldClass} pr-10`}
                                     required={formData.ai_provider === 'openrouter' && !hasSavedOpenRouterKey}
@@ -376,7 +393,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     disabled={isTesting}
                                 >
                                     {isTesting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                                    Test Key
+                                    {testKeyLabel}
                                 </Button>
                             </div>
                             {hasSavedOpenRouterKey && (
@@ -418,7 +435,10 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     id="gemini_api_key"
                                     type={showGeminiKey ? "text" : "password"}
                                     value={formData.gemini_api_key}
-                                    onChange={(e) => setFormData({ ...formData, gemini_api_key: e.target.value })}
+                                    onChange={(e) => {
+                                        setTestResult(null)
+                                        setFormData((prev) => ({ ...prev, gemini_api_key: e.target.value }))
+                                    }}
                                     placeholder={hasSavedGeminiKey ? "Saved key on file. Enter a new key to replace it." : "AIzaSy..."}
                                     className={`${fieldClass} pr-10`}
                                     required={formData.ai_provider === 'gemini' && !hasSavedGeminiKey}
@@ -454,7 +474,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     disabled={isTesting}
                                 >
                                     {isTesting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                                    Test Key
+                                    {testKeyLabel}
                                 </Button>
                             </div>
                             {hasSavedGeminiKey && (
@@ -496,7 +516,10 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     id="openai_api_key"
                                     type={showOpenAIKey ? "text" : "password"}
                                     value={formData.openai_api_key}
-                                    onChange={(e) => setFormData({ ...formData, openai_api_key: e.target.value })}
+                                    onChange={(e) => {
+                                        setTestResult(null)
+                                        setFormData((prev) => ({ ...prev, openai_api_key: e.target.value }))
+                                    }}
                                     placeholder={hasSavedOpenAIKey ? "Saved key on file. Enter a new key to replace it." : "sk-..."}
                                     className={`${fieldClass} pr-10`}
                                     required={formData.ai_provider === 'openai' && !hasSavedOpenAIKey}
@@ -532,7 +555,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     disabled={isTesting}
                                 >
                                     {isTesting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                                    Test Key
+                                    {testKeyLabel}
                                 </Button>
                             </div>
                             {hasSavedOpenAIKey && (

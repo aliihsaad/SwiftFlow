@@ -3,7 +3,6 @@ import {
     BarChart3,
     Bot,
     CalendarDays,
-    CreditCard,
     Inbox,
     LayoutDashboard,
     MessageCircle,
@@ -82,12 +81,6 @@ export const accountNavigation: DashboardNavItem[] = [
         description: "Voice, identity, and connections",
     },
     {
-        icon: CreditCard,
-        label: "Plan & billing",
-        href: "/dashboard/subscription",
-        description: "Subscription and usage",
-    },
-    {
         icon: Settings,
         label: "Settings",
         href: "/dashboard/settings",
@@ -100,7 +93,6 @@ const reviewHiddenHrefs = new Set([
     "/dashboard/comments",
     "/dashboard/messages",
     "/dashboard/automation",
-    "/dashboard/subscription",
 ])
 
 export function getVisibleNavigation(items: DashboardNavItem[], isReviewPhase1Release: boolean) {

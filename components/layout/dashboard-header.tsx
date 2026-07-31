@@ -16,7 +16,6 @@ const routeDetails = [
     { match: "/dashboard/messages", title: "Inbox", eyebrow: "Engage" },
     { match: "/dashboard/settings/brand", title: "Brand profile", eyebrow: "Workspace" },
     { match: "/dashboard/settings", title: "Settings", eyebrow: "Workspace" },
-    { match: "/dashboard/subscription", title: "Plan & billing", eyebrow: "Workspace" },
 ]
 
 function getRouteDetail(pathname: string) {

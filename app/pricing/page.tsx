@@ -2,9 +2,9 @@ import Link from "next/link"
 import { ArrowLeft, ArrowRight, Check, Sparkles, Zap, ChevronRight } from "lucide-react"
 
 export const metadata = {
-  title: "Pricing | SwiftFlow",
+  title: "Deployment | SwiftFlow",
   description:
-    "Workspace-based subscription plans for SwiftFlow. Upgrade and manage your plan from the dashboard billing settings.",
+    "Choose how to run SwiftFlow today and see what is planned for a future managed-cloud offering.",
 }
 
 const freePlan = [
@@ -56,15 +56,15 @@ export default function PricingPage() {
         <div className="max-w-3xl text-center flex flex-col items-center mb-20">
           <div className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-widest bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 mb-8">
             <Sparkles className="h-3.5 w-3.5" />
-            Pricing Plans
+            Deployment options
           </div>
           <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-tight text-white mb-6">
-            Start for free.<br />
-            <span className="text-transparent bg-clip-text bg-linear-to-r from-white/40 to-white/10">Upgrade when you grow.</span>
+            Run SwiftFlow your way.<br />
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-white/40 to-white/10">Keep ownership of your stack.</span>
           </h1>
           <p className="text-lg md:text-xl leading-relaxed text-white/50 font-medium max-w-2xl">
-            Subscriptions are billed per workspace and managed from the dashboard billing settings.
-            AI provider costs stay on your own key (BYOK) and are never resold as bundled credits.
+            The current release uses your own Vercel, Supabase, Meta, and AI provider credentials.
+            In-app subscriptions and managed checkout are not enabled in this release.
           </p>
         </div>
 
@@ -83,7 +83,7 @@ export default function PricingPage() {
                   </p>
                   <h2 className="text-4xl font-black text-white mb-3">Start Free</h2>
                   <p className="text-sm leading-relaxed text-white/40 font-medium max-w-[250px]">
-                    Best for solo creators and early testing while the billing system is still being built.
+                    Deploy the production app with infrastructure and provider accounts you control.
                   </p>
                 </div>
                 <div className="rounded-3xl px-6 py-4 bg-white/5 border border-white/10 text-right backdrop-blur-md">
@@ -135,9 +135,9 @@ export default function PricingPage() {
                   <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-500 mb-3">
                     Pro
                   </p>
-                  <h2 className="text-4xl font-black text-white mb-3">Pro Plan</h2>
+                  <h2 className="text-4xl font-black text-white mb-3">Managed cloud</h2>
                   <p className="text-sm leading-relaxed text-white/40 font-medium max-w-[250px]">
-                    Planned for teams that need higher limits, deeper analytics, and stronger operational controls.
+                    A future hosted option for teams that prefer SwiftFlow to operate the infrastructure.
                   </p>
                 </div>
                 <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-bold tracking-widest uppercase bg-amber-500/10 border border-amber-500/20 text-amber-400 h-fit">
@@ -161,10 +161,10 @@ export default function PricingPage() {
 
               <div className="mt-auto rounded-2xl p-5 bg-white/5 border border-white/10 backdrop-blur-md">
                 <p className="text-sm font-bold text-white mb-2">
-                  Upgrade from your dashboard.
+                  Not available for purchase yet.
                 </p>
                 <p className="text-xs leading-relaxed text-white/40 font-medium">
-                  Workspace owners can start or change a subscription under Dashboard → Subscription. Plan changes and cancellations are self-service through the billing portal.
+                  The current release has no Subscription screen or active checkout. Managed-cloud pricing will be published only when that service is ready.
                 </p>
               </div>
             </div>
@@ -179,15 +179,15 @@ export default function PricingPage() {
           <div className="relative z-10 flex flex-col lg:flex-row gap-8 lg:items-center justify-between">
             <div className="max-w-xl">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 mb-4">
-                Architecture Notes
+                Current architecture
               </p>
               <p className="text-sm leading-relaxed text-white/50 font-medium">
-                Pricing will be tied to enforceable workspace limits such as connected accounts, scheduled post volume, automation volume, exports, and team seats. AI costs remain separate under a BYOK model.
+                SwiftFlow runs as a Next.js app on Vercel, with Supabase providing data, authentication, storage, and backend functions. Meta and AI costs remain under your own provider accounts.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2 lg:justify-end">
-              {["Workspace Billing", "Usage Limits", "AI BYOK", "Team Seats"].map((tag) => (
+              {["Vercel", "Supabase", "Meta API", "AI BYOK"].map((tag) => (
                 <span
                   key={tag}
                   className="rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest bg-white/5 border border-white/10 text-white/40"

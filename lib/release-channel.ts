@@ -6,7 +6,6 @@ const REVIEW_PHASE_1_BLOCKED_DASHBOARD_PATHS = [
   "/dashboard/posts",
   "/dashboard/analytics",
   "/dashboard/automation",
-  "/dashboard/subscription",
 ] as const
 
 export function getAppReleaseChannel(): AppReleaseChannel {

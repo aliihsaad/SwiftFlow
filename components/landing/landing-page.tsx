@@ -245,8 +245,8 @@ const faqItems = [
         a: "Instagram Business accounts are connected through Facebook Pages in the Meta flow. Connect your pages and any linked Instagram business accounts can be used inside the app.",
     },
     {
-        q: "Is there a free plan?",
-        a: "Yes. There is a free starting tier, and a Pro plan page is available with expanded limits/features coming next. You can start from the free flow and upgrade later.",
+        q: "How do I deploy SwiftFlow?",
+        a: "The current release runs on infrastructure you control: Vercel for the app and Supabase for data, authentication, storage, and backend functions. A managed-cloud option is planned for later.",
     },
 ]
 
@@ -288,7 +288,7 @@ function Navbar() {
         { label: "Features", href: "#phases" },
         { label: "How it works", href: "#how-it-works" },
         { label: "FAQ", href: "#faq" },
-        { label: "Pricing", href: "/pricing" },
+        { label: "Deployment", href: "/pricing" },
     ]
 
     return (
@@ -1587,7 +1587,7 @@ function FAQSection() {
                                     className="inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
                                 >
                                     <CircleDollarSign className="h-4 w-4 text-amber-500" />
-                                    See pricing plans
+                                    Compare deployment options
                                 </Link>
                             </div>
                         </div>
@@ -1699,7 +1699,7 @@ function Footer() {
                             {[
                                 { href: "#phases", label: "Features" },
                                 { href: "#how-it-works", label: "How it works" },
-                                { href: "/pricing", label: "Pricing" },
+                                { href: "/pricing", label: "Deployment" },
                                 { href: "/login", label: "Dashboard Login" },
                             ].map(({ href, label }) => (
                                 <li key={href}>

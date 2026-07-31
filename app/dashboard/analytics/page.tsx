@@ -367,7 +367,7 @@ export default function AnalyticsPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <section className="space-y-5 pb-8" aria-label="Performance intelligence">
             {/* Page header */}
             <AnalyticsHeader
                 platformView={platformView}
@@ -395,7 +395,7 @@ export default function AnalyticsPage() {
             {/* Error state */}
             {error && !showInitialAnalyticsLoading && (
                 <div
-                    className="rounded-xl p-6 text-center"
+                    className="rounded-[24px] p-8 text-center"
                     style={{
                         background: 'rgba(248,113,113,0.06)',
                         border: '1px solid rgba(248,113,113,0.2)',
@@ -419,11 +419,11 @@ export default function AnalyticsPage() {
                 <>
                     {/* Platform-specific analytics status badges (mixed dashboard clarity) */}
                     {analyticsPlatformStatuses.length > 0 && (
-                        <div className="flex flex-wrap items-start gap-2">
+                        <div className="grid gap-3 md:grid-cols-2">
                             {analyticsPlatformStatuses.map((status) => (
                                 <div
                                     key={status.platform}
-                                    className="px-3 py-2 rounded-lg min-w-[180px]"
+                                    className="min-w-[180px] rounded-2xl px-4 py-3.5"
                                     style={getStatusChipStyle(status.status)}
                                     title={status.warnings?.[0] || `${status.platform} analytics status`}
                                 >
@@ -451,7 +451,7 @@ export default function AnalyticsPage() {
                     {/* Analytics capability / partial-data notices */}
                     {(isNoConnectedAccounts || analyticsWarnings.length > 0) && (
                         <div
-                            className="rounded-xl p-4 space-y-2"
+                            className="space-y-2 rounded-[22px] p-5"
                             style={{
                                 background: isNoConnectedAccounts ? 'rgba(59,130,246,0.06)' : 'rgba(245,158,11,0.06)',
                                 border: isNoConnectedAccounts ? '1px solid rgba(59,130,246,0.18)' : '1px solid rgba(245,158,11,0.2)',
@@ -526,7 +526,7 @@ export default function AnalyticsPage() {
 
                     {!!facebookDiscovery && (selectedAnalyticsPlatform === 'all' || selectedAnalyticsPlatform === 'facebook') && (
                         <div
-                            className="rounded-xl p-5"
+                            className="rounded-[24px] p-5 sm:p-6"
                             style={{
                                 background: 'rgba(34,211,238,0.06)',
                                 border: '1px solid rgba(34,211,238,0.16)',
@@ -654,7 +654,7 @@ export default function AnalyticsPage() {
                     <FollowerGrowthChart data={data.followerGrowth} />
 
                     {/* Three column grid */}
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {/* Latest Post */}
                         <LatestPostCard post={data.latestPost} />
 
@@ -666,6 +666,6 @@ export default function AnalyticsPage() {
                     </div>
                 </>
             )}
-        </div>
+        </section>
     )
 }

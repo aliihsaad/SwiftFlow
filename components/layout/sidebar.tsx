@@ -1,9 +1,10 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ChevronLeft, ChevronRight, LogOut, PenSquare, Zap } from "lucide-react"
+import { ChevronLeft, ChevronRight, LogOut, PenSquare } from "lucide-react"
 import { signOut } from "@/app/actions/auth"
 import { CreatePostTrigger } from "@/components/create/create-post-trigger"
 import {
@@ -116,8 +117,15 @@ export function Sidebar({ workspaces, activeWorkspace, isReviewPhase1Release }: 
                         )}
                         aria-label="SwiftFlow overview"
                     >
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-violet-300/20 bg-linear-to-br from-violet-500 via-indigo-500 to-cyan-500 shadow-[0_10px_28px_rgba(76,58,180,0.28)]">
-                            <Zap className="h-5 w-5 fill-white/15 text-white" aria-hidden="true" />
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border border-white/[0.09] bg-black/30 shadow-[0_10px_28px_rgba(34,211,238,0.16)]">
+                            <Image
+                                src="/logo.png"
+                                alt=""
+                                width={40}
+                                height={40}
+                                className="h-full w-full object-cover"
+                                priority
+                            />
                         </span>
                         {isCollapsed ? null : (
                             <span className="min-w-0">

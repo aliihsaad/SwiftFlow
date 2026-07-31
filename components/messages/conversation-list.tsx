@@ -97,7 +97,7 @@ export function ConversationList({
 
     return (
         <div className="flex h-full min-h-0 flex-col">
-            <div className="shrink-0 border-b border-white/[0.06] p-4">
+            <div className="shrink-0 border-b border-white/[0.06] px-3 py-3">
                 <div className="flex items-start justify-between gap-3">
                     <div>
                         <p className="text-sm font-semibold tracking-[-0.01em] text-white/80">Conversation queue</p>
@@ -113,7 +113,7 @@ export function ConversationList({
                     </span>
                 </div>
 
-                <label className="relative mt-4 block">
+                <label className="relative mt-3 block">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/25" aria-hidden="true" />
                     <span className="sr-only">Search conversations</span>
                     <input
@@ -121,11 +121,11 @@ export function ConversationList({
                         value={query}
                         onChange={(event) => setQuery(event.target.value)}
                         placeholder="Search conversations"
-                        className="h-10 w-full rounded-xl border border-white/[0.075] bg-white/[0.035] pl-9 pr-3 text-xs text-white/76 outline-none transition placeholder:text-white/24 focus:border-cyan-200/20 focus:bg-white/[0.05]"
+                        className="h-9 w-full rounded-xl border border-white/[0.075] bg-white/[0.035] pl-9 pr-3 text-xs text-white/76 outline-none transition placeholder:text-white/24 focus:border-cyan-200/20 focus:bg-white/[0.05]"
                     />
                 </label>
 
-                <div className="mt-3 flex items-center gap-2">
+                <div className="mt-2 flex items-center gap-2">
                     <SlidersHorizontal className="h-3.5 w-3.5 text-white/23" aria-hidden="true" />
                     <QueueButton active={filter === "all"} label="All" count={conversations.length} onClick={() => setFilter("all")} />
                     <QueueButton active={filter === "unread"} label="Unread" count={unreadConversations} onClick={() => setFilter("unread")} />
@@ -158,7 +158,7 @@ export function ConversationList({
                                     type="button"
                                     onClick={() => onSelect(conversation)}
                                     className={cn(
-                                        "group relative mb-1 flex w-full items-start gap-3 overflow-hidden rounded-2xl border px-3 py-3.5 text-left transition",
+                                        "group relative mb-1 flex w-full items-start gap-3 overflow-hidden rounded-xl border px-3 py-3 text-left transition",
                                         isSelected
                                             ? "border-cyan-200/15 bg-cyan-300/[0.065] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
                                             : "border-transparent hover:border-white/[0.06] hover:bg-white/[0.028]",

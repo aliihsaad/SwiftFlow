@@ -255,7 +255,7 @@ export function MessageThread({
     }
 
     return (
-        <div className="flex h-full min-h-0 flex-col">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden">
             {/* Thread header */}
             <div
                 className="flex shrink-0 items-center gap-3 bg-white/[0.012] px-4 py-3.5"
@@ -278,7 +278,8 @@ export function MessageThread({
             </div>
 
             {/* Messages */}
-            <ScrollArea className="min-h-0 flex-1 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.035),transparent_36%)] px-4 py-4 sm:px-5" ref={scrollAreaRef}>
+            <ScrollArea className="min-h-0 flex-1 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.035),transparent_36%)] px-3 py-4 sm:px-5" ref={scrollAreaRef}>
+                <div className="mx-auto min-h-full w-full max-w-4xl">
                 {isLoading ? (
                     <div className="space-y-4">
                         {[...Array(5)].map((_, i) => (
@@ -496,6 +497,7 @@ export function MessageThread({
                         })}
                     </div>
                 )}
+                </div>
             </ScrollArea>
 
             {/* Input */}
@@ -503,6 +505,7 @@ export function MessageThread({
                 className="shrink-0 bg-[#0b0e16]/90 p-3.5"
                 style={{ borderTop: `1px solid ${THREAD_THEME.borderSoft}` }}
             >
+                <div className="mx-auto w-full max-w-4xl">
                 {composerDisabled && (
                     <div
                         className="mb-2.5 rounded-lg px-3 py-2 text-xs"
@@ -565,6 +568,7 @@ export function MessageThread({
                     >
                         {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     </button>
+                </div>
                 </div>
             </div>
         </div>

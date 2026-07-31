@@ -13,8 +13,6 @@ import {
     Lock,
     MessageCircleMore,
     RefreshCw,
-    ShieldCheck,
-    Users,
 } from "lucide-react"
 
 import { ConversationList } from "@/components/messages/conversation-list"
@@ -258,80 +256,38 @@ export default function MessagesPage() {
     const deliveryReady = accountConnected && !sendDisabled && !permissionDenied && !responseTokenInvalid
 
     return (
-        <section className="flex min-h-[calc(100dvh-8.5rem)] flex-col gap-5" aria-labelledby="inbox-heading">
-            <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#10131e] shadow-[0_28px_90px_rgba(2,4,12,0.34)]">
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(244,114,182,0.17),transparent_35%),radial-gradient(circle_at_92%_8%,rgba(34,211,238,0.14),transparent_34%)]" />
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-pink-200/45 to-transparent" />
+        <section className="flex h-full min-h-[560px] flex-col gap-3 overflow-hidden" aria-labelledby="inbox-heading">
 
-                <div className="relative grid gap-7 p-5 sm:p-7 xl:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.65fr)] xl:p-8">
-                    <div className="flex min-w-0 flex-col justify-between gap-7">
-                        <div>
-                            <span className="sf-kicker">
-                                <MessageCircleMore className="h-3.5 w-3.5" aria-hidden="true" />
-                                Conversation desk
-                            </span>
-                            <h1 id="inbox-heading" className="mt-5 max-w-3xl text-3xl font-semibold tracking-[-0.045em] text-white sm:text-4xl xl:text-[46px] xl:leading-[1.03]">
-                                One inbox for every
-                                <span className="block bg-linear-to-r from-pink-200 via-white to-cyan-200 bg-clip-text text-transparent">
-                                    customer conversation.
+            <header className="relative shrink-0 overflow-hidden rounded-[20px] border border-white/[0.08] bg-[#10131c] p-3 shadow-[0_16px_48px_rgba(2,4,12,0.24)] sm:px-4">
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-cyan-200/15 bg-cyan-300/[0.07] text-cyan-100">
+                            <MessageCircleMore className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <h1 id="inbox-heading" className="text-lg font-semibold tracking-[-0.025em] text-white sm:text-xl">Inbox</h1>
+                                <span className={cn(
+                                    "inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.11em]",
+                                    deliveryReady
+                                        ? "border-emerald-200/15 bg-emerald-300/[0.07] text-emerald-200"
+                                        : accountConnected
+                                            ? "border-amber-200/15 bg-amber-300/[0.07] text-amber-200"
+                                            : "border-white/[0.08] bg-white/[0.035] text-white/35",
+                                )}>
+                                    <span className={cn("h-1.5 w-1.5 rounded-full", deliveryReady ? "bg-emerald-300" : accountConnected ? "bg-amber-300" : "bg-white/25")} />
+                                    {deliveryReady ? "Live" : accountConnected ? "Limited" : "Offline"}
                                 </span>
-                            </h1>
-                            <p className="mt-4 max-w-2xl text-sm leading-6 text-white/48 sm:text-[15px]">
-                                Review live provider threads, draft replies with AI, and keep response work moving without losing the active workspace context.
+                            </div>
+                            <p className="mt-0.5 truncate text-xs text-white/36">
+                                {accountConnected
+                                    ? `${conversationsData?.account?.account_name} · ${conversations.length} conversations · ${unreadCount} unread`
+                                    : `Connect ${activePlatform === "instagram" ? "Instagram" : "Facebook"} to start messaging`}
                             </p>
                         </div>
-
-                        <div className="flex flex-wrap gap-3">
-                            <button
-                                type="button"
-                                onClick={handleRefresh}
-                                disabled={conversationsLoading || isRefreshing}
-                                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-cyan-200/20 bg-linear-to-r from-cyan-400 to-violet-500 px-4 text-sm font-semibold text-slate-950 shadow-[0_12px_32px_rgba(34,211,238,0.16)] transition hover:-translate-y-0.5 hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-45"
-                            >
-                                <RefreshCw className={cn("h-4 w-4", (isRefreshing || conversationsValidating) && "animate-spin")} aria-hidden="true" />
-                                {isRefreshing ? "Refreshing" : "Refresh inbox"}
-                            </button>
-                            <Link
-                                href="/dashboard/settings"
-                                className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.055] px-4 text-sm font-semibold text-white/74 transition hover:bg-white/[0.085] hover:text-white"
-                            >
-                                Manage connections
-                                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                            </Link>
-                        </div>
                     </div>
 
-                    <div className="rounded-[22px] border border-white/[0.075] bg-black/20 p-4 backdrop-blur-sm sm:p-5">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">Live inbox status</p>
-                                <p className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-white">
-                                    {conversationsData?.account?.account_name || "Awaiting connection"}
-                                </p>
-                                <p className="mt-1 text-xs text-white/35">
-                                    {deliveryReady ? "Reading and sending are available" : accountConnected ? "Connected with limited actions" : "Connect an account to start"}
-                                </p>
-                            </div>
-                            <span className={cn(
-                                "h-2.5 w-2.5 shrink-0 rounded-full",
-                                deliveryReady
-                                    ? "bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,0.7)]"
-                                    : accountConnected ? "bg-amber-300" : "bg-white/20",
-                            )} />
-                        </div>
-
-                        <div className="mt-6 grid grid-cols-3 gap-2">
-                            <InboxMetric icon={Users} label="Threads" value={conversations.length} />
-                            <InboxMetric icon={Inbox} label="Unread" value={unreadCount} />
-                            <InboxMetric icon={ShieldCheck} label="Send" value={deliveryReady ? "Ready" : "Off"} />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="rounded-[24px] border border-white/[0.07] bg-[#10131c] p-3 sm:p-4">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="inline-flex w-full rounded-2xl border border-white/[0.07] bg-black/20 p-1 lg:w-auto" aria-label="Inbox platform">
+                    <div className="inline-flex w-full rounded-xl border border-white/[0.07] bg-black/20 p-1 sm:w-auto" aria-label="Inbox platform">
                         <PlatformButton
                             active={activePlatform === "instagram"}
                             icon={Instagram}
@@ -347,16 +303,37 @@ export default function MessagesPage() {
                             tone="cyan"
                         />
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-white/36">
-                        <span className={cn("h-1.5 w-1.5 rounded-full", accountConnected ? "bg-emerald-300" : "bg-white/20")} />
-                        {accountConnected
-                            ? `Connected as ${conversationsData?.account?.account_name}`
-                            : `No ${activePlatform === "instagram" ? "Instagram" : "Facebook"} inbox connected`}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="hidden items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2 text-xs text-white/38 lg:flex">
+                            <span className={cn("h-1.5 w-1.5 rounded-full", accountConnected ? "bg-emerald-300" : "bg-white/20")} />
+                            <span className="max-w-48 truncate">
+                                {accountConnected
+                                    ? `Connected as ${conversationsData?.account?.account_name}`
+                                    : `No ${activePlatform === "instagram" ? "Instagram" : "Facebook"} inbox connected`}
+                            </span>
+                        </div>
+                        {showRefreshingHint ? <InlineLoadingHint label="Updating…" className="px-2.5 py-1 text-[10px]" /> : null}
+                        <button
+                            type="button"
+                            onClick={handleRefresh}
+                            disabled={conversationsLoading || isRefreshing}
+                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-cyan-200/15 bg-cyan-300/[0.07] px-3 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-300/[0.11] disabled:cursor-not-allowed disabled:opacity-45"
+                            title="Refresh inbox"
+                        >
+                            <RefreshCw className={cn("h-4 w-4", (isRefreshing || conversationsValidating) && "animate-spin")} aria-hidden="true" />
+                            <span className="hidden sm:inline">Refresh</span>
+                        </button>
+                        <Link
+                            href="/dashboard/settings"
+                            className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/[0.09] bg-white/[0.045] px-3 text-xs font-semibold text-white/58 transition hover:bg-white/[0.075] hover:text-white"
+                        >
+                            <span className="hidden sm:inline">Connections</span>
+                            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                        </Link>
                     </div>
                 </div>
-            </div>
+            </header>
 
-            {showRefreshingHint ? <InlineLoadingHint label="Updating conversations…" className="w-fit" /> : null}
 
             {showInitialLoading ? <InboxSkeleton /> : null}
 
@@ -403,11 +380,11 @@ export default function MessagesPage() {
 
             {!showInitialLoading && !conversationsError && !permissionDenied && !responseTokenInvalid && !noAccount && conversations.length > 0 ? (
                 <div className={cn(
-                    "flex min-h-[620px] flex-1 overflow-hidden rounded-[26px] border border-white/[0.08] bg-[#0d1019] shadow-[0_24px_70px_rgba(0,0,0,0.24)] transition-opacity",
+                    "flex min-h-0 flex-1 overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#0d1019] shadow-[0_20px_60px_rgba(0,0,0,0.24)] transition-opacity",
                     showRefreshingHint && "opacity-95",
                 )}>
                     <div className={cn(
-                        "h-full w-full shrink-0 flex-col border-white/[0.07] md:flex md:w-[350px] md:border-r xl:w-[390px]",
+                        "h-full min-h-0 w-full shrink-0 flex-col border-white/[0.07] md:flex md:w-[320px] md:border-r lg:w-[340px] xl:w-[360px] 2xl:w-[380px]",
                         showThread ? "hidden md:flex" : "flex",
                     )}>
                         <ConversationList
@@ -466,24 +443,6 @@ export default function MessagesPage() {
     )
 }
 
-function InboxMetric({
-    icon: Icon,
-    label,
-    value,
-}: {
-    icon: typeof Inbox
-    label: string
-    value: string | number
-}) {
-    return (
-        <div className="rounded-xl border border-white/[0.055] bg-white/[0.026] px-2 py-3 text-center">
-            <Icon className="mx-auto h-3.5 w-3.5 text-white/30" aria-hidden="true" />
-            <p className="mt-2 text-base font-semibold tracking-[-0.03em] text-white/82 tabular-nums">{value}</p>
-            <p className="mt-1 text-[9px] font-bold uppercase tracking-[0.12em] text-white/25">{label}</p>
-        </div>
-    )
-}
-
 function PlatformButton({
     active,
     icon: Icon,
@@ -519,8 +478,8 @@ function PlatformButton({
 
 function InboxSkeleton() {
     return (
-        <div className="flex min-h-[620px] flex-1 overflow-hidden rounded-[26px] border border-white/[0.07] bg-[#0d1019]">
-            <div className="w-full space-y-2 border-r border-white/[0.06] p-3 md:w-[350px]">
+        <div className="flex min-h-0 flex-1 overflow-hidden rounded-[22px] border border-white/[0.07] bg-[#0d1019]">
+            <div className="w-full space-y-2 border-r border-white/[0.06] p-3 md:w-[340px]">
                 {Array.from({ length: 7 }).map((_, index) => (
                     <div key={index} className="animate-pulse rounded-2xl border border-white/[0.04] bg-white/[0.025] p-3.5">
                         <div className="flex items-center gap-3">
@@ -565,7 +524,7 @@ function InboxNotice({
             : "border-white/[0.08] bg-[#10131c] text-cyan-200"
 
     return (
-        <div className="flex flex-1 items-center justify-center rounded-[26px] border border-dashed border-white/[0.08] bg-[#0f121b] px-5 py-14 text-center">
+        <div className="flex min-h-0 flex-1 items-center justify-center rounded-[22px] border border-dashed border-white/[0.08] bg-[#0f121b] px-5 py-10 text-center">
             <div className="max-w-lg">
                 <span className={cn("mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border", toneClass)}>
                     <Icon className="h-6 w-6" aria-hidden="true" />

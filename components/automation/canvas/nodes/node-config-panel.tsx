@@ -2,7 +2,8 @@
 
 import { useEffect } from 'react'
 import useSWR from 'swr'
-import { X, Check, Clapperboard, Image as ImageIcon, Video, LayoutGrid, Instagram, Facebook } from 'lucide-react'
+import NextImage from 'next/image'
+import { X, Check, Clapperboard, Image as ImageIcon, Video, LayoutGrid, Instagram, Facebook, Settings2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -65,51 +66,72 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onDelete, mobile = fa
   }
 
   return (
-    <div
+    <aside
       className={cn(
-        'overflow-y-auto',
+        'overflow-y-auto border-white/[0.07] bg-[#11131c]/95 shadow-2xl backdrop-blur-xl',
         mobile
-          ? 'absolute inset-x-0 bottom-0 z-30 max-h-[72vh] rounded-t-xl shadow-2xl'
-          : 'h-full w-80',
+          ? 'absolute inset-x-2 bottom-2 z-30 max-h-[78vh] rounded-[24px] border'
+          : 'h-full w-[360px] border-l',
       )}
-      style={{ borderLeft: '1px solid rgba(255,255,255,0.08)', background: '#151620' }}
+      aria-label={'Configure ' + data.label}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between p-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-        <h3 className="font-semibold text-sm" style={{ color: 'rgba(255,255,255,0.85)' }}>Configure Node</h3>
-        <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7" style={{ color: 'rgba(255,255,255,0.65)' }}>
-          <X className="h-4 w-4" />
-        </Button>
+      <div className="sticky top-0 z-10 border-b border-white/[0.07] bg-[#11131c]/95 px-4 py-4 backdrop-blur-xl">
+        {mobile && <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/15" />}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-violet-300/15 bg-violet-300/[0.07] text-violet-200">
+              <Settings2 className="size-4" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/28">Step inspector</p>
+              <h3 className="mt-1 truncate text-sm font-semibold text-white/88">{data.label}</h3>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-white/35 transition hover:bg-white/[0.07] hover:text-white/75"
+            aria-label="Close inspector"
+          >
+            <X className="size-4" aria-hidden="true" />
+          </button>
+        </div>
       </div>
 
-      <div className="p-4 space-y-4">
-        {/* Node Label */}
-        <div>
-          <Label className="text-xs">Node Name</Label>
+      <div className="space-y-5 p-4">
+        <section className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3.5">
+          <Label className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+            Step name
+          </Label>
           <Input
             value={data.label}
-            onChange={(e) => updateLabel(e.target.value)}
-            className="mt-1"
+            onChange={(event) => updateLabel(event.target.value)}
+            className="mt-2 h-10 border-white/[0.08] bg-white/[0.035] text-sm text-white focus-visible:ring-cyan-300/20"
           />
-        </div>
+        </section>
 
-        {/* Type-specific config */}
-        {renderConfigFields(data.type, config, updateConfig)}
+        <section className="rounded-2xl border border-white/[0.07] bg-white/[0.018] p-3.5">
+          <div className="mb-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">Behavior</p>
+            <p className="mt-1 text-[11px] leading-4 text-white/28">Configure how this step reads context and moves the journey forward.</p>
+          </div>
+          <div className="space-y-4">
+            {renderConfigFields(data.type, config, updateConfig)}
+          </div>
+        </section>
 
-        {/* Delete */}
-        <div className="pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-          <Button
-            variant="destructive"
-            size="sm"
-            className="w-full"
-            style={{ background: '#ef4444', color: '#fff' }}
+        <section className="border-t border-white/[0.07] pt-4">
+          <button
+            type="button"
             onClick={() => onDelete(node.id)}
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-rose-300/15 bg-rose-300/[0.06] text-xs font-semibold text-rose-200 transition hover:bg-rose-300/[0.10]"
           >
-            Delete Node
-          </Button>
-        </div>
+            <Trash2 className="size-3.5" aria-hidden="true" />
+            Remove this step
+          </button>
+        </section>
       </div>
-    </div>
+    </aside>
   )
 }
 
@@ -373,10 +395,13 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
                   )}
                 >
                   {post.thumbnail_url || post.media_url ? (
-                    <img
+                    <NextImage
                       src={post.thumbnail_url || post.media_url!}
                       alt={post.caption || 'Post'}
-                      className="absolute inset-0 w-full h-full object-cover"
+                      fill
+                      unoptimized
+                      sizes="96px"
+                      className="object-cover"
                     />
                   ) : (
                     <div className="w-full h-full bg-muted flex items-center justify-center">
@@ -416,10 +441,13 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Selected Post</p>
           <div className="flex items-start gap-2">
             {config.post_thumbnail_url && (
-              <img
+              <NextImage
                 src={config.post_thumbnail_url}
                 alt="Selected"
-                className="w-10 h-10 rounded object-cover shrink-0"
+                width={40}
+                height={40}
+                unoptimized
+                className="size-10 shrink-0 rounded object-cover"
               />
             )}
             <p className="text-xs text-muted-foreground line-clamp-2">{config.post_caption}</p>

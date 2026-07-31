@@ -226,35 +226,36 @@ export function AutomationRunsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-h-[88vh] max-w-5xl overflow-hidden p-0"
-        style={{ background: PANEL, border: `1px solid ${BORDER}` }}
-      >
-        <DialogHeader className="border-b px-6 py-5" style={{ borderColor: BORDER }}>
-          <div className="flex items-start justify-between gap-4 pr-8">
-            <div>
-              <DialogTitle className="flex items-center gap-2" style={{ color: "rgba(255,255,255,0.9)" }}>
-                <History className="h-5 w-5" style={{ color: "#67e8f9" }} />
-                Execution history
-              </DialogTitle>
-              <DialogDescription className="mt-1">
-                {automation?.name || "Automation"} · immutable, redacted node and provider-action events
-              </DialogDescription>
+      <DialogContent className="h-[min(94dvh,920px)] w-[calc(100vw-1rem)] max-w-6xl overflow-hidden rounded-[26px] border-white/[0.08] bg-[#10121a] p-0 shadow-[0_30px_100px_rgba(0,0,0,.5)] sm:w-full">
+        <DialogHeader className="border-b border-white/[0.07] bg-[radial-gradient(circle_at_15%_0%,rgba(103,232,249,.10),transparent_34%),#12141e] px-5 py-5 sm:px-7">
+          <div className="flex items-start justify-between gap-4 pr-7">
+            <div className="flex min-w-0 items-start gap-3">
+              <span className="grid size-11 shrink-0 place-items-center rounded-2xl border border-cyan-300/15 bg-cyan-300/[0.07] text-cyan-200">
+                <History className="size-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-cyan-100/40">Operations timeline</p>
+                <DialogTitle className="mt-1 truncate text-lg font-semibold tracking-tight text-white/92">
+                  {automation?.name || "Automation"}
+                </DialogTitle>
+                <DialogDescription className="mt-1 text-xs text-white/35">
+                  Immutable, redacted journey and provider events
+                </DialogDescription>
+              </div>
             </div>
             <button
               type="button"
               onClick={() => mutate()}
               disabled={isValidating}
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-50"
-              style={{ background: PANEL_ALT, border: `1px solid ${BORDER}`, color: "rgba(255,255,255,0.65)" }}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.035] px-3 text-xs font-semibold text-white/50 transition hover:bg-white/[0.07] hover:text-white/75 disabled:opacity-45"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${isValidating ? "animate-spin" : ""}`} />
-              Refresh
+              <RefreshCw className={"size-3.5 " + (isValidating ? "animate-spin" : "")} aria-hidden="true" />
+              <span className="hidden sm:inline">Refresh</span>
             </button>
           </div>
         </DialogHeader>
 
-        <div className="max-h-[calc(88vh-94px)] space-y-7 overflow-y-auto px-6 py-5">
+        <div className="h-[calc(min(94dvh,920px)-102px)] space-y-6 overflow-y-auto bg-[#0e1018] px-4 py-5 sm:px-7">
           {isLoading && (
             <div className="flex items-center justify-center gap-2 py-16 text-sm" style={{ color: MUTED }}>
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -277,7 +278,31 @@ export function AutomationRunsDialog({
 
           {data && (
             <>
-              <section>
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <div className="rounded-2xl border border-cyan-300/10 bg-cyan-300/[0.035] p-4">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-cyan-100/35">Recent runs</p>
+                  <p className="mt-3 text-2xl font-semibold text-white">{data.runs.length}</p>
+                  <p className="mt-1 text-[11px] text-white/30">Recorded executions</p>
+                </div>
+                <div className="rounded-2xl border border-violet-300/10 bg-violet-300/[0.035] p-4">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-violet-100/35">Node events</p>
+                  <p className="mt-3 text-2xl font-semibold text-white">{data.events.length}</p>
+                  <p className="mt-1 text-[11px] text-white/30">Timeline checkpoints</p>
+                </div>
+                <div className="rounded-2xl border border-emerald-300/10 bg-emerald-300/[0.035] p-4">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-emerald-100/35">Provider actions</p>
+                  <p className="mt-3 text-2xl font-semibold text-white">{data.actions.length}</p>
+                  <p className="mt-1 text-[11px] text-white/30">External outcomes</p>
+                </div>
+                <div className="rounded-2xl border border-amber-300/10 bg-amber-300/[0.035] p-4">
+                  <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-amber-100/35">Needs attention</p>
+                  <p className="mt-3 text-2xl font-semibold text-white">
+                    {data.runs.filter((run) => run.error_count > 0).length + data.actions.filter((action) => ["failed", "dead_lettered"].includes(action.status)).length}
+                  </p>
+                  <p className="mt-1 text-[11px] text-white/30">Failures and dead letters</p>
+                </div>
+              </div>
+              <section className="rounded-[22px] border border-white/[0.07] bg-white/[0.018] p-4 sm:p-5">
                 <div className="mb-3 flex items-center justify-between">
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.5)" }}>
@@ -355,7 +380,7 @@ export function AutomationRunsDialog({
                 )}
               </section>
 
-              <section>
+              <section className="rounded-[22px] border border-white/[0.07] bg-white/[0.018] p-4 sm:p-5">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.5)" }}>
                     Recent runs
@@ -389,7 +414,7 @@ export function AutomationRunsDialog({
                 </div>
               </section>
 
-              <section>
+              <section className="rounded-[22px] border border-white/[0.07] bg-white/[0.018] p-4 sm:p-5">
                 <div className="mb-3 flex items-center justify-between">
                   <div>
                     <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.5)" }}>

@@ -1,8 +1,34 @@
 "use client"
 
-import { useEffect, useState } from 'react'
-import { NODE_CATALOG, SUPPORTED_CANVAS_TRIGGER_TYPES, type NodeCatalogEntry } from '@/types/automation-graph'
+import { useEffect, useMemo, useState } from "react"
 import {
+  AtSign,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  GitBranch,
+  Globe,
+  Mail,
+  MailPlus,
+  MessageCircle,
+  MessageSquare,
+  Plus,
+  Reply,
+  Search,
+  Send,
+  Sparkles,
+  Timer,
+  UserPlus,
+} from "lucide-react"
+
+import { cn } from "@/lib/utils"
+import {
+  NODE_CATALOG,
+  SUPPORTED_CANVAS_TRIGGER_TYPES,
+  type NodeCatalogEntry,
+} from "@/types/automation-graph"
+
+const iconComponents: Record<string, React.ElementType> = {
   MessageCircle,
   Mail,
   UserPlus,
@@ -16,233 +42,270 @@ import {
   MailPlus,
   Globe,
   Sparkles,
-  Plus,
-  ChevronLeft,
-  ChevronRight,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-
-const iconComponents: Record<string, React.ElementType> = {
-  MessageCircle, Mail, UserPlus, Clock, AtSign, Reply,
-  Send, MessageSquare, Timer, GitBranch, MailPlus, Globe, Sparkles,
 }
 
 interface WorkflowSidebarProps {
   collapsed?: boolean
   onToggleCollapse?: () => void
-  onAddNode?: (type: NodeCatalogEntry['type'], label: string) => void
+  onAddNode?: (type: NodeCatalogEntry["type"], label: string) => void
 }
 
-export function WorkflowSidebar({ collapsed = false, onToggleCollapse, onAddNode }: WorkflowSidebarProps) {
+export function WorkflowSidebar({
+  collapsed = false,
+  onToggleCollapse,
+  onAddNode,
+}: WorkflowSidebarProps) {
   const [isTouchDevice, setIsTouchDevice] = useState(false)
+  const [query, setQuery] = useState("")
 
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return
-    const mq = window.matchMedia('(pointer: coarse)')
-    const update = () => setIsTouchDevice(mq.matches)
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return
+    const mediaQuery = window.matchMedia("(pointer: coarse)")
+    const update = () => setIsTouchDevice(mediaQuery.matches)
     update()
 
-    if (typeof mq.addEventListener === 'function') {
-      mq.addEventListener('change', update)
-      return () => mq.removeEventListener('change', update)
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", update)
+      return () => mediaQuery.removeEventListener("change", update)
     }
 
-    mq.addListener(update)
-    return () => mq.removeListener(update)
+    mediaQuery.addListener(update)
+    return () => mediaQuery.removeListener(update)
   }, [])
 
-  const supportedTriggers = new Set<string>(SUPPORTED_CANVAS_TRIGGER_TYPES)
-  const triggers = NODE_CATALOG.filter(
-    n => n.category === 'trigger' && supportedTriggers.has(n.type),
+  const supportedTriggers = useMemo(() => new Set<string>(SUPPORTED_CANVAS_TRIGGER_TYPES), [])
+  const disabledActions = useMemo(() => new Set(["action_http_request"]), [])
+  const normalizedQuery = query.trim().toLowerCase()
+  const matchesSearch = (entry: NodeCatalogEntry) => (
+    !normalizedQuery
+    || entry.label.toLowerCase().includes(normalizedQuery)
+    || entry.description.toLowerCase().includes(normalizedQuery)
   )
-  const disabledActions = new Set(['action_http_request'])
+
+  const triggers = NODE_CATALOG.filter(
+    (entry) => entry.category === "trigger"
+      && supportedTriggers.has(entry.type)
+      && matchesSearch(entry),
+  )
   const actions = NODE_CATALOG.filter(
-    n => n.category === 'action' && !disabledActions.has(n.type),
+    (entry) => entry.category === "action"
+      && !disabledActions.has(entry.type)
+      && matchesSearch(entry),
   )
 
   return (
-    <div
+    <aside
       className={cn(
-        'h-full overflow-y-auto shrink-0 flex flex-col transition-all duration-200 automation-sidebar-scroll',
-        collapsed ? 'w-12' : 'w-56',
+        "automation-sidebar-scroll flex h-full shrink-0 flex-col overflow-y-auto border-r border-white/[0.07] bg-[#11131c]/95 transition-[width] duration-200",
+        collapsed ? "w-14" : "w-[280px]",
       )}
-      style={{ borderRight: '1px solid rgba(255,255,255,0.08)', background: '#151620' }}
+      aria-label="Workflow node library"
     >
-      {/* Toggle button */}
-      <button
-        onClick={onToggleCollapse}
-        className="flex items-center justify-center h-9 w-full shrink-0 transition-colors hover:bg-white/5"
-        style={{
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          color: 'rgba(255,255,255,0.4)',
-        }}
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-      >
-        {collapsed
-          ? <ChevronRight className="h-4 w-4" />
-          : <ChevronLeft className="h-4 w-4" />
-        }
-      </button>
+      <div className={cn("flex min-h-16 items-center border-b border-white/[0.07]", collapsed ? "justify-center" : "justify-between px-4")}>
+        {!collapsed && (
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-100/40">Node library</p>
+            <p className="mt-1 text-xs text-white/45">Build your journey</p>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          className="grid size-9 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-white/40 transition hover:bg-white/[0.07] hover:text-white/75"
+          aria-label={collapsed ? "Expand node library" : "Collapse node library"}
+          title={collapsed ? "Expand node library" : "Collapse node library"}
+        >
+          {collapsed
+            ? <ChevronRight className="size-4" aria-hidden="true" />
+            : <ChevronLeft className="size-4" aria-hidden="true" />}
+        </button>
+      </div>
 
       {collapsed ? (
-        /* Icon-only strip */
-        <div className="flex flex-col items-center py-2 gap-1 overflow-y-auto">
-          {/* Triggers section dot */}
-          <div
-            className="w-6 h-px my-1"
-            style={{ background: 'rgba(255,255,255,0.08)' }}
-            title="Triggers"
-          />
-          {triggers.map(entry => (
-            <CollapsedNode key={entry.type} entry={entry} onAddNode={onAddNode} />
-          ))}
-          <div
-            className="w-6 h-px my-1"
-            style={{ background: 'rgba(255,255,255,0.08)' }}
-            title="Actions"
-          />
-          {actions.map(entry => (
-            <CollapsedNode key={entry.type} entry={entry} onAddNode={onAddNode} />
-          ))}
+        <div className="flex flex-1 flex-col items-center gap-2 overflow-y-auto py-3">
+          <span className="my-1 h-px w-7 bg-cyan-300/20" title="Triggers" />
+          {NODE_CATALOG
+            .filter((entry) => entry.category === "trigger" && supportedTriggers.has(entry.type))
+            .map((entry) => (
+              <CollapsedNode key={entry.type} entry={entry} onAddNode={onAddNode} />
+            ))}
+          <span className="my-1 h-px w-7 bg-violet-300/20" title="Actions" />
+          {NODE_CATALOG
+            .filter((entry) => entry.category === "action" && !disabledActions.has(entry.type))
+            .map((entry) => (
+              <CollapsedNode key={entry.type} entry={entry} onAddNode={onAddNode} />
+            ))}
         </div>
       ) : (
-        /* Full expanded view */
-        <div className="p-3 flex-1 overflow-y-auto">
-          <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'rgba(255,255,255,0.4)' }}>
-            Triggers
-          </h3>
+        <div className="flex-1 overflow-y-auto p-3">
+          <label className="relative block">
+            <span className="sr-only">Search workflow nodes</span>
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-white/25" aria-hidden="true" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search nodes"
+              className="h-10 w-full rounded-xl border border-white/[0.07] bg-white/[0.03] pl-9 pr-3 text-xs text-white outline-none placeholder:text-white/25 focus:border-cyan-300/20 focus:ring-2 focus:ring-cyan-300/10"
+            />
+          </label>
+
           {isTouchDevice && (
-            <p className="text-[10px] mb-2" style={{ color: 'rgba(255,255,255,0.32)' }}>
-              Tap a node to add it to canvas center.
+            <p className="mt-3 rounded-xl border border-cyan-300/10 bg-cyan-300/[0.035] px-3 py-2 text-[10px] leading-4 text-cyan-100/45">
+              Tap a node to add it to the center of the canvas.
             </p>
           )}
-          <div className="space-y-1">
-            {triggers.map(entry => (
-              <DraggableNode
-                key={entry.type}
-                entry={entry}
-                onAddNode={onAddNode}
-                touchMode={isTouchDevice}
-              />
-            ))}
-          </div>
 
-          <h3 className="text-xs font-semibold uppercase tracking-wider mt-5 mb-3" style={{ color: 'rgba(255,255,255,0.4)' }}>
-            Actions
-          </h3>
-          <div className="space-y-1">
-            {actions.map(entry => (
-              <DraggableNode
-                key={entry.type}
-                entry={entry}
-                onAddNode={onAddNode}
-                touchMode={isTouchDevice}
-              />
-            ))}
-          </div>
+          <NodeSection
+            title="Start with"
+            accent="cyan"
+            entries={triggers}
+            touchMode={isTouchDevice}
+            onAddNode={onAddNode}
+          />
+          <NodeSection
+            title="Continue with"
+            accent="violet"
+            entries={actions}
+            touchMode={isTouchDevice}
+            onAddNode={onAddNode}
+          />
+
+          {triggers.length === 0 && actions.length === 0 && (
+            <div className="py-10 text-center">
+              <Search className="mx-auto size-5 text-white/20" aria-hidden="true" />
+              <p className="mt-3 text-xs font-medium text-white/45">No nodes found</p>
+              <button type="button" onClick={() => setQuery("")} className="mt-2 text-[11px] font-semibold text-cyan-200/70">
+                Clear search
+              </button>
+            </div>
+          )}
         </div>
       )}
-    </div>
+    </aside>
   )
 }
 
+function NodeSection({
+  title,
+  accent,
+  entries,
+  touchMode,
+  onAddNode,
+}: {
+  title: string
+  accent: "cyan" | "violet"
+  entries: NodeCatalogEntry[]
+  touchMode: boolean
+  onAddNode?: (type: NodeCatalogEntry["type"], label: string) => void
+}) {
+  if (entries.length === 0) return null
 
-/* ── Collapsed icon button ── */
+  return (
+    <section className="mt-5">
+      <div className="mb-2 flex items-center justify-between px-1">
+        <h3 className={cn(
+          "text-[10px] font-semibold uppercase tracking-[0.2em]",
+          accent === "cyan" ? "text-cyan-100/45" : "text-violet-100/45",
+        )}>
+          {title}
+        </h3>
+        <span className="text-[10px] text-white/20">{entries.length}</span>
+      </div>
+      <div className="space-y-2">
+        {entries.map((entry) => (
+          <DraggableNode
+            key={entry.type}
+            entry={entry}
+            onAddNode={onAddNode}
+            touchMode={touchMode}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
 function CollapsedNode({
   entry,
   onAddNode,
 }: {
   entry: NodeCatalogEntry
-  onAddNode?: (type: NodeCatalogEntry['type'], label: string) => void
+  onAddNode?: (type: NodeCatalogEntry["type"], label: string) => void
 }) {
   const Icon = iconComponents[entry.icon] || MessageCircle
 
   const onDragStart = (event: React.DragEvent) => {
-    event.dataTransfer.setData('application/reactflow-type', entry.type)
-    event.dataTransfer.setData('application/reactflow-label', entry.label)
-    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData("application/reactflow-type", entry.type)
+    event.dataTransfer.setData("application/reactflow-label", entry.label)
+    event.dataTransfer.effectAllowed = "move"
   }
 
   return (
-    <div
+    <button
+      type="button"
       draggable
       onDragStart={onDragStart}
       onClick={() => onAddNode?.(entry.type, entry.label)}
-      title={entry.label}
-      className="flex items-center justify-center w-8 h-8 rounded-lg cursor-grab active:cursor-grabbing transition-all hover:scale-110"
-      style={{
-        backgroundColor: entry.color + '20',
-        border: '1px solid ' + entry.color + '40',
-        color: entry.color,
-      }}
+      title={"Add " + entry.label}
+      className="grid size-9 cursor-grab place-items-center rounded-xl border border-white/[0.07] bg-white/[0.035] transition hover:scale-105 hover:border-white/[0.14] active:cursor-grabbing"
+      style={{ color: entry.color }}
     >
-      <Icon className="h-3.5 w-3.5" />
-    </div>
+      <Icon className="size-4" aria-hidden="true" />
+    </button>
   )
 }
 
-/* ── Full draggable node row ── */
 function DraggableNode({
   entry,
   onAddNode,
   touchMode,
 }: {
   entry: NodeCatalogEntry
-  onAddNode?: (type: NodeCatalogEntry['type'], label: string) => void
+  onAddNode?: (type: NodeCatalogEntry["type"], label: string) => void
   touchMode: boolean
 }) {
   const Icon = iconComponents[entry.icon] || MessageCircle
 
   const onDragStart = (event: React.DragEvent) => {
-    event.dataTransfer.setData('application/reactflow-type', entry.type)
-    event.dataTransfer.setData('application/reactflow-label', entry.label)
-    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData("application/reactflow-type", entry.type)
+    event.dataTransfer.setData("application/reactflow-label", entry.label)
+    event.dataTransfer.effectAllowed = "move"
   }
 
-  const handleTapAdd = () => {
-    onAddNode?.(entry.type, entry.label)
-  }
+  const handleAdd = () => onAddNode?.(entry.type, entry.label)
 
   return (
     <div
       draggable={!touchMode}
       onDragStart={onDragStart}
-      onClick={touchMode ? handleTapAdd : undefined}
-      className="flex items-center gap-2 p-2 rounded-lg cursor-grab
-                 active:cursor-grabbing transition-all text-sm"
-      style={{
-        background: '#1b1d28',
-        border: '1px solid rgba(255,255,255,0.08)',
-      }}
+      onClick={touchMode ? handleAdd : undefined}
+      className="group flex cursor-grab items-center gap-3 rounded-xl border border-white/[0.07] bg-white/[0.025] p-2.5 transition hover:-translate-y-px hover:border-white/[0.13] hover:bg-white/[0.045] active:cursor-grabbing"
     >
-      <div
-        className="flex items-center justify-center w-7 h-7 rounded-md shrink-0"
-        style={{ backgroundColor: entry.color + '20', color: entry.color }}
+      <span
+        className="grid size-9 shrink-0 place-items-center rounded-xl border"
+        style={{
+          backgroundColor: entry.color + "12",
+          borderColor: entry.color + "28",
+          color: entry.color,
+        }}
       >
-        <Icon className="h-3.5 w-3.5" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs font-medium truncate">{entry.label}</p>
-      </div>
-      {touchMode && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            handleTapAdd()
-          }}
-          className="ml-auto h-6 w-6 shrink-0 rounded flex items-center justify-center"
-          style={{
-            border: '1px solid rgba(255,255,255,0.08)',
-            background: 'rgba(255,255,255,0.02)',
-            color: 'rgba(255,255,255,0.55)',
-          }}
-          aria-label={`Add ${entry.label}`}
-        >
-          <Plus className="h-3 w-3" />
-        </button>
-      )}
+        <Icon className="size-4" aria-hidden="true" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs font-semibold text-white/72">{entry.label}</span>
+        <span className="mt-0.5 block line-clamp-1 text-[10px] leading-4 text-white/28">{entry.description}</span>
+      </span>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation()
+          handleAdd()
+        }}
+        className="grid size-7 shrink-0 place-items-center rounded-lg border border-white/[0.07] bg-white/[0.025] text-white/30 opacity-70 transition hover:bg-white/[0.08] hover:text-white group-hover:opacity-100"
+        aria-label={"Add " + entry.label}
+      >
+        <Plus className="size-3.5" aria-hidden="true" />
+      </button>
     </div>
   )
 }

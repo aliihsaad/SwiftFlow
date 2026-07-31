@@ -1,7 +1,17 @@
 "use client"
 
-import { ArrowLeft, Save, Power, PowerOff, Undo, Redo, LayoutDashboard } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import {
+  ArrowLeft,
+  Check,
+  LayoutDashboard,
+  Loader2,
+  Power,
+  PowerOff,
+  Redo,
+  Save,
+  Undo,
+  Workflow,
+} from "lucide-react"
 
 interface WorkflowToolbarProps {
   automationName: string
@@ -33,99 +43,116 @@ export function WorkflowToolbar({
   onNameChange,
 }: WorkflowToolbarProps) {
   return (
-    <div
-      className="flex min-h-14 shrink-0 flex-wrap items-center justify-between gap-2 px-2 py-2 sm:h-14 sm:flex-nowrap sm:px-4 sm:py-0"
-      style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', background: '#151620' }}
+    <header className="relative z-30 shrink-0 border-b border-white/[0.07] bg-[#10121a]/95 px-3 py-3 backdrop-blur-xl sm:px-4 lg:px-5">
+      <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
+        <button
+          type="button"
+          onClick={onBack}
+          className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-white/45 transition hover:bg-white/[0.07] hover:text-white"
+          aria-label="Back to automation command center"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+        </button>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/28">
+            <Workflow className="size-3 text-cyan-200/55" aria-hidden="true" />
+            Journey builder
+          </div>
+          <input
+            type="text"
+            value={automationName}
+            onChange={(event) => onNameChange(event.target.value)}
+            className="mt-0.5 w-full max-w-md bg-transparent text-base font-semibold text-white/90 outline-none placeholder:text-white/25"
+            placeholder="Name this journey"
+            aria-label="Automation name"
+          />
+        </div>
+
+        <div className="order-3 flex w-full items-center justify-between gap-2 border-t border-white/[0.06] pt-3 lg:order-none lg:w-auto lg:border-0 lg:pt-0">
+          <div className="flex items-center rounded-xl border border-white/[0.07] bg-white/[0.025] p-1">
+            <ToolbarIconButton label="Undo" onClick={onUndo} disabled={!canUndo}>
+              <Undo className="size-4" aria-hidden="true" />
+            </ToolbarIconButton>
+            <ToolbarIconButton label="Redo" onClick={onRedo} disabled={!canRedo}>
+              <Redo className="size-4" aria-hidden="true" />
+            </ToolbarIconButton>
+            <span className="mx-1 h-5 w-px bg-white/[0.07]" />
+            <button
+              type="button"
+              onClick={onAutoLayout}
+              className="inline-flex h-8 items-center gap-2 rounded-lg px-2.5 text-xs font-semibold text-white/45 transition hover:bg-white/[0.06] hover:text-white/75"
+            >
+              <LayoutDashboard className="size-3.5 text-violet-200/70" aria-hidden="true" />
+              <span className="hidden sm:inline">Arrange</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onToggleActive}
+              className={
+                "inline-flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-semibold transition "
+                + (isActive
+                  ? "border-emerald-300/15 bg-emerald-300/[0.07] text-emerald-200 hover:bg-emerald-300/[0.11]"
+                  : "border-white/[0.08] bg-white/[0.03] text-white/45 hover:bg-white/[0.06]")
+              }
+            >
+              {isActive
+                ? <Power className="size-3.5" aria-hidden="true" />
+                : <PowerOff className="size-3.5" aria-hidden="true" />}
+              <span className="hidden sm:inline">{isActive ? "Live" : "Paused"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={isSaving}
+              className="inline-flex h-10 min-w-24 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-300 to-violet-300 px-4 text-xs font-bold text-[#10131c] shadow-[0_8px_26px_rgba(103,232,249,.12)] transition hover:brightness-105 disabled:cursor-wait disabled:opacity-65"
+            >
+              {isSaving
+                ? <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                : <Save className="size-3.5" aria-hidden="true" />}
+              {isSaving ? "Saving" : "Save journey"}
+            </button>
+          </div>
+        </div>
+
+        <div className="hidden items-center gap-2 border-l border-white/[0.07] pl-3 xl:flex">
+          <span className="grid size-7 place-items-center rounded-full border border-emerald-300/15 bg-emerald-300/[0.06] text-emerald-200">
+            <Check className="size-3.5" aria-hidden="true" />
+          </span>
+          <span>
+            <span className="block text-[10px] font-semibold uppercase tracking-wider text-white/30">Status</span>
+            <span className="block text-[11px] text-white/55">Ready to validate</span>
+          </span>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+function ToolbarIconButton({
+  label,
+  onClick,
+  disabled,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  disabled: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="grid size-8 place-items-center rounded-lg text-white/40 transition hover:bg-white/[0.06] hover:text-white/75 disabled:cursor-not-allowed disabled:opacity-20"
     >
-      {/* Left */}
-      <div className="flex min-w-0 items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8" style={{ color: 'rgba(255,255,255,0.72)' }}>
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <input
-          type="text"
-          value={automationName}
-          onChange={(e) => onNameChange(e.target.value)}
-          className="w-32 rounded bg-transparent px-2 py-1 text-sm font-medium outline-none sm:w-48"
-          style={{ color: 'rgba(255,255,255,0.85)' }}
-          placeholder="Automation name"
-        />
-      </div>
-
-      {/* Center */}
-      <div className="hidden items-center gap-1 sm:flex">
-        <Button variant="ghost" size="icon" onClick={onUndo} disabled={!canUndo} className="h-8 w-8" style={{ color: 'rgba(255,255,255,0.68)' }}>
-          <Undo className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={onRedo} disabled={!canRedo} className="h-8 w-8" style={{ color: 'rgba(255,255,255,0.68)' }}>
-          <Redo className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onAutoLayout}
-          className="h-8 text-xs"
-          style={{ background: '#1b1d28', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
-        >
-          <LayoutDashboard className="h-3.5 w-3.5 mr-1" />
-          Auto Layout
-        </Button>
-      </div>
-
-      {/* Right */}
-      <div className="flex shrink-0 items-center gap-2">
-        <Button
-          variant={isActive ? "outline" : "secondary"}
-          size="sm"
-          onClick={onToggleActive}
-          className="h-8 text-xs"
-          style={{
-            background: isActive ? 'rgba(74,222,128,0.10)' : '#1b1d28',
-            borderColor: isActive ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.08)',
-            color: isActive ? '#86efac' : 'rgba(255,255,255,0.7)',
-          }}
-        >
-          {isActive ? (
-            <>
-              <Power className="h-3.5 w-3.5 mr-1 text-green-500" />
-              Active
-            </>
-          ) : (
-            <>
-              <PowerOff className="h-3.5 w-3.5 mr-1 text-muted-foreground" />
-              Inactive
-            </>
-          )}
-        </Button>
-        <Button
-          size="sm"
-          onClick={onSave}
-          disabled={isSaving}
-          className="h-8"
-          style={{ background: 'linear-gradient(135deg, #38bdf8, #fb7185)', color: '#fff', boxShadow: '0 2px 14px rgba(56,189,248,0.18)' }}
-        >
-          <Save className="h-3.5 w-3.5 mr-1" />
-          {isSaving ? 'Saving...' : 'Save'}
-        </Button>
-      </div>
-
-      <div className="flex w-full items-center gap-2 sm:hidden">
-        <Button variant="ghost" size="icon" onClick={onUndo} disabled={!canUndo} className="h-8 w-8" style={{ color: 'rgba(255,255,255,0.68)' }}>
-          <Undo className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" onClick={onRedo} disabled={!canRedo} className="h-8 w-8" style={{ color: 'rgba(255,255,255,0.68)' }}>
-          <Redo className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onAutoLayout}
-          className="h-8 w-8"
-          style={{ background: '#1b1d28', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.72)' }}
-        >
-          <LayoutDashboard className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
+      {children}
+    </button>
   )
 }

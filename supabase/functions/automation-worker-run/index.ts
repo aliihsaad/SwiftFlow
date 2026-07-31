@@ -6,6 +6,7 @@ import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
 import { enrichCommentPostContext } from "../_shared/automation-context.ts"
 import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
+import { upsertAutomationNodeRuns } from "../_shared/automation-node-runs.ts"
 import {
   getAutomationFailureAlertRecipients,
   sendResendEmail,
@@ -73,48 +74,6 @@ async function sendAutomationFailureAlert(params: {
   })
 }
 
-async function upsertNodeRuns(
-  supabase: any,
-  workspaceId: string,
-  automation: any,
-  runId: string,
-  triggerContext: Record<string, unknown>,
-  nodeResults: Record<string, { success: boolean; output?: any; error?: string }>,
-) {
-  const nodes = automation?.workflow_graph?.nodes || [];
-  const byId = new Map(nodes.map((n: any) => [n.id, n]));
-
-  const rows = Object.entries(nodeResults || {}).map(([nodeId, nodeResult]) => {
-    const node = byId.get(nodeId);
-    return {
-      workspace_id: workspaceId,
-      automation_id: automation.id,
-      run_id: runId,
-      node_id: nodeId,
-      node_type: node?.data?.type || 'unknown',
-      status: nodeResult.success ? 'completed' : 'failed',
-      input: redactSensitiveLogValue({
-        config: node?.data?.config || {},
-        trigger_context: triggerContext || {},
-      }),
-      output: redactSensitiveLogValue(nodeResult.output || {}),
-      error_message: redactSensitiveLogValue(String(nodeResult.error || '')) || null,
-      started_at: new Date().toISOString(),
-      finished_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-  });
-
-  if (!rows.length) return;
-
-  const { error } = await supabase
-    .from('automation_node_runs')
-    .upsert(rows, { onConflict: 'run_id,node_id' });
-
-  if (error) {
-    console.error('[RUN_WORKER] Failed to write automation_node_runs:', redactSensitiveLogValue(error));
-  }
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -271,9 +230,20 @@ serve(async (req) => {
     const graphResult = await executeWorkflowGraph(
       supabase, automation, enrichedContext, account, { runId: effectiveRunId },
     );
-    await upsertNodeRuns(supabase, workspaceId, automation, effectiveRunId, enrichedContext, graphResult.nodeResults || {});
+    await upsertAutomationNodeRuns({
+      supabase,
+      workspaceId,
+      automation,
+      runId: effectiveRunId,
+      triggerContext: enrichedContext,
+      nodeResults: graphResult.nodeResults || {},
+    });
 
-    const runStatus = graphResult.errors > 0 ? 'failed' : 'completed';
+    const waitingForContinuation = Number(graphResult.pendingContinuations || 0) > 0;
+    const runStatus = waitingForContinuation
+      ? 'waiting'
+      : graphResult.errors > 0 ? 'failed' : 'completed';
+    const isTerminal = runStatus === 'failed' || runStatus === 'completed';
     await supabase
       .from('automation_runs')
       .update({
@@ -281,14 +251,15 @@ serve(async (req) => {
         node_results: graphResult.nodeResults || {},
         processed_count: graphResult.processed || 0,
         dms_sent_count: graphResult.dmsSent || 0,
+        pending_continuation_count: graphResult.pendingContinuations || 0,
         error_count: graphResult.errors || 0,
         error_message: graphResult.errors > 0 ? 'One or more nodes failed' : null,
-        finished_at: new Date().toISOString(),
+        finished_at: isTerminal ? new Date().toISOString() : null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', effectiveRunId);
 
-    if (eventId) {
+    if (eventId && isTerminal) {
       await supabase
         .from('automation_events')
         .update({

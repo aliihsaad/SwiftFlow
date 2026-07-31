@@ -10,6 +10,24 @@ const INSTAGRAM_OPTIONAL_SCOPES = new Set([
   "instagram_business_manage_messages",
 ])
 
+export const INSTAGRAM_COMMENT_AUTOMATION_WEBHOOK_FIELDS = [
+  "comments",
+  "live_comments",
+] as const
+
+export const INSTAGRAM_MESSAGE_AUTOMATION_WEBHOOK_FIELDS = [
+  "messages",
+  "messaging_postbacks",
+] as const
+
+export function getInstagramAutomationWebhookFields(grantedScopes: readonly string[] = []): string[] {
+  const fields: string[] = [...INSTAGRAM_COMMENT_AUTOMATION_WEBHOOK_FIELDS]
+  if (grantedScopes.includes("instagram_business_manage_messages")) {
+    fields.push(...INSTAGRAM_MESSAGE_AUTOMATION_WEBHOOK_FIELDS)
+  }
+  return fields
+}
+
 const INSTAGRAM_AUTHORIZE_URL = "https://www.instagram.com/oauth/authorize"
 const INSTAGRAM_TOKEN_URL = "https://api.instagram.com/oauth/access_token"
 const INSTAGRAM_GRAPH_URL = `https://graph.instagram.com/${META_GRAPH_API_VERSION}`
@@ -313,21 +331,30 @@ export async function getInstagramWebhookSubscription(input: {
   return parseSubscription(await response.json())
 }
 
-export async function subscribeInstagramComments(input: {
+export async function subscribeInstagramAutomationWebhooks(input: {
   accountId: string
   accessToken: string
+  grantedScopes?: readonly string[]
 }, fetchImpl: typeof fetch = fetch): Promise<InstagramSubscription> {
+  const subscribedFields = getInstagramAutomationWebhookFields(input.grantedScopes)
   const response = await fetchImpl(`${INSTAGRAM_GRAPH_URL}/${encodeURIComponent(input.accountId)}/subscribed_apps`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${input.accessToken}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
-    body: new URLSearchParams({ subscribed_fields: "comments" }),
+    body: new URLSearchParams({ subscribed_fields: subscribedFields.join(",") }),
     cache: "no-store",
   })
   await requireOk(response, "Instagram webhook subscription")
   return getInstagramWebhookSubscription(input, fetchImpl)
+}
+
+export async function subscribeInstagramComments(input: {
+  accountId: string
+  accessToken: string
+}, fetchImpl: typeof fetch = fetch): Promise<InstagramSubscription> {
+  return subscribeInstagramAutomationWebhooks(input, fetchImpl)
 }
 
 export function deriveInstagramAutomationHealth(input: {

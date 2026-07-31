@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { InstagramApiError, subscribeInstagramComments } from "@/lib/instagram-onboarding"
+import { InstagramApiError, subscribeInstagramAutomationWebhooks } from "@/lib/instagram-onboarding"
 import { decryptMetaToken, type MetaAccountMetadata } from "@/lib/meta-account"
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
 import { createAdminClient } from "@/utils/supabase/admin"
@@ -34,9 +34,10 @@ export async function POST(request: NextRequest) {
     const accessToken = decryptMetaToken(account.access_token)
     if (!accessToken) return NextResponse.json({ error: "Instagram connection has no usable token" }, { status: 409 })
 
-    const subscription = await subscribeInstagramComments({
+    const subscription = await subscribeInstagramAutomationWebhooks({
       accountId: account.account_id,
       accessToken,
+      grantedScopes: currentMetadata.granted_scopes,
     })
     const now = new Date().toISOString()
     const nextMetadata: MetaAccountMetadata = {

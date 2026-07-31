@@ -8,7 +8,7 @@ import {
   getInstagramRedirectUri,
   InstagramApiError,
   resolveInstagramProfessionalAccountId,
-  subscribeInstagramComments,
+  subscribeInstagramAutomationWebhooks,
 } from "@/lib/instagram-onboarding"
 import { sanitizeInstagramDiagnosticValue } from "@/lib/instagram-onboarding-diagnostics"
 import { buildMetaAccountMetadata, encryptMetaToken, type MetaAccountMetadata } from "@/lib/meta-account"
@@ -156,14 +156,15 @@ export async function GET(request: NextRequest) {
       profile,
     })
 
-    stage = "subscribe_comments"
+    stage = "subscribe_webhooks"
     let webhookStatus: "active" | "error" = "error"
     let subscribedFields: string[] = []
     let webhookErrorCode: string | null = null
     try {
-      const subscription = await subscribeInstagramComments({
+      const subscription = await subscribeInstagramAutomationWebhooks({
         accountId: instagramAccountId,
         accessToken,
+        grantedScopes: shortLived.permissions,
       })
       webhookStatus = subscription.active ? "active" : "error"
       subscribedFields = subscription.subscribedFields

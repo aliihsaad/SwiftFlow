@@ -16,6 +16,7 @@ const comparisonHandler = readRepositoryFile("lib/webhooks/comment-private-reply
 const comparisonWorkerEntry = readRepositoryFile("workers/comment-comparison.ts")
 const executorWorkerEntry = readRepositoryFile("workers/action-executor.ts")
 const gates = readRepositoryFile("lib/automation/action-safety-gates.ts")
+const graphExecutor = readRepositoryFile("supabase/functions/process-automations/graph-executor.ts")
 
 const IDENTITY_COLUMNS = [
   "provider",
@@ -172,6 +173,16 @@ describe("meta private reply adapter contract", () => {
     expect(gates).toMatch(
       /action_private_reply:\s*\[\s*"instagram_business_basic",\s*"instagram_business_manage_comments"\s*\]/,
     )
+
+    expect(graphExecutor).toMatch(
+      /nodeTypes\.has\('action_reply_comment'\) \|\| nodeTypes\.has\('action_private_reply'\)[\s\S]{0,180}canManageCommentsWithMetaAccount/,
+    )
+
+    const messagingGuard = graphExecutor.slice(
+      graphExecutor.indexOf("if (nodeTypes.has('action_send_dm')"),
+      graphExecutor.indexOf('return issues;'),
+    )
+    expect(messagingGuard).not.toContain('action_private_reply')
   })
 
   it("bounds the request and the response", () => {

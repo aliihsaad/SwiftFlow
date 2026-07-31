@@ -131,7 +131,7 @@ function statusTone(status: string) {
   if (["failed", "dead_lettered"].includes(status)) {
     return { color: "#fb7185", background: "rgba(251,113,133,0.10)", icon: XCircle }
   }
-  if (["retry_scheduled", "replay_requested", "started", "claimed", "pending"].includes(status)) {
+  if (["retry_scheduled", "replay_requested", "started", "claimed", "pending", "waiting"].includes(status)) {
     return { color: "#fbbf24", background: "rgba(251,191,36,0.10)", icon: Clock3 }
   }
   if (status === "suppressed") {

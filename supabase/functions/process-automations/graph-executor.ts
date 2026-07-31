@@ -33,6 +33,7 @@ import { getMetaGraphApiBaseUrl, toMetaGraphFormBody } from "../_shared/meta-gra
 import {
   getAutomationConditionPolicyIssue,
 } from "../_shared/automation-condition-policy.ts";
+import { upsertAutomationNodeRuns } from "../_shared/automation-node-runs.ts";
 
 
 const DM_FALLBACK_CODES = new Set([
@@ -109,10 +110,11 @@ interface TriggerContext {
   platform?: string
 }
 
-interface ExecutionResult {
+export interface ExecutionResult {
   processed: number
   dmsSent: number
   errors: number
+  pendingContinuations: number
   nodeResults: Record<string, { success: boolean; output?: any; error?: string }>
 }
 
@@ -321,12 +323,12 @@ function getGraphCapabilityIssues(
     issues.push('Missing comment-read capability');
   }
 
-  if (nodeTypes.has('action_reply_comment') &&
+  if ((nodeTypes.has('action_reply_comment') || nodeTypes.has('action_private_reply')) &&
       !canManageCommentsWithMetaAccount(account?.metadata, platform)) {
     issues.push('Missing comment-management capability');
   }
 
-  if ((nodeTypes.has('action_send_dm') || nodeTypes.has('action_private_reply')) &&
+  if (nodeTypes.has('action_send_dm') &&
       !canManageMessagesWithMetaAccount(account?.metadata, platform)) {
     issues.push('Missing messaging capability');
   }
@@ -393,7 +395,13 @@ export async function executeWorkflowGraph(
   timelineContext: AutomationTimelineContext = {},
 ): Promise<ExecutionResult> {
   const graph: WorkflowGraph = automation.workflow_graph;
-  const result: ExecutionResult = { processed: 0, dmsSent: 0, errors: 0, nodeResults: {} };
+  const result: ExecutionResult = {
+    processed: 0,
+    dmsSent: 0,
+    errors: 0,
+    pendingContinuations: 0,
+    nodeResults: {},
+  };
 
   if (!graph?.nodes?.length) {
     console.error(`[GRAPH] Automation ${automation.id}: No graph nodes`);
@@ -564,7 +572,7 @@ export async function executeWorkflowGraph(
           .filter((edge) => edge.sourceHandle !== 'error')
           .map((e) => e.targetId);
         if (remainingNodes.length > 0) {
-          await supabase.from('automation_scheduled_executions').insert({
+          const { error: scheduleError } = await supabase.from('automation_scheduled_executions').insert({
             automation_id: automation.id,
             workflow_version_id:
               automation.workflow_version_id || automation.current_workflow_version_id,
@@ -581,6 +589,10 @@ export async function executeWorkflowGraph(
             scheduled_for: scheduledFor,
             status: 'pending',
           });
+          if (scheduleError) {
+            throw new Error(`Failed to schedule delayed continuation: ${scheduleError.message || 'unknown database error'}`);
+          }
+          result.pendingContinuations++;
           console.log(`[GRAPH] Delay node: scheduled resumption for ${scheduledFor}`);
         }
         // Don't add children to queue — they'll be executed after the delay
@@ -636,17 +648,17 @@ export async function resumeFromDelay(
 
   if (error || !automation) {
     console.error(`[GRAPH_RESUME] Automation ${automation_id} not found`);
-    return { processed: 0, dmsSent: 0, errors: 1, nodeResults: {} };
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {} };
   }
 
   if (!automation.is_active) {
     console.log(`[GRAPH_RESUME] Automation ${automation_id} is inactive, skipping`);
-    return { processed: 0, dmsSent: 0, errors: 0, nodeResults: {} };
+    return { processed: 0, dmsSent: 0, errors: 0, pendingContinuations: 0, nodeResults: {} };
   }
 
   if (!workflow_version_id) {
     console.error(`[GRAPH_RESUME] Scheduled execution for ${automation_id} has no workflow version`);
-    return { processed: 0, dmsSent: 0, errors: 1, nodeResults: {} };
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {} };
   }
 
   const { data: workflowVersion, error: workflowVersionError } = await supabase
@@ -661,7 +673,7 @@ export async function resumeFromDelay(
       `[GRAPH_RESUME] Workflow version ${workflow_version_id} not found for ${automation_id}`,
       redactSensitiveLogValue(workflowVersionError),
     );
-    return { processed: 0, dmsSent: 0, errors: 1, nodeResults: {} };
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {} };
   }
 
   automation.workflow_graph = workflowVersion.workflow_graph;
@@ -670,13 +682,13 @@ export async function resumeFromDelay(
   const account = automation.social_accounts ? await decryptMetaAccountRow(automation.social_accounts) : null;
   if (!account?.access_token) {
     console.error(`[GRAPH_RESUME] Automation ${automation_id} has no access token`);
-    return { processed: 0, dmsSent: 0, errors: 1, nodeResults: {} };
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {} };
   }
   const graph: WorkflowGraph = automation.workflow_graph;
   const graphIssues = validateExecutableGraph(graph);
   if (graphIssues.length > 0) {
     console.error(`[GRAPH_RESUME] Automation ${automation_id} invalid workflow graph`, redactSensitiveLogValue(graphIssues));
-    return { processed: 0, dmsSent: 0, errors: 1, nodeResults: { } };
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: { } };
   }
   const pageId = account.metadata?.connected_page_id || account.account_id;
 
@@ -684,7 +696,8 @@ export async function resumeFromDelay(
     processed: 0,
     dmsSent: 0,
     errors: 0,
-    nodeResults: { ...node_outputs },
+    pendingContinuations: 0,
+    nodeResults: {},
   };
 
   // Build adjacency
@@ -770,7 +783,7 @@ export async function resumeFromDelay(
           .filter((edge) => edge.sourceHandle !== 'error')
           .map((e) => e.targetId);
         if (remainingNodes.length > 0) {
-          await supabase.from('automation_scheduled_executions').insert({
+          const { error: scheduleError } = await supabase.from('automation_scheduled_executions').insert({
             automation_id: automation.id,
             workflow_version_id: automation.workflow_version_id,
             execution_id: crypto.randomUUID(),
@@ -781,11 +794,18 @@ export async function resumeFromDelay(
               trigger_data: runtimeContext,
               next_nodes: remainingNodes,
               variables: {},
-              node_outputs: result.nodeResults,
+              node_outputs: {
+                ...(node_outputs || {}),
+                ...result.nodeResults,
+              },
             },
             scheduled_for: new Date(Date.now() + delayMs).toISOString(),
             status: 'pending',
           });
+          if (scheduleError) {
+            throw new Error(`Failed to schedule delayed continuation: ${scheduleError.message || 'unknown database error'}`);
+          }
+          result.pendingContinuations++;
         }
         continue;
       } else {
@@ -809,6 +829,15 @@ export async function resumeFromDelay(
       queueErrorBranchIfPresent(adjacency, nodeId, queue, runtimeContext, node, failedNodeResult);
     }
   }
+
+  await upsertAutomationNodeRuns({
+    supabase,
+    workspaceId: automation.workspace_id,
+    automation,
+    runId: timelineContext.runId,
+    triggerContext: runtimeContext,
+    nodeResults: result.nodeResults,
+  });
 
   return result;
 }
@@ -972,7 +1001,7 @@ async function executeNodeUnchecked(
 
     default:
       console.warn(`[GRAPH] Unknown node type: ${node.data.type}`);
-      return { success: true };
+      return { success: false, error: `Unsupported node type: ${node.data.type}` };
   }
 }
 

@@ -27,6 +27,72 @@ const STALLED_RUN_AGE_MINUTES = 2
 const STALLED_RUN_BATCH = 10
 const ABANDONED_RUNNING_AGE_MINUTES = 30
 
+function continuationErrorMessage(result): string | null {
+  for (const nodeResult of Object.values(result?.nodeResults || {})) {
+    if (nodeResult?.success === false && nodeResult?.error) {
+      return String(nodeResult.error)
+    }
+  }
+  return Number(result?.errors || 0) > 0 ? 'One or more delayed nodes failed' : null
+}
+
+async function mergeContinuationIntoRun(supabase, exec, result) {
+  const runId = exec?.execution_context?.run_id
+  if (!runId) return null
+
+  const { data, error } = await supabase.rpc('apply_automation_run_continuation_result', {
+    p_run_id: runId,
+    p_node_results: result?.nodeResults || {},
+    p_processed_count: Number(result?.processed || 0),
+    p_dms_sent_count: Number(result?.dmsSent || 0),
+    p_error_count: Number(result?.errors || 0),
+    p_pending_continuations: Number(result?.pendingContinuations || 0),
+    p_error_message: continuationErrorMessage(result),
+  })
+
+  if (error) {
+    throw new Error(`Failed to merge delayed run result: ${error.message}`)
+  }
+
+  const merged = Array.isArray(data) ? data[0] : data
+  if (merged?.event_id && (merged.status === 'completed' || merged.status === 'failed')) {
+    const { error: eventError } = await supabase
+      .from('automation_events')
+      .update({
+        status: merged.status === 'completed' ? 'processed' : 'failed',
+        processed_at: new Date().toISOString(),
+      })
+      .eq('id', merged.event_id)
+
+    if (eventError) {
+      console.error('[SCHEDULED] Failed to finalize automation event:', redactSensitiveLogValue(eventError))
+    }
+  }
+
+  return merged
+}
+
+async function markRunFinalizationFailure(supabase, exec, error) {
+  const runId = exec?.execution_context?.run_id
+  if (!runId) return
+
+  const now = new Date().toISOString()
+  const { error: updateError } = await supabase
+    .from('automation_runs')
+    .update({
+      status: 'failed',
+      pending_continuation_count: 0,
+      error_message: `Delayed run bookkeeping failed: ${error?.message || 'unknown error'}`,
+      finished_at: now,
+      updated_at: now,
+    })
+    .eq('id', runId)
+
+  if (updateError) {
+    console.error('[SCHEDULED] Failed to mark the parent run failed:', redactSensitiveLogValue(updateError))
+  }
+}
+
 /**
  * Safety net for the orchestrator's background dispatch: runs that stayed
  * 'queued' (dispatcher torn down / worker invocation failed) are re-invoked
@@ -146,6 +212,7 @@ serve(async (req) => {
     let errors = 0;
 
     for (const exec of pendingExecs) {
+      let scheduledFinalized = false;
       try {
         // Rows are already claimed + marked 'executing' by the RPC.
         // Resume execution
@@ -166,6 +233,9 @@ serve(async (req) => {
           console.warn(`[SCHEDULED] Execution ${exec.id} was not counted because its claim was already lost`);
           continue;
         }
+
+        scheduledFinalized = true;
+        await mergeContinuationIntoRun(supabase, exec, result);
 
         // Update automation stats
         if (result.processed > 0 || result.dmsSent > 0) {
@@ -192,6 +262,12 @@ serve(async (req) => {
       } catch (err) {
         errors++;
         console.error(`[SCHEDULED] Execution ${exec.id} failed:`, redactSensitiveLogValue(err));
+
+        if (scheduledFinalized) {
+          await markRunFinalizationFailure(supabase, exec, err);
+          continue;
+        }
+
         const executedAt = new Date().toISOString();
 
         try {
@@ -206,9 +282,27 @@ serve(async (req) => {
           });
           if (!finalization.finalized) {
             console.warn(`[SCHEDULED] Failed execution ${exec.id} was not finalized because its claim was already lost`);
+            continue;
           }
+
+          scheduledFinalized = true;
+          await mergeContinuationIntoRun(supabase, exec, {
+            processed: 0,
+            dmsSent: 0,
+            errors: 1,
+            pendingContinuations: 0,
+            nodeResults: {
+              [`scheduled:${exec.id}`]: {
+                success: false,
+                error: err?.message || 'Delayed execution failed',
+              },
+            },
+          });
         } catch (finalizeErr) {
           console.error(`[SCHEDULED] Failed to record failure for execution ${exec.id}:`, redactSensitiveLogValue(finalizeErr));
+          if (scheduledFinalized) {
+            await markRunFinalizationFailure(supabase, exec, finalizeErr);
+          }
         }
       }
     }

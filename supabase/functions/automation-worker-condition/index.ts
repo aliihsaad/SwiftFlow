@@ -1,6 +1,7 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { assertInternalInvoke } from "../_shared/internal-auth.ts"
+import { getAutomationConditionPolicyIssue } from "../_shared/automation-condition-policy.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,6 +21,18 @@ serve(async (req) => {
     const config = body?.config || {};
     const context = body?.context || {};
     const text = String(context.comment_text || context.message_text || '').toLowerCase();
+    const policyIssue = getAutomationConditionPolicyIssue(config.condition_type);
+    if (policyIssue) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: policyIssue.message,
+        output: { code: policyIssue.code },
+      }), {
+        status: 422,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
 
     let conditionResult = false;
     switch (config.condition_type) {
@@ -34,13 +47,14 @@ serve(async (req) => {
         }
         break;
       }
-      case 'follower_count':
-      case 'comment_count':
-        // Placeholder until account metrics are wired into node context.
-        conditionResult = true;
-        break;
       default:
-        conditionResult = false;
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Unsupported automation condition.',
+        }), {
+          status: 422,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
     }
 
     return new Response(JSON.stringify({

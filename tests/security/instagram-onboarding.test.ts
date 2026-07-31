@@ -7,6 +7,7 @@ import {
   deriveInstagramAutomationHealth,
   exchangeInstagramCode,
   fetchInstagramProfile,
+  getInstagramAutomationWebhookFields,
   InstagramApiError,
   resolveInstagramProfessionalAccountId,
   subscribeInstagramComments,
@@ -75,6 +76,23 @@ describe("direct Instagram onboarding", () => {
     expect(result.access_token).toBe(TOKEN)
     expect(result.permissionsSource).toBe("oauth_response")
     expect(fetcher).toHaveBeenCalledOnce()
+  })
+
+  it("subscribes only webhook fields backed by working automation triggers", () => {
+    expect(getInstagramAutomationWebhookFields()).toEqual([
+      "comments",
+      "live_comments",
+    ])
+    expect(getInstagramAutomationWebhookFields([
+      "instagram_business_basic",
+      "instagram_business_manage_comments",
+      "instagram_business_manage_messages",
+    ])).toEqual([
+      "comments",
+      "live_comments",
+      "messages",
+      "messaging_postbacks",
+    ])
   })
 
   it("uses Bearer authorization for profile and webhook operations", async () => {

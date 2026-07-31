@@ -145,6 +145,10 @@ describe("timeline runtime wiring", () => {
       path.join(root, "supabase", "functions", "automation-worker-run", "index.ts"),
       "utf8",
     )
+    const nodeRunHelper = readFileSync(
+      path.join(root, "supabase", "functions", "_shared", "automation-node-runs.ts"),
+      "utf8",
+    )
     const replayRoute = readFileSync(
       path.join(
         root,
@@ -171,8 +175,9 @@ describe("timeline runtime wiring", () => {
     expect(graph).toContain("recordAutomationNodeEvent")
     expect(graph).toContain("eventType: 'started'")
     expect(graph).toContain("eventType: nodeResult.success ? 'succeeded' : 'failed'")
-    expect(worker).toContain("input: redactSensitiveLogValue({")
-    expect(worker).toContain("output: redactSensitiveLogValue(nodeResult.output || {})")
+    expect(worker).toContain("upsertAutomationNodeRuns")
+    expect(nodeRunHelper).toContain("input: redactSensitiveLogValue({")
+    expect(nodeRunHelper).toContain("output: redactSensitiveLogValue(nodeResult.output || {})")
     expect(replayRoute).toContain('requireWorkspacePermission(supabase, user.id, workspace.id, "automation:write")')
     expect(replayRoute).toContain("evaluateActionReplay")
     expect(directWorker).toContain("{ executionKey: `comment:${webhookCtx.comment_id}` }")

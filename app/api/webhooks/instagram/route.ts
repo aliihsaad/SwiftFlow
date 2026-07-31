@@ -278,6 +278,7 @@ async function processWebhookEvents(body: Record<string, unknown>) {
 
             switch (change.field as string) {
                 case 'comments':
+                case 'live_comments':
                     await handleCommentEvent(change.value as Record<string, unknown>, account);
                     break;
                 case 'feed':

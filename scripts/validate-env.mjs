@@ -102,18 +102,7 @@ if (!developerPepper) {
 }
 
 assertCredentialPair("NEXT_PUBLIC_META_APP_ID", "META_APP_SECRET")
-const dedicatedInstagramAppId = String(process.env.INSTAGRAM_APP_ID || "").trim()
-const sharedMetaAppId = String(process.env.NEXT_PUBLIC_META_APP_ID || "").trim()
-const instagramAppSecret = String(process.env.INSTAGRAM_APP_SECRET || "").trim()
-if (dedicatedInstagramAppId || instagramAppSecret) {
-  const resolvedInstagramAppId = dedicatedInstagramAppId || sharedMetaAppId
-  if (!resolvedInstagramAppId || !instagramAppSecret) {
-    failList(
-      "[validate-env] Direct Instagram Login requires an app ID and secret:",
-      ["INSTAGRAM_APP_ID or NEXT_PUBLIC_META_APP_ID", "INSTAGRAM_APP_SECRET"],
-    )
-  }
-}
+assertCredentialPair("INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET")
 
 if (channel === "review_phase_1") {
   const missingReview = getMissing(reviewPhase1Required)

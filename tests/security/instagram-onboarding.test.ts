@@ -53,16 +53,13 @@ describe("direct Instagram onboarding", () => {
     expect(url.toString()).not.toContain("pages_")
     expect(url.toString()).not.toContain("facebook.com")
   })
-  it("reuses the public Meta app ID when a dedicated Instagram app ID is omitted", () => {
+  it("requires the dedicated Instagram app ID and never falls back to a Meta app ID", () => {
     vi.stubEnv("INSTAGRAM_APP_ID", "")
-    vi.stubEnv("NEXT_PUBLIC_META_APP_ID", "shared-meta-app-id")
+    vi.stubEnv("NEXT_PUBLIC_META_APP_ID", "facebook-platform-app-id")
     vi.stubEnv("INSTAGRAM_APP_SECRET", "instagram-secret")
 
     try {
-      expect(getInstagramAppCredentials()).toEqual({
-        appId: "shared-meta-app-id",
-        appSecret: "instagram-secret",
-      })
+      expect(() => getInstagramAppCredentials()).toThrow("Instagram Login is not configured")
     } finally {
       vi.unstubAllEnvs()
     }
@@ -258,6 +255,12 @@ describe("direct Instagram onboarding", () => {
       message: expect.stringContaining("Instagram app ID and Instagram app secret"),
       reference: "stage exchange_authorization_code · code OAuthException",
     })
+
+    const misconfigured = getInstagramConnectionNotice(new URLSearchParams({
+      error: "instagram_app_not_configured",
+    }))
+    expect(misconfigured?.message).toContain("INSTAGRAM_APP_ID")
+    expect(misconfigured?.message).toContain("same Instagram app")
 
     const connected = getInstagramConnectionNotice(new URLSearchParams({
       success: "instagram_connected",

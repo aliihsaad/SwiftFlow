@@ -135,7 +135,7 @@ export function getInstagramAppCredentials(): {
   appId: string
   appSecret: string
 } {
-  const appId = String(process.env.INSTAGRAM_APP_ID || process.env.NEXT_PUBLIC_META_APP_ID || "").trim()
+  const appId = String(process.env.INSTAGRAM_APP_ID || "").trim()
   const appSecret = String(process.env.INSTAGRAM_APP_SECRET || "").trim()
   if (!appId || !appSecret) {
     throw new Error("Instagram Login is not configured")

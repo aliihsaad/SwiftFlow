@@ -26,6 +26,7 @@ const STAGE_MESSAGES: Record<string, string> = {
 
 const ERROR_MESSAGES: Record<string, string> = {
   instagram_authorization_denied: "Instagram authorization was cancelled or denied. Select Allow to complete the connection.",
+  instagram_app_not_configured: "Direct Instagram Login is not configured. Add INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET from the same Instagram app, then try again.",
   invalid_oauth_state: STAGE_MESSAGES.validate_oauth_state,
   unauthorized: STAGE_MESSAGES.authenticate_user,
   forbidden: STAGE_MESSAGES.authorize_workspace,

@@ -1,4 +1,6 @@
 import { createHmac } from "node:crypto"
+import { readFileSync } from "node:fs"
+import { resolve } from "node:path"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import {
@@ -31,6 +33,21 @@ describe("Meta provider credential routing", () => {
       .toBe("https://graph.facebook.com/v25.0")
     expect(getMetaGraphApiBaseUrl())
       .toBe("https://graph.facebook.com/v25.0")
+  })
+
+  it("routes Direct Instagram analytics through the connection-specific Graph host", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "supabase", "functions", "sync-analytics", "index.ts"),
+      "utf8",
+    )
+    const routingCalls = source.match(
+      /getMetaGraphApiBaseUrl\(account\.metadata\?\.connection_method\)/g,
+    ) || []
+
+    expect(routingCalls).toHaveLength(3)
+    expect(source).toContain("const basicUrl = `${instagramGraphUrl}/")
+    expect(source).toContain("const listUrl = `${instagramGraphUrl}/")
+    expect(source).toContain("const url = `${instagramGraphUrl}/")
   })
 
   it("signs each token with the secret belonging to its connection method", async () => {

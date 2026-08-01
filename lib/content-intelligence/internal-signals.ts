@@ -170,7 +170,8 @@ export function buildContentIntelligenceSignals(params: {
       hourlyPerformance,
     },
     capabilities: {
-      hasMetaInsights: grantedScopes.has("instagram_manage_insights"),
+      hasMetaInsights: grantedScopes.has("instagram_manage_insights")
+        || grantedScopes.has("instagram_business_manage_insights"),
       hasFacebookEngagement: grantedScopes.has("pages_read_engagement"),
     },
   }

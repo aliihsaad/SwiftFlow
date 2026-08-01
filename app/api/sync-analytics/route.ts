@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { canReadAnalyticsWithMetaAccount } from '@/lib/meta-account';
 import { createClient } from '@/utils/supabase/server';
 import { getExplicitActiveWorkspace } from '@/lib/workspace-utils';
@@ -10,8 +10,13 @@ import { buildSupabaseFunctionHeaders, getSupabaseServiceRoleKey } from '@/lib/s
 // Using Node runtime + a higher maxDuration avoids Vercel Edge timeouts (504) on larger workspaces.
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+const ANALYTICS_SCOPE_ALIASES = {
+    instagram: ['instagram_business_manage_insights', 'instagram_manage_insights'],
+    facebook: ['pages_read_engagement'],
+} as const;
 
-export async function POST(request: NextRequest) {
+
+export async function POST() {
     try {
         const supabase = await createClient();
 
@@ -45,43 +50,53 @@ export async function POST(request: NextRequest) {
         const platformGrantedScopes = new Map<string, Set<string>>();
         const platformExactScopesKnown = new Map<string, boolean>();
         for (const account of socialAccountsList as any[]) {
-            const rawScopes = Array.isArray(account?.metadata?.granted_scopes)
+            const grantedScopes = Array.isArray(account?.metadata?.granted_scopes)
                 ? account.metadata.granted_scopes.filter((s: unknown) => typeof s === 'string')
                 : [];
+            const granularScopes = Array.isArray(account?.metadata?.granted_granular_scopes)
+                ? account.metadata.granted_granular_scopes
+                    .map((entry: any) => entry?.scope)
+                    .filter((scope: unknown) => typeof scope === 'string')
+                : [];
+            const rawScopes = Array.from(new Set([...grantedScopes, ...granularScopes]));
             if (account?.platform) {
                 const existing = platformGrantedScopes.get(account.platform) || new Set<string>();
                 rawScopes.forEach((s: string) => existing.add(s));
                 platformGrantedScopes.set(account.platform, existing);
-                if (Array.isArray(account?.metadata?.granted_scopes)) {
+                if (Array.isArray(account?.metadata?.granted_scopes)
+                    || Array.isArray(account?.metadata?.granted_granular_scopes)) {
                     platformExactScopesKnown.set(account.platform, true);
                 } else if (!platformExactScopesKnown.has(account.platform)) {
                     platformExactScopesKnown.set(account.platform, false);
                 }
             }
         }
-        const maybeAddPermissionHint = (platform: 'instagram' | 'facebook', scope: string) => {
+        const suspectedMissingPermissions = new Set<string>();
+        const maybeAddPermissionHint = (platform: 'instagram' | 'facebook', force = false) => {
+            const acceptedScopes = ANALYTICS_SCOPE_ALIASES[platform];
+            const preferredScope = acceptedScopes[0];
             const exactKnown = !!platformExactScopesKnown.get(platform);
-            if (!exactKnown) {
-                suspectedMissingPermissions.add(scope);
-                return;
-            }
-            if (!platformGrantedScopes.get(platform)?.has(scope)) {
-                suspectedMissingPermissions.add(scope);
+            const hasAcceptedScope = acceptedScopes.some((scope) => platformGrantedScopes.get(platform)?.has(scope));
+
+            if (force || !exactKnown || !hasAcceptedScope) {
+                suspectedMissingPermissions.add(preferredScope);
             }
         };
 
-        const suspectedMissingPermissions = new Set<string>();
 
         if (socialAccountsList.length > 0 && analyticsCapableAccounts.length === 0) {
-            if (platforms.includes('instagram')) maybeAddPermissionHint('instagram', 'instagram_manage_insights');
-            if (platforms.includes('facebook')) maybeAddPermissionHint('facebook', 'pages_read_engagement');
+            if (platforms.includes('instagram')) maybeAddPermissionHint('instagram');
+            if (platforms.includes('facebook')) maybeAddPermissionHint('facebook');
+            const permissionError = platforms.includes('instagram')
+                ? 'Instagram analytics access is missing from the connected token. Reconnect the account to approve insights access.'
+                : 'Analytics access is missing from the connected token. Reconnect the account to approve the required permission.'
 
             return NextResponse.json(
                 {
-                    error: 'Analytics sync is not available for the connected accounts in this workspace',
+                    error: permissionError,
                     errorCode: 'meta_missing_permission',
                     missingPermissions: Array.from(suspectedMissingPermissions),
-                    requiresReconnect: false,
+                    requiresReconnect: true,
                     meta: null,
                 },
                 { status: 403 }
@@ -127,23 +142,50 @@ export async function POST(request: NextRequest) {
         const directPostsUpserted = Number(result?.posts?.direct?.posts_upserted || 0);
         const directMetricsUpserted = Number(result?.posts?.direct?.metrics_upserted || 0);
         const directErrors = Number(result?.posts?.direct?.errors || 0);
+        const accountFailures = Array.isArray(result?.accounts?.failures)
+            ? result.accounts.failures
+            : [];
+        const normalizedAccountFailures = accountFailures.map((failure: any) => ({
+            platform: failure?.platform,
+            normalized: normalizeMetaGraphError(
+                {
+                    message: failure?.message,
+                    code: failure?.code,
+                    error_subcode: failure?.error_subcode,
+                    type: failure?.type,
+                },
+                { feature: 'analytics' },
+            ),
+        }));
 
         const warnings: string[] = [];
+        let requiresReconnect = false;
 
         if (socialAccountsList.length === 0) {
             warnings.push('No connected social accounts were found for this workspace.');
         }
 
         if (platforms.includes('instagram') && accountsSynced === 0) {
-            warnings.push('Instagram/Facebook account-level analytics did not sync. Follower insights may be unavailable.');
-            maybeAddPermissionHint('instagram', 'instagram_manage_insights');
-            if (platforms.includes('facebook')) maybeAddPermissionHint('facebook', 'pages_read_engagement');
+            const instagramFailure = normalizedAccountFailures.find(
+                (failure: any) => failure.platform === 'instagram',
+            )?.normalized;
+            if (instagramFailure) {
+                warnings.push(instagramFailure.message);
+                instagramFailure.missingPermissions.forEach((permission: string) =>
+                    suspectedMissingPermissions.add(permission),
+                );
+                requiresReconnect = instagramFailure.requiresReconnect;
+            } else {
+                warnings.push('Instagram account-level analytics did not sync. Reconnect once so the current token includes insights access.');
+                maybeAddPermissionHint('instagram', true);
+                requiresReconnect = true;
+            }
         }
 
         if (directPostsUpserted > 0 && directMetricsUpserted === 0) {
             warnings.push('Posts were ingested, but post metrics were not synced. Analytics may be limited to post discovery only.');
-            if (platforms.includes('instagram')) maybeAddPermissionHint('instagram', 'instagram_manage_insights');
-            if (platforms.includes('facebook')) maybeAddPermissionHint('facebook', 'pages_read_engagement');
+            if (platforms.includes('instagram')) maybeAddPermissionHint('instagram');
+            if (platforms.includes('facebook')) maybeAddPermissionHint('facebook');
         }
 
         if (directErrors > 0) {
@@ -158,6 +200,7 @@ export async function POST(request: NextRequest) {
             ...result,
             _meta: {
                 partial,
+                requiresReconnect,
                 warnings,
                 suspectedMissingPermissions: Array.from(suspectedMissingPermissions),
                 sync: {

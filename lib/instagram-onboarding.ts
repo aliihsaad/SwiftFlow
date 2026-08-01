@@ -4,6 +4,15 @@ export const INSTAGRAM_AUTOMATION_REQUIRED_SCOPES = [
   "instagram_business_basic",
   "instagram_business_manage_comments",
 ] as const
+export const INSTAGRAM_ANALYTICS_REQUIRED_SCOPES = [
+  "instagram_business_manage_insights",
+] as const
+
+export const INSTAGRAM_DEFAULT_SCOPES = [
+  ...INSTAGRAM_AUTOMATION_REQUIRED_SCOPES,
+  ...INSTAGRAM_ANALYTICS_REQUIRED_SCOPES,
+] as const
+
 
 const INSTAGRAM_OPTIONAL_SCOPES = new Set([
   "instagram_business_content_publish",
@@ -109,7 +118,7 @@ function parseOptionalScopes(value: string | undefined): string[] {
 
 export function getInstagramOAuthScopes(): string[] {
   return Array.from(new Set([
-    ...INSTAGRAM_AUTOMATION_REQUIRED_SCOPES,
+    ...INSTAGRAM_DEFAULT_SCOPES,
     ...parseOptionalScopes(process.env.INSTAGRAM_OAUTH_EXTRA_SCOPES),
   ]))
 }
@@ -126,7 +135,7 @@ export function getInstagramAppCredentials(): {
   appId: string
   appSecret: string
 } {
-  const appId = String(process.env.INSTAGRAM_APP_ID || "").trim()
+  const appId = String(process.env.INSTAGRAM_APP_ID || process.env.NEXT_PUBLIC_META_APP_ID || "").trim()
   const appSecret = String(process.env.INSTAGRAM_APP_SECRET || "").trim()
   if (!appId || !appSecret) {
     throw new Error("Instagram Login is not configured")
@@ -146,7 +155,7 @@ export function buildInstagramAuthorizationUrl(input: {
     client_id: input.appId,
     redirect_uri: input.redirectUri,
     response_type: "code",
-    scope: (input.scopes || INSTAGRAM_AUTOMATION_REQUIRED_SCOPES).join(","),
+    scope: (input.scopes || INSTAGRAM_DEFAULT_SCOPES).join(","),
     state: input.state,
   })
   return `${INSTAGRAM_AUTHORIZE_URL}?${params.toString()}`
@@ -212,7 +221,7 @@ export async function exchangeInstagramCode(input: {
   const responsePermissions = parsePermissions(parsed.permissions ?? parsed.scope)
   const permissions = responsePermissions.length > 0
     ? responsePermissions
-    : [...(input.requestedScopes || INSTAGRAM_AUTOMATION_REQUIRED_SCOPES)]
+    : [...(input.requestedScopes || INSTAGRAM_DEFAULT_SCOPES)]
 
   return {
     access_token: parsed.access_token,

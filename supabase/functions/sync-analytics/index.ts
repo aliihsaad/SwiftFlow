@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { canReadAnalyticsWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
-import { META_GRAPH_API_BASE_URL, metaGraphFetch } from "../_shared/meta-graph.ts";
+import { getMetaGraphApiBaseUrl, META_GRAPH_API_BASE_URL, metaGraphFetch } from "../_shared/meta-graph.ts";
 import { redactSensitiveLogValue, redactSensitiveString } from "../_shared/log-redaction.ts";
 import { assertWorkspaceAccess } from "../_shared/workspace-auth.ts";
 
@@ -62,7 +62,12 @@ function summarizeError(error: any): string {
     return redactSensitiveString(String(error));
 }
 
-async function fetchInstagramMediaInsightsBestEffort(mediaId: string, accessToken: string, mediaType?: string) {
+async function fetchInstagramMediaInsightsBestEffort(
+    mediaId: string,
+    accessToken: string,
+    graphBaseUrl: string,
+    mediaType?: string,
+) {
     const metrics: Record<string, number> = {
         reach: 0,
         saved: 0,
@@ -74,7 +79,7 @@ async function fetchInstagramMediaInsightsBestEffort(mediaId: string, accessToke
     };
 
     const tryMetricRequest = async (metricNames: string[]) => {
-        const url = `${META_GRAPH_URL}/${mediaId}/insights?metric=${metricNames.join(',')}&access_token=${accessToken}`;
+        const url = `${graphBaseUrl}/${mediaId}/insights?metric=${metricNames.join(',')}&access_token=${accessToken}`;
         const res = await metaGraphFetch(url);
         const data = await res.json();
 
@@ -349,8 +354,9 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                 let insights = null;
 
                 if (publishedPost.platform === 'instagram') {
+                    const instagramGraphUrl = getMetaGraphApiBaseUrl(account.metadata?.connection_method);
                     // First try to get basic media info (most reliable)
-                    const basicUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=like_count,comments_count,media_type&access_token=${account.access_token}`;
+                    const basicUrl = `${instagramGraphUrl}/${publishedPost.platform_post_id}?fields=like_count,comments_count,media_type&access_token=${account.access_token}`;
                     console.log(`[Sync] Fetching Instagram basic info for ${publishedPost.platform_post_id}`);
 
                     const basicResponse = await metaGraphFetch(basicUrl);
@@ -373,6 +379,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                             const igInsights = await fetchInstagramMediaInsightsBestEffort(
                                 publishedPost.platform_post_id,
                                 account.access_token,
+                                instagramGraphUrl,
                                 basicData.media_type || undefined,
                             );
                             insights = {
@@ -481,6 +488,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
 
         try {
             if (account.platform === 'instagram') {
+                const instagramGraphUrl = getMetaGraphApiBaseUrl(account.metadata?.connection_method);
                 const igUserId = account.account_id || account.metadata?.instagram_business_account_id;
                 if (!igUserId) {
                     console.log(`[Sync] Instagram account ${account.id} missing account_id, skipping direct sync`);
@@ -488,7 +496,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                 }
 
                 // Keep list call on safe fields, then fetch optional counts per media.
-                const listUrl = `${META_GRAPH_URL}/${igUserId}/media?fields=id,caption,timestamp,permalink,media_type&limit=50&access_token=${account.access_token}`;
+                const listUrl = `${instagramGraphUrl}/${igUserId}/media?fields=id,caption,timestamp,permalink,media_type&limit=50&access_token=${account.access_token}`;
                 const listRes = await metaGraphFetch(listUrl);
                 const listData = await listRes.json();
 
@@ -514,7 +522,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                         let shares = 0;
 
                         try {
-                            const detailUrl = `${META_GRAPH_URL}/${media.id}?fields=like_count,comments_count,caption,timestamp,permalink,media_type&access_token=${account.access_token}`;
+                            const detailUrl = `${instagramGraphUrl}/${media.id}?fields=like_count,comments_count,caption,timestamp,permalink,media_type&access_token=${account.access_token}`;
                             const detailRes = await metaGraphFetch(detailUrl);
                             const detailData = await detailRes.json();
 
@@ -533,7 +541,12 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                         }
 
                         try {
-                            const igInsights = await fetchInstagramMediaInsightsBestEffort(media.id, account.access_token, mediaType || undefined);
+                            const igInsights = await fetchInstagramMediaInsightsBestEffort(
+                                media.id,
+                                account.access_token,
+                                instagramGraphUrl,
+                                mediaType || undefined,
+                            );
                             views = igInsights.views || 0;
                             saves = igInsights.saved || 0;
                             shares = igInsights.shares || 0;
@@ -701,6 +714,8 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
 
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
     let syncedCount = 0;
+    const syncedByPlatform: Record<string, number> = {};
+    const failures: Array<Record<string, unknown>> = [];
 
     for (const account of decryptedAccounts) {
         if (!account.access_token) {
@@ -717,9 +732,10 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
             let accountData = null;
 
             if (account.platform === 'instagram') {
+                const instagramGraphUrl = getMetaGraphApiBaseUrl(account.metadata?.connection_method);
                 // Instagram: GET /{ig-user-id}?fields=followers_count,follows_count,media_count
                 const igUserId = account.account_id;
-                const url = `${META_GRAPH_URL}/${igUserId}?fields=followers_count,follows_count,media_count&access_token=${account.access_token}`;
+                const url = `${instagramGraphUrl}/${igUserId}?fields=followers_count,follows_count,media_count&access_token=${account.access_token}`;
 
                 console.log(`[AccountSync] Fetching Instagram account data for ${igUserId}`);
 
@@ -735,6 +751,13 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
                     };
                 } else {
                     logMetaGraphWarning(`[AccountSync] Instagram account request failed for ${igUserId}`, data);
+                    failures.push({
+                        platform: account.platform,
+                        code: data?.error?.code,
+                        error_subcode: data?.error?.error_subcode,
+                        type: data?.error?.type,
+                        message: redactSensitiveString(data?.error?.message || 'Instagram account analytics request failed'),
+                    });
                 }
             } else if (account.platform === 'facebook') {
                 // Facebook: GET /{page-id}?fields=fan_count,followers_count
@@ -755,6 +778,13 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
                     };
                 } else {
                     logMetaGraphWarning(`[AccountSync] Facebook page request failed for ${pageId}`, data);
+                    failures.push({
+                        platform: account.platform,
+                        code: data?.error?.code,
+                        error_subcode: data?.error?.error_subcode,
+                        type: data?.error?.type,
+                        message: redactSensitiveString(data?.error?.message || 'Facebook account analytics request failed'),
+                    });
                 }
             }
 
@@ -782,14 +812,23 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
                 } else {
                     console.log(`[AccountSync] Successfully synced account ${account.id}`);
                     syncedCount++;
+                    syncedByPlatform[account.platform] = (syncedByPlatform[account.platform] || 0) + 1;
                 }
             }
         } catch (error) {
             console.error(`[AccountSync] Error syncing account ${account.id}: ${summarizeError(error)}`);
+            failures.push({
+                platform: account.platform,
+                message: summarizeError(error),
+            });
         }
     }
 
-    return { synced: syncedCount };
+    return {
+        synced: syncedCount,
+        by_platform: syncedByPlatform,
+        failures,
+    };
 }
 
 serve(async (req) => {

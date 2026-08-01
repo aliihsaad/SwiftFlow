@@ -58,12 +58,12 @@ function inferMissingPermissions(ctx?: MetaErrorContext): string[] {
 
     if (ctx?.feature === 'analytics') {
         if (ctx.platform === 'instagram') {
-            return ['instagram_manage_insights'];
+            return ['instagram_business_manage_insights'];
         }
         if (ctx.platform === 'facebook') {
             return ['pages_read_engagement'];
         }
-        return ['instagram_manage_insights', 'pages_read_engagement'];
+        return ['instagram_business_manage_insights', 'pages_read_engagement'];
     }
 
     if (ctx?.feature === 'publishing') {
@@ -139,7 +139,7 @@ export function normalizeMetaGraphError(
     const isPermissionError =
         code === 10 ||
         code === 200 ||
-        /permission|requires permission|not authorized|appropriate role|pages_manage_posts|instagram_content_publish/.test(lower);
+        /permission|requires permission|not authorized|appropriate role|pages_manage_posts|instagram_content_publish|instagram_business_manage_insights/.test(lower);
 
     if (isPermissionError) {
         const missingPermissions = inferMissingPermissions(ctx);

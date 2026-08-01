@@ -2,6 +2,19 @@ export type DateRange = 'last_7_days' | 'last_30_days' | 'last_90_days'
 export type Granularity = 'daily' | 'weekly' | 'monthly'
 export type Platform = 'facebook' | 'instagram'
 export type AnalyticsPlatformView = 'all' | Platform
+export type AnalyticsMetricStatus = 'available' | 'partial' | 'unavailable'
+
+export interface AnalyticsPlatformStatus {
+    platform: Platform
+    connected: boolean
+    status: AnalyticsMetricStatus
+    accountMetricsStatus: AnalyticsMetricStatus
+    postMetricsStatus: AnalyticsMetricStatus
+    exactScopesKnown: boolean
+    missingPermissions: string[]
+    warnings: string[]
+}
+
 
 export interface PostData {
     id: string
@@ -64,16 +77,7 @@ export interface AnalyticsResponse {
         isCombinedView?: boolean
         warnings?: string[]
         suspectedMissingPermissions?: string[]
-        platformStatuses?: Array<{
-            platform: 'instagram' | 'facebook'
-            connected: boolean
-            status: 'available' | 'partial' | 'unavailable'
-            accountMetricsStatus: 'available' | 'partial' | 'unavailable'
-            postMetricsStatus: 'available' | 'partial' | 'unavailable'
-            exactScopesKnown: boolean
-            missingPermissions: string[]
-            warnings: string[]
-        }>
+        platformStatuses?: AnalyticsPlatformStatus[]
         capabilities?: {
             accountMetrics: {
                 status: 'available' | 'partial' | 'unavailable'

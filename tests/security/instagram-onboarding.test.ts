@@ -7,6 +7,7 @@ import {
   deriveInstagramAutomationHealth,
   exchangeInstagramCode,
   fetchInstagramProfile,
+  getInstagramAppCredentials,
   getInstagramAutomationWebhookFields,
   InstagramApiError,
   resolveInstagramProfessionalAccountId,
@@ -32,7 +33,7 @@ function jsonResponse(status: number, body: unknown): Response {
 }
 
 describe("direct Instagram onboarding", () => {
-  it("builds the direct Instagram authorization URL with the narrow automation scopes", () => {
+  it("builds the direct Instagram authorization URL with automation and insights scopes", () => {
     const url = new URL(buildInstagramAuthorizationUrl({
       appId: "instagram-app-id",
       redirectUri: "https://swiftflow.example/api/auth/instagram/callback",
@@ -47,10 +48,26 @@ describe("direct Instagram onboarding", () => {
     expect(url.searchParams.get("scope")?.split(",")).toEqual([
       "instagram_business_basic",
       "instagram_business_manage_comments",
+      "instagram_business_manage_insights",
     ])
     expect(url.toString()).not.toContain("pages_")
     expect(url.toString()).not.toContain("facebook.com")
   })
+  it("reuses the public Meta app ID when a dedicated Instagram app ID is omitted", () => {
+    vi.stubEnv("INSTAGRAM_APP_ID", "")
+    vi.stubEnv("NEXT_PUBLIC_META_APP_ID", "shared-meta-app-id")
+    vi.stubEnv("INSTAGRAM_APP_SECRET", "instagram-secret")
+
+    try {
+      expect(getInstagramAppCredentials()).toEqual({
+        appId: "shared-meta-app-id",
+        appSecret: "instagram-secret",
+      })
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
 
   it("exchanges the authorization code with a form POST and never puts the secret in the URL", async () => {
     const fetcher = vi.fn(async (url: unknown, init?: RequestInit) => {
@@ -191,10 +208,13 @@ describe("direct Instagram onboarding", () => {
       "instagram_business_basic",
       "instagram_business_manage_comments",
       "instagram_business_content_publish",
+      "instagram_business_manage_insights",
     ])
     expect(capabilities.instagram_basic).toBe(true)
     expect(capabilities.comments_manage).toBe(true)
     expect(capabilities.instagram_publish).toBe(true)
+    expect(capabilities.analytics_read).toBe(true)
+    expect(deriveMetaCapabilities(["instagram_manage_insights"]).analytics_read).toBe(true)
 
     const sanitized = sanitizeMetaAccountMetadataForClient({
       user_access_token: TOKEN,

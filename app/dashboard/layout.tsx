@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { Sidebar } from "@/components/layout/sidebar"
 import { MobileNav } from "@/components/layout/mobile-nav"
 import { FloatingAssistant } from "@/components/assistant/floating-assistant"
@@ -16,7 +17,7 @@ export default async function DashboardLayout({
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) return null
+    if (!user) redirect("/login")
 
     const activeWorkspace = await getActiveWorkspace()
     const workspaceSettings = activeWorkspace

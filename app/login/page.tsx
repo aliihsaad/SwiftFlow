@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -68,7 +68,6 @@ function LoginPageContent() {
     const [success, setSuccess] = useState<string | null>(null)
     const [resendCooldown, setResendCooldown] = useState(0)
 
-    const router = useRouter()
     const searchParams = useSearchParams()
     const nextPath = getSafeNextPath(searchParams.get("next"))
 
@@ -119,7 +118,7 @@ function LoginPageContent() {
             if (!res.ok) {
                 throw new Error(data?.error || GENERIC_SIGNIN_ERROR)
             }
-            router.push(nextPath)
+            window.location.replace(nextPath)
         } catch (error: unknown) {
             console.error(error)
             setError(error instanceof Error ? error.message : GENERIC_SIGNIN_ERROR)
@@ -167,7 +166,7 @@ function LoginPageContent() {
             }
 
             if (data?.sessionCreated) {
-                router.push(nextPath)
+                window.location.replace(nextPath)
             } else {
                 setSuccess("Check your email for a confirmation link to complete your registration.")
             }

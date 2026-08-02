@@ -6,7 +6,7 @@ import { createRouteHandlerClient } from "@/utils/supabase/route"
 const GENERIC_SIGNIN_ERROR = "Sign in failed. Check your credentials and try again."
 
 export async function POST(request: NextRequest) {
-    const response = NextResponse.json({}, { status: 200 })
+    const response = NextResponse.json({ ok: true }, { status: 200 })
 
     try {
         assertJsonBodySize(request, 16 * 1024)
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: GENERIC_SIGNIN_ERROR }, { status: 400 })
         }
 
-        return NextResponse.json({ ok: true }, { headers: response.headers })
+        return response
     } catch (error) {
         if (error instanceof RateLimitExceededError) {
             return NextResponse.json(

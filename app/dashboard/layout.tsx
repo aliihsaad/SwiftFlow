@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation"
 import { DashboardHeader } from "@/components/layout/dashboard-header"
 import { Sidebar } from "@/components/layout/sidebar"
 import { WorkspaceRoleProvider } from "@/components/workspace/workspace-role-provider"
@@ -16,7 +17,7 @@ export default async function DashboardLayout({
         data: { user },
     } = await supabase.auth.getUser()
 
-    if (!user) return null
+    if (!user) redirect("/login")
 
     const activeWorkspace = await getActiveWorkspace()
     const { data: members } = await supabase

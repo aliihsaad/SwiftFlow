@@ -10,7 +10,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table"
-import { MoreHorizontal, LogOut, Settings as SettingsIcon, Trash2 } from "lucide-react"
+import { Building2, MoreHorizontal, LogOut, Plus, Settings as SettingsIcon, Trash2 } from "lucide-react"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -129,22 +129,31 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
         }
     }
 
-    const panelClass = "border-white/10 bg-[#1b1d28] text-white/80"
+    const panelClass = "rounded-[22px] border-white/10 bg-[#171925] text-white/80"
     const subtleBorder = "border-white/10"
 
     return (
         <div className="space-y-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h3 className="text-lg font-medium text-white/85">Workspaces</h3>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-cyan-300/15 bg-cyan-300/8">
+                        <Building2 className="h-4 w-4 text-cyan-100/80" aria-hidden="true" />
+                    </span>
+                    <div>
+                        <h3 className="text-base font-medium text-white/90">Workspace directory</h3>
+                        <p className="mt-0.5 text-xs text-white/40">{workspaces.length} workspace{workspaces.length === 1 ? "" : "s"} available</p>
+                    </div>
+                </div>
                 <Button
                     onClick={() => setIsAddOpen(true)}
                     className="w-full border border-cyan-300/20 bg-gradient-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20 sm:w-auto"
                 >
+                    <Plus className="h-4 w-4" aria-hidden="true" />
                     Add Workspace
                 </Button>
             </div>
 
-            <div className={`overflow-hidden rounded-xl border ${subtleBorder} bg-[#151620]`}>
+            <div className={`overflow-hidden rounded-2xl border ${subtleBorder} bg-black/20`}>
                 <Table className="min-w-[560px]">
                     <TableHeader>
                         <TableRow className="border-white/10 hover:bg-transparent">
@@ -221,7 +230,7 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
                                     placeholder="Workspace name"
                                     required
                                     disabled={isLoading}
-                                    className="border-white/10 bg-[#151620] text-white/85 placeholder:text-white/25"
+                                    className="border-white/10 bg-black/20 text-white/85 placeholder:text-white/25"
                                 />
                             </div>
                         </div>
@@ -254,7 +263,7 @@ export function ManageWorkspacesList({ workspaces }: ManageWorkspacesListProps) 
                         <AlertDialogTitle className="text-white/90">Delete Workspace?</AlertDialogTitle>
                         <AlertDialogDescription className="text-white/55">
                             Are you sure you want to delete &quot;{selectedWorkspace?.name}&quot;? This action cannot be undone.
-                            All posts, analytics, and social connections will be permanently deleted.
+                            All automations, analytics, team access, and social connections will be permanently deleted.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

@@ -271,8 +271,8 @@ export function DeveloperApiView() {
 
   return (
     <div className="space-y-4">
-      <Card className="border-white/10 bg-[#151620] text-white/85">
-        <CardHeader className="space-y-2">
+      <Card className="rounded-[22px] border-white/9 bg-white/[0.025] text-white/85 shadow-none">
+        <CardHeader className="space-y-2 border-b border-white/8 pb-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2 text-white/90">
@@ -381,8 +381,8 @@ export function DeveloperApiView() {
         </CardContent>
       </Card>
 
-      <Card className="border-white/10 bg-[#151620] text-white/85">
-        <CardHeader>
+      <Card className="rounded-[22px] border-white/9 bg-white/[0.025] text-white/85 shadow-none">
+        <CardHeader className="border-b border-white/8 pb-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2 text-white/90">
@@ -437,8 +437,8 @@ export function DeveloperApiView() {
         </CardContent>
       </Card>
 
-      <Card className="border-white/10 bg-[#151620] text-white/85">
-        <CardHeader>
+      <Card className="rounded-[22px] border-white/9 bg-white/[0.025] text-white/85 shadow-none">
+        <CardHeader className="border-b border-white/8 pb-5">
           <CardTitle className="text-white/90">Active Keys</CardTitle>
           <CardDescription className="text-white/50">Secrets are shown once on creation. Stored keys only show their prefix.</CardDescription>
         </CardHeader>
@@ -546,8 +546,8 @@ export function DeveloperApiView() {
         </CardContent>
       </Card>
 
-      <Card className="border-white/10 bg-[#151620] text-white/85">
-        <CardHeader>
+      <Card className="rounded-[22px] border-white/9 bg-white/[0.025] text-white/85 shadow-none">
+        <CardHeader className="border-b border-white/8 pb-5">
           <CardTitle className="text-white/90">Audit Log</CardTitle>
           <CardDescription className="text-white/50">Recent Developer API requests for this workspace.</CardDescription>
         </CardHeader>

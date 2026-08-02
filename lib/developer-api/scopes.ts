@@ -7,10 +7,6 @@ import {
 } from "./types"
 
 const SCOPE_SET = new Set<string>(DEVELOPER_API_SCOPE_VALUES)
-const SCOPE_ALIASES: Record<string, DeveloperApiScope> = {
-  "posts:draft:create": "posts:create",
-}
-
 const SCOPE_CAPABILITIES: Record<DeveloperApiScope, { label: string; capability: DeveloperApiCapability }> = {
   "workspace:read": {
     label: "Read workspace",
@@ -34,70 +30,6 @@ const SCOPE_CAPABILITIES: Record<DeveloperApiScope, { label: string; capability:
       area: "Brand profile",
       level: "write",
       description: "Read and update workspace brand profile fields.",
-    },
-  },
-  "media:upload": {
-    label: "Upload media",
-    capability: {
-      area: "Media",
-      level: "write",
-      description: "Upload image or video media into the public post media bucket and return a URL for post mediaUrls.",
-    },
-  },
-  "media:generate": {
-    label: "Generate media",
-    capability: {
-      area: "Media",
-      level: "run",
-      description: "Generate AI images with SwiftFlow and return post-ready media URLs.",
-    },
-  },
-  "posts:read": {
-    label: "Read posts",
-    capability: {
-      area: "Posts",
-      level: "read",
-      description: "List draft, scheduled, published, and failed post metadata for the workspace.",
-    },
-  },
-  "posts:create": {
-    label: "Create posts",
-    capability: {
-      area: "Posts",
-      level: "write",
-      description: "Create draft posts for later editing or review.",
-    },
-  },
-  "posts:schedule": {
-    label: "Schedule posts",
-    capability: {
-      area: "Posts",
-      level: "write",
-      description: "Create or update scheduled posts that the publishing worker can publish later.",
-    },
-  },
-  "posts:publish_now": {
-    label: "Post now",
-    capability: {
-      area: "Posts",
-      level: "write",
-      description: "Queue a post for immediate publishing through connected social accounts.",
-    },
-  },
-  "posts:update": {
-    label: "Edit posts",
-    capability: {
-      area: "Posts",
-      level: "write",
-      description: "Update existing draft or scheduled post content.",
-    },
-  },
-  "posts:delete": {
-    label: "Delete draft or scheduled posts",
-    capability: {
-      area: "Posts",
-      level: "write",
-      description: "Delete draft or scheduled posts before they are published.",
     },
   },
   "automations:read": {
@@ -148,14 +80,6 @@ const SCOPE_CAPABILITIES: Record<DeveloperApiScope, { label: string; capability:
       description: "Read aggregate workspace analytics and content performance summaries.",
     },
   },
-  "content_intelligence:run": {
-    label: "Run content intelligence",
-    capability: {
-      area: "Content Intelligence",
-      level: "run",
-      description: "Analyze draft content and generate evidence-backed recommendations.",
-    },
-  },
 }
 
 export function isDeveloperApiScope(value: string): value is DeveloperApiScope {
@@ -169,11 +93,10 @@ export function canRoleCreateDeveloperApiKey(role: WorkspaceRole | null | undefi
 export function normalizeDeveloperApiScopes(values: unknown[]): DeveloperApiScope[] {
   const scopes: DeveloperApiScope[] = []
   for (const value of values) {
-    const scope = typeof value === "string" && !isDeveloperApiScope(value) ? SCOPE_ALIASES[value] : value
-    if (typeof scope !== "string" || !isDeveloperApiScope(scope)) {
-      throw new Error(`Unsupported developer API scope: ${String(value)}`)
+    if (typeof value !== "string" || !isDeveloperApiScope(value)) {
+      throw new Error("Unsupported developer API scope: " + String(value))
     }
-    if (!scopes.includes(scope)) scopes.push(scope)
+    if (!scopes.includes(value)) scopes.push(value)
   }
   if (scopes.length === 0) {
     throw new Error("At least one developer API scope is required")
@@ -181,6 +104,12 @@ export function normalizeDeveloperApiScopes(values: unknown[]): DeveloperApiScop
   return scopes
 }
 
+
+export function normalizeStoredDeveloperApiScopes(values: unknown[]): DeveloperApiScope[] {
+  return Array.from(new Set(
+    values.filter((value): value is DeveloperApiScope => typeof value === "string" && isDeveloperApiScope(value)),
+  ))
+}
 export function requireDeveloperApiScopes(
   granted: readonly DeveloperApiScope[],
   required: readonly DeveloperApiScope[],

@@ -46,117 +46,6 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
           responses: { "200": { description: "Updated brand profile" }, "400": { description: "Invalid payload" }, "401": { description: "Unauthorized" }, "403": { description: "Forbidden" } },
         },
       },
-      "/posts/drafts": {
-        get: {
-          summary: "List draft and scheduled posts",
-          description: "Required scope: posts:read",
-          "x-required-scopes": ["posts:read"],
-          responses: { "200": { description: "Post list" } },
-        },
-        post: {
-          summary: "Create draft post",
-          description: "Required scope: posts:create. This endpoint never publishes directly.",
-          "x-required-scopes": ["posts:create"],
-          responses: { "201": { description: "Draft post created" }, "400": { description: "Invalid payload" } },
-        },
-      },
-      "/posts": {
-        get: {
-          summary: "List posts",
-          description: "Required scope: posts:read",
-          "x-required-scopes": ["posts:read"],
-          responses: { "200": { description: "Post list" } },
-        },
-        post: {
-          summary: "Create, schedule, or post now",
-          description: "Required scope depends on status: draft uses posts:create, scheduled uses posts:schedule, published uses posts:publish_now.",
-          "x-required-scopes": ["posts:create", "posts:schedule", "posts:publish_now"],
-          responses: { "201": { description: "Post queued" }, "400": { description: "Invalid payload" } },
-        },
-      },
-      "/posts/drafts/{id}": {
-        patch: {
-          summary: "Update draft or scheduled post",
-          description: "Required scope: posts:update. This endpoint never publishes directly.",
-          "x-required-scopes": ["posts:update"],
-          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
-          responses: { "200": { description: "Post updated" }, "400": { description: "Invalid payload" } },
-        },
-        delete: {
-          summary: "Delete draft or scheduled post",
-          description: "Required scope: posts:delete. Published posts cannot be deleted through this endpoint.",
-          "x-required-scopes": ["posts:delete"],
-          parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
-          responses: { "200": { description: "Post deleted" }, "404": { description: "Draft or scheduled post not found" } },
-        },
-      },
-      "/media": {
-        post: {
-          summary: "Upload post media",
-          description: "Required scope: media:upload. Uploads raw base64 or data URL media into the public post_media bucket and returns a public URL for post mediaUrls.",
-          "x-required-scopes": ["media:upload"],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  required: ["base64"],
-                  properties: {
-                    base64: { type: "string", description: "Raw base64 media or data URL." },
-                    mimeType: { type: "string", description: "Required for raw base64." },
-                    fileName: { type: "string" },
-                  },
-                },
-              },
-            },
-          },
-          responses: { "201": { description: "Media uploaded" }, "400": { description: "Invalid media payload" }, "401": { description: "Unauthorized" }, "403": { description: "Forbidden" } },
-        },
-      },
-      "/media/generate": {
-        post: {
-          summary: "Generate post media",
-          description: "Required scope: media:generate. When postId or post_id is provided, posts:update is also required and the generated image is attached to the draft or scheduled post. Generates an AI image through SwiftFlow, stores it in post_media, and returns a post-ready public URL.",
-          "x-required-scopes": ["media:generate", "posts:update"],
-          requestBody: {
-            required: true,
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    prompt: { type: "string", description: "Image prompt. Required unless postId is provided and the post has a caption." },
-                    style: { type: "string" },
-                    id: { type: "string", format: "uuid", description: "Alias for postId." },
-                    postId: { type: "string", format: "uuid", description: "Optional draft or scheduled post to attach the generated image to." },
-                    post_id: { type: "string", format: "uuid", description: "Alias for postId." },
-                    attachMode: { type: "string", enum: ["replace", "append"], default: "replace" },
-                    attach_mode: { type: "string", enum: ["replace", "append"], default: "replace", description: "Alias for attachMode." },
-                    append: { type: "boolean", description: "Optional boolean alias. true means append without replacing existing media." },
-                    mediaUrls: { type: "array", items: { type: "string" }, description: "Optional agent context. SwiftFlow reads current media from the post record when attaching." },
-                    media_urls: { type: "array", items: { type: "string" }, description: "Alias for mediaUrls. Optional agent context." },
-                    referenceImages: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          base64: { type: "string" },
-                          mimeType: { type: "string" },
-                        },
-                      },
-                    },
-                    referenceMode: { type: "string" },
-                    brandImageMode: { type: "string" },
-                    transformAction: { type: "string" },
-                  },
-                },
-              },
-            },
-          },
-          responses: { "201": { description: "Generated media created" }, "400": { description: "Invalid payload" }, "401": { description: "Unauthorized" }, "403": { description: "Forbidden" }, "404": { description: "Draft or scheduled post not found" }, "502": { description: "Image generation failed" } },
-        },
-      },
       "/social-accounts": {
         get: {
           summary: "List connected social accounts",
@@ -274,14 +163,6 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
           "x-required-scopes": ["automations:toggle"],
           parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
           responses: { "200": { description: "Automation active state updated" }, "400": { description: "Invalid payload" } },
-        },
-      },
-      "/content-intelligence/analyze-post": {
-        post: {
-          summary: "Analyze draft content",
-          description: "Required scope: content_intelligence:run. Refreshes stale analytics signals before analysis when possible.",
-          "x-required-scopes": ["content_intelligence:run"],
-          responses: { "200": { description: "Content intelligence result" }, "429": { description: "Rate limited" } },
         },
       },
     },

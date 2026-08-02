@@ -14,7 +14,6 @@ export type RetentionPolicy = {
     logRetentionDays: number
     analyticsRetentionDays: number
     messageRetentionDays: number
-    generatedAssetRetentionDays: number
     mediaRetentionDays: number
     auditLogRetentionDays: number
     tempSessionRetentionHours: number
@@ -26,7 +25,6 @@ export const RETENTION_TIER_DEFAULTS: Record<RetentionTier, RetentionPolicy> = {
         logRetentionDays: 30,
         analyticsRetentionDays: 90,
         messageRetentionDays: 180,
-        generatedAssetRetentionDays: 90,
         mediaRetentionDays: 90,
         auditLogRetentionDays: 180,
         tempSessionRetentionHours: 24,
@@ -36,7 +34,6 @@ export const RETENTION_TIER_DEFAULTS: Record<RetentionTier, RetentionPolicy> = {
         logRetentionDays: 90,
         analyticsRetentionDays: 365,
         messageRetentionDays: 365,
-        generatedAssetRetentionDays: 365,
         mediaRetentionDays: 365,
         auditLogRetentionDays: 365,
         tempSessionRetentionHours: 24,
@@ -46,7 +43,6 @@ export const RETENTION_TIER_DEFAULTS: Record<RetentionTier, RetentionPolicy> = {
         logRetentionDays: 180,
         analyticsRetentionDays: 730,
         messageRetentionDays: 730,
-        generatedAssetRetentionDays: 730,
         mediaRetentionDays: 730,
         auditLogRetentionDays: 730,
         tempSessionRetentionHours: 24,
@@ -58,7 +54,6 @@ export type RetentionPolicyRow = {
     log_retention_days: number | null
     analytics_retention_days: number | null
     message_retention_days: number | null
-    generated_asset_retention_days: number | null
     media_retention_days: number | null
     audit_log_retention_days: number | null
     temp_session_retention_hours: number | null
@@ -80,7 +75,6 @@ export function resolveRetentionPolicy(tier: RetentionTier, row: RetentionPolicy
         logRetentionDays: positiveOrDefault(row.log_retention_days, defaults.logRetentionDays),
         analyticsRetentionDays: positiveOrDefault(row.analytics_retention_days, defaults.analyticsRetentionDays),
         messageRetentionDays: positiveOrDefault(row.message_retention_days, defaults.messageRetentionDays),
-        generatedAssetRetentionDays: positiveOrDefault(row.generated_asset_retention_days, defaults.generatedAssetRetentionDays),
         mediaRetentionDays: positiveOrDefault(row.media_retention_days, defaults.mediaRetentionDays),
         auditLogRetentionDays: positiveOrDefault(row.audit_log_retention_days, defaults.auditLogRetentionDays),
         tempSessionRetentionHours: positiveOrDefault(row.temp_session_retention_hours, defaults.tempSessionRetentionHours),

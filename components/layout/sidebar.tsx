@@ -4,9 +4,8 @@ import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ChevronLeft, ChevronRight, LogOut, PenSquare } from "lucide-react"
+import { ChevronLeft, ChevronRight, LogOut } from "lucide-react"
 import { signOut } from "@/app/actions/auth"
-import { CreatePostTrigger } from "@/components/create/create-post-trigger"
 import {
     accountNavigation,
     engagementNavigation,
@@ -149,19 +148,6 @@ export function Sidebar({ workspaces, activeWorkspace, isReviewPhase1Release }: 
                 </div>
 
                 <div className="flex-1 overflow-y-auto px-3 py-4">
-                    <CreatePostTrigger workspaceId={activeWorkspace?.id}>
-                        <button
-                            type="button"
-                            className={cn(
-                                "group mb-5 flex min-h-11 items-center justify-center rounded-xl border border-violet-300/20 bg-linear-to-r from-violet-600 to-indigo-600 font-semibold text-white shadow-[0_10px_30px_rgba(72,52,166,0.23)] transition hover:-translate-y-0.5 hover:brightness-110 active:translate-y-0",
-                                isCollapsed ? "mx-auto w-11 px-0" : "w-full gap-2.5 px-4 text-sm",
-                            )}
-                            aria-label="Create post"
-                        >
-                            <PenSquare className="h-4 w-4" aria-hidden="true" />
-                            {isCollapsed ? null : <span>Create post</span>}
-                        </button>
-                    </CreatePostTrigger>
 
                     <nav className="space-y-5" aria-label="Primary navigation">
                         {sections.map((section) =>

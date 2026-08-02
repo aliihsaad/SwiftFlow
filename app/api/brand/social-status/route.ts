@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { canPublishWithMetaAccount, canReadConnectedMediaWithMetaAccount, sanitizeMetaAccountMetadataForClient } from '@/lib/meta-account';
+import { canReadConnectedMediaWithMetaAccount, sanitizeMetaAccountMetadataForClient } from '@/lib/meta-account';
 import { deriveInstagramAutomationHealth } from '@/lib/instagram-onboarding';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { createClient } from '@/utils/supabase/server';
@@ -60,25 +60,14 @@ export async function GET(request: NextRequest) {
                     account.platform === 'instagram'
                     || (account.platform === 'facebook' && Boolean(account.metadata.instagram_business_account_id))
             ),
-            facebookPublishReady: sanitizedAccounts.some(
-                (account) => account.platform === 'facebook' && canPublishWithMetaAccount(account.metadata, 'facebook')
-            ),
             facebookReadReady: sanitizedAccounts.some(
                 (account) => account.platform === 'facebook' && canReadConnectedMediaWithMetaAccount(account.metadata, 'facebook')
             ),
             facebookGrantedScopes,
             facebookMissingReadScopes: facebookRequiredReadScopes.filter((scope) => !facebookGrantedScopes.includes(scope)),
-            instagramPublishReady: sanitizedAccounts.some(
-                (account) => account.platform === 'instagram' && canPublishWithMetaAccount(account.metadata, 'instagram')
-            ),
             instagramAutomationHealth,
             instagramConnectionMethod: instagramAccount?.metadata.connection_method ?? null,
             instagramWebhookStatus: instagramAccount?.metadata.webhook_subscription_status ?? null,
-            publishReady: sanitizedAccounts.some(
-                (account) =>
-                    (account.platform === 'facebook' && canPublishWithMetaAccount(account.metadata, 'facebook'))
-                    || (account.platform === 'instagram' && canPublishWithMetaAccount(account.metadata, 'instagram'))
-            ),
             // Worst token health across accounts, from the daily token-health
             // sweep. null = not checked yet.
             tokenHealth: sanitizedAccounts.reduce<string | null>((worst, account) => {

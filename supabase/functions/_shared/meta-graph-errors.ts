@@ -9,7 +9,7 @@ export interface MetaGraphErrorShape {
 }
 
 export interface MetaErrorContext {
-    feature?: 'messages' | 'comments' | 'analytics' | 'publishing' | 'generic';
+    feature?: 'messages' | 'comments' | 'analytics' | 'generic';
     platform?: 'instagram' | 'facebook' | string;
     operation?: string;
 }
@@ -66,16 +66,6 @@ function inferMissingPermissions(ctx?: MetaErrorContext): string[] {
         return ['instagram_business_manage_insights', 'pages_read_engagement'];
     }
 
-    if (ctx?.feature === 'publishing') {
-        if (ctx.platform === 'instagram') {
-            return ['instagram_content_publish'];
-        }
-        if (ctx.platform === 'facebook') {
-            return ['pages_manage_posts'];
-        }
-        return ['pages_manage_posts', 'instagram_content_publish'];
-    }
-
     return [];
 }
 
@@ -109,10 +99,6 @@ function buildPermissionMessage(ctx?: MetaErrorContext, missingPermissions: stri
         return `Analytics sync is limited or unavailable. Reconnect with ${permissionList}.`;
     }
 
-    if (ctx?.feature === 'publishing') {
-        return `Publishing is not enabled for this account. Reconnect with ${permissionList}.`;
-    }
-
     return `This action requires additional Meta permissions: ${permissionList}.`;
 }
 
@@ -139,7 +125,7 @@ export function normalizeMetaGraphError(
     const isPermissionError =
         code === 10 ||
         code === 200 ||
-        /permission|requires permission|not authorized|appropriate role|pages_manage_posts|instagram_content_publish|instagram_business_manage_insights/.test(lower);
+        /permission|requires permission|not authorized|appropriate role|instagram_business_manage_insights/.test(lower);
 
     if (isPermissionError) {
         const missingPermissions = inferMissingPermissions(ctx);

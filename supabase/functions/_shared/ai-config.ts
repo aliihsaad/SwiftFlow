@@ -10,20 +10,13 @@ import { decryptSecretIfNeeded } from "./secret-crypto.ts"
 export const DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
 export const DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 export const DEFAULT_OPENROUTER_MODEL = "openai/gpt-4o-mini"
-export const DEFAULT_OPENROUTER_IMAGE_MODEL = "google/gemini-2.5-flash-image"
 export const DEFAULT_TEMPERATURE = 0.7
 export const DEFAULT_MAX_TOKENS = 2048
-export const DEFAULT_GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image"
-export const DEFAULT_OPENAI_IMAGE_MODEL = "gpt-image-1-mini"
 
 /** Models that are deprecated or renamed — auto-upgrade them. */
 const GEMINI_MODEL_UPGRADES: Record<string, string> = {
     "gemini-pro": DEFAULT_GEMINI_MODEL,
     "gemini-1.5-flash-latest": "gemini-1.5-flash",
-}
-
-const OPENROUTER_IMAGE_MODEL_UPGRADES: Record<string, string> = {
-    "google/gemini-2.5-flash-image-preview": DEFAULT_OPENROUTER_IMAGE_MODEL,
 }
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -50,8 +43,6 @@ export interface ResolveOptions {
     }
     /** Workspace ID to fetch settings for */
     workspaceId: string
-    /** Model capability to resolve */
-    capability?: "text" | "image"
     /** Override model name (e.g. from automation node config) */
     modelOverride?: string
     /** Override max tokens */
@@ -66,37 +57,28 @@ function normalizeApiKey(value: unknown): string {
     return String(value || "").trim().replace(/^['"]|['"]$/g, "")
 }
 
-function getDefaultModelForCapability(provider: string, capability: "text" | "image"): string {
-    if (capability === "image") {
-        if (provider === "openrouter") return DEFAULT_OPENROUTER_IMAGE_MODEL
-        if (provider === "openai") return DEFAULT_OPENAI_IMAGE_MODEL
-        return DEFAULT_GEMINI_IMAGE_MODEL
-    }
-
+function getDefaultModel(provider: string): string {
     if (provider === "openrouter") return DEFAULT_OPENROUTER_MODEL
     if (provider === "openai") return DEFAULT_OPENAI_MODEL
     return DEFAULT_GEMINI_MODEL
 }
 
-function upgradeModelName(model: string, provider: string, capability: "text" | "image"): string {
+function upgradeModelName(model: string, provider: string): string {
     const trimmed = model.trim()
     if (!trimmed) {
-        return getDefaultModelForCapability(provider, capability)
+        return getDefaultModel(provider)
     }
 
     // Cross-provider mismatch: user picked a Gemini model but switched to OpenAI (or vice versa)
-    if (provider === "openai" && trimmed.startsWith("gemini")) return getDefaultModelForCapability(provider, capability)
-    if (provider === "gemini" && trimmed.startsWith("gpt-")) return getDefaultModelForCapability(provider, capability)
-    if (provider === "openrouter" && !trimmed.includes("/")) return getDefaultModelForCapability(provider, capability)
+    if (provider === "openai" && trimmed.startsWith("gemini")) return getDefaultModel(provider)
+    if (provider === "gemini" && trimmed.startsWith("gpt-")) return getDefaultModel(provider)
+    if (provider === "openrouter" && !trimmed.includes("/")) return getDefaultModel(provider)
     if (provider !== "openrouter" && trimmed.includes("/")) {
-        return getDefaultModelForCapability(provider, capability)
+        return getDefaultModel(provider)
     }
 
     // Apply known upgrades for deprecated models
-    if (capability === "image" && provider === "openrouter" && OPENROUTER_IMAGE_MODEL_UPGRADES[trimmed]) {
-        return OPENROUTER_IMAGE_MODEL_UPGRADES[trimmed]
-    }
-    if (capability === "text" && provider === "gemini" && GEMINI_MODEL_UPGRADES[trimmed]) {
+    if (provider === "gemini" && GEMINI_MODEL_UPGRADES[trimmed]) {
         return GEMINI_MODEL_UPGRADES[trimmed]
     }
 
@@ -110,12 +92,12 @@ function upgradeModelName(model: string, provider: string, capability: "text" | 
  * Throws a clear, user-friendly error if the key is missing or malformed.
  */
 export async function resolveAIConfig(opts: ResolveOptions): Promise<AIConfig> {
-    const { supabase, workspaceId, capability = "text", modelOverride, maxTokensOverride, useGlobalSettings = true } = opts
+    const { supabase, workspaceId, modelOverride, maxTokensOverride, useGlobalSettings = true } = opts
 
     // 1. Fetch workspace settings
     const { data: settings, error: settingsError } = await supabase
         .from("workspace_settings")
-        .select("ai_provider, openrouter_api_key, gemini_api_key, openai_api_key, ai_text_model_name, ai_image_model_name, ai_model_name, ai_temperature, ai_max_tokens")
+        .select("ai_provider, openrouter_api_key, gemini_api_key, openai_api_key, ai_text_model_name, ai_model_name, ai_temperature, ai_max_tokens")
         .eq("workspace_id", workspaceId)
         .maybeSingle()
 
@@ -176,14 +158,11 @@ export async function resolveAIConfig(opts: ResolveOptions): Promise<AIConfig> {
     }
 
     // 3. Resolve model name
-    const settingsModel =
-        capability === "image"
-            ? (settings?.ai_image_model_name || "")
-            : (settings?.ai_text_model_name || settings?.ai_model_name || "")
+    const settingsModel = settings?.ai_text_model_name || settings?.ai_model_name || ""
     const rawModel = useGlobalSettings
         ? settingsModel
         : (modelOverride || settingsModel || "")
-    const modelName = upgradeModelName(rawModel, provider, capability)
+    const modelName = upgradeModelName(rawModel, provider)
 
     // 4. Temperature & tokens
     const temperature = Number(settings?.ai_temperature ?? DEFAULT_TEMPERATURE)
@@ -226,7 +205,7 @@ export function toUserFriendlyError(error: unknown): string {
         return "Your AI API key doesn't have permission for this operation. Check your Google Cloud project settings."
     }
     if (/No endpoints found for/i.test(raw)) {
-        return "The selected image model is not currently available through your AI provider route. Choose another image model in Settings → AI Provider."
+        return "The selected AI model is not currently available through your provider route. Choose another text model in Settings → AI Provider."
     }
     if (/NOT_FOUND|MODEL_NOT_FOUND/i.test(raw)) {
         return "The selected AI model was not found. Try changing the model in Settings → AI Provider."

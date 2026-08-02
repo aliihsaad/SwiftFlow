@@ -6,7 +6,6 @@ import {
   ArrowRight,
   Bot,
   CirclePause,
-  LayoutGrid,
   MessageCircleMore,
   Plus,
   Search,
@@ -17,12 +16,10 @@ import {
 } from "lucide-react"
 
 import { ActiveAutomationsList } from "@/components/automation/active-automations-list"
-import { PublishingAutomationsPanel } from "@/components/automation/publishing-automations-panel"
 import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
 import { cn } from "@/lib/utils"
 import type { Automation } from "@/types/automation"
 
-type WorkspaceTab = "engagement" | "publishing"
 type StatusFilter = "all" | "active" | "paused"
 
 interface AutomationCommandCenterProps {
@@ -111,7 +108,6 @@ export function AutomationCommandCenter({
   onDelete,
   onViewRuns,
 }: AutomationCommandCenterProps) {
-  const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("engagement")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [query, setQuery] = useState("")
 
@@ -212,55 +208,6 @@ export function AutomationCommandCenter({
           </div>
         </div>
       </section>
-
-      <section className="rounded-[24px] border border-white/[0.08] bg-[#11121b]/85 p-2 shadow-[0_20px_60px_rgba(0,0,0,.18)]">
-        <div className="grid grid-cols-2 gap-2" role="tablist" aria-label="Automation workspace">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={workspaceTab === "engagement"}
-            onClick={() => setWorkspaceTab("engagement")}
-            className={cn(
-              "flex min-h-16 items-center gap-3 rounded-[18px] px-4 text-left transition",
-              workspaceTab === "engagement"
-                ? "border border-cyan-300/15 bg-gradient-to-r from-cyan-300/[0.10] to-violet-400/[0.07] text-white"
-                : "border border-transparent text-white/40 hover:bg-white/[0.025] hover:text-white/65",
-            )}
-          >
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/[0.06]">
-              <MessageCircleMore className="size-4" aria-hidden="true" />
-            </span>
-            <span>
-              <span className="block text-sm font-semibold">Engagement journeys</span>
-              <span className="mt-0.5 hidden text-xs text-white/35 sm:block">Comments, messages, stories, and AI</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={workspaceTab === "publishing"}
-            onClick={() => setWorkspaceTab("publishing")}
-            className={cn(
-              "flex min-h-16 items-center gap-3 rounded-[18px] px-4 text-left transition",
-              workspaceTab === "publishing"
-                ? "border border-fuchsia-300/15 bg-gradient-to-r from-fuchsia-300/[0.10] to-amber-300/[0.07] text-white"
-                : "border border-transparent text-white/40 hover:bg-white/[0.025] hover:text-white/65",
-            )}
-          >
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/[0.06]">
-              <LayoutGrid className="size-4" aria-hidden="true" />
-            </span>
-            <span>
-              <span className="block text-sm font-semibold">Publishing studio</span>
-              <span className="mt-0.5 hidden text-xs text-white/35 sm:block">AI content pipelines and schedules</span>
-            </span>
-          </button>
-        </div>
-      </section>
-
-      {workspaceTab === "publishing" ? (
-        <PublishingAutomationsPanel readOnly={!canWrite} />
-      ) : (
         <section className="rounded-[28px] border border-white/[0.08] bg-[#101119]/90 p-4 shadow-[0_22px_70px_rgba(0,0,0,.2)] sm:p-6">
           <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
             <div>
@@ -356,7 +303,6 @@ export function AutomationCommandCenter({
             )}
           </div>
         </section>
-      )}
     </div>
   )
 }

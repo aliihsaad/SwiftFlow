@@ -238,19 +238,6 @@
     padding: 1rem;
   }
 
-  .sf-footer {
-    display: none;
-    min-height: 2.25rem;
-    flex-shrink: 0;
-    align-items: center;
-    justify-content: space-between;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    background: rgba(8, 10, 18, 0.88);
-    padding: 0 1.5rem;
-    color: rgba(255, 255, 255, 0.26);
-    font-size: 0.675rem;
-  }
-
   .sf-panel {
     border: 1px solid rgba(255, 255, 255, 0.09);
     border-radius: 1.25rem;
@@ -286,11 +273,6 @@
   }
 }
 
-@media (min-width: 1280px) {
-  .sf-footer {
-    display: flex;
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   *,

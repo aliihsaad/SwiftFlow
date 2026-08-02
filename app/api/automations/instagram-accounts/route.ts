@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 
 // GET - List Instagram accounts for the workspace
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         const supabase = await createClient();
 

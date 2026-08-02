@@ -37,25 +37,18 @@ interface OpenRouterModelRecord {
 function isLikelyTextOpenRouterModel(id: string): boolean {
   const normalized = id.trim().toLowerCase()
   if (!normalized || !normalized.includes('/')) return false
-  const excluded =
-    /(embedding|moderation|whisper|tts|transcribe|realtime|image|audio|video|vision-preview|omni-moderation)/i
-  return !excluded.test(normalized)
+  return !/(embedding|moderation|whisper|tts|transcribe|realtime|image|audio|video|vision-preview|omni-moderation)/i.test(normalized)
 }
 
 function isLikelyTextOpenAIModel(id: string): boolean {
   const isBaseTextModel = /^(gpt-|chatgpt-|o\d)/i.test(id)
   const isFineTunedTextModel = /^ft:/i.test(id) && /(gpt-|chatgpt-|o\d)/i.test(id)
   if (!isBaseTextModel && !isFineTunedTextModel) return false
-  const excluded = /(audio|transcribe|realtime|search|image|moderation|embedding|whisper|tts|instruct|codex)/i
-  return !excluded.test(id)
+  return !/(audio|transcribe|realtime|search|image|moderation|embedding|whisper|tts|instruct|codex)/i.test(id)
 }
 
-function isLikelyImageOpenAIModel(id: string): boolean {
-  return /^(gpt-image-1(\.5|-mini)?|dall-e-2|dall-e-3)$/i.test(id.trim())
-}
-
-async function fetchGeminiModels(apiKey: string, capability: 'text' | 'image'): Promise<string[]> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
+async function fetchGeminiModels(apiKey: string): Promise<string[]> {
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(apiKey)
   const response = await fetch(url, { cache: 'no-store' })
   const result = await response.json()
 
@@ -64,22 +57,21 @@ async function fetchGeminiModels(apiKey: string, capability: 'text' | 'image'): 
   }
 
   const models = (Array.isArray(result?.models) ? result.models : [])
-    .filter((m: { supportedGenerationMethods?: string[] }) =>
-      Array.isArray(m?.supportedGenerationMethods) &&
-      m.supportedGenerationMethods.includes('generateContent')
+    .filter((model: { supportedGenerationMethods?: string[] }) =>
+      Array.isArray(model?.supportedGenerationMethods) &&
+      model.supportedGenerationMethods.includes('generateContent')
     )
-    .map((m: { name?: string }) => normalizeGeminiModelName(String(m?.name || '')))
-    .filter((id: string) => id.startsWith('gemini'))
-    .filter((id: string) => capability === 'image' ? id.includes('image') : !id.includes('image'))
+    .map((model: { name?: string }) => normalizeGeminiModelName(String(model?.name || '')))
+    .filter((id: string) => id.startsWith('gemini') && !id.includes('image'))
 
   return sortModelIds(models)
 }
 
-async function fetchOpenAIModels(apiKey: string, capability: 'text' | 'image'): Promise<string[]> {
+async function fetchOpenAIModels(apiKey: string): Promise<string[]> {
   const response = await fetch('https://api.openai.com/v1/models', {
     method: 'GET',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: 'Bearer ' + apiKey,
       'Content-Type': 'application/json',
     },
     cache: 'no-store',
@@ -90,100 +82,79 @@ async function fetchOpenAIModels(apiKey: string, capability: 'text' | 'image'): 
     throw new Error(result?.error?.message || 'OpenAI models fetch failed')
   }
 
-  const models = (Array.isArray(result?.data) ? result.data : [])
-    .map((m: { id?: string }) => String(m?.id || '').trim())
+  return sortModelIds(
+    (Array.isArray(result?.data) ? result.data : [])
+      .map((model: { id?: string }) => String(model?.id || '').trim())
+      .filter((id: string) => Boolean(id) && isLikelyTextOpenAIModel(id)),
+  )
+}
+
+async function fetchOpenRouterModels(apiKey: string): Promise<string[]> {
+  const response = await fetch('https://openrouter.ai/api/v1/models?output_modalities=text', {
+    method: 'GET',
+    headers: {
+      Authorization: 'Bearer ' + apiKey,
+      'Content-Type': 'application/json',
+    },
+    cache: 'no-store',
+  })
+
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(result?.error?.message || 'OpenRouter models fetch failed')
+  }
+
+  const rows = (Array.isArray(result?.data) ? result.data : []) as OpenRouterModelRecord[]
+  const models = rows
+    .map((model) => {
+      const id = String(model?.id || '').trim()
+      const outputModalities = Array.isArray(model?.architecture?.output_modalities)
+        ? model.architecture.output_modalities.map((entry) => String(entry || '').trim().toLowerCase())
+        : []
+
+      if (!id || (outputModalities.length > 0 && !outputModalities.includes('text'))) return ''
+      return isLikelyTextOpenRouterModel(id) ? id : ''
+    })
     .filter(Boolean)
-    .filter((id: string) => capability === 'image' ? isLikelyImageOpenAIModel(id) : isLikelyTextOpenAIModel(id))
 
   return sortModelIds(models)
 }
 
-async function fetchOpenRouterModels(apiKey: string, capability: 'text' | 'image'): Promise<string[]> {
-  const queries =
-    capability === 'image'
-      ? ['?output_modalities=image', '?output_modality=image', '']
-      : ['?output_modalities=text', '']
-
-  let lastError = 'OpenRouter models fetch failed'
-
-  for (const suffix of queries) {
-    const response = await fetch(`https://openrouter.ai/api/v1/models${suffix}`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      cache: 'no-store',
-    })
-
-    const result = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      lastError = result?.error?.message || `OpenRouter models fetch failed (${response.status})`
-      continue
-    }
-
-    const rows = (Array.isArray(result?.data) ? result.data : []) as OpenRouterModelRecord[]
-    const models = rows
-      .map((model) => {
-        const id = String(model?.id || '').trim()
-        const outputModalities = Array.isArray(model?.architecture?.output_modalities)
-          ? model.architecture.output_modalities.map((entry) => String(entry || '').trim().toLowerCase())
-          : []
-
-        if (!id) return ''
-        if (capability === 'image') {
-          return outputModalities.includes('image') ? id : ''
-        }
-
-        if (outputModalities.length > 0 && !outputModalities.includes('text')) {
-          return ''
-        }
-
-        return isLikelyTextOpenRouterModel(id) ? id : ''
-      })
-      .filter(Boolean)
-
-    if (models.length > 0) {
-      return sortModelIds(models)
-    }
-  }
-
-  throw new Error(lastError)
+async function fetchProviderModels(provider: AIProvider, apiKey: string): Promise<string[]> {
+  if (provider === 'openrouter') return fetchOpenRouterModels(apiKey)
+  if (provider === 'gemini') return fetchGeminiModels(apiKey)
+  return fetchOpenAIModels(apiKey)
 }
 
-async function fetchProviderModels(provider: AIProvider, apiKey: string, capability: 'text' | 'image'): Promise<string[]> {
-  if (provider === 'openrouter') return fetchOpenRouterModels(apiKey, capability)
-  if (provider === 'gemini') return fetchGeminiModels(apiKey, capability)
-  return fetchOpenAIModels(apiKey, capability)
+function fallbackPayload(provider: AIProvider, reason: string) {
+  return {
+    models: getFallbackModelsForProvider(provider),
+    curated: getCuratedModelsForProvider(provider),
+    provider,
+    capability: 'text',
+    source: 'fallback',
+    reason,
+  }
 }
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     const providerParam = request.nextUrl.searchParams.get('provider') || 'openrouter'
-    const capabilityParam = request.nextUrl.searchParams.get('capability') === 'image' ? 'image' : 'text'
+    const capabilityParam = request.nextUrl.searchParams.get('capability')
     if (!isAIProvider(providerParam)) {
       return NextResponse.json({ error: 'Invalid provider' }, { status: 400 })
+    }
+    if (capabilityParam && capabilityParam !== 'text') {
+      return NextResponse.json({ error: 'Only text models are supported' }, { status: 400 })
     }
 
     const activeWorkspace = await getActiveWorkspace()
     if (!activeWorkspace) {
-      return NextResponse.json(
-        {
-          models: getFallbackModelsForProvider(providerParam, capabilityParam),
-          curated: getCuratedModelsForProvider(providerParam, capabilityParam),
-          provider: providerParam,
-          capability: capabilityParam,
-          source: 'fallback',
-          reason: 'no_active_workspace',
-        },
-        { status: 200 }
-      )
+      return NextResponse.json(fallbackPayload(providerParam, 'no_active_workspace'))
     }
 
     const { data: settings } = await supabase
@@ -196,59 +167,29 @@ export async function GET(request: NextRequest) {
       providerParam === 'openrouter'
         ? normalizeApiKey(decryptSecretIfNeeded(settings?.openrouter_api_key))
         : providerParam === 'gemini'
-        ? normalizeApiKey(decryptSecretIfNeeded(settings?.gemini_api_key))
-        : normalizeApiKey(decryptSecretIfNeeded(settings?.openai_api_key))
+          ? normalizeApiKey(decryptSecretIfNeeded(settings?.gemini_api_key))
+          : normalizeApiKey(decryptSecretIfNeeded(settings?.openai_api_key))
 
     if (!apiKey) {
-      return NextResponse.json(
-        {
-          models: getFallbackModelsForProvider(providerParam, capabilityParam),
-          curated: getCuratedModelsForProvider(providerParam, capabilityParam),
-          provider: providerParam,
-          capability: capabilityParam,
-          source: 'fallback',
-          reason: 'missing_api_key',
-        },
-        { status: 200 }
-      )
+      return NextResponse.json(fallbackPayload(providerParam, 'missing_api_key'))
     }
 
     try {
-      const models = await fetchProviderModels(providerParam, apiKey, capabilityParam)
+      const models = await fetchProviderModels(providerParam, apiKey)
       if (!models.length) {
-        return NextResponse.json(
-          {
-            models: getFallbackModelsForProvider(providerParam, capabilityParam),
-            curated: getCuratedModelsForProvider(providerParam, capabilityParam),
-            provider: providerParam,
-            capability: capabilityParam,
-            source: 'fallback',
-            reason: 'empty_provider_list',
-          },
-          { status: 200 }
-        )
+        return NextResponse.json(fallbackPayload(providerParam, 'empty_provider_list'))
       }
 
       return NextResponse.json({
         models,
-        curated: getCuratedModelsForProvider(providerParam, capabilityParam),
+        curated: getCuratedModelsForProvider(providerParam),
         provider: providerParam,
-        capability: capabilityParam,
+        capability: 'text',
         source: 'live',
       })
     } catch (providerError) {
       console.error('[AI_MODELS] Provider fetch failed:', providerError)
-      return NextResponse.json(
-        {
-          models: getFallbackModelsForProvider(providerParam, capabilityParam),
-          curated: getCuratedModelsForProvider(providerParam, capabilityParam),
-          provider: providerParam,
-          capability: capabilityParam,
-          source: 'fallback',
-          reason: 'provider_fetch_failed',
-        },
-        { status: 200 }
-      )
+      return NextResponse.json(fallbackPayload(providerParam, 'provider_fetch_failed'))
     }
   } catch (error) {
     console.error('[AI_MODELS] Unexpected error:', error)

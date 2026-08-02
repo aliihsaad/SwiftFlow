@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Loader2 } from "lucide-react"
-import { createWorkspace, switchWorkspace } from "@/app/actions/workspace"
+import { createWorkspace } from "@/app/actions/workspace"
 import { toast } from "sonner"
 
 interface AddWorkspaceModalProps {
@@ -25,11 +25,11 @@ export function AddWorkspaceModal({ open, onOpenChange }: AddWorkspaceModalProps
         setIsLoading(true)
 
         try {
-            const workspace = await createWorkspace(name)
+            await createWorkspace(name)
             toast.success(`Workspace "${name}" created successfully!`)
 
-            // Auto-switch is handled by createWorkspace (sets cookie)
-            // await switchWorkspace(workspace.id)
+
+
 
             onOpenChange(false)
             setName("")

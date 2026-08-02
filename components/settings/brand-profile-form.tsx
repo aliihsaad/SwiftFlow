@@ -538,7 +538,11 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                         <Label className={labelClass}>Logo</Label>
                         <div className="flex items-center gap-4">
                             {profile?.logo_url && (
+                                <>
+                                {/* User-configured image hosts intentionally bypass the Next image proxy. */}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={profile.logo_url} alt="Logo" className="h-16 w-16 object-contain rounded border border-white/10 bg-[#1b1d28] p-2" />
+                                </>
                             )}
                             <Input
                                 className={inputClass}
@@ -561,6 +565,8 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                             {profile?.reference_image_urls?.map((url: string, i: number) => (
                                 <div key={i} className="relative group">
+                                    {/* User-configured image hosts intentionally bypass the Next image proxy. */}
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={url} alt={`Reference ${i + 1}`} className="w-full aspect-square object-cover rounded border border-white/10" />
                                     <button
                                         onClick={() => removeReferenceImage(i)}

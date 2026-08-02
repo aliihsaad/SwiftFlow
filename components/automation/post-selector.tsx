@@ -144,11 +144,15 @@ export function PostSelector({
                                     )}
                                 >
                                     {post.thumbnail_url || post.media_url ? (
+                                        <>
+                                        {/* Meta CDN URLs are signed and time-bound, so they intentionally bypass Next image proxying. */}
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
                                         <img
                                             src={post.thumbnail_url || post.media_url!}
                                             alt={post.caption || 'Instagram post'}
                                             className="absolute inset-0 w-full h-full object-cover"
                                         />
+                                        </>
                                     ) : (
                                         <div className="w-full h-full bg-muted flex items-center justify-center">
                                             <ImageIcon className="h-8 w-8 text-muted-foreground" />
@@ -187,11 +191,15 @@ export function PostSelector({
                     <div className="flex items-start gap-3 mt-2">
                         <div className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0">
                             {selectedPost.thumbnail_url || selectedPost.media_url ? (
+                                <>
+                                {/* Meta CDN URLs are signed and time-bound, so they intentionally bypass Next image proxying. */}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                     src={selectedPost.thumbnail_url || selectedPost.media_url!}
                                     alt="Selected post"
                                     className="absolute inset-0 w-full h-full object-cover"
                                 />
+                                </>
                             ) : (
                                 <div className="w-full h-full bg-muted flex items-center justify-center">
                                     <ImageIcon className="h-6 w-6 text-muted-foreground" />

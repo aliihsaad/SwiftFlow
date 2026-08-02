@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-    canPublishWithMetaAccount,
+    canManageProviderPostsWithMetaAccount,
     canReadConnectedMediaWithMetaAccount,
     decryptMetaAccountRow,
 } from '@/lib/meta-account';
@@ -484,7 +484,7 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: 'No Facebook account or token available' }, { status: 400 });
         }
 
-        if (!canPublishWithMetaAccount(decryptedAccount.metadata, 'facebook')) {
+        if (!canManageProviderPostsWithMetaAccount(decryptedAccount.metadata, 'facebook')) {
             return postMediaCapabilityErrorResponse(platform, 'manage');
         }
 
@@ -571,7 +571,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: 'No Facebook account or token available' }, { status: 400 });
         }
 
-        if (!canPublishWithMetaAccount(decryptedAccount.metadata, 'facebook')) {
+        if (!canManageProviderPostsWithMetaAccount(decryptedAccount.metadata, 'facebook')) {
             return postMediaCapabilityErrorResponse(platform, 'manage');
         }
 

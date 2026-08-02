@@ -9,8 +9,6 @@ import type { Workspace } from "@/types/workspace"
 const routeDetails = [
     { match: "/dashboard/onboarding", title: "Setup guide", eyebrow: "Get started" },
     { match: "/dashboard/automation", title: "Automations", eyebrow: "Engage" },
-    { match: "/dashboard/assistant", title: "AI studio", eyebrow: "Create" },
-    { match: "/dashboard/scheduled", title: "Content calendar", eyebrow: "Publish" },
     { match: "/dashboard/analytics", title: "Analytics", eyebrow: "Understand" },
     { match: "/dashboard/comments", title: "Posts & comments", eyebrow: "Engage" },
     { match: "/dashboard/messages", title: "Inbox", eyebrow: "Engage" },

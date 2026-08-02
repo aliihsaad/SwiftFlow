@@ -1,18 +1,9 @@
 import { buildSupabaseFunctionHeaders, getSupabaseServiceRoleKey } from '@/lib/supabase/service-key'
 
 export type AssistantEdgeFunctionName =
-  | "chat-assistant"
-  | "generate-image"
-  | "generate-ideas"
-  | "generate-carousel"
   | "generate-reply"
   | "generate-message-reply"
-
 const ALLOWED_FUNCTIONS = new Set<AssistantEdgeFunctionName>([
-  "chat-assistant",
-  "generate-image",
-  "generate-ideas",
-  "generate-carousel",
   "generate-reply",
   "generate-message-reply",
 ])
@@ -28,7 +19,6 @@ export function assertAssistantEdgeFunctionName(value: unknown): AssistantEdgeFu
 
   return value as AssistantEdgeFunctionName
 }
-
 
 async function parseEdgeResponse(response: Response): Promise<unknown> {
   const rawText = await response.text()

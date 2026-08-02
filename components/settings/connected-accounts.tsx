@@ -75,12 +75,9 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     const [status, setStatus] = useState<{
         facebook: boolean
         instagram: boolean
-        facebookPublishReady: boolean
         facebookReadReady: boolean
         facebookGrantedScopes: string[]
         facebookMissingReadScopes: string[]
-        instagramPublishReady: boolean
-        publishReady: boolean
         tokenHealth?: 'valid' | 'expiring_soon' | 'invalid' | null
         instagramConnectionMethod?: "instagram_login" | "facebook_login" | null
         instagramAutomationHealth: InstagramAutomationHealth
@@ -88,12 +85,9 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     }>({
         facebook: false,
         instagram: false,
-        facebookPublishReady: false,
         facebookReadReady: false,
         facebookGrantedScopes: [],
         facebookMissingReadScopes: [],
-        instagramPublishReady: false,
-        publishReady: false,
         tokenHealth: null,
         instagramConnectionMethod: null,
         instagramAutomationHealth: {
@@ -224,7 +218,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                             </div>
                             <div className="mt-1 text-sm">
                                 Connected {pagesCount || '0'} Facebook Page(s) to your workspace.
-                                You can now schedule posts to Facebook and Instagram.
+                                You can now manage conversations, analytics, and engagement automations for these accounts.
                             </div>
                             {callbackWorkspace && callbackWorkspace !== workspaceId && (
                                 <div className="mt-2 text-xs font-medium text-amber-200">
@@ -354,23 +348,12 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                     </div>
                                     <div className="mt-1 text-sm">
                                         {status.tokenHealth === 'invalid'
-                                            ? 'Meta reports the saved access token is no longer valid. Publishing, syncing, and automations will fail until you reconnect the account.'
+                                            ? 'Meta reports the saved access token is no longer valid. Syncing and automations will fail until you reconnect the account.'
                                             : 'The saved Meta access token expires within 7 days. Reconnect the account to refresh it before anything stops working.'}
                                     </div>
                                 </div>
                             )}
 
-                            {!status.publishReady && (status.facebook || status.instagram) && (
-                                <div className="rounded-xl border border-amber-300/20 bg-amber-400/8 p-4 text-amber-100/90">
-                                    <div className="flex items-center gap-2 font-medium">
-                                        <AlertCircle className="h-4 w-4" />
-                                        Reconnect for publish access
-                                    </div>
-                                    <div className="mt-1 text-sm">
-                                        At least one connected account is missing publish permissions. Reconnect the affected account before sending live content.
-                                    </div>
-                                </div>
-                            )}
 
                             {status.facebook && !status.facebookReadReady && (
                                 <div className="rounded-xl border border-red-300/20 bg-red-500/10 p-4 text-red-100/90">
@@ -402,9 +385,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                         <h4 className="font-semibold text-white/85">Facebook Pages</h4>
                                         <p className="text-sm text-white/50">
                                             {status.facebook
-                                                ? status.facebookPublishReady
-                                                    ? `${status.accounts.filter(a => a.platform === 'facebook').length} page(s) connected and publish-ready`
-                                                    : `${status.accounts.filter(a => a.platform === 'facebook').length} page(s) connected but needs publish re-auth`
+                                                ? String(status.accounts.filter(a => a.platform === 'facebook').length) + ' page(s) connected'
                                                 : "Not connected"}
                                         </p>
                                     </div>
@@ -510,7 +491,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                             <Info className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
                             <span>
                                 <strong>Recommended:</strong> connect Instagram directly for the shortest automation setup.
-                                Facebook Page connection remains available above when you also need Facebook publishing and Page features.
+                                Facebook Page connection remains available above when you also need Page inbox, comment, analytics, or moderation features.
                             </span>
                         </p>
                     </div>

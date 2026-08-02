@@ -69,9 +69,6 @@ function buildWorkspaceSettingsUpdatePayload(settings: Record<string, unknown>) 
         payload.ai_model_name = payload.ai_model_name.trim()
         payload.ai_text_model_name = payload.ai_model_name
     }
-    if (typeof payload.ai_image_model_name === 'string') {
-        payload.ai_image_model_name = payload.ai_image_model_name.trim() || null
-    }
 
     return payload
 }
@@ -116,7 +113,6 @@ export async function GET(request: NextRequest) {
                 workspace_id: workspaceId,
                 ai_provider: 'openrouter',
                 ai_text_model_name: getDefaultModelForProvider('openrouter'),
-                ai_image_model_name: null,
                 ai_model_name: getDefaultModelForProvider('openrouter'),
                 openrouter_api_key: null,
                 gemini_api_key: null,
@@ -124,7 +120,6 @@ export async function GET(request: NextRequest) {
                 has_openrouter_api_key: false,
                 has_gemini_api_key: false,
                 has_openai_api_key: false,
-                floating_assistant_enabled: false,
                 timezone: 'UTC',
                 default_language: 'en'
             });

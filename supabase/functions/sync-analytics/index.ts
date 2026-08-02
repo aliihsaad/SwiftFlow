@@ -391,7 +391,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                                 views: igInsights.views || 0,
                             };
                             console.log(`[Sync] Instagram insights added for ${publishedPost.platform_post_id}`);
-                        } catch (insightsError) {
+                        } catch {
                             console.log(`[Sync] Could not fetch additional insights, using basic data only`);
                         }
                     } else {
@@ -459,7 +459,7 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
 
                     console.log(`[Sync] Upserting analytics for post ${publishedPost.id}`);
 
-                    const { data: upsertResult, error: upsertError } = await supabase
+                    const { error: upsertError } = await supabase
                         .from('post_analytics')
                         .upsert(analyticsData, {
                             onConflict: 'published_post_id'

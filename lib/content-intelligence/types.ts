@@ -40,14 +40,6 @@ export interface IntelligenceEvidence {
   }
 }
 
-export interface PostIntelligenceInput {
-  workspaceId: string
-  caption: string
-  platforms: ContentPlatform[]
-  mediaUrls: string[]
-  scheduledAt: string | null
-}
-
 export interface BrandSignal {
   businessName: string | null
   industry: string | null
@@ -102,52 +94,6 @@ export interface ContentIntelligenceSignals {
   }
 }
 
-export type StrengthBand = "strong" | "good" | "needs_work" | "weak"
-
-export interface StrengthFix {
-  id: string
-  title: string
-  description: string
-  impact: "high" | "medium" | "low"
-}
-
-export interface StrengthScore {
-  score: number
-  band: StrengthBand
-  confidence: IntelligenceConfidence
-  subScores: {
-    hook: number
-    brandFit: number
-    platformFit: number
-    hashtags: number
-    timing: number
-    trend: number
-    similarity: number
-    completeness: number
-  }
-  topFixes: StrengthFix[]
-  evidence: IntelligenceEvidence[]
-}
-
-export interface HashtagRecommendation {
-  tag: string
-  score: number
-  reason: string
-  category: "niche" | "audience" | "topic" | "brand" | "trend"
-  evidence: IntelligenceEvidence[]
-}
-
-export interface RecommendedSlot {
-  startsAt: string
-  platform: ContentPlatform | "all"
-  score: number
-  confidence: IntelligenceConfidence
-  reason: string
-  evidence: IntelligenceEvidence[]
-}
-
-export type SlotStrengthLabel = "strong" | "okay" | "weak"
-
 export interface ResearchFinding {
   title: string
   summary: string
@@ -185,15 +131,6 @@ export interface TrendReportResult {
   }
   gating: TrendReportGating
   generatedAt: string
-}
-
-export interface PostIntelligenceResult {
-  strength: StrengthScore
-  hashtags: HashtagRecommendation[]
-  slots: RecommendedSlot[]
-  evidence: IntelligenceEvidence[]
-  generatedAt: string
-  fallbackLevel: "personalized" | "mixed" | "benchmark"
 }
 
 export type AnalyticsInsightKind = "what_is_working" | "growth" | "risk"

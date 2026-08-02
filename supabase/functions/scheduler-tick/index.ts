@@ -1,12 +1,10 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+
 // @ts-nocheck - Deno runtime
 /**
  * Scheduler Tick (Supabase Cron target)
  *
  * Runs lightweight scheduler jobs on a single cadence:
- * - process-scheduled-posts
  * - process-scheduled-executions (delay node resumes)
- * - process-publishing-automations (AI draft generation)
  *
  * Configure a Supabase schedule (every minute) to invoke this function.
  */
@@ -20,9 +18,7 @@ const corsHeaders = {
 }
 
 type JobName =
-  | "process-scheduled-posts"
   | "process-scheduled-executions"
-  | "process-publishing-automations"
   | "retention-cleanup"
   | "token-health-sweep"
 
@@ -71,9 +67,7 @@ serve(async (req) => {
   try {
     const tickStartedAt = Date.now()
     const jobRuns = [
-      runJob("process-scheduled-posts"),
       runJob("process-scheduled-executions"),
-      runJob("process-publishing-automations"),
     ]
 
     // Hourly jobs piggyback on the minute tick at fixed offsets. Retention

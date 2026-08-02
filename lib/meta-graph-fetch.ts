@@ -3,7 +3,7 @@
  *
  * Retries 429s, 5xx responses, and network failures with exponential backoff
  * plus jitter. Only idempotent requests (GET/HEAD) are retried by default —
- * publishing POSTs must not be replayed blindly or a transient timeout could
+ * provider-mutating POSTs must not be replayed blindly or a transient timeout could
  * double-post; opt in with `retryNonIdempotent` when the endpoint is safe.
  *
  * Mirrored for Deno in supabase/functions/_shared/meta-graph.ts — keep the

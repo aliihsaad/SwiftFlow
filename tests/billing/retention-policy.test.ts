@@ -15,7 +15,6 @@ const emptyRow: RetentionPolicyRow = {
     log_retention_days: null,
     analytics_retention_days: null,
     message_retention_days: null,
-    generated_asset_retention_days: null,
     media_retention_days: null,
     audit_log_retention_days: null,
     temp_session_retention_hours: null,

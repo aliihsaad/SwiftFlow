@@ -1,5 +1,3 @@
-import { getCurrentWorkspaceSettingsForDisplay } from "@/app/actions/settings"
-import { FloatingAssistant } from "@/components/assistant/floating-assistant"
 import { DashboardHeader } from "@/components/layout/dashboard-header"
 import { Sidebar } from "@/components/layout/sidebar"
 import { WorkspaceRoleProvider } from "@/components/workspace/workspace-role-provider"
@@ -21,15 +19,10 @@ export default async function DashboardLayout({
     if (!user) return null
 
     const activeWorkspace = await getActiveWorkspace()
-    const [workspaceSettings, membersResult] = await Promise.all([
-        activeWorkspace ? getCurrentWorkspaceSettingsForDisplay() : Promise.resolve(null),
-        supabase
-            .from("workspace_members")
-            .select("role, workspace_id, workspaces (id, name, slug, owner_id, created_at)")
-            .eq("user_id", user.id),
-    ])
-    const members = membersResult.data
-
+    const { data: members } = await supabase
+        .from("workspace_members")
+        .select("role, workspace_id, workspaces (id, name, slug, owner_id, created_at)")
+        .eq("user_id", user.id)
     const workspaceList = (members
         ?.map((member) => {
             const workspace = member.workspaces
@@ -65,31 +58,8 @@ export default async function DashboardLayout({
                     />
 
                     <main className="sf-main">{children}</main>
-
-                    <footer className="sf-footer">
-                        <span>© 2026 SwiftFlow</span>
-                        <nav className="flex items-center gap-4" aria-label="Legal links">
-                            {[
-                                { href: "/privacy", label: "Privacy" },
-                                { href: "/terms", label: "Terms" },
-                                { href: "/data-deletion", label: "Data deletion" },
-                                { href: "mailto:info@swiftdigital-s.com", label: "Support" },
-                            ].map(({ href, label }) => (
-                                <a
-                                    key={href}
-                                    href={href}
-                                    className="transition-colors hover:text-white/65"
-                                >
-                                    {label}
-                                </a>
-                            ))}
-                        </nav>
-                    </footer>
                 </div>
 
-                {activeWorkspace && workspaceSettings?.floating_assistant_enabled ? (
-                    <FloatingAssistant workspaceId={activeWorkspace.id} />
-                ) : null}
             </div>
         </WorkspaceRoleProvider>
     )

@@ -4,9 +4,8 @@ import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LogOut, Menu, PenSquare, X, Zap } from "lucide-react"
+import { LogOut, Menu, X, Zap } from "lucide-react"
 import { signOut } from "@/app/actions/auth"
-import { CreatePostTrigger } from "@/components/create/create-post-trigger"
 import {
     accountNavigation,
     engagementNavigation,
@@ -150,16 +149,6 @@ export function MobileNav({ activeWorkspace, workspaces, isReviewPhase1Release }
                       </div>
 
                       <div className="flex-1 overflow-y-auto px-3 py-4">
-                          <CreatePostTrigger workspaceId={activeWorkspace?.id}>
-                              <button
-                                  type="button"
-                                  onClick={close}
-                                  className="mb-5 flex min-h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-violet-300/20 bg-linear-to-r from-violet-600 to-indigo-600 px-4 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(72,52,166,0.23)]"
-                              >
-                                  <PenSquare className="h-4 w-4" aria-hidden="true" />
-                                  Create post
-                              </button>
-                          </CreatePostTrigger>
 
                           <nav className="space-y-5" aria-label="Primary navigation">
                               {sections.map((section) =>

@@ -93,10 +93,7 @@ describe("resolveWorkspaceEntitlementsFromRows", () => {
                 max_team_seats: null,
                 max_social_accounts: null,
                 ai_generations_per_month: null,
-                scheduled_posts_per_month: null,
                 max_active_automations: null,
-                media_quota_bytes: null,
-                generated_asset_quota_bytes: null,
             },
         )
         expect(result.effectiveTier).toBe("agency")
@@ -114,10 +111,7 @@ describe("resolveWorkspaceEntitlementsFromRows", () => {
                 max_team_seats: 12,
                 max_social_accounts: null,
                 ai_generations_per_month: null,
-                scheduled_posts_per_month: null,
                 max_active_automations: null,
-                media_quota_bytes: null,
-                generated_asset_quota_bytes: null,
             },
         )
         expect(result.limits.maxTeamSeats).toBe(12)

@@ -1,4 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+
 // @ts-nocheck - Deno runtime
 /**
  * Token Health Sweep (internal-only)

@@ -116,17 +116,6 @@ export async function decryptMetaAccountRow(row: { access_token?: string | null;
   }
 }
 
-export function canPublishWithMetaAccount(
-  metadata: Record<string, unknown> | null | undefined,
-  platform: "facebook" | "instagram",
-): boolean {
-  const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return false
-
-  return platform === "facebook"
-    ? capabilities.facebook_publish === true
-    : capabilities.instagram_publish === true
-}
 
 export function canReadAnalyticsWithMetaAccount(
   metadata: Record<string, unknown> | null | undefined,

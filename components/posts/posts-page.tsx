@@ -9,14 +9,12 @@ import {
     Facebook,
     Grid3X3,
     Instagram,
-    Plus,
     RefreshCw,
     Search,
     SlidersHorizontal,
     Sparkles,
 } from "lucide-react"
 
-import { CreatePostTrigger } from "@/components/create/create-post-trigger"
 import { PostCard, type PostCardData } from "@/components/posts/post-card"
 import { PostCommentsDrawer } from "@/components/posts/post-comments-drawer"
 import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
@@ -217,15 +215,6 @@ export default function PostsPage({ workspaceId, workspaceName }: PostsPageProps
                         </div>
 
                         <div className="flex flex-wrap gap-3">
-                            <CreatePostTrigger workspaceId={workspaceId}>
-                                <button
-                                    type="button"
-                                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-cyan-200/20 bg-linear-to-r from-cyan-400 to-violet-500 px-4 text-sm font-semibold text-slate-950 shadow-[0_12px_32px_rgba(34,211,238,0.16)] transition hover:-translate-y-0.5 hover:brightness-105"
-                                >
-                                    <Plus className="h-4 w-4" aria-hidden="true" />
-                                    Create content
-                                </button>
-                            </CreatePostTrigger>
                             <button
                                 type="button"
                                 onClick={handleRefresh}
@@ -260,11 +249,6 @@ export default function PostsPage({ workspaceId, workspaceName }: PostsPageProps
                             <SnapshotMetric label="Likes" value={totals.likes} />
                             <SnapshotMetric label="Comments" value={totals.comments} />
                         </div>
-
-                        <Link href="/dashboard/scheduled" className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-cyan-200/72 transition hover:text-cyan-100">
-                            Open content pipeline
-                            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                        </Link>
                     </div>
                 </div>
             </div>

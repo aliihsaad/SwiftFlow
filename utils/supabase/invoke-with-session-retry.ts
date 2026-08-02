@@ -5,7 +5,7 @@ function isUnauthorizedFunctionsError(error: unknown): error is FunctionsHttpErr
     return error instanceof FunctionsHttpError && error.context?.status === 401
 }
 
-export async function invokeWithSessionRetry<TData, TBody = unknown>(
+export async function invokeWithSessionRetry<TData>(
     supabase: SupabaseClient,
     functionName: string,
     options?: FunctionInvokeOptions

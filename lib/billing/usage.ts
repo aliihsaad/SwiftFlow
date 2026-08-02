@@ -1,23 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { redactSensitiveLogValue } from "@/lib/security/redaction"
 
-/**
- * Monthly usage counters backing plan quota checks. Increments are best-effort
- * (a metering failure must never block the user action), reads fail closed to
- * zero so quota checks degrade to "allow" only via the enforcement mode.
- */
+export type UsageMetric = "ai_generations"
 
-export type UsageMetric =
-    | "ai_generations"
-    | "scheduled_posts"
-    | "media_upload_bytes"
-    | "generated_asset_bytes"
-
-/** First day of the current UTC month, matching workspace_usage_counters.period_start. */
 export function currentUsagePeriodStart(now: Date = new Date()): string {
     const year = now.getUTCFullYear()
     const month = String(now.getUTCMonth() + 1).padStart(2, "0")
-    return `${year}-${month}-01`
+    return year + "-" + month + "-01"
 }
 
 export async function incrementWorkspaceUsage(

@@ -14,7 +14,7 @@ const state = vi.hoisted(() => ({
     workspaceId: "workspace-1",
     apiKeyId: "api-key-1",
     keyPrefix: "sf_live_testprefix1",
-    scopes: ["posts:create"],
+    scopes: ["automations:create"],
     roleSnapshot: "owner",
   } as AuthContext,
   authError: null as Error | null,
@@ -73,12 +73,12 @@ describe("Developer API audit wrapper", () => {
 
   it("adds request id headers and writes success audit records for write actions", async () => {
     const response = await withDeveloperApiAuth(
-      new Request("https://social.swiftdigital-s.com/api/developer/v1/posts", { method: "POST" }),
+      new Request("https://social.swiftdigital-s.com/api/developer/v1/automations", { method: "POST" }),
       {
-        requiredScopes: ["posts:create"],
+        requiredScopes: ["automations:create"],
         rateLimit: "write",
-        action: "posts.create",
-        route: "/api/developer/v1/posts",
+        action: "automations.create",
+        route: "/api/developer/v1/automations",
       },
       async (context) => NextResponse.json({ workspaceId: context.workspaceId }, { status: 201 }),
     )
@@ -90,30 +90,30 @@ describe("Developer API audit wrapper", () => {
     expect(state.auditCalls[0]).toMatchObject({
       requestId: "req_phase1_audit",
       context: state.authContext,
-      action: "posts.create",
-      route: "/api/developer/v1/posts",
-      scopesRequired: ["posts:create"],
+      action: "automations.create",
+      route: "/api/developer/v1/automations",
+      scopesRequired: ["automations:create"],
       statusCode: 201,
     })
   })
 
   it("writes failure audit records without a context when authentication fails", async () => {
-    state.authError = new DeveloperApiAuthError("Missing required scope: posts:delete", 403, "missing_scope", "sf_live_testprefix1")
+    state.authError = new DeveloperApiAuthError("Missing required scope: automations:delete", 403, "missing_scope", "sf_live_testprefix1")
 
     const response = await withDeveloperApiAuth(
-      new Request("https://social.swiftdigital-s.com/api/developer/v1/posts/drafts/post-1", { method: "DELETE" }),
+      new Request("https://social.swiftdigital-s.com/api/developer/v1/automations/automation-1", { method: "DELETE" }),
       {
-        requiredScopes: ["posts:delete"],
+        requiredScopes: ["automations:delete"],
         rateLimit: "write",
-        action: "posts.drafts.delete",
-        route: "/api/developer/v1/posts/drafts/:id",
+        action: "automations.delete",
+        route: "/api/developer/v1/automations/:id",
       },
       async () => NextResponse.json({ shouldNotRun: true }),
     )
 
     await expect(response.json()).resolves.toMatchObject({
       code: "missing_scope",
-      error: "Missing required scope: posts:delete",
+      error: "Missing required scope: automations:delete",
       requestId: "req_phase1_audit",
     })
     expect(response.status).toBe(403)
@@ -123,9 +123,9 @@ describe("Developer API audit wrapper", () => {
       requestId: "req_phase1_audit",
       context: null,
       keyPrefix: "sf_live_testprefix1",
-      action: "posts.drafts.delete",
-      route: "/api/developer/v1/posts/drafts/:id",
-      scopesRequired: ["posts:delete"],
+      action: "automations.delete",
+      route: "/api/developer/v1/automations/:id",
+      scopesRequired: ["automations:delete"],
       statusCode: 403,
       errorCode: "missing_scope",
     })

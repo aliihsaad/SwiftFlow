@@ -2,7 +2,7 @@ import { createAdminClient } from "@/utils/supabase/admin"
 import { getDeveloperApiEntitlement } from "./entitlements"
 import { getDeveloperApiKeyPeppers, hashDeveloperApiToken, parseDeveloperApiTokenPrefix, timingSafeStringEqual } from "./key-format"
 import { enforceDeveloperApiRateLimit, type DeveloperApiRateLimitKind } from "./rate-limit"
-import { normalizeDeveloperApiScopes, requireDeveloperApiScopes } from "./scopes"
+import { normalizeStoredDeveloperApiScopes, requireDeveloperApiScopes } from "./scopes"
 import type { DeveloperApiAuthContext, DeveloperApiKeyStatus, DeveloperApiScope } from "./types"
 import type { WorkspaceRole } from "@/types/workspace"
 
@@ -109,7 +109,7 @@ export async function authenticateDeveloperApiRequest(
     throw new DeveloperApiAuthError("Developer API access requires a paid plan", 403, entitlement.reason, keyPrefix)
   }
 
-  const scopes = normalizeDeveloperApiScopes(Array.isArray(row.scopes) ? row.scopes : [])
+  const scopes = normalizeStoredDeveloperApiScopes(Array.isArray(row.scopes) ? row.scopes : [])
   const scopeCheck = requireDeveloperApiScopes(scopes, requiredScopes)
   if (!scopeCheck.allowed) {
     throw new DeveloperApiAuthError(`Missing required scope: ${scopeCheck.missingScopes.join(", ")}`, 403, "missing_scope", keyPrefix)

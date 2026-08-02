@@ -204,7 +204,7 @@ export function sanitizeMetaAccountMetadataForClient(
   ) as MetaAccountMetadata
 }
 
-export function canPublishWithMetaAccount(
+export function canManageProviderPostsWithMetaAccount(
   metadata: MetaAccountMetadata | null | undefined,
   platform: MetaPlatform,
 ): boolean {

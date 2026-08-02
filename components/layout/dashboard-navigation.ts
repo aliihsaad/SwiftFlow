@@ -1,8 +1,6 @@
 import type { LucideIcon } from "lucide-react"
 import {
     BarChart3,
-    Bot,
-    CalendarDays,
     Inbox,
     LayoutDashboard,
     MessageCircle,
@@ -25,18 +23,6 @@ export const workspaceNavigation: DashboardNavItem[] = [
         label: "Overview",
         href: "/dashboard",
         description: "Workspace performance and activity",
-    },
-    {
-        icon: CalendarDays,
-        label: "Content calendar",
-        href: "/dashboard/scheduled",
-        description: "Drafts, schedules, and publishing",
-    },
-    {
-        icon: Bot,
-        label: "AI studio",
-        href: "/dashboard/assistant",
-        description: "Create and improve content",
     },
     {
         icon: BarChart3,

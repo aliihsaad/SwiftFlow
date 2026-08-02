@@ -1,26 +1,12 @@
-import type { AICaptionRequest, Platform, PostStatus } from '@/types/post'
-
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const META_ACCOUNT_ID_RE = /^[0-9]{3,32}$/
 const META_GRAPH_NODE_ID_RE = /^[0-9_]{3,128}$/
 const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i
-const ALLOWED_PLATFORMS: Platform[] = ['instagram', 'facebook']
-const ALLOWED_STATUSES: PostStatus[] = ['draft', 'scheduled', 'publishing', 'published', 'failed']
-const ALLOWED_TONES = ['educational', 'funny', 'professional', 'engaging'] as const
 const ALLOWED_BRAND_LANGUAGES = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'ar', 'zh', 'ja', 'ko', 'hi', 'ru', 'tr'] as const
 const ALLOWED_AI_PROVIDERS = ['openrouter', 'gemini', 'openai'] as const
 
 type JsonObject = Record<string, unknown>
-type AssistantFunctionName =
-    | 'chat-assistant'
-    | 'generate-image'
-    | 'generate-ideas'
-    | 'generate-carousel'
-    | 'generate-reply'
-    | 'generate-message-reply'
-
-type AssistantImage = { base64: string; mimeType: string; name?: string }
-type AssistantMessage = { role: 'user' | 'assistant'; content: string; images?: AssistantImage[] }
+type AssistantFunctionName = 'generate-reply' | 'generate-message-reply'
 type MetaGranularScope = { scope: string; target_ids?: string[] }
 type SanitizedMetaPageData = {
     id: string
@@ -35,17 +21,8 @@ type SanitizedMetaPageData = {
     token_expires_at: string | null
 }
 
-const MAX_MESSAGES = 40
-const MAX_MESSAGE_LENGTH = 8_000
-const MAX_BASE64_LENGTH = 4_000_000
-const MAX_REFERENCE_IMAGES = 4
 const MAX_ATTACHMENT_HISTORY = 25
 const MAX_JSON_BODY_BYTES = 5 * 1024 * 1024
-const SUPPORTED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
-const MAX_JSON_DEPTH = 6
-const MAX_JSON_ARRAY_ITEMS = 100
-const MAX_JSON_OBJECT_KEYS = 50
-
 function isPlainObject(value: unknown): value is JsonObject {
     return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -53,6 +30,11 @@ function isPlainObject(value: unknown): value is JsonObject {
 function clampString(value: unknown, maxLength: number): string {
     if (typeof value !== 'string') return ''
     return value.trim().slice(0, maxLength)
+}
+
+function clampNullableString(value: unknown, maxLength: number): string | null {
+    const clamped = clampString(value, maxLength)
+    return clamped || null
 }
 
 function sanitizeStringArray(value: unknown, maxItems: number, maxLength: number): string[] {
@@ -73,56 +55,6 @@ function sanitizeHttpUrl(value: unknown): string | null {
     try {
         const url = new URL(trimmed)
         if (url.protocol !== 'http:' && url.protocol !== 'https:') return null
-        return url.toString().slice(0, 2048)
-    } catch {
-        return null
-    }
-}
-
-function isPrivateIpv4Host(hostname: string): boolean {
-    const match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
-    if (!match) return false
-
-    const octets = match.slice(1).map((part) => Number(part))
-    if (octets.some((octet) => Number.isNaN(octet) || octet < 0 || octet > 255)) return true
-
-    return (
-        octets[0] === 10 ||
-        octets[0] === 127 ||
-        octets[0] === 0 ||
-        (octets[0] === 169 && octets[1] === 254) ||
-        (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31) ||
-        (octets[0] === 192 && octets[1] === 168)
-    )
-}
-
-function isBlockedHostname(hostname: string): boolean {
-    const normalized = hostname.trim().toLowerCase()
-    if (!normalized) return true
-
-    return (
-        normalized === 'localhost' ||
-        normalized === '0.0.0.0' ||
-        normalized === '::1' ||
-        normalized.endsWith('.localhost') ||
-        normalized.endsWith('.local') ||
-        normalized.endsWith('.internal') ||
-        normalized.endsWith('.lan') ||
-        normalized.endsWith('.home') ||
-        normalized.endsWith('.test') ||
-        normalized.endsWith('.invalid') ||
-        isPrivateIpv4Host(normalized)
-    )
-}
-
-function sanitizePublicMediaUrl(value: unknown): string | null {
-    const sanitized = sanitizeHttpUrl(value)
-    if (!sanitized) return null
-
-    try {
-        const url = new URL(sanitized)
-        if (url.username || url.password) return null
-        if (isBlockedHostname(url.hostname)) return null
         return url.toString().slice(0, 2048)
     } catch {
         return null
@@ -155,54 +87,6 @@ export function assertMetaGraphNodeId(value: unknown, fieldName: string): string
     return value.trim()
 }
 
-export function sanitizePlatformList(value: unknown): Platform[] {
-    if (!Array.isArray(value)) return []
-    return Array.from(new Set(
-        value.filter((item): item is Platform => typeof item === 'string' && ALLOWED_PLATFORMS.includes(item as Platform))
-    ))
-}
-
-function sanitizeBoolean(value: unknown): boolean | undefined {
-    return typeof value === 'boolean' ? value : undefined
-}
-
-function clampNullableString(value: unknown, maxLength: number): string | null {
-    const normalized = clampString(value, maxLength)
-    return normalized || null
-}
-
-function sanitizeAssistantImages(value: unknown): AssistantImage[] {
-    if (!Array.isArray(value)) return []
-
-    return value
-        .filter((item): item is JsonObject => isPlainObject(item))
-        .map((item) => ({
-            base64: clampString(item.base64, MAX_BASE64_LENGTH),
-            mimeType: clampString(item.mimeType, 80).toLowerCase(),
-            name: clampString(item.name, 160) || undefined,
-        }))
-        .filter((item) => item.base64.length > 0 && SUPPORTED_IMAGE_MIME_TYPES.has(item.mimeType))
-        .slice(0, MAX_REFERENCE_IMAGES)
-}
-
-function sanitizeAssistantMessages(value: unknown): AssistantMessage[] {
-    if (!Array.isArray(value)) return []
-
-    return value
-        .filter((item): item is JsonObject => isPlainObject(item))
-        .map((item) => ({
-            role: (item.role === 'assistant' ? 'assistant' : 'user') as AssistantMessage['role'],
-            content: clampString(item.content, MAX_MESSAGE_LENGTH),
-            images: sanitizeAssistantImages(item.images),
-        }))
-        .filter((item) => item.content.length > 0 || (item.images && item.images.length > 0))
-        .slice(0, MAX_MESSAGES)
-}
-
-function sanitizeReferenceImages(value: unknown): Array<{ base64: string; mimeType: string }> {
-    return sanitizeAssistantImages(value).map(({ base64, mimeType }) => ({ base64, mimeType }))
-}
-
 function sanitizeConversationHistory(
     value: unknown,
 ): Array<{ message: string | null; is_from_page: boolean }> {
@@ -232,46 +116,6 @@ function sanitizeGranularScopes(value: unknown): MetaGranularScope[] {
         }))
         .filter((item) => item.scope.length > 0)
         .slice(0, 50)
-}
-
-function sanitizeJsonValue(value: unknown, depth = 0): unknown {
-    if (depth > MAX_JSON_DEPTH) return null
-    if (value == null) return null
-    if (typeof value === 'string') return value.slice(0, MAX_MESSAGE_LENGTH)
-    if (typeof value === 'number') return Number.isFinite(value) ? value : null
-    if (typeof value === 'boolean') return value
-
-    if (Array.isArray(value)) {
-        return value
-            .slice(0, MAX_JSON_ARRAY_ITEMS)
-            .map((item) => sanitizeJsonValue(item, depth + 1))
-    }
-
-    if (isPlainObject(value)) {
-        const output: Record<string, unknown> = {}
-        for (const [key, entryValue] of Object.entries(value).slice(0, MAX_JSON_OBJECT_KEYS)) {
-            if (key === '__proto__' || key === 'prototype' || key === 'constructor') continue
-            output[key] = sanitizeJsonValue(entryValue, depth + 1)
-        }
-        return output
-    }
-
-    return null
-}
-
-function sanitizeChatSessionMessages(value: unknown) {
-    if (!Array.isArray(value)) return []
-
-    return value
-        .filter((item): item is JsonObject => isPlainObject(item))
-        .map((item) => ({
-            role: (item.role === 'assistant' ? 'assistant' : 'user') as 'user' | 'assistant',
-            content: clampString(item.content, MAX_MESSAGE_LENGTH),
-            type: clampString(item.type, 80) || undefined,
-            data: sanitizeJsonValue(item.data),
-        }))
-        .filter((item) => item.content.length > 0 || item.data != null)
-        .slice(0, MAX_MESSAGES)
 }
 
 export class RequestBodyTooLargeError extends Error {
@@ -387,30 +231,6 @@ export function sanitizeAssistantInvokePayload(
     const workspaceId = body.workspaceId != null ? assertUuid(body.workspaceId, 'workspaceId') : undefined
 
     switch (functionName) {
-        case 'chat-assistant':
-            return {
-                messages: sanitizeAssistantMessages(body.messages),
-                workspaceId,
-            }
-        case 'generate-ideas':
-        case 'generate-carousel':
-            return {
-                messages: sanitizeAssistantMessages(body.messages),
-                workspaceId,
-                research: sanitizeBoolean(body.research),
-                researchQuery: clampString(body.researchQuery, 500) || undefined,
-            }
-        case 'generate-image':
-            return {
-                messages: sanitizeAssistantMessages(body.messages),
-                workspaceId,
-                prompt: clampString(body.prompt, 4_000) || undefined,
-                style: clampString(body.style, 120) || undefined,
-                referenceImages: sanitizeReferenceImages(body.referenceImages),
-                referenceMode: clampString(body.referenceMode, 80) || undefined,
-                brandImageMode: clampString(body.brandImageMode, 80) || undefined,
-                transformAction: clampString(body.transformAction, 80) || undefined,
-            }
         case 'generate-reply':
             return {
                 workspaceId,
@@ -430,101 +250,6 @@ export function sanitizeAssistantInvokePayload(
         default:
             return { workspaceId }
     }
-}
-
-export function sanitizePostStatus(value: unknown): PostStatus | null {
-    return typeof value === 'string' && ALLOWED_STATUSES.includes(value as PostStatus)
-        ? value as PostStatus
-        : null
-}
-
-export function sanitizePostPayload(body: unknown): {
-    id?: string
-    platforms: Platform[]
-    captionByPlatform: { instagram?: string; facebook?: string }
-    mediaUrls: string[]
-    status: PostStatus
-    scheduledAt?: string | null
-} {
-    if (!isPlainObject(body)) {
-        throw new Error('Invalid post payload')
-    }
-
-    const platforms = sanitizePlatformList(body.platforms)
-    const status = sanitizePostStatus(body.status)
-    if (platforms.length === 0) {
-        throw new Error('At least one valid platform is required')
-    }
-    if (!status) {
-        throw new Error('Invalid post status')
-    }
-
-    const captionObj = isPlainObject(body.captionByPlatform) ? body.captionByPlatform : {}
-    const instagramCaption = clampString(captionObj.instagram, 4000)
-    const facebookCaption = clampString(captionObj.facebook, 4000)
-    const mediaUrls: string[] = []
-    const rawMediaUrls = Array.isArray(body.mediaUrls) ? body.mediaUrls.slice(0, 10) : []
-    for (const value of rawMediaUrls) {
-        const sanitizedMediaUrl = sanitizePublicMediaUrl(value)
-        if (sanitizedMediaUrl) {
-            mediaUrls.push(sanitizedMediaUrl)
-            continue
-        }
-
-        if (typeof value === 'string' && value.startsWith('data:')) {
-            mediaUrls.push(value.slice(0, 8_000_000))
-            continue
-        }
-
-        throw new Error('Invalid media URL')
-    }
-
-    let scheduledAt: string | null = null
-    if (body.scheduledAt != null) {
-        const raw = typeof body.scheduledAt === 'string' ? body.scheduledAt : ''
-        if (!raw) throw new Error('Invalid scheduled date')
-        const date = new Date(raw)
-        if (Number.isNaN(date.getTime())) throw new Error('Invalid scheduled date')
-        scheduledAt = date.toISOString()
-    }
-
-    const id = body.id != null ? assertUuid(body.id, 'post id') : undefined
-
-    return {
-        id,
-        platforms,
-        captionByPlatform: {
-            instagram: instagramCaption || undefined,
-            facebook: facebookCaption || undefined,
-        },
-        mediaUrls,
-        status,
-        scheduledAt,
-    }
-}
-
-export function sanitizeAICaptionPayload(body: unknown): AICaptionRequest & { workspaceId?: string } {
-    if (!isPlainObject(body)) {
-        throw new Error('Invalid AI caption request')
-    }
-
-    const description = clampString(body.description, 4000)
-    if (!description) {
-        throw new Error('Description is required')
-    }
-
-    const platforms = sanitizePlatformList(body.platforms)
-    if (platforms.length === 0) {
-        throw new Error('At least one valid platform is required')
-    }
-
-    const tone = typeof body.tone === 'string' && (ALLOWED_TONES as readonly string[]).includes(body.tone)
-        ? body.tone as AICaptionRequest['tone']
-        : undefined
-    const language = clampString(body.language, 32) || undefined
-    const workspaceId = body.workspaceId != null ? assertUuid(body.workspaceId, 'workspaceId') : undefined
-
-    return { description, platforms, tone, language, workspaceId }
 }
 
 type ServiceEntry = { name: string; description: string }
@@ -665,7 +390,6 @@ export function sanitizeWorkspaceSettingsPayload(body: unknown): {
     if ('gemini_api_key' in body) settings.gemini_api_key = clampString(body.gemini_api_key, 500)
     if ('openai_api_key' in body) settings.openai_api_key = clampString(body.openai_api_key, 500)
     if ('ai_text_model_name' in body) settings.ai_text_model_name = clampString(body.ai_text_model_name, 160)
-    if ('ai_image_model_name' in body) settings.ai_image_model_name = clampString(body.ai_image_model_name, 160) || null
     if ('ai_model_name' in body) settings.ai_model_name = clampString(body.ai_model_name, 160)
     if ('timezone' in body) settings.timezone = clampString(body.timezone, 80)
     if ('default_language' in body) settings.default_language = clampString(body.default_language, 16)
@@ -675,32 +399,6 @@ export function sanitizeWorkspaceSettingsPayload(body: unknown): {
     if (typeof body.ai_max_tokens === 'number' && Number.isFinite(body.ai_max_tokens)) {
         settings.ai_max_tokens = Math.min(8192, Math.max(256, Math.round(body.ai_max_tokens)))
     }
-    if (typeof body.floating_assistant_enabled === 'boolean') {
-        settings.floating_assistant_enabled = body.floating_assistant_enabled
-    }
 
     return { workspaceId, settings }
-}
-
-export function sanitizeChatSessionPayload(body: unknown): {
-    title?: string
-    messages?: Array<{ role: 'user' | 'assistant'; content: string; type?: string; data?: unknown }>
-} {
-    if (!isPlainObject(body)) {
-        throw new Error('Invalid chat session payload')
-    }
-
-    const payload: {
-        title?: string
-        messages?: Array<{ role: 'user' | 'assistant'; content: string; type?: string; data?: unknown }>
-    } = {}
-
-    if ('title' in body) {
-        payload.title = clampString(body.title, 120)
-    }
-    if ('messages' in body) {
-        payload.messages = sanitizeChatSessionMessages(body.messages)
-    }
-
-    return payload
 }

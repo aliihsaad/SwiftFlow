@@ -4,21 +4,12 @@ export const DEVELOPER_API_SCOPE_VALUES = [
   "workspace:read",
   "brand:read",
   "brand:write",
-  "media:upload",
-  "media:generate",
-  "posts:read",
-  "posts:create",
-  "posts:schedule",
-  "posts:publish_now",
-  "posts:update",
-  "posts:delete",
   "automations:read",
   "automations:create",
   "automations:update",
   "automations:toggle",
   "automations:delete",
   "analytics:read",
-  "content_intelligence:run",
 ] as const
 
 export type DeveloperApiScope = (typeof DEVELOPER_API_SCOPE_VALUES)[number]

@@ -97,7 +97,7 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
   secureTool({
     name: "swiftflow_get_brand_profile",
     title: "Get brand profile",
-    description: "Read the workspace brand profile used for content and automation generation.",
+    description: "Read the workspace brand profile used to personalize engagement automations.",
     inputSchema: EMPTY_INPUT_SCHEMA,
     annotations: { readOnlyHint: true, openWorldHint: false },
   }),
@@ -126,116 +126,6 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
       additionalProperties: true,
     },
     annotations: { idempotentHint: true, openWorldHint: false },
-  }),
-  secureTool({
-    name: "swiftflow_list_posts",
-    title: "List posts",
-    description: "List recent draft, scheduled, published, and failed posts in the workspace.",
-    inputSchema: EMPTY_INPUT_SCHEMA,
-    annotations: { readOnlyHint: true, openWorldHint: false },
-  }),
-  secureTool({
-    name: "swiftflow_create_post",
-    title: "Create post",
-    description: "Create a draft, scheduled post, or immediate publish request. Use status draft, scheduled, or published.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        platforms: {
-          type: "array",
-          items: { type: "string", enum: ["instagram", "facebook"] },
-          minItems: 1,
-        },
-        captionByPlatform: {
-          type: "object",
-          properties: {
-            instagram: { type: "string" },
-            facebook: { type: "string" },
-          },
-          additionalProperties: false,
-        },
-        mediaUrls: { type: "array", items: { type: "string" } },
-        status: { type: "string", enum: ["draft", "scheduled", "published"] },
-        scheduledAt: { type: "string", description: "ISO timestamp. Required when status is scheduled." },
-      },
-      required: ["platforms", "captionByPlatform"],
-      additionalProperties: false,
-    },
-    annotations: { openWorldHint: false },
-  }),
-  secureTool({
-    name: "swiftflow_update_draft_post",
-    title: "Update draft or scheduled post",
-    description: "Update an existing draft or scheduled post by id. Use content as a shortcut for the main caption, or captionByPlatform for per-platform captions.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        id: { type: "string" },
-        content: { type: "string", description: "Shortcut for updating the main post caption." },
-        platforms: { type: "array", items: { type: "string", enum: ["instagram", "facebook"] } },
-        captionByPlatform: { type: "object", additionalProperties: true },
-        mediaUrls: { type: "array", items: { type: "string" } },
-        status: { type: "string", enum: ["draft", "scheduled"] },
-        scheduledAt: { type: "string" },
-      },
-      required: ["id"],
-      additionalProperties: false,
-    },
-    annotations: { idempotentHint: true, openWorldHint: false },
-  }),
-  secureTool({
-    name: "swiftflow_delete_draft_post",
-    title: "Delete draft or scheduled post",
-    description: "Delete a draft or scheduled post by id. Ask the user before using this tool.",
-    inputSchema: ID_INPUT_SCHEMA,
-    annotations: { destructiveHint: true, openWorldHint: false },
-  }),
-  secureTool({
-    name: "swiftflow_upload_media",
-    title: "Upload media",
-    description: "Upload base64 image or video media into SwiftFlow post_media storage and return a public URL that can be used in post mediaUrls.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        base64: { type: "string", description: "Raw base64 media or a data URL like data:image/png;base64,..." },
-        mimeType: { type: "string", description: "Required for raw base64. Supported examples: image/png, image/jpeg, image/webp, image/gif, video/mp4, video/webm." },
-        fileName: { type: "string", description: "Optional original filename for context." },
-      },
-      required: ["base64"],
-      additionalProperties: false,
-    },
-    annotations: { openWorldHint: false },
-  }),
-  secureTool({
-    name: "swiftflow_generate_post_image",
-    title: "Generate post image",
-    description: "Generate an AI image with SwiftFlow's post creator image pipeline, store it in post_media, and optionally attach it to a draft or scheduled post. If attaching, use a draft/scheduled post id and set attachMode or attach_mode to replace or append.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        prompt: { type: "string", description: "Image prompt. If postId is provided and prompt is omitted, SwiftFlow uses the existing post caption." },
-        style: { type: "string", description: "Optional visual style instruction." },
-        id: { type: "string", description: "Alias for postId. Optional draft or scheduled post UUID to attach the generated image to." },
-        postId: { type: "string", description: "Optional draft or scheduled post UUID to attach the generated image to." },
-        post_id: { type: "string", description: "Alias for postId. Optional draft or scheduled post UUID to attach the generated image to." },
-        attachMode: { type: "string", enum: ["replace", "append"], description: "How to attach media when postId is provided. Defaults to replace." },
-        attach_mode: { type: "string", enum: ["replace", "append"], description: "Alias for attachMode. Use append to add media without replacing existing mediaUrls." },
-        append: { type: "boolean", description: "Optional boolean alias. true means append without replacing existing media." },
-        referenceImages: {
-          type: "array",
-          items: {
-            type: "object",
-            additionalProperties: true,
-          },
-          description: "Optional reference images as { base64, mimeType } objects.",
-        },
-        referenceMode: { type: "string" },
-        brandImageMode: { type: "string" },
-        transformAction: { type: "string" },
-      },
-      additionalProperties: true,
-    },
-    annotations: { openWorldHint: false },
   }),
   secureTool({
     name: "swiftflow_list_automations",
@@ -412,23 +302,6 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
     inputSchema: EMPTY_INPUT_SCHEMA,
     annotations: { readOnlyHint: true, openWorldHint: false },
   }),
-  secureTool({
-    name: "swiftflow_analyze_post_content",
-    title: "Analyze post content",
-    description: "Run content intelligence on a caption and optional media/schedule context. SwiftFlow refreshes stale analytics signals first when possible.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        caption: { type: "string" },
-        platforms: { type: "array", items: { type: "string", enum: ["instagram", "facebook"] } },
-        mediaUrls: { type: "array", items: { type: "string" } },
-        scheduledAt: { type: "string" },
-      },
-      required: ["caption"],
-      additionalProperties: false,
-    },
-    annotations: { readOnlyHint: true, openWorldHint: false },
-  }),
 ]
 
 const TOOL_BY_NAME = new Map(DEVELOPER_MCP_TOOLS.map((tool) => [tool.name, tool]))
@@ -473,22 +346,6 @@ function mapToolCall(name: string, rawArgs: unknown): DeveloperMcpApiRequest {
       return { method: "GET", path: "/api/developer/v1/brand-profile" }
     case "swiftflow_update_brand_profile":
       return { method: "PATCH", path: "/api/developer/v1/brand-profile", body: args }
-    case "swiftflow_list_posts":
-      return { method: "GET", path: "/api/developer/v1/posts" }
-    case "swiftflow_create_post":
-      return { method: "POST", path: "/api/developer/v1/posts", body: args }
-    case "swiftflow_update_draft_post": {
-      const id = encodeURIComponent(requiredString(args, "id"))
-      return { method: "PATCH", path: `/api/developer/v1/posts/drafts/${id}`, body: bodyWithoutId(args) }
-    }
-    case "swiftflow_delete_draft_post": {
-      const id = encodeURIComponent(requiredString(args, "id"))
-      return { method: "DELETE", path: `/api/developer/v1/posts/drafts/${id}` }
-    }
-    case "swiftflow_upload_media":
-      return { method: "POST", path: "/api/developer/v1/media", body: args }
-    case "swiftflow_generate_post_image":
-      return { method: "POST", path: "/api/developer/v1/media/generate", body: args }
     case "swiftflow_list_automations":
       return { method: "GET", path: "/api/developer/v1/automations" }
     case "swiftflow_list_social_accounts": {
@@ -530,8 +387,6 @@ function mapToolCall(name: string, rawArgs: unknown): DeveloperMcpApiRequest {
     }
     case "swiftflow_get_analytics_summary":
       return { method: "GET", path: "/api/developer/v1/analytics/summary" }
-    case "swiftflow_analyze_post_content":
-      return { method: "POST", path: "/api/developer/v1/content-intelligence/analyze-post", body: args }
     default:
       throw new Error(`Unknown MCP tool: ${name}`)
   }

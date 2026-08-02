@@ -35,13 +35,6 @@ export async function GET(request: NextRequest) {
         admin,
       })
 
-      const { data: posts, error: postsError } = await admin
-        .from("posts")
-        .select("id, status")
-        .eq("workspace_id", context.workspaceId)
-
-      if (postsError) return NextResponse.json({ error: postsError.message }, { status: 500 })
-
       const { data: accountAnalytics } = accountIds.length
         ? await admin
           .from("account_analytics")
@@ -72,9 +65,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         totals: {
           connectedAccounts: accountIds.length,
-          posts: (posts || []).length,
-          draftPosts: (posts || []).filter((post: { status: string }) => post.status === "draft").length,
-          scheduledPosts: (posts || []).filter((post: { status: string }) => post.status === "scheduled").length,
           publishedPosts: (publishedPosts || []).length,
           views: sum(analyticsRows, "views"),
           likes: sum(analyticsRows, "likes"),

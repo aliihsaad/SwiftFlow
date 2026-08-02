@@ -3,7 +3,7 @@ import { canManageMessagesWithMetaAccount, canReadCommentsWithMetaAccount, decry
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace, getExplicitActiveWorkspace } from '@/lib/workspace-utils';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
-import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
+import { getMetaGraphApiBaseUrl } from '@/lib/meta-graph-version';
 import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
 import { validateSendEmailNodeConfigs } from '@/lib/automation-send-email-validation';
 import { resolveCommentPostScope } from '@/supabase/functions/_shared/comment-scope';
@@ -307,7 +307,7 @@ export async function POST(request: NextRequest) {
         // For canvas mode, skip post accessibility check (handled at trigger node level)
         if (!isCanvasMode) {
             // Verify the post is accessible (can fetch comments)
-            const testUrl = `${META_GRAPH_API_BASE_URL}/${platform_post_id}/comments?fields=id&limit=1&access_token=${account!.access_token}`;
+            const testUrl = `${getMetaGraphApiBaseUrl(account!.metadata?.connection_method)}/${platform_post_id}/comments?fields=id&limit=1&access_token=${account!.access_token}`;
             const testResponse = await fetch(testUrl);
             const testResult = await testResponse.json();
 

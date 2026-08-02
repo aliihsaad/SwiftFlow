@@ -1,0 +1,221 @@
+name: swiftflow-webhook-comparison-staging
+
+services:
+  postgres:
+    image: postgres:15-alpine@sha256:3d0f7584ed7d04e27fa050d6683a74746608faf21f202be78460d679cc56461f
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: swiftflow_staging
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${SWIFTFLOW_STAGING_POSTGRES_ADMIN_PASSWORD:?Set the staging PostgreSQL admin password}
+      WEBHOOK_COMPARISON_DB_PASSWORD: ${WEBHOOK_COMPARISON_DB_PASSWORD:?Set the least-privilege worker password}
+      WEBHOOK_INGRESS_DB_PASSWORD: ${WEBHOOK_INGRESS_DB_PASSWORD:?Set the append-only ingress password}
+      ACTION_EXECUTOR_DB_PASSWORD: ${ACTION_EXECUTOR_DB_PASSWORD:?Set the action executor password}
+    volumes:
+      - webhook-comparison-postgres:/var/lib/postgresql/data
+      - ./scripts/postgres/staging/000-base-schema.sql:/docker-entrypoint-initdb.d/000-base-schema.sql:ro
+      - ./supabase/migrations/20260726190000_add_durable_webhook_inbox.sql:/docker-entrypoint-initdb.d/100-webhook-inbox.sql:ro
+      - ./supabase/migrations/20260726203000_add_webhook_comparison_worker_role.sql:/docker-entrypoint-initdb.d/200-webhook-comparison-role.sql:ro
+      - ./supabase/migrations/20260726213000_add_webhook_ingress_role.sql:/docker-entrypoint-initdb.d/210-webhook-ingress-role.sql:ro
+      - ./supabase/migrations/20260727090000_add_automation_action_outbox.sql:/docker-entrypoint-initdb.d/220-action-outbox.sql:ro
+      - ./supabase/migrations/20260727091000_add_automation_action_executor_role.sql:/docker-entrypoint-initdb.d/230-action-executor-role.sql:ro
+      - ./supabase/migrations/20260728100000_add_immutable_automation_workflow_versions.sql:/docker-entrypoint-initdb.d/240-workflow-versions.sql:ro
+      - ./supabase/migrations/20260728110000_add_automation_execution_timeline.sql:/docker-entrypoint-initdb.d/250-execution-timeline.sql:ro
+      - ./supabase/migrations/20260728120000_add_automation_runtime_guards.sql:/docker-entrypoint-initdb.d/260-runtime-guards.sql:ro
+      - ./scripts/postgres/staging/300-worker-login.sh:/docker-entrypoint-initdb.d/300-worker-login.sh:ro
+      - ./scripts/postgres/staging/310-ingress-login.sh:/docker-entrypoint-initdb.d/310-ingress-login.sh:ro
+      - ./scripts/postgres/staging/320-executor-login.sh:/docker-entrypoint-initdb.d/320-executor-login.sh:ro
+      - ./scripts/postgres/staging/400-smoke-seed.sql:/docker-entrypoint-initdb.d/400-smoke-seed.sql:ro
+      - ./scripts/postgres/verify-webhook-comparison-role.sql:/opt/swiftflow/verify-webhook-comparison-role.sql:ro
+      - ./scripts/postgres/verify-webhook-ingress-role.sql:/opt/swiftflow/verify-webhook-ingress-role.sql:ro
+      - ./scripts/postgres/verify-action-executor-role.sql:/opt/swiftflow/verify-action-executor-role.sql:ro
+      - ./scripts/postgres/staging/verify-smoke-result.sql:/opt/swiftflow/verify-smoke-result.sql:ro
+      - ./scripts/postgres/staging/verify-ingress-result.sql:/opt/swiftflow/verify-ingress-result.sql:ro
+      - ./scripts/postgres/self-host-inventory.sql:/opt/swiftflow/self-host-inventory.sql:ro
+      - ./scripts/postgres/self-host-health.sql:/opt/swiftflow/self-host-health.sql:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U postgres -d swiftflow_staging
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - comparison
+    shm_size: 128mb
+
+  webhook-comparison:
+    image: ${SWIFTFLOW_WEBHOOK_COMPARISON_IMAGE:-swiftflow/webhook-comparison:staging}
+    build:
+      context: .
+      dockerfile: Dockerfile.webhook-comparison
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://swiftflow_webhook_worker_staging:${WEBHOOK_COMPARISON_DB_PASSWORD}@postgres:5432/swiftflow_staging
+      POSTGRES_POOL_MAX: ${POSTGRES_POOL_MAX:-5}
+      POSTGRES_IDLE_TIMEOUT_MS: ${POSTGRES_IDLE_TIMEOUT_MS:-30000}
+      POSTGRES_CONNECTION_TIMEOUT_MS: ${POSTGRES_CONNECTION_TIMEOUT_MS:-5000}
+      WEBHOOK_COMPARISON_WORKER_ID: ${WEBHOOK_COMPARISON_WORKER_ID:-swiftflow-staging-comparison-1}
+      WEBHOOK_COMPARISON_BATCH_SIZE: ${WEBHOOK_COMPARISON_BATCH_SIZE:-10}
+      WEBHOOK_COMPARISON_LEASE_SECONDS: ${WEBHOOK_COMPARISON_LEASE_SECONDS:-60}
+      WEBHOOK_COMPARISON_POLL_INTERVAL_MS: ${WEBHOOK_COMPARISON_POLL_INTERVAL_MS:-1000}
+      WEBHOOK_COMPARISON_RETRY_BASE_MS: ${WEBHOOK_COMPARISON_RETRY_BASE_MS:-5000}
+      WEBHOOK_COMPARISON_RETRY_MAX_MS: ${WEBHOOK_COMPARISON_RETRY_MAX_MS:-900000}
+      WEBHOOK_COMPARISON_RUN_ONCE: "false"
+      # Gate B: append intended provider actions to the outbox. This is not
+      # execution - the worker still makes no external call, and a queued action
+      # cannot run while the executor's kill switch is false.
+      WEBHOOK_COMPARISON_ENQUEUE_ACTIONS: "true"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+    networks:
+      - comparison
+
+  # Append-only signed-delivery ingress. It shares the worker image but runs a
+  # different entry point under its own insert-only database login. No host port
+  # is published: public exposure is a separate, reviewed reverse-proxy step.
+  webhook-ingress:
+    image: ${SWIFTFLOW_WEBHOOK_COMPARISON_IMAGE:-swiftflow/webhook-comparison:staging}
+    build:
+      context: .
+      dockerfile: Dockerfile.webhook-comparison
+    command: ["workers/webhook-ingress.ts"]
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 20s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://swiftflow_webhook_ingress_staging:${WEBHOOK_INGRESS_DB_PASSWORD}@postgres:5432/swiftflow_staging
+      POSTGRES_POOL_MAX: ${WEBHOOK_INGRESS_POOL_MAX:-5}
+      POSTGRES_IDLE_TIMEOUT_MS: ${POSTGRES_IDLE_TIMEOUT_MS:-30000}
+      POSTGRES_CONNECTION_TIMEOUT_MS: ${POSTGRES_CONNECTION_TIMEOUT_MS:-5000}
+      WEBHOOK_INGRESS_PORT: ${WEBHOOK_INGRESS_PORT:-8080}
+      WEBHOOK_INGRESS_PATH: ${WEBHOOK_INGRESS_PATH:-/webhooks/meta}
+      WEBHOOK_INGRESS_MAX_BODY_BYTES: ${WEBHOOK_INGRESS_MAX_BODY_BYTES:-1048576}
+      INSTAGRAM_APP_SECRET: ${INSTAGRAM_APP_SECRET:?Set the staging Instagram Login app secret}
+      META_APP_SECRET: ${META_APP_SECRET:?Set the staging Meta app secret}
+      META_WEBHOOK_VERIFY_TOKEN: ${META_WEBHOOK_VERIFY_TOKEN:?Set the staging Meta webhook verify token}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - node_modules/tsx/dist/cli.mjs
+        - workers/webhook-ingress-healthcheck.ts
+      interval: 10s
+      timeout: 8s
+      retries: 3
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+    # Pinned address so the host's reverse proxy has a stable target. Docker
+    # will not publish a host port for a container attached only to an internal
+    # network, and no port is wanted: the proxy reaches this address over the
+    # bridge while the network stays sealed from the outside.
+    networks:
+      comparison:
+        ipv4_address: 172.22.0.10
+
+  # Gated automation action executor. Deployed with the kill switch OFF, an
+  # empty allowlist, and the disabled adapter, so it can claim and finalise
+  # queued work but cannot make any provider call. It is the only service whose
+  # database role can read an access token, which is exactly why the ingress and
+  # comparison roles never need one.
+  action-executor:
+    image: ${SWIFTFLOW_WEBHOOK_COMPARISON_IMAGE:-swiftflow/webhook-comparison:staging}
+    build:
+      context: .
+      dockerfile: Dockerfile.webhook-comparison
+    command: ["workers/action-executor.ts"]
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 20s
+    # Declares intent only - plain Compose treats this as advisory and `--scale`
+    # overrides it. The real guarantee is a PostgreSQL advisory lock the process
+    # takes at startup: a second instance cannot acquire it and refuses to run.
+    deploy:
+      replicas: 1
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://swiftflow_action_executor_staging:${ACTION_EXECUTOR_DB_PASSWORD}@postgres:5432/swiftflow_staging
+      POSTGRES_POOL_MAX: ${ACTION_EXECUTOR_POOL_MAX:-3}
+      POSTGRES_IDLE_TIMEOUT_MS: ${POSTGRES_IDLE_TIMEOUT_MS:-30000}
+      POSTGRES_CONNECTION_TIMEOUT_MS: ${POSTGRES_CONNECTION_TIMEOUT_MS:-5000}
+      # Global kill switch. Enabling a real provider action is a separate,
+      # explicitly approved change; it must stay false here.
+      AUTOMATION_PROVIDER_ACTIONS_ENABLED: "false"
+      # Empty allowlist means no account may send even if the switch flips.
+      AUTOMATION_PROVIDER_ACTIONS_ALLOWLIST: ""
+      # Durable distributed limits remain required even at one replica.
+      AUTOMATION_RUNTIME_GUARDS_REQUIRED: "true"
+      AUTOMATION_PROVIDER_SEND_ACCOUNT_BUDGET: ${AUTOMATION_PROVIDER_SEND_ACCOUNT_BUDGET:-60}
+      AUTOMATION_PROVIDER_SEND_AUTOMATION_BUDGET: ${AUTOMATION_PROVIDER_SEND_AUTOMATION_BUDGET:-20}
+      AUTOMATION_PROVIDER_SEND_BUDGET_WINDOW_SECONDS: ${AUTOMATION_PROVIDER_SEND_BUDGET_WINDOW_SECONDS:-3600}
+      AUTOMATION_PROVIDER_SEND_CIRCUIT_FAILURE_THRESHOLD: ${AUTOMATION_PROVIDER_SEND_CIRCUIT_FAILURE_THRESHOLD:-5}
+      AUTOMATION_PROVIDER_SEND_CIRCUIT_COOLDOWN_SECONDS: ${AUTOMATION_PROVIDER_SEND_CIRCUIT_COOLDOWN_SECONDS:-300}
+      ACTION_EXECUTOR_WORKER_ID: ${ACTION_EXECUTOR_WORKER_ID:-swiftflow-staging-executor-1}
+      ACTION_EXECUTOR_BATCH_SIZE: ${ACTION_EXECUTOR_BATCH_SIZE:-3}
+      ACTION_EXECUTOR_LEASE_SECONDS: ${ACTION_EXECUTOR_LEASE_SECONDS:-60}
+      ACTION_EXECUTOR_POLL_INTERVAL_MS: ${ACTION_EXECUTOR_POLL_INTERVAL_MS:-5000}
+      ACTION_EXECUTOR_RUN_ONCE: "false"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - node_modules/tsx/dist/cli.mjs
+        - workers/action-executor-healthcheck.ts
+      interval: 10s
+      timeout: 8s
+      retries: 3
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100
+    # Only the credential-holding executor receives outbound internet access.
+    # It exposes no port; this network exists solely for provider calls.
+    networks:
+      comparison:
+      provider-egress:
+        gw_priority: 1
+
+networks:
+  comparison:
+    internal: true
+    # The subnet is pinned because a static container address requires
+    # user-configured IPAM.
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+  # Project-scoped NAT bridge. Other services remain internal-only.
+  provider-egress:
+    driver: bridge
+
+
+volumes:
+  webhook-comparison-postgres:

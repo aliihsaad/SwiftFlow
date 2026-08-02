@@ -1,12 +1,12 @@
 "use client"
 
+import NextImage from "next/image"
 import { useState, useRef, useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Send, Image, Loader2, MessageSquare, Sparkles, Paperclip, ExternalLink } from "lucide-react"
+import { Send, Image as ImageIcon, Loader2, MessageSquare, Sparkles, Paperclip, ExternalLink } from "lucide-react"
 import { format } from "date-fns"
-import { createClient } from "@/utils/supabase/client"
 import { toast } from "sonner"
 
 const THREAD_THEME = {
@@ -77,7 +77,7 @@ export function MessageThread({
     messages,
     isLoading,
     onSendMessage,
-    workspaceId: propWorkspaceId,
+    workspaceId,
     platform = 'instagram',
     composerDisabled = false,
     composerDisabledReason = null,
@@ -86,9 +86,6 @@ export function MessageThread({
     const [isSending, setIsSending] = useState(false)
     const [isGeneratingAI, setIsGeneratingAI] = useState(false)
     const scrollAreaRef = useRef<HTMLDivElement>(null)
-    const [internalWorkspaceId, setInternalWorkspaceId] = useState<string | null>(null)
-
-    const workspaceId = propWorkspaceId || internalWorkspaceId
     const accent = platform === 'facebook'
         ? {
             primary: '#38bdf8',
@@ -109,22 +106,6 @@ export function MessageThread({
             glow: 'rgba(251,113,133,0.28)',
         }
 
-    useEffect(() => {
-        if (propWorkspaceId) return
-        const fetchWorkspace = async () => {
-            const supabase = createClient()
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) return
-            const { data } = await supabase
-                .from('workspace_members')
-                .select('workspace_id')
-                .eq('user_id', user.id)
-                .limit(1)
-                .single()
-            if (data) setInternalWorkspaceId(data.workspace_id)
-        }
-        fetchWorkspace()
-    }, [propWorkspaceId])
 
     useEffect(() => {
         if (scrollAreaRef.current) {
@@ -274,14 +255,14 @@ export function MessageThread({
     }
 
     return (
-        <div className="flex flex-col h-full min-h-0">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden">
             {/* Thread header */}
             <div
-                className="shrink-0 flex items-center gap-3 px-4 py-3"
+                className="flex shrink-0 items-center gap-3 bg-white/[0.012] px-4 py-3.5"
                 style={{ borderBottom: `1px solid ${THREAD_THEME.borderSoft}` }}
             >
                 <Avatar className="h-9 w-9">
-                    <AvatarImage src={conversation.participant_profile_picture || undefined} />
+                    <AvatarImage src={conversation.participant_profile_picture || undefined} alt="" />
                     <AvatarFallback style={{ background: `linear-gradient(135deg, ${accent.primary}, ${accent.secondary})`, color: '#fff', fontSize: '12px' }}>
                         {(conversation.participant_username || 'U')[0].toUpperCase()}
                     </AvatarFallback>
@@ -297,7 +278,8 @@ export function MessageThread({
             </div>
 
             {/* Messages */}
-            <ScrollArea className="flex-1 min-h-0 px-4 py-4" ref={scrollAreaRef}>
+            <ScrollArea className="min-h-0 flex-1 bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.035),transparent_36%)] px-3 py-4 sm:px-5" ref={scrollAreaRef}>
+                <div className="mx-auto min-h-full w-full max-w-4xl">
                 {isLoading ? (
                     <div className="space-y-4">
                         {[...Array(5)].map((_, i) => (
@@ -343,7 +325,7 @@ export function MessageThread({
                                     <div className={`flex gap-2 group ${message.is_from_page ? 'justify-end' : 'justify-start'}`}>
                                         {!message.is_from_page && (
                                             <Avatar className="h-7 w-7 shrink-0">
-                                                <AvatarImage src={conversation.participant_profile_picture || undefined} />
+                                                <AvatarImage src={conversation.participant_profile_picture || undefined} alt="" />
                                                 <AvatarFallback style={{ background: 'rgba(255,255,255,0.08)', color: THREAD_THEME.muted, fontSize: '10px' }}>
                                                     {(conversation.participant_username || 'U')[0].toUpperCase()}
                                                 </AvatarFallback>
@@ -439,9 +421,12 @@ export function MessageThread({
                                                                                     : { background: THREAD_THEME.inboundBg, border: `1px solid ${THREAD_THEME.border}` }),
                                                                             }}
                                                                         >
-                                                                            <img
+                                                                            <NextImage
                                                                                 src={attachmentUrl!}
                                                                                 alt={label}
+                                                                                width={260}
+                                                                                height={256}
+                                                                                unoptimized
                                                                                 className="block w-full max-w-[260px] max-h-64 object-cover"
                                                                                 loading="lazy"
                                                                                 onError={(e) => {
@@ -454,7 +439,7 @@ export function MessageThread({
                                                                                 className="hidden items-center gap-2 px-3 py-2 text-xs"
                                                                                 style={bubbleStyle}
                                                                             >
-                                                                                <Image className="h-3.5 w-3.5" />
+                                                                                <ImageIcon className="h-3.5 w-3.5" />
                                                                                 <span className="truncate">{label}</span>
                                                                                 <ExternalLink className="h-3.5 w-3.5 ml-auto shrink-0" />
                                                                             </div>
@@ -512,13 +497,15 @@ export function MessageThread({
                         })}
                     </div>
                 )}
+                </div>
             </ScrollArea>
 
             {/* Input */}
             <div
-                className="shrink-0 p-3"
+                className="shrink-0 bg-[#0b0e16]/90 p-3.5"
                 style={{ borderTop: `1px solid ${THREAD_THEME.borderSoft}` }}
             >
+                <div className="mx-auto w-full max-w-4xl">
                 {composerDisabled && (
                     <div
                         className="mb-2.5 rounded-lg px-3 py-2 text-xs"
@@ -539,7 +526,7 @@ export function MessageThread({
                         onKeyDown={handleKeyDown}
                         disabled={composerDisabled}
                         rows={1}
-                        className="flex-1 min-h-[44px] max-h-32 resize-none rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all duration-150"
+                        className="min-h-[44px] max-h-32 flex-1 resize-none rounded-xl px-3.5 py-2.5 text-sm outline-none transition-all duration-150 placeholder:text-white/22"
                         style={{
                             background: composerDisabled ? 'rgba(255,255,255,0.03)' : THREAD_THEME.panelAlt,
                             border: `1px solid ${THREAD_THEME.border}`,
@@ -581,6 +568,7 @@ export function MessageThread({
                     >
                         {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                     </button>
+                </div>
                 </div>
             </div>
         </div>

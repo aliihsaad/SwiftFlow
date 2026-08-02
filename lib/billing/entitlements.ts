@@ -8,8 +8,8 @@ import {
 } from "./plans"
 
 /**
- * Single entitlement reader for all plan gates (Developer API, AI generation,
- * scheduling, automations, seats, social accounts, media quotas, deep trend
+ * Single entitlement reader for active plan gates (Developer API, AI replies,
+ * automations, seats, social accounts, and deep trend
  * reports).
  *
  * BILLING_ENFORCEMENT_MODE controls whether denials are applied:
@@ -44,10 +44,7 @@ type EntitlementRow = {
     max_team_seats: number | null
     max_social_accounts: number | null
     ai_generations_per_month: number | null
-    scheduled_posts_per_month: number | null
     max_active_automations: number | null
-    media_quota_bytes: number | null
-    generated_asset_quota_bytes: number | null
 }
 
 type SubscriptionRow = {
@@ -85,10 +82,7 @@ export function resolveWorkspaceEntitlementsFromRows(
         maxTeamSeats: entitlementRow?.max_team_seats ?? defaults.maxTeamSeats,
         maxSocialAccounts: entitlementRow?.max_social_accounts ?? defaults.maxSocialAccounts,
         aiGenerationsPerMonth: entitlementRow?.ai_generations_per_month ?? defaults.aiGenerationsPerMonth,
-        scheduledPostsPerMonth: entitlementRow?.scheduled_posts_per_month ?? defaults.scheduledPostsPerMonth,
         maxActiveAutomations: entitlementRow?.max_active_automations ?? defaults.maxActiveAutomations,
-        mediaQuotaBytes: entitlementRow?.media_quota_bytes ?? defaults.mediaQuotaBytes,
-        generatedAssetQuotaBytes: entitlementRow?.generated_asset_quota_bytes ?? defaults.generatedAssetQuotaBytes,
         developerApiEnabled: entitlementRow?.developer_api_enabled ?? defaults.developerApiEnabled,
         deepTrendReportsEnabled: entitlementRow?.deep_trend_reports_enabled ?? defaults.deepTrendReportsEnabled,
     }
@@ -113,8 +107,8 @@ const FREE_DEFAULTS: WorkspaceEntitlements = {
 const SUBSCRIPTION_SELECT = "plan_tier, status, downgrade_grace_until"
 const ENTITLEMENT_SELECT =
     "plan_tier, entitlement_source, developer_api_enabled, deep_trend_reports_enabled, " +
-    "max_workspaces, max_team_seats, max_social_accounts, ai_generations_per_month, scheduled_posts_per_month, " +
-    "max_active_automations, media_quota_bytes, generated_asset_quota_bytes"
+    "max_workspaces, max_team_seats, max_social_accounts, ai_generations_per_month, " +
+    "max_active_automations"
 
 export async function getWorkspaceEntitlements(workspaceId: string): Promise<WorkspaceEntitlements> {
     const admin = createAdminClient()
@@ -152,19 +146,13 @@ export type EntitlementLimit =
     | "team_seats"
     | "social_accounts"
     | "ai_generations_per_month"
-    | "scheduled_posts_per_month"
     | "active_automations"
-    | "media_quota_bytes"
-    | "generated_asset_quota_bytes"
 
 const LIMIT_ACCESSORS: Record<EntitlementLimit, (limits: PlanLimits) => number> = {
     team_seats: (l) => l.maxTeamSeats,
     social_accounts: (l) => l.maxSocialAccounts,
     ai_generations_per_month: (l) => l.aiGenerationsPerMonth,
-    scheduled_posts_per_month: (l) => l.scheduledPostsPerMonth,
     active_automations: (l) => l.maxActiveAutomations,
-    media_quota_bytes: (l) => l.mediaQuotaBytes,
-    generated_asset_quota_bytes: (l) => l.generatedAssetQuotaBytes,
 }
 
 export type EntitlementDecision = {

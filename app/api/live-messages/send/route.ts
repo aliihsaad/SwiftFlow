@@ -121,7 +121,8 @@ export async function POST(request: NextRequest) {
             messageId: result.messageId,
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to send message';
         if (error instanceof RateLimitExceededError) {
             return NextResponse.json(
                 { error: error.message, errorCode: 'rate_limited' },
@@ -131,7 +132,7 @@ export async function POST(request: NextRequest) {
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
             return NextResponse.json(
-                { error: error.message || 'Forbidden', errorCode: 'forbidden' },
+                { error: errorMessage, errorCode: 'forbidden' },
                 { status: permissionStatus }
             );
         }
@@ -140,7 +141,7 @@ export async function POST(request: NextRequest) {
         }
         console.error('Send message API error:', redactSensitiveLogValue(error));
         return NextResponse.json(
-            { error: error.message || 'Failed to send message', errorCode: 'internal_error' },
+            { error: errorMessage, errorCode: 'internal_error' },
             { status: 500 }
         );
     }

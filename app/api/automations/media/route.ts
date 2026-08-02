@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { canReadConnectedMediaWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account'
-import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version'
+import { getMetaGraphApiBaseUrl } from '@/lib/meta-graph-version'
 import { createClient } from '@/utils/supabase/server'
 import { getActiveWorkspace } from '@/lib/workspace-utils'
 
-const META_GRAPH_URL = META_GRAPH_API_BASE_URL
 
 type SupportedPlatform = 'instagram' | 'facebook'
 
@@ -96,6 +95,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 })
     }
     const decryptedAccount = decryptMetaAccountRow(account)
+    const graphBaseUrl = getMetaGraphApiBaseUrl(
+      decryptedAccount.metadata?.connection_method,
+    )
 
     if (!decryptedAccount.access_token) {
       return NextResponse.json(
@@ -125,7 +127,7 @@ export async function GET(request: NextRequest) {
 
     if (platform === 'instagram') {
       const mediaUrl =
-        `${META_GRAPH_URL}/${decryptedAccount.account_id}/media` +
+        `${graphBaseUrl}/${decryptedAccount.account_id}/media` +
         `?fields=id,media_type,media_product_type,media_url,thumbnail_url,caption,timestamp,permalink` +
         `&limit=${limit}&access_token=${decryptedAccount.access_token}`
 
@@ -151,7 +153,7 @@ export async function GET(request: NextRequest) {
     }
 
     const postsUrl =
-      `${META_GRAPH_URL}/${decryptedAccount.account_id}/posts` +
+      `${graphBaseUrl}/${decryptedAccount.account_id}/posts` +
       `?fields=id,message,full_picture,created_time,permalink_url,attachments{media_type,media,url,subattachments}` +
       `&limit=${limit}&access_token=${decryptedAccount.access_token}`
 

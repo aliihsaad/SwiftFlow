@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import Link from "next/link"
 import useSWR from "swr"
 import { AnalyticsPlatformView, DateRange, Granularity, AnalyticsResponse } from "@/types/analytics"
 import { AnalyticsHeader } from "@/components/analytics/analytics-header"
@@ -10,11 +11,15 @@ import { LatestPostCard } from "@/components/analytics/latest-post-card"
 import { AccountAnalyticsCard } from "@/components/analytics/account-analytics-card"
 import { ContentIntelligenceInsights } from "@/components/analytics/content-intelligence-insights"
 import { OtherPostsList } from "@/components/analytics/other-posts-list"
+import {
+    AnalyticsHealthPanel,
+    type AnalyticsSyncFeedback,
+} from "@/components/analytics/analytics-health-panel"
 import { AnalyticsLoadingSkeleton } from "@/components/analytics/analytics-loading"
 import { useToast } from "@/components/ui/use-toast"
 import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
-import { AlertTriangle, Eye, Heart, Info, Link2, MessageCircle, ShieldAlert, Share2 } from "lucide-react"
+import { Eye, Heart, Link2, MessageCircle, Share2 } from "lucide-react"
 import type { AnalyticsInsightsResult } from "@/lib/content-intelligence/types"
 
 const fetcher = async (url: string) => {
@@ -50,6 +55,7 @@ type SyncAnalyticsResponse = {
     }
     _meta?: {
         partial?: boolean
+        requiresReconnect?: boolean
         warnings?: string[]
         suspectedMissingPermissions?: string[]
         sync?: {
@@ -66,6 +72,39 @@ type SyncAnalyticsResponse = {
     errorCode?: string
     missingPermissions?: string[]
     requiresReconnect?: boolean
+}
+
+function toSyncFeedback(responseOk: boolean, result: SyncAnalyticsResponse): AnalyticsSyncFeedback {
+    if (!responseOk) {
+        return {
+            tone: "error",
+            title: result?.requiresReconnect ? "Reconnect required" : "Sync failed",
+            message: result?.error || "SwiftFlow could not refresh analytics. Try again in a moment.",
+            missingPermissions: result?.missingPermissions,
+            requiresReconnect: result?.requiresReconnect,
+        }
+    }
+
+    const warnings = result?._meta?.warnings || []
+    if (result?._meta?.partial) {
+        return {
+            tone: "warning",
+            title: "Analytics synced with limited data",
+            message: warnings[0] || "Available metrics were refreshed while some provider data remains unavailable.",
+            missingPermissions: result?._meta?.suspectedMissingPermissions,
+            requiresReconnect: result?._meta?.requiresReconnect === true ||
+                (result?._meta?.suspectedMissingPermissions || [])
+                    .includes("instagram_business_manage_insights"),
+        }
+    }
+
+    const postsSynced = Number(result?.posts?.synced || 0)
+    const accountsSynced = Number(result?.accounts?.synced || 0)
+    return {
+        tone: "success",
+        title: "Analytics synced",
+        message: "Refreshed " + postsSynced + " post metrics and " + accountsSynced + " account snapshots.",
+    }
 }
 
 function formatPlatformLabel(platform: AnalyticsPlatformView): string {
@@ -106,6 +145,7 @@ export default function AnalyticsPage() {
     const [dateRange, setDateRange] = useState<DateRange>('last_7_days')
     const [granularity, setGranularity] = useState<Granularity>('daily')
     const [isSyncing, setIsSyncing] = useState(false)
+    const [syncFeedback, setSyncFeedback] = useState<AnalyticsSyncFeedback | null>(null)
     const [initialSyncDone, setInitialSyncDone] = useState(false)
     const { toast } = useToast()
     const canSyncAnalytics = useWorkspacePermission("analytics:sync")
@@ -125,6 +165,7 @@ export default function AnalyticsPage() {
         data: intelligenceData,
         error: intelligenceError,
         isLoading: isIntelligenceLoading,
+        mutate: mutateIntelligence,
     } = useSWR<AnalyticsInsightsResult>(
         analyticsFetchReady ? `/api/content-intelligence/analytics-insights?range=${dateRange}&platform=${platformView}` : null,
         fetcher,
@@ -148,11 +189,17 @@ export default function AnalyticsPage() {
             setIsSyncing(true)
             try {
                 const response = await fetch('/api/sync-analytics', { method: 'POST' })
-                if (response.ok) {
-                    // Data fetch will start once initial sync attempt completes.
-                }
-            } catch (e) {
-                console.error('Auto-sync failed:', e)
+                const result = await response.json().catch(() => ({})) as SyncAnalyticsResponse
+                setSyncFeedback(toSyncFeedback(response.ok, result))
+            } catch (error) {
+                console.error('Auto-sync failed:', error)
+                setSyncFeedback({
+                    tone: "error",
+                    title: "Sync unavailable",
+                    message: error instanceof Error
+                        ? error.message
+                        : "SwiftFlow could not reach the analytics sync service.",
+                })
             } finally {
                 setInitialSyncDone(true)
                 setIsSyncing(false)
@@ -170,50 +217,39 @@ export default function AnalyticsPage() {
             })
             return
         }
+
         setIsSyncing(true)
         try {
-            const response = await fetch('/api/sync-analytics', {
-                method: 'POST'
-            })
+            const response = await fetch('/api/sync-analytics', { method: 'POST' })
             const result = await response.json().catch(() => ({})) as SyncAnalyticsResponse
-
-            if (!response.ok) {
-                const missingPerms = Array.isArray(result?.missingPermissions) && result.missingPermissions.length
-                    ? ` Missing permissions: ${result.missingPermissions.join(', ')}.`
-                    : ''
-                const reconnect = result?.requiresReconnect ? ' Reconnect your Meta account in Settings.' : ''
-                throw new Error((result?.error || 'Failed to sync analytics') + missingPerms + reconnect)
-            }
-
-            const postsSynced = Number(result?.posts?.synced || 0)
-            const accountsSynced = Number(result?.accounts?.synced || 0)
-            const directPosts = Number(result?.posts?.direct?.posts_upserted || 0)
-            const directMetrics = Number(result?.posts?.direct?.metrics_upserted || 0)
-            const partialWarnings = result?._meta?.warnings || []
+            const feedback = toSyncFeedback(response.ok, result)
+            setSyncFeedback(feedback)
 
             toast({
-                title: result?._meta?.partial ? "Analytics synced (partial)" : "Analytics synced",
-                description: result?._meta?.partial
-                    ? (partialWarnings[0] || `Posts were synced, but some analytics metrics are unavailable right now.`)
-                    : `Synced ${postsSynced} post analytics entries and ${accountsSynced} account analytics entries.`,
+                title: feedback.title,
+                description: feedback.message,
+                variant: feedback.tone === "error" ? "destructive" : "default",
             })
 
-            if (result?._meta?.partial) {
-                console.warn('[Analytics Sync] Partial sync:', {
-                    warnings: partialWarnings,
-                    suspectedMissingPermissions: result?._meta?.suspectedMissingPermissions,
-                    directPosts,
-                    directMetrics,
-                })
-            }
+            if (!response.ok) return
 
-            // Refresh analytics data
-            mutate()
+            await Promise.all([
+                mutate(),
+                mutateIntelligence(),
+            ])
         } catch (error) {
             console.error('Sync error:', error)
+            const message = error instanceof Error
+                ? error.message
+                : "SwiftFlow could not refresh analytics. Try again in a moment."
+            setSyncFeedback({
+                tone: "error",
+                title: "Sync failed",
+                message,
+            })
             toast({
                 title: "Sync failed",
-                description: "Failed to sync analytics. Please try again.",
+                description: message,
                 variant: "destructive",
             })
         } finally {
@@ -305,21 +341,7 @@ export default function AnalyticsPage() {
     const analyticsPlatformStatuses = data?._meta?.platformStatuses || []
     const contentDiscovery = data?._meta?.contentDiscovery?.byPlatform || []
     const selectedAnalyticsPlatform = data?._meta?.selectedPlatform || platformView
-    const relevantPlatformStatuses = analyticsPlatformStatuses.filter((s) =>
-        selectedAnalyticsPlatform === 'all' ? true : s.platform === selectedAnalyticsPlatform
-    )
     const facebookDiscovery = contentDiscovery.find((entry) => entry.platform === 'facebook') || null
-    const isScopeHeuristicMode = relevantPlatformStatuses.length > 0 && relevantPlatformStatuses.some((s) => !s.exactScopesKnown)
-    const isNoConnectedAccounts =
-        data?._meta?.reason === 'no_connected_accounts' ||
-        data?._meta?.reason === 'no_connected_accounts_for_platform'
-    const isPartialAnalytics =
-        !!data?._meta &&
-        (
-            data?._meta?.capabilities?.accountMetrics?.status === 'partial' ||
-            data?._meta?.capabilities?.accountMetrics?.status === 'unavailable' ||
-            (data?._meta?.hasPublishedPosts && data?._meta?.capabilities?.postMetrics?.status !== 'available')
-        )
     const analyticsError = error as (Error & {
         errorCode?: string
         missingPermissions?: string[]
@@ -333,41 +355,9 @@ export default function AnalyticsPage() {
                 : 'vs previous 90 days'
     const showInitialAnalyticsLoading = (!analyticsFetchReady || (isLoading && !data))
     const showAnalyticsRefreshingHint = analyticsFetchReady && !!data && (isValidating || isSyncing)
-    const partialAnalyticsTitle =
-        selectedAnalyticsPlatform === 'all'
-            ? 'Analytics is partially available (combined view)'
-            : `${selectedAnalyticsPlatform === 'instagram' ? 'Instagram' : 'Facebook'} analytics is partially available`
-
-    const getStatusChipStyle = (status: 'available' | 'partial' | 'unavailable') => {
-        if (status === 'available') {
-            return {
-                background: 'rgba(34,197,94,0.10)',
-                border: '1px solid rgba(34,197,94,0.18)',
-                color: '#86efac',
-            }
-        }
-        if (status === 'partial') {
-            return {
-                background: 'rgba(245,158,11,0.10)',
-                border: '1px solid rgba(245,158,11,0.18)',
-                color: '#fbbf24',
-            }
-        }
-        return {
-            background: 'rgba(239,68,68,0.10)',
-            border: '1px solid rgba(239,68,68,0.18)',
-            color: '#fca5a5',
-        }
-    }
-
-    const formatStatusLabel = (status: 'available' | 'partial' | 'unavailable') => {
-        if (status === 'available') return 'OK'
-        if (status === 'partial') return 'Partial'
-        return 'Unavailable'
-    }
 
     return (
-        <div className="space-y-6">
+        <section className="space-y-5 pb-8" aria-label="Performance intelligence">
             {/* Page header */}
             <AnalyticsHeader
                 platformView={platformView}
@@ -395,138 +385,59 @@ export default function AnalyticsPage() {
             {/* Error state */}
             {error && !showInitialAnalyticsLoading && (
                 <div
-                    className="rounded-xl p-6 text-center"
-                    style={{
-                        background: 'rgba(248,113,113,0.06)',
-                        border: '1px solid rgba(248,113,113,0.2)',
-                    }}
+                    role="alert"
+                    className="rounded-[24px] border border-rose-300/20 bg-rose-400/[0.055] p-6 sm:p-8"
                 >
-                    <p className="font-medium" style={{ color: '#f87171' }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-rose-200/55">
+                        Analytics connection
+                    </p>
+                    <h2 className="mt-2 text-lg font-semibold text-white/90">
                         {analyticsError?.errorCode === 'meta_missing_permission'
-                            ? 'Analytics permissions missing'
+                            ? 'Reconnect Instagram to approve insights'
                             : analyticsError?.errorCode === 'meta_auth_invalid_token'
-                                ? 'Analytics access token invalid'
-                                : 'Failed to load analytics data'}
+                                ? 'Your Instagram connection has expired'
+                                : 'Analytics could not be loaded'}
+                    </h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/52">
+                        {analyticsError?.message || 'SwiftFlow could not load this analytics view. Try again in a moment.'}
                     </p>
-                    <p className="text-sm mt-2" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                        {analyticsError?.message || 'Please try again later'}
-                    </p>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={() => void mutate()}
+                            className="inline-flex h-10 items-center rounded-xl border border-white/10 bg-white/[0.05] px-4 text-sm font-semibold text-white/78 transition hover:bg-white/[0.09]"
+                        >
+                            Retry view
+                        </button>
+                        {(analyticsError?.requiresReconnect || analyticsError?.errorCode === 'meta_missing_permission') ? (
+                            <Link
+                                href="/dashboard/onboarding/instagram"
+                                className="inline-flex h-10 items-center rounded-xl bg-gradient-to-r from-fuchsia-500 to-cyan-400 px-4 text-sm font-semibold text-slate-950 transition hover:brightness-110"
+                            >
+                                Reconnect Instagram
+                            </Link>
+                        ) : null}
+                    </div>
                 </div>
             )}
 
             {/* Data loaded */}
             {data && analyticsFetchReady && !showInitialAnalyticsLoading && (
                 <>
-                    {/* Platform-specific analytics status badges (mixed dashboard clarity) */}
-                    {analyticsPlatformStatuses.length > 0 && (
-                        <div className="flex flex-wrap items-start gap-2">
-                            {analyticsPlatformStatuses.map((status) => (
-                                <div
-                                    key={status.platform}
-                                    className="px-3 py-2 rounded-lg min-w-[180px]"
-                                    style={getStatusChipStyle(status.status)}
-                                    title={status.warnings?.[0] || `${status.platform} analytics status`}
-                                >
-                                    <div className="flex items-center justify-between gap-2">
-                                        <span className="text-xs font-semibold">
-                                            {status.platform === 'instagram' ? 'Instagram' : 'Facebook'}
-                                        </span>
-                                        <span className="text-[10px] font-bold uppercase tracking-wide">
-                                            {formatStatusLabel(status.status)}
-                                        </span>
-                                    </div>
-                                    <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.55)' }}>
-                                        Account: {status.accountMetricsStatus} • Posts: {status.postMetricsStatus}
-                                    </div>
-                                    {!status.exactScopesKnown && (
-                                        <div className="mt-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                                            Scopes: heuristic
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Analytics capability / partial-data notices */}
-                    {(isNoConnectedAccounts || analyticsWarnings.length > 0) && (
-                        <div
-                            className="rounded-xl p-4 space-y-2"
-                            style={{
-                                background: isNoConnectedAccounts ? 'rgba(59,130,246,0.06)' : 'rgba(245,158,11,0.06)',
-                                border: isNoConnectedAccounts ? '1px solid rgba(59,130,246,0.18)' : '1px solid rgba(245,158,11,0.2)',
-                            }}
-                        >
-                            <div className="flex items-start gap-2">
-                                {isNoConnectedAccounts ? (
-                                    <Info className="h-4 w-4 mt-0.5 shrink-0" style={{ color: '#60a5fa' }} />
-                                ) : isPartialAnalytics ? (
-                                    <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: '#f59e0b' }} />
-                                ) : (
-                                    <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" style={{ color: '#f59e0b' }} />
-                                )}
-                                <div className="min-w-0">
-                                    <p
-                                        className="text-sm font-semibold"
-                                        style={{ color: isNoConnectedAccounts ? '#60a5fa' : '#fbbf24' }}
-                                    >
-                                        {isNoConnectedAccounts
-                                            ? (selectedAnalyticsPlatform === 'all'
-                                                ? 'Connect accounts to start analytics sync'
-                                                : `Connect ${selectedAnalyticsPlatform === 'instagram' ? 'Instagram' : 'Facebook'} to view analytics`)
-                                            : partialAnalyticsTitle}
-                                    </p>
-                                    {!isNoConnectedAccounts && selectedAnalyticsPlatform === 'all' && analyticsPlatformStatuses.length > 0 && (
-                                        <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                                            This dashboard combines Instagram and Facebook. A warning can appear when only one platform is partial.
-                                        </p>
-                                    )}
-                                    {analyticsWarnings.slice(0, 2).map((warning, idx) => (
-                                        <p key={idx} className="text-xs mt-1 leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                                            {warning}
-                                        </p>
-                                    ))}
-                                    {!!analyticsSuspectedMissingPermissions.length && (
-                                        <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                                            {isScopeHeuristicMode ? 'Possible related permissions (heuristic): ' : 'Likely required permissions: '}
-                                            <span style={{ color: 'rgba(255,255,255,0.7)' }}>
-                                                {analyticsSuspectedMissingPermissions.join(', ')}
-                                            </span>
-                                        </p>
-                                    )}
-                                    {isScopeHeuristicMode && (
-                                        <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.34)' }}>
-                                            Scope status is not recorded for this connected account yet. Reconnect once to store exact granted scopes and remove heuristic warnings.
-                                        </p>
-                                    )}
-                                    {!isNoConnectedAccounts && analyticsPlatformStatuses.some((s) => s.warnings?.length > 0) && (
-                                        <div className="mt-2 space-y-1">
-                                            {analyticsPlatformStatuses
-                                                .filter((s) => Array.isArray(s.warnings) && s.warnings.length > 0)
-                                                .slice(0, 2)
-                                                .map((s) => (
-                                                    <p key={s.platform} className="text-xs leading-relaxed" style={{ color: 'rgba(255,255,255,0.38)' }}>
-                                                        <span style={{ color: 'rgba(255,255,255,0.6)' }}>
-                                                            {s.platform === 'instagram' ? 'Instagram' : 'Facebook'}:
-                                                        </span>{' '}
-                                                        {s.warnings[0]}
-                                                    </p>
-                                                ))}
-                                        </div>
-                                    )}
-                                    {data?._meta?.capabilities && (
-                                        <p className="text-xs mt-2" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                                            Account metrics: {data._meta.capabilities.accountMetrics.status} • Post metrics: {data._meta.capabilities.postMetrics.status}
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
+                    <AnalyticsHealthPanel
+                        platformView={selectedAnalyticsPlatform}
+                        platformStatuses={analyticsPlatformStatuses}
+                        warnings={analyticsWarnings}
+                        suspectedMissingPermissions={analyticsSuspectedMissingPermissions}
+                        reason={data._meta?.reason}
+                        feedback={syncFeedback}
+                        isSyncing={isSyncing}
+                        canSync={canSyncAnalytics}
+                        onSync={handleSync}
+                    />
                     {!!facebookDiscovery && (selectedAnalyticsPlatform === 'all' || selectedAnalyticsPlatform === 'facebook') && (
                         <div
-                            className="rounded-xl p-5"
+                            className="rounded-[24px] p-5 sm:p-6"
                             style={{
                                 background: 'rgba(34,211,238,0.06)',
                                 border: '1px solid rgba(34,211,238,0.16)',
@@ -634,12 +545,6 @@ export default function AnalyticsPage() {
                         </div>
                     )}
 
-                    <ContentIntelligenceInsights
-                        data={intelligenceData}
-                        isLoading={isIntelligenceLoading}
-                        error={intelligenceError as Error | undefined}
-                        platform={platformView}
-                    />
 
                     {/* KPI Cards */}
                     <KPICards
@@ -651,10 +556,17 @@ export default function AnalyticsPage() {
                     />
 
                     {/* Follower Growth Chart */}
-                    <FollowerGrowthChart data={data.followerGrowth} />
+                    <FollowerGrowthChart data={data.followerGrowth} platformView={platformView} />
+
+                    <ContentIntelligenceInsights
+                        data={intelligenceData}
+                        isLoading={isIntelligenceLoading}
+                        error={intelligenceError as Error | undefined}
+                        platform={platformView}
+                    />
 
                     {/* Three column grid */}
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                         {/* Latest Post */}
                         <LatestPostCard post={data.latestPost} />
 
@@ -666,6 +578,6 @@ export default function AnalyticsPage() {
                     </div>
                 </>
             )}
-        </div>
+        </section>
     )
 }

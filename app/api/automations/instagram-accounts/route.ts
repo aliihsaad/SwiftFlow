@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 
 // GET - List Instagram accounts for the workspace
-export async function GET(request: NextRequest) {
+export async function GET() {
     try {
         const supabase = await createClient();
 
@@ -35,10 +35,11 @@ export async function GET(request: NextRequest) {
             accounts: accounts || []
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch accounts';
         console.error('Get Instagram accounts API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to fetch accounts' },
+            { error: errorMessage },
             { status: 500 }
         );
     }

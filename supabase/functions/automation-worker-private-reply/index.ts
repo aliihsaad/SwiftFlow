@@ -1,7 +1,7 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { META_GRAPH_URL, interpolateTemplate } from "../_shared/automation-context.ts"
-import { toMetaGraphFormBody } from "../_shared/meta-graph.ts"
+import { interpolateTemplate } from "../_shared/automation-context.ts"
+import { getMetaGraphApiBaseUrl, toMetaGraphFormBody } from "../_shared/meta-graph.ts"
 import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 
 const corsHeaders = {
@@ -23,6 +23,8 @@ serve(async (req) => {
     const context = body?.context || {};
     const accessToken = body?.access_token as string | undefined;
     const pageId = body?.page_id as string | undefined;
+    const connectionMethod = body?.connection_method as string | undefined;
+    const metaGraphUrl = getMetaGraphApiBaseUrl(connectionMethod);
 
     if (!accessToken || !pageId) {
       return new Response(JSON.stringify({ success: false, error: 'Missing access_token or page_id' }), {
@@ -55,7 +57,7 @@ serve(async (req) => {
       });
     }
 
-    const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
+    const sendUrl = `${metaGraphUrl}/${pageId}/messages`;
     const response = await fetch(sendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -63,7 +65,7 @@ serve(async (req) => {
         recipient: { comment_id: context.comment_id },
         message: { text: message },
         access_token: accessToken,
-      }, accessToken),
+      }, accessToken, { connectionMethod }),
     });
     const result = await response.json();
 

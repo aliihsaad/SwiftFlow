@@ -3,7 +3,9 @@ import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { decryptMetaAccountRow } from '@/lib/meta-account';
 import { isReviewPhase1Release } from '@/lib/release-channel';
+import { enqueueMetaWebhookDelivery } from '@/lib/webhooks/inbox-contract';
 import { buildInstagramMessagingAutomationEvents } from '@/lib/webhooks/instagram-automation-events';
+import { createSupabaseWebhookInboxStore } from '@/lib/webhooks/supabase-inbox-store';
 import { readRawBodyWithLimit, RequestBodyTooLargeError } from '@/lib/security/phase1-validation';
 
 // Meta webhook payloads are small (batched entries stay well under this cap).
@@ -22,6 +24,12 @@ function isDevInstagramMessageWebhookDebugEnabled(): boolean {
     const flag = (process.env.DEBUG_INSTAGRAM_MESSAGE_WEBHOOK_PAYLOAD || '').toLowerCase().trim();
     return process.env.NODE_ENV !== 'production' && ['1', 'true', 'yes', 'on'].includes(flag);
 }
+
+function isWebhookInboxShadowEnabled(): boolean {
+    const flag = (process.env.WEBHOOK_INBOX_SHADOW_ENABLED || '').toLowerCase().trim();
+    return ['1', 'true', 'yes', 'on'].includes(flag);
+}
+
 
 function summarizeWebhookPayloadShape(raw: unknown, depth = 0): unknown {
     if (raw == null) return raw;
@@ -202,6 +210,23 @@ export async function POST(request: NextRequest) {
             { status: 200 }
         );
     }
+    // Optional compatibility phase: copy verified events into the durable inbox
+    // while the existing synchronous path remains authoritative. Shadow failures
+    // never change the current acknowledgement or automation behavior.
+    if (isWebhookInboxShadowEnabled()) {
+        try {
+            const inboxResult = await enqueueMetaWebhookDelivery(
+                createSupabaseWebhookInboxStore(supabaseAdmin),
+                body,
+                rawBuffer,
+            );
+            console.log('[WEBHOOK] Durable inbox shadow capture:', inboxResult);
+        } catch (error) {
+            console.warn('[WEBHOOK] Durable inbox shadow capture failed; continuing synchronous processing:', {
+                message: error instanceof Error ? error.message : 'Unknown inbox error',
+            });
+        }
+    }
 
     // Process events synchronously — Vercel serverless terminates after response,
     // so we MUST await processing before returning.
@@ -253,6 +278,7 @@ async function processWebhookEvents(body: Record<string, unknown>) {
 
             switch (change.field as string) {
                 case 'comments':
+                case 'live_comments':
                     await handleCommentEvent(change.value as Record<string, unknown>, account);
                     break;
                 case 'feed':

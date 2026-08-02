@@ -1,8 +1,8 @@
 import { createAdminClient } from "@/utils/supabase/admin"
 import { getDeveloperApiEntitlement } from "./entitlements"
-import { getDeveloperApiKeyPepper, hashDeveloperApiToken, parseDeveloperApiTokenPrefix, timingSafeStringEqual } from "./key-format"
+import { getDeveloperApiKeyPeppers, hashDeveloperApiToken, parseDeveloperApiTokenPrefix, timingSafeStringEqual } from "./key-format"
 import { enforceDeveloperApiRateLimit, type DeveloperApiRateLimitKind } from "./rate-limit"
-import { normalizeDeveloperApiScopes, requireDeveloperApiScopes } from "./scopes"
+import { normalizeStoredDeveloperApiScopes, requireDeveloperApiScopes } from "./scopes"
 import type { DeveloperApiAuthContext, DeveloperApiKeyStatus, DeveloperApiScope } from "./types"
 import type { WorkspaceRole } from "@/types/workspace"
 
@@ -25,6 +25,7 @@ type KeyRow = {
   workspace_id: string
   key_prefix: string
   key_hash: string
+  key_hash_version?: number
   scopes: string[]
   status: DeveloperApiKeyStatus
   created_by_role_snapshot: WorkspaceRole | null
@@ -64,7 +65,7 @@ export async function authenticateDeveloperApiRequest(
   const admin = createAdminClient()
   const { data, error } = await admin
     .from("workspace_api_keys")
-    .select("id, workspace_id, key_prefix, key_hash, scopes, status, created_by_role_snapshot, expires_at, last_used_at")
+    .select("id, workspace_id, key_prefix, key_hash, key_hash_version, scopes, status, created_by_role_snapshot, expires_at, last_used_at")
     .eq("key_prefix", keyPrefix)
     .maybeSingle()
 
@@ -85,10 +86,22 @@ export async function authenticateDeveloperApiRequest(
     throw new DeveloperApiAuthError("Developer API key has expired", 401, "expired_key", keyPrefix)
   }
 
-  const incomingHash = hashDeveloperApiToken(token, getDeveloperApiKeyPepper())
-  if (!timingSafeStringEqual(incomingHash, row.key_hash)) {
+  const peppers = getDeveloperApiKeyPeppers()
+  const matchingPepperIndex = peppers.findIndex((pepper) =>
+    timingSafeStringEqual(hashDeveloperApiToken(token, pepper), row.key_hash)
+  )
+  if (matchingPepperIndex < 0) {
     await enforceDeveloperApiRateLimit({ kind: "failed_auth", request })
     throw new DeveloperApiAuthError("Invalid Developer API token", 401, "token_hash_mismatch", keyPrefix)
+  }
+
+  // Successful use with the previous pepper safely upgrades the stored HMAC.
+  if (matchingPepperIndex > 0) {
+    await admin.from("workspace_api_keys").update({
+      key_hash: hashDeveloperApiToken(token, peppers[0]!),
+      key_hash_version: Math.max(2, Number(row.key_hash_version || 1) + 1),
+      updated_at: new Date().toISOString(),
+    }).eq("id", row.id)
   }
 
   const entitlement = await getDeveloperApiEntitlement(row.workspace_id)
@@ -96,7 +109,7 @@ export async function authenticateDeveloperApiRequest(
     throw new DeveloperApiAuthError("Developer API access requires a paid plan", 403, entitlement.reason, keyPrefix)
   }
 
-  const scopes = normalizeDeveloperApiScopes(Array.isArray(row.scopes) ? row.scopes : [])
+  const scopes = normalizeStoredDeveloperApiScopes(Array.isArray(row.scopes) ? row.scopes : [])
   const scopeCheck = requireDeveloperApiScopes(scopes, requiredScopes)
   if (!scopeCheck.allowed) {
     throw new DeveloperApiAuthError(`Missing required scope: ${scopeCheck.missingScopes.join(", ")}`, 403, "missing_scope", keyPrefix)

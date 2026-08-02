@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { canPublishWithMetaAccount, canReadConnectedMediaWithMetaAccount, sanitizeMetaAccountMetadataForClient } from '@/lib/meta-account';
+import { canReadConnectedMediaWithMetaAccount, sanitizeMetaAccountMetadataForClient } from '@/lib/meta-account';
+import { deriveInstagramAutomationHealth } from '@/lib/instagram-onboarding';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { createClient } from '@/utils/supabase/server';
 
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
 
         const { data: accounts, error } = await supabase
             .from('social_accounts')
-            .select('platform, account_name, metadata')
+            .select('platform, account_name, account_id, token_expires_at, metadata')
             .eq('workspace_id', workspaceId);
 
         if (error) {
@@ -31,6 +32,8 @@ export async function GET(request: NextRequest) {
         const sanitizedAccounts = (accounts || []).map((account) => ({
             platform: account.platform,
             account_name: account.account_name,
+            account_id: account.account_id,
+            token_expires_at: account.token_expires_at,
             metadata: sanitizeMetaAccountMetadataForClient(
                 account.metadata && typeof account.metadata === 'object' ? account.metadata : undefined
             ),
@@ -40,6 +43,15 @@ export async function GET(request: NextRequest) {
             ? facebookAccount.metadata.granted_scopes.filter((scope): scope is string => typeof scope === 'string')
             : [];
         const facebookRequiredReadScopes = ['pages_read_engagement'];
+        const instagramAccount = sanitizedAccounts.find((account) => account.platform === 'instagram');
+        const instagramAutomationHealth = deriveInstagramAutomationHealth({
+            connected: Boolean(instagramAccount),
+            accountType: instagramAccount?.metadata.account_type,
+            grantedScopes: instagramAccount?.metadata.granted_scopes,
+            tokenHealth: instagramAccount?.metadata.token_health,
+            webhookStatus: instagramAccount?.metadata.webhook_subscription_status,
+            subscribedFields: instagramAccount?.metadata.webhook_subscribed_fields,
+        });
 
         const status = {
             facebook: sanitizedAccounts.some((account) => account.platform === 'facebook'),
@@ -48,22 +60,14 @@ export async function GET(request: NextRequest) {
                     account.platform === 'instagram'
                     || (account.platform === 'facebook' && Boolean(account.metadata.instagram_business_account_id))
             ),
-            facebookPublishReady: sanitizedAccounts.some(
-                (account) => account.platform === 'facebook' && canPublishWithMetaAccount(account.metadata, 'facebook')
-            ),
             facebookReadReady: sanitizedAccounts.some(
                 (account) => account.platform === 'facebook' && canReadConnectedMediaWithMetaAccount(account.metadata, 'facebook')
             ),
             facebookGrantedScopes,
             facebookMissingReadScopes: facebookRequiredReadScopes.filter((scope) => !facebookGrantedScopes.includes(scope)),
-            instagramPublishReady: sanitizedAccounts.some(
-                (account) => account.platform === 'instagram' && canPublishWithMetaAccount(account.metadata, 'instagram')
-            ),
-            publishReady: sanitizedAccounts.some(
-                (account) =>
-                    (account.platform === 'facebook' && canPublishWithMetaAccount(account.metadata, 'facebook'))
-                    || (account.platform === 'instagram' && canPublishWithMetaAccount(account.metadata, 'instagram'))
-            ),
+            instagramAutomationHealth,
+            instagramConnectionMethod: instagramAccount?.metadata.connection_method ?? null,
+            instagramWebhookStatus: instagramAccount?.metadata.webhook_subscription_status ?? null,
             // Worst token health across accounts, from the daily token-health
             // sweep. null = not checked yet.
             tokenHealth: sanitizedAccounts.reduce<string | null>((worst, account) => {

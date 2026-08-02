@@ -9,7 +9,7 @@ export interface MetaGraphErrorShape {
 }
 
 export interface MetaErrorContext {
-    feature?: 'messages' | 'comments' | 'analytics' | 'posts' | 'publishing' | 'generic';
+    feature?: 'messages' | 'comments' | 'analytics' | 'posts' | 'generic';
     platform?: 'instagram' | 'facebook' | string;
     operation?: string;
 }
@@ -59,12 +59,12 @@ function inferMissingPermissions(ctx?: MetaErrorContext): string[] {
 
     if (ctx?.feature === 'analytics') {
         if (ctx.platform === 'instagram') {
-            return ['instagram_manage_insights'];
+            return ['instagram_business_manage_insights'];
         }
         if (ctx.platform === 'facebook') {
             return ['pages_read_engagement'];
         }
-        return ['instagram_manage_insights', 'pages_read_engagement'];
+        return ['instagram_business_manage_insights', 'pages_read_engagement'];
     }
 
     if (ctx?.feature === 'posts') {
@@ -78,16 +78,6 @@ function inferMissingPermissions(ctx?: MetaErrorContext): string[] {
             return ['pages_read_engagement', 'pages_manage_posts'];
         }
         return ['instagram_basic'];
-    }
-
-    if (ctx?.feature === 'publishing') {
-        if (ctx.platform === 'facebook') {
-            return ['pages_manage_posts'];
-        }
-        if (ctx.platform === 'instagram') {
-            return ['instagram_content_publish'];
-        }
-        return ['pages_manage_posts', 'instagram_content_publish'];
     }
 
     return [];
@@ -131,9 +121,6 @@ function buildPermissionMessage(ctx?: MetaErrorContext, missingPermissions: stri
         }
         return `Post access is not available for this connected account. Reconnect with ${permissionList}.`;
     }
-    if (ctx?.feature === 'publishing') {
-        return `Publishing is not enabled for this account. Reconnect with ${permissionList}.`;
-    }
     return `This action requires additional Meta permissions: ${permissionList}.`;
 }
 
@@ -160,7 +147,7 @@ export function normalizeMetaGraphError(
     const isPermissionError =
         code === 10 ||
         code === 200 ||
-        /permission|requires permission|not authorized|appropriate role|pages_messaging|instagram_manage_messages|pages_manage_posts|instagram_content_publish/.test(lower);
+        /permission|requires permission|not authorized|appropriate role|pages_messaging|instagram_manage_messages|pages_manage_posts|instagram_business_manage_insights/.test(lower);
 
     if (isPermissionError) {
         const missingPermissions = inferMissingPermissions(ctx);

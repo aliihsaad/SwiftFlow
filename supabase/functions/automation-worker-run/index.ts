@@ -6,6 +6,7 @@ import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
 import { enrichCommentPostContext } from "../_shared/automation-context.ts"
 import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
+import { upsertAutomationNodeRuns } from "../_shared/automation-node-runs.ts"
 import {
   getAutomationFailureAlertRecipients,
   sendResendEmail,
@@ -73,48 +74,6 @@ async function sendAutomationFailureAlert(params: {
   })
 }
 
-async function upsertNodeRuns(
-  supabase: any,
-  workspaceId: string,
-  automation: any,
-  runId: string,
-  triggerContext: Record<string, unknown>,
-  nodeResults: Record<string, { success: boolean; output?: any; error?: string }>,
-) {
-  const nodes = automation?.workflow_graph?.nodes || [];
-  const byId = new Map(nodes.map((n: any) => [n.id, n]));
-
-  const rows = Object.entries(nodeResults || {}).map(([nodeId, nodeResult]) => {
-    const node = byId.get(nodeId);
-    return {
-      workspace_id: workspaceId,
-      automation_id: automation.id,
-      run_id: runId,
-      node_id: nodeId,
-      node_type: node?.data?.type || 'unknown',
-      status: nodeResult.success ? 'completed' : 'failed',
-      input: {
-        config: node?.data?.config || {},
-        trigger_context: triggerContext || {},
-      },
-      output: nodeResult.output || {},
-      error_message: nodeResult.error || null,
-      started_at: new Date().toISOString(),
-      finished_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-  });
-
-  if (!rows.length) return;
-
-  const { error } = await supabase
-    .from('automation_node_runs')
-    .upsert(rows, { onConflict: 'run_id,node_id' });
-
-  if (error) {
-    console.error('[RUN_WORKER] Failed to write automation_node_runs:', redactSensitiveLogValue(error));
-  }
-}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -129,6 +88,7 @@ serve(async (req) => {
     const runId = body?.run_id as string | undefined;
     const automationId = body?.automation_id as string | undefined;
     const workspaceId = body?.workspace_id as string | undefined;
+    const requestedWorkflowVersionId = body?.workflow_version_id as string | undefined;
     const eventId = body?.event_id as string | undefined;
     const triggerType = body?.trigger_type as string | undefined;
     const triggerContext = (body?.trigger_context || {}) as Record<string, unknown>;
@@ -153,6 +113,7 @@ serve(async (req) => {
         .insert({
           workspace_id: workspaceId,
           automation_id: automationId,
+          workflow_version_id: requestedWorkflowVersionId || null,
           event_id: eventId || null,
           status: 'queued',
           trigger_type: triggerType || null,
@@ -178,7 +139,7 @@ serve(async (req) => {
       })
       .eq('id', effectiveRunId)
       .eq('status', 'queued')
-      .select('id');
+      .select('id, workflow_version_id');
 
     if (claimError) {
       throw new Error(`Failed to claim automation run: ${claimError.message}`);
@@ -214,6 +175,29 @@ serve(async (req) => {
       throw new Error(`Automation not found: ${automationError?.message || automationId}`);
     }
 
+    const pinnedWorkflowVersionId = claimedRows[0]?.workflow_version_id as string | undefined;
+    if (automation.editor_version === 'canvas') {
+      if (!pinnedWorkflowVersionId) {
+        throw new Error('Canvas automation run is missing its immutable workflow version');
+      }
+
+      const { data: workflowVersion, error: workflowVersionError } = await supabase
+        .from('automation_workflow_versions')
+        .select('id, workflow_graph')
+        .eq('id', pinnedWorkflowVersionId)
+        .eq('automation_id', automationId)
+        .maybeSingle();
+
+      if (workflowVersionError || !workflowVersion) {
+        throw new Error(
+          `Pinned workflow version not found: ${workflowVersionError?.message || pinnedWorkflowVersionId}`,
+        );
+      }
+
+      automation.workflow_graph = workflowVersion.workflow_graph;
+      automation.workflow_version_id = workflowVersion.id;
+    }
+
     if (!automation.is_active) {
       await supabase
         .from('automation_runs')
@@ -243,10 +227,23 @@ serve(async (req) => {
     // Ground AI replies and {{post_caption}} templates in the commented media.
     const enrichedContext = await enrichCommentPostContext(triggerContext, automation, account);
 
-    const graphResult = await executeWorkflowGraph(supabase, automation, enrichedContext, account);
-    await upsertNodeRuns(supabase, workspaceId, automation, effectiveRunId, enrichedContext, graphResult.nodeResults || {});
+    const graphResult = await executeWorkflowGraph(
+      supabase, automation, enrichedContext, account, { runId: effectiveRunId },
+    );
+    await upsertAutomationNodeRuns({
+      supabase,
+      workspaceId,
+      automation,
+      runId: effectiveRunId,
+      triggerContext: enrichedContext,
+      nodeResults: graphResult.nodeResults || {},
+    });
 
-    const runStatus = graphResult.errors > 0 ? 'failed' : 'completed';
+    const waitingForContinuation = Number(graphResult.pendingContinuations || 0) > 0;
+    const runStatus = waitingForContinuation
+      ? 'waiting'
+      : graphResult.errors > 0 ? 'failed' : 'completed';
+    const isTerminal = runStatus === 'failed' || runStatus === 'completed';
     await supabase
       .from('automation_runs')
       .update({
@@ -254,14 +251,15 @@ serve(async (req) => {
         node_results: graphResult.nodeResults || {},
         processed_count: graphResult.processed || 0,
         dms_sent_count: graphResult.dmsSent || 0,
+        pending_continuation_count: graphResult.pendingContinuations || 0,
         error_count: graphResult.errors || 0,
         error_message: graphResult.errors > 0 ? 'One or more nodes failed' : null,
-        finished_at: new Date().toISOString(),
+        finished_at: isTerminal ? new Date().toISOString() : null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', effectiveRunId);
 
-    if (eventId) {
+    if (eventId && isTerminal) {
       await supabase
         .from('automation_events')
         .update({

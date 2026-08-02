@@ -1,0 +1,35 @@
+name: swiftflow-webhook-comparison
+
+services:
+  webhook-comparison:
+    image: ${SWIFTFLOW_WEBHOOK_COMPARISON_IMAGE:-swiftflow/webhook-comparison:staging}
+    build:
+      context: .
+      dockerfile: Dockerfile.webhook-comparison
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    init: true
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      DATABASE_URL: ${WEBHOOK_COMPARISON_DATABASE_URL:?Set WEBHOOK_COMPARISON_DATABASE_URL to the least-privilege worker connection}
+      POSTGRES_POOL_MAX: ${POSTGRES_POOL_MAX:-10}
+      POSTGRES_IDLE_TIMEOUT_MS: ${POSTGRES_IDLE_TIMEOUT_MS:-30000}
+      POSTGRES_CONNECTION_TIMEOUT_MS: ${POSTGRES_CONNECTION_TIMEOUT_MS:-5000}
+      POSTGRES_SSL_MODE: ${POSTGRES_SSL_MODE:-}
+      POSTGRES_SSL_REJECT_UNAUTHORIZED: ${POSTGRES_SSL_REJECT_UNAUTHORIZED:-true}
+      WEBHOOK_COMPARISON_WORKER_ID: ${WEBHOOK_COMPARISON_WORKER_ID:-}
+      WEBHOOK_COMPARISON_BATCH_SIZE: ${WEBHOOK_COMPARISON_BATCH_SIZE:-10}
+      WEBHOOK_COMPARISON_LEASE_SECONDS: ${WEBHOOK_COMPARISON_LEASE_SECONDS:-60}
+      WEBHOOK_COMPARISON_POLL_INTERVAL_MS: ${WEBHOOK_COMPARISON_POLL_INTERVAL_MS:-1000}
+      WEBHOOK_COMPARISON_RETRY_BASE_MS: ${WEBHOOK_COMPARISON_RETRY_BASE_MS:-5000}
+      WEBHOOK_COMPARISON_RETRY_MAX_MS: ${WEBHOOK_COMPARISON_RETRY_MAX_MS:-900000}
+      WEBHOOK_COMPARISON_RUN_ONCE: "false"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 100

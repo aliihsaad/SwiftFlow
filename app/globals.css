@@ -47,7 +47,7 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.875rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -82,44 +82,210 @@
 }
 
 .dark {
-  --background: oklch(0.1 0.012 275);
+  --background: oklch(0.09 0.012 270);
   --foreground: oklch(0.97 0 0);
-  --card: oklch(0.14 0.015 275);
+  --card: oklch(0.135 0.018 270);
   --card-foreground: oklch(0.97 0 0);
-  --popover: oklch(0.14 0.015 275);
+  --popover: oklch(0.135 0.018 270);
   --popover-foreground: oklch(0.97 0 0);
-  --primary: oklch(0.627 0.265 303.9);
+  --primary: oklch(0.66 0.22 294);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.19 0.02 275);
+  --secondary: oklch(0.175 0.021 270);
   --secondary-foreground: oklch(0.97 0 0);
-  --muted: oklch(0.19 0.02 275);
-  --muted-foreground: oklch(0.62 0.02 275);
-  --accent: oklch(0.541 0.281 293.009);
+  --muted: oklch(0.175 0.021 270);
+  --muted-foreground: oklch(0.68 0.018 270);
+  --accent: oklch(0.58 0.22 286);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 10%);
-  --ring: oklch(0.627 0.265 303.9);
-  --chart-1: oklch(0.627 0.265 303.9);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.585 0.233 277.117);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.12 0.014 275);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 11%);
+  --ring: oklch(0.72 0.15 200);
+  --chart-1: oklch(0.66 0.22 294);
+  --chart-2: oklch(0.76 0.12 195);
+  --chart-3: oklch(0.77 0.188 70);
+  --chart-4: oklch(0.64 0.2 330);
+  --chart-5: oklch(0.68 0.2 16);
+  --sidebar: oklch(0.105 0.014 270);
   --sidebar-foreground: oklch(0.97 0 0);
-  --sidebar-primary: oklch(0.627 0.265 303.9);
+  --sidebar-primary: oklch(0.66 0.22 294);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.19 0.02 275);
+  --sidebar-accent: oklch(0.175 0.021 270);
   --sidebar-accent-foreground: oklch(0.97 0 0);
   --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.627 0.265 303.9);
+  --sidebar-ring: oklch(0.72 0.15 200);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    background: #080a12;
+  }
+
   body {
     @apply bg-background text-foreground;
+    min-width: 320px;
+    background:
+      radial-gradient(circle at 78% -10%, rgba(97, 78, 220, 0.13), transparent 34rem),
+      radial-gradient(circle at 12% 110%, rgba(38, 187, 199, 0.07), transparent 30rem),
+      #080a12;
+    color-scheme: dark;
+    text-rendering: optimizeLegibility;
   }
+
+  ::selection {
+    background: rgba(125, 105, 255, 0.35);
+    color: white;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgba(112, 220, 229, 0.75);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .sf-app-shell {
+    display: flex;
+    height: 100dvh;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at 86% 0%, rgba(113, 79, 219, 0.1), transparent 34rem),
+      #080a12;
+  }
+
+  .sf-topbar {
+    position: relative;
+    z-index: 30;
+    display: flex;
+    min-height: 4.5rem;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.075);
+    background: rgba(9, 11, 19, 0.78);
+    padding: 0.75rem 1rem;
+    backdrop-filter: blur(22px) saturate(140%);
+  }
+
+  .sf-topbar-action {
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 2.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.045);
+    padding: 0 0.75rem;
+    color: rgba(255, 255, 255, 0.68);
+    font-size: 0.75rem;
+    font-weight: 600;
+    transition: 160ms ease;
+  }
+
+  .sf-topbar-action:hover {
+    border-color: rgba(152, 132, 255, 0.28);
+    background: rgba(126, 101, 255, 0.1);
+    color: white;
+  }
+
+  .sf-icon-button {
+    position: relative;
+    height: 2.25rem;
+    width: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.035);
+    color: rgba(255, 255, 255, 0.55);
+    transition: 160ms ease;
+  }
+
+  .sf-icon-button:hover {
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.07);
+    color: white;
+  }
+
+  .sf-user-avatar {
+    display: flex;
+    height: 2.35rem;
+    width: 2.35rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(172, 150, 255, 0.35);
+    border-radius: 0.8rem;
+    background: linear-gradient(145deg, #8f70ff, #5645c7);
+    box-shadow: 0 8px 24px rgba(54, 38, 128, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 750;
+  }
+
+  .sf-main {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background:
+      linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+      transparent;
+    background-size: 34px 34px;
+    padding: 1rem;
+  }
+
+  .sf-panel {
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 1.25rem;
+    background: linear-gradient(145deg, rgba(24, 27, 42, 0.94), rgba(15, 17, 29, 0.94));
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  }
+
+  .sf-subtle-panel {
+    border: 1px solid rgba(255, 255, 255, 0.075);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  .sf-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    color: rgba(150, 225, 232, 0.9);
+    font-size: 0.68rem;
+    font-weight: 750;
+    letter-spacing: 0.17em;
+    text-transform: uppercase;
+  }
+}
+
+@media (min-width: 640px) {
+  .sf-topbar {
+    padding-inline: 1.5rem;
+  }
+
+  .sf-main {
+    padding: 1.5rem;
+  }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }

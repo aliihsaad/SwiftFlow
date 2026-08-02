@@ -101,7 +101,7 @@ export function TriggerConfigPanel({ config, onChange }: TriggerConfigPanelProps
                             <span className="font-medium">Specific Keywords</span>
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">
-                            Only trigger when a comment contains specific keywords. Perfect for "comment LINK to get the guide" style posts.
+                            Only trigger when a comment contains specific keywords. Perfect for &quot;comment LINK to get the guide&quot; style posts.
                         </p>
                     </div>
                 </label>

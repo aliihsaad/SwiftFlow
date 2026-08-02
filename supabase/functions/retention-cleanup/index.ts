@@ -1,4 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+
 // @ts-nocheck - Deno runtime
 /**
  * Retention Cleanup (internal-only, dry-run by default)
@@ -101,28 +101,6 @@ async function cleanupTable(
   return { table, matched: ids.length, deleted: ids.length }
 }
 
-/**
- * Marks storage rows for generated assets that are about to be removed so the
- * storage sweep deletes the underlying objects afterwards.
- */
-async function markGeneratedAssetStorage(supabase, workspaceId: string, cutoffIso: string): Promise<void> {
-  const { data: assets } = await supabase
-    .from("generated_assets")
-    .select("image_url")
-    .eq("workspace_id", workspaceId)
-    .lt("created_at", cutoffIso)
-    .limit(BATCH_LIMIT)
-
-  const urls = (assets || []).map((a) => a.image_url).filter((u) => typeof u === "string" && u)
-  if (urls.length === 0) return
-
-  await supabase
-    .from("workspace_storage_objects")
-    .update({ status: "pending_delete" })
-    .eq("workspace_id", workspaceId)
-    .eq("status", "active")
-    .in("public_url", urls)
-}
 
 /** Deletes pending storage objects with bounded retries. */
 async function sweepStorageObjects(supabase, dryRun: boolean) {
@@ -328,7 +306,7 @@ serve(async (req) => {
         { table: "automation_node_runs", timestampColumn: "created_at" },
         { table: "automation_runs", timestampColumn: "created_at" },
         { table: "processed_comments", timestampColumn: "created_at" },
-        { table: "publishing_automation_runs", timestampColumn: "created_at", statusIn: ["completed", "failed", "skipped"] },
+
       ]) {
         results.push(await cleanupTable(supabase, {
           ...target,
@@ -365,17 +343,6 @@ serve(async (req) => {
           workspaceId,
         }))
 
-        const assetCutoff = cutoffIsoDays(policy.generatedAssetRetentionDays, now)
-        if (!dryRun) {
-          await markGeneratedAssetStorage(supabase, workspaceId, assetCutoff)
-        }
-        results.push(await cleanupTable(supabase, {
-          table: "generated_assets",
-          timestampColumn: "created_at",
-          cutoffIso: assetCutoff,
-          dryRun,
-          workspaceId,
-        }))
       }
 
       const touched = results.filter((r) => r.matched > 0 || r.error)

@@ -1,9 +1,9 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { META_GRAPH_URL, getRecipientId, interpolateTemplate } from "../_shared/automation-context.ts"
+import { getRecipientId, interpolateTemplate } from "../_shared/automation-context.ts"
 import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
-import { toMetaGraphFormBody } from "../_shared/meta-graph.ts"
+import { getMetaGraphApiBaseUrl, toMetaGraphFormBody } from "../_shared/meta-graph.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -39,6 +39,8 @@ serve(async (req) => {
     const context = body?.context || {};
     const accessToken = body?.access_token as string | undefined;
     const pageId = body?.page_id as string | undefined;
+    const connectionMethod = body?.connection_method as string | undefined;
+    const metaGraphUrl = getMetaGraphApiBaseUrl(connectionMethod);
 
     if (!accessToken || !pageId) {
       return new Response(JSON.stringify({ success: false, error: 'Missing access_token or page_id' }), {
@@ -93,7 +95,7 @@ serve(async (req) => {
       });
     }
 
-    const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
+    const sendUrl = `${metaGraphUrl}/${pageId}/messages`;
     const dmResponse = await fetch(sendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -101,7 +103,7 @@ serve(async (req) => {
         recipient: { id: recipientId },
         message: { text: openingMessage },
         access_token: accessToken,
-      }, accessToken),
+      }, accessToken, { connectionMethod }),
     });
     const dmResult = await dmResponse.json();
 
@@ -134,6 +136,7 @@ serve(async (req) => {
         context,
         access_token: accessToken,
         page_id: pageId,
+        connection_method: connectionMethod,
       });
 
       if (!fallbackInvoke.ok || !fallbackInvoke.data?.success) {
@@ -166,7 +169,7 @@ serve(async (req) => {
             recipient: { id: recipientId },
             message: { text: linkMessage },
             access_token: accessToken,
-          }, accessToken),
+          }, accessToken, { connectionMethod }),
         });
       } else {
         const templateResponse = await fetch(sendUrl, {
@@ -185,7 +188,7 @@ serve(async (req) => {
               },
             },
             access_token: accessToken,
-          }, accessToken),
+          }, accessToken, { connectionMethod }),
         });
         const templateResult = await templateResponse.json();
 
@@ -197,7 +200,7 @@ serve(async (req) => {
               recipient: { id: recipientId },
               message: { text: linkMessage },
               access_token: accessToken,
-            }, accessToken),
+            }, accessToken, { connectionMethod }),
           });
         }
       }

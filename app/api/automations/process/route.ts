@@ -61,14 +61,15 @@ export async function POST(request: NextRequest) {
             ...data
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to process automations';
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
-            return NextResponse.json({ error: error.message || 'Forbidden' }, { status: permissionStatus });
+            return NextResponse.json({ error: errorMessage }, { status: permissionStatus });
         }
         console.error('Process automations API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to process automations' },
+            { error: errorMessage },
             { status: 500 }
         );
     }

@@ -1,0 +1,235 @@
+import type { Pool, PoolClient } from "pg"
+
+import type { PostgresQueryClient } from "../webhooks/postgres-inbox-repository"
+
+/**
+ * Fixed key for the executor's single-replica advisory lock. Arbitrary but
+ * stable; it only has to be unique within this database.
+ */
+export const ACTION_EXECUTOR_ADVISORY_LOCK_KEY = 8_471_2026
+
+export interface SingleReplicaLock {
+  release(): Promise<void>
+}
+
+/**
+ * Enforces that exactly one executor is running.
+ *
+ * `deploy.replicas` is advisory in plain Docker Compose and is silently
+ * overridden by `--scale`, so it cannot be trusted as the guarantee. A
+ * session-scoped PostgreSQL advisory lock is held by the live connection for
+ * the process lifetime instead: a second instance cannot acquire it and refuses
+ * to start. The lock is released automatically if the process dies, so a crash
+ * does not wedge the deployment.
+ *
+ * This is a conservative staging rollout constraint. Distributed budgets and
+ * circuit state are enforced independently by PostgreSQL, while send-once is
+ * guaranteed by the outbox identity and transactional claim.
+ */
+export async function acquireSingleReplicaLock(pool: Pool): Promise<SingleReplicaLock> {
+  const client: PoolClient = await pool.connect()
+
+  try {
+    const result = await client.query<{ locked: boolean }>(
+      "select pg_try_advisory_lock($1) as locked",
+      [ACTION_EXECUTOR_ADVISORY_LOCK_KEY],
+    )
+
+    if (result.rows[0]?.locked !== true) {
+      throw new Error(
+        "Another action executor instance already holds the single-replica lock. "
+        + "This staging rollout is intentionally pinned to one executor; refusing to start.",
+      )
+    }
+  } catch (error) {
+    client.release()
+    throw error
+  }
+
+  return {
+    async release() {
+      try {
+        await client.query("select pg_advisory_unlock($1)", [
+          ACTION_EXECUTOR_ADVISORY_LOCK_KEY,
+        ])
+      } finally {
+        client.release()
+      }
+    },
+  }
+}
+
+/** Reports how many sessions currently hold the executor lock. */
+export async function countActionExecutorInstances(
+  database: PostgresQueryClient,
+): Promise<number> {
+  const result = await database.query(
+    `select count(*)::int as holders
+     from pg_locks
+     where locktype = 'advisory' and objid = $1 and granted`,
+    [ACTION_EXECUTOR_ADVISORY_LOCK_KEY],
+  )
+  return Number(result.rows[0]?.holders ?? 0)
+}
+
+const READINESS_SQL = `
+  select
+    to_regclass('public.automation_action_outbox')::text as outbox_table,
+    to_regclass('public.automation_execution_events')::text as timeline_table,
+    to_regclass('public.automation_runtime_budget_buckets')::text as budget_table,
+    to_regclass('public.automation_runtime_circuits')::text as circuit_table,
+    to_regprocedure(
+      'public.claim_automation_actions(text,integer,integer)'
+    )::text as claim_function,
+    to_regprocedure(
+      'public.reserve_automation_runtime_budget(uuid,uuid,uuid,text,integer,integer,integer,integer)'
+    )::text as reserve_guard_function,
+    to_regprocedure(
+      'public.record_automation_runtime_outcome(uuid,uuid,uuid,text,boolean,text,integer,integer)'
+    )::text as record_guard_function
+`
+
+const ACCESS_SQL = `
+  select
+    role.rolsuper,
+    role.rolcreatedb,
+    role.rolcreaterole,
+    role.rolreplication,
+    role.rolbypassrls,
+    has_schema_privilege(current_user, 'public', 'usage') as schema_usage,
+    has_schema_privilege(current_user, 'public', 'create') as schema_create,
+    has_table_privilege(current_user, 'public.automation_action_outbox', 'select') as outbox_select,
+    has_column_privilege(current_user, 'public.automation_action_outbox', 'status', 'update') as outbox_status_update,
+    (
+      select bool_and(has_column_privilege(
+        current_user,
+        'public.automation_execution_events',
+        required.column_name,
+        'insert'
+      ))
+      from unnest(array[
+        'event_key',
+        'workspace_id',
+        'automation_id',
+        'workflow_version_id',
+        'action_outbox_id',
+        'provider_event_key',
+        'source',
+        'event_type',
+        'node_id',
+        'node_type',
+        'attempt_number',
+        'replay_number',
+        'input_redacted',
+        'output_redacted',
+        'error_code',
+        'error_message',
+        'duration_ms'
+      ]) as required(column_name)
+    ) as timeline_required_inserts,
+    has_function_privilege(
+      current_user,
+      'public.claim_automation_actions(text,integer,integer)',
+      'execute'
+    ) as claim_execute,
+    has_function_privilege(
+      current_user,
+      'public.reserve_automation_runtime_budget(uuid,uuid,uuid,text,integer,integer,integer,integer)',
+      'execute'
+    ) as reserve_guard_execute,
+    has_function_privilege(
+      current_user,
+      'public.record_automation_runtime_outcome(uuid,uuid,uuid,text,boolean,text,integer,integer)',
+      'execute'
+    ) as record_guard_execute,
+    has_column_privilege(current_user, 'public.social_accounts', 'access_token', 'select') as token_select,
+    has_table_privilege(current_user, 'public.automation_action_outbox', 'insert') as outbox_insert,
+    has_table_privilege(current_user, 'public.automation_action_outbox', 'delete') as outbox_delete,
+    has_table_privilege(current_user, 'public.automation_action_outbox', 'truncate') as outbox_truncate,
+    has_table_privilege(current_user, 'public.automation_execution_events', 'update') as timeline_update,
+    has_table_privilege(current_user, 'public.automation_execution_events', 'delete') as timeline_delete,
+    has_table_privilege(current_user, 'public.automation_execution_events', 'truncate') as timeline_truncate,
+    has_column_privilege(current_user, 'public.social_accounts', 'refresh_token', 'select') as refresh_token_select,
+    has_table_privilege(current_user, 'public.webhook_inbox_events', 'select') as inbox_select,
+    has_table_privilege(current_user, 'public.workspaces', 'select') as workspaces_select,
+    has_table_privilege(
+      current_user,
+      'public.automation_runtime_budget_buckets',
+      'select'
+    ) as budget_table_select,
+    has_table_privilege(
+      current_user,
+      'public.automation_runtime_circuits',
+      'select'
+    ) as circuit_table_select
+  from pg_roles as role
+  where role.rolname = current_user
+`
+
+const REQUIRED_ACCESS = [
+  "schema_usage",
+  "outbox_select",
+  "outbox_status_update",
+  "timeline_required_inserts",
+  "claim_execute",
+  "reserve_guard_execute",
+  "record_guard_execute",
+  "token_select",
+] as const
+
+const FORBIDDEN_ACCESS = [
+  "rolsuper",
+  "rolcreatedb",
+  "rolcreaterole",
+  "rolreplication",
+  "rolbypassrls",
+  "schema_create",
+  "outbox_insert",
+  "outbox_delete",
+  "outbox_truncate",
+  "timeline_update",
+  "timeline_delete",
+  "timeline_truncate",
+  "refresh_token_select",
+  "inbox_select",
+  "workspaces_select",
+  "budget_table_select",
+  "circuit_table_select",
+] as const
+
+export async function assertActionExecutorDatabaseReady(
+  database: PostgresQueryClient,
+): Promise<void> {
+  const result = await database.query(READINESS_SQL)
+  const row = result.rows[0]
+  if (
+    !row?.outbox_table
+    || !row?.timeline_table
+    || !row?.budget_table
+    || !row?.circuit_table
+    || !row?.claim_function
+    || !row?.reserve_guard_function
+    || !row?.record_guard_function
+  ) {
+    throw new Error(
+      "Action execution schema is not ready; apply the outbox, timeline, and runtime-guard migrations before starting the executor",
+    )
+  }
+}
+
+export async function assertActionExecutorDatabaseAccess(
+  database: PostgresQueryClient,
+): Promise<void> {
+  const result = await database.query(ACCESS_SQL)
+  const row = result.rows[0] || {}
+  const missing = REQUIRED_ACCESS.filter((name) => row[name] !== true)
+  const forbidden = FORBIDDEN_ACCESS.filter((name) => row[name] === true)
+
+  if (missing.length > 0 || forbidden.length > 0) {
+    const details = [
+      missing.length > 0 ? `missing ${missing.join(", ")}` : "",
+      forbidden.length > 0 ? `forbidden ${forbidden.join(", ")}` : "",
+    ].filter(Boolean).join("; ")
+    throw new Error(`Action executor database role is not least-privilege: ${details}`)
+  }
+}

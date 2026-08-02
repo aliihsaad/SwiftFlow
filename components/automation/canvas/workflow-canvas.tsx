@@ -626,7 +626,7 @@ export function WorkflowCanvas({
   }, [nodes, edges, setNodes, pushHistory])
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="relative flex h-full flex-col overflow-hidden bg-[#0d0f17]">
       <WorkflowToolbar
         automationName={automationName}
         isActive={isActive}
@@ -642,14 +642,14 @@ export function WorkflowCanvas({
         onNameChange={setAutomationName}
       />
 
-      <div className="flex flex-1 overflow-hidden automation-canvas-shell">
+      <div className="automation-canvas-shell flex flex-1 overflow-hidden border-t border-white/[0.02]">
         <WorkflowSidebar
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(c => !c)}
           onAddNode={addNodeToCanvas}
         />
 
-        <div className="flex-1 relative overflow-hidden" ref={reactFlowWrapper} style={{ background: '#11131c' }}>
+        <div className="relative flex-1 overflow-hidden bg-[radial-gradient(circle_at_50%_-20%,rgba(103,232,249,.08),transparent_38%),linear-gradient(180deg,#0e1119,#0b0d14)]" ref={reactFlowWrapper}>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -670,38 +670,19 @@ export function WorkflowCanvas({
             fitView
             deleteKeyCode={['Backspace', 'Delete']}
             className=""
-            style={{ background: '#11131c' }}
+            style={{ background: 'transparent' }}
           >
-            <div
-              className="pointer-events-none absolute left-1/2 top-3 z-20 hidden -translate-x-1/2 rounded-lg border px-3 py-2 text-xs sm:block"
-              style={{
-                background: 'rgba(21,22,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.08)',
-                color: 'rgba(255,255,255,0.78)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
-              }}
-            >
-              Drag from a node&apos;s bottom dot to another node&apos;s top dot to connect. Alert outputs run only when the node fails.
+            <div className="pointer-events-none absolute left-1/2 top-4 z-20 hidden -translate-x-1/2 items-center gap-2 rounded-full border border-white/[0.07] bg-[#151722]/80 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35 shadow-[0_12px_30px_rgba(0,0,0,.22)] backdrop-blur-xl sm:flex">
+              <span className="size-1.5 rounded-full bg-cyan-300/70 shadow-[0_0_10px_rgba(103,232,249,.7)]" />
+              Drag from an output port to connect the next step
             </div>
-            <div
-              className="pointer-events-none absolute left-3 right-3 top-3 z-20 rounded-lg border px-3 py-2 text-[11px] sm:hidden"
-              style={{
-                background: 'rgba(21,22,32,0.92)',
-                borderColor: 'rgba(255,255,255,0.08)',
-                color: 'rgba(255,255,255,0.78)',
-                boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
-              }}
-            >
-              Tap a node to configure it. Use the side icons to add nodes.
+            <div className="pointer-events-none absolute left-3 right-3 top-3 z-20 rounded-xl border border-white/[0.07] bg-[#151722]/90 px-3 py-2 text-[10px] leading-4 text-white/50 shadow-xl backdrop-blur-xl sm:hidden">
+              Tap a node to configure it. Use the library icons to add the next step.
             </div>
-            <Controls
-              className="shadow-md! automation-canvas-controls"
-              style={{ background: '#151620', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.75)' }}
-            />
+            <Controls className="automation-canvas-controls !overflow-hidden !rounded-xl !border !border-white/[0.08] !bg-[#151722]/90 !text-white/70 !shadow-[0_16px_40px_rgba(0,0,0,.3)] !backdrop-blur-xl" />
             <div className="hidden sm:block">
               <MiniMap
-                className=""
-                style={{ background: '#151620', border: '1px solid rgba(255,255,255,0.08)' }}
+                className="!overflow-hidden !rounded-2xl !border !border-white/[0.08] !bg-[#151722]/90 !shadow-[0_16px_40px_rgba(0,0,0,.28)]"
                 nodeColor={(n) => {
                   const d = n.data as unknown as WorkflowNodeData
                   if (isTriggerNode(d.type)) return '#38BDF8'
@@ -713,7 +694,7 @@ export function WorkflowCanvas({
                 }}
               />
             </div>
-            <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="rgba(255,255,255,0.08)" />
+            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.065)" />
           </ReactFlow>
         </div>
 
@@ -756,12 +737,12 @@ export function WorkflowCanvas({
 
         .automation-canvas-shell .react-flow__controls {
           overflow: hidden;
-          border-radius: 12px;
+          border-radius: 14px;
           box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
         }
 
         .automation-canvas-shell .react-flow__controls-button {
-          background: #1b1d28 !important;
+          background: rgba(21, 23, 34, 0.94) !important;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
           color: rgba(255, 255, 255, 0.8) !important;
           width: 30px !important;
@@ -784,7 +765,7 @@ export function WorkflowCanvas({
         }
 
         .automation-canvas-shell .react-flow__controls-button:disabled {
-          background: #1b1d28 !important;
+          background: rgba(21, 23, 34, 0.94) !important;
           color: rgba(255, 255, 255, 0.35) !important;
         }
       `}</style>

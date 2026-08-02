@@ -2,6 +2,13 @@
 
 export const META_GRAPH_API_VERSION = "v25.0"
 export const META_GRAPH_API_BASE_URL = `https://graph.facebook.com/${META_GRAPH_API_VERSION}`
+export const INSTAGRAM_GRAPH_API_BASE_URL = `https://graph.instagram.com/${META_GRAPH_API_VERSION}`
+
+export type MetaConnectionMethod = "facebook_login" | "instagram_login"
+
+export interface MetaGraphCredentialContext {
+  connectionMethod?: MetaConnectionMethod | string | null
+}
 
 const META_GRAPH_NODE_ID_RE = /^[0-9_]{3,128}$/
 
@@ -28,11 +35,29 @@ async function createMetaAppSecretProof(accessToken: string, appSecret: string) 
   return bytesToHex(signature)
 }
 
+export function getMetaGraphApiBaseUrl(
+  connectionMethod?: MetaGraphCredentialContext["connectionMethod"],
+): string {
+  return connectionMethod === "instagram_login"
+    ? INSTAGRAM_GRAPH_API_BASE_URL
+    : META_GRAPH_API_BASE_URL
+}
+
+export function getMetaAppSecret(
+  context: MetaGraphCredentialContext = {},
+): string {
+  const secretName = context.connectionMethod === "instagram_login"
+    ? "INSTAGRAM_APP_SECRET"
+    : "META_APP_SECRET"
+  return Deno.env.get(secretName)?.trim() || ""
+}
+
 export async function withMetaAppSecretProof<T extends Record<string, unknown>>(
   payload: T,
   accessToken: string,
+  context: MetaGraphCredentialContext = {},
 ): Promise<T & { appsecret_proof?: string }> {
-  const appSecret = Deno.env.get('META_APP_SECRET')?.trim()
+  const appSecret = getMetaAppSecret(context)
   if (!appSecret || !accessToken) return payload
 
   return {
@@ -44,8 +69,9 @@ export async function withMetaAppSecretProof<T extends Record<string, unknown>>(
 export async function toMetaGraphFormBody(
   payload: Record<string, unknown>,
   accessToken: string,
+  context: MetaGraphCredentialContext = {},
 ): Promise<URLSearchParams> {
-  const signedPayload = await withMetaAppSecretProof(payload, accessToken)
+  const signedPayload = await withMetaAppSecretProof(payload, accessToken, context)
   const body = new URLSearchParams()
 
   for (const [key, value] of Object.entries(signedPayload)) {
@@ -61,7 +87,7 @@ export async function toMetaGraphFormBody(
 //
 // Retries 429s, 5xx responses, and network failures with exponential backoff
 // plus jitter. Only idempotent requests (GET/HEAD) are retried by default —
-// publishing POSTs must not be replayed blindly or a transient timeout could
+// provider-mutating POSTs must not be replayed blindly or a transient timeout could
 // double-post; opt in with `retryNonIdempotent` when the endpoint is safe.
 //
 // Mirrored for Next.js in lib/meta-graph-fetch.ts — keep the two

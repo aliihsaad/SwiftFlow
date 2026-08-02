@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import useSWR from "swr"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -16,15 +16,13 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Loader2, Eye, EyeOff, Save, CheckCircle2, XCircle, Bot } from "lucide-react"
+import { Loader2, Eye, EyeOff, Save, CheckCircle2, XCircle } from "lucide-react"
 import { WorkspaceSettings } from "@/types/settings"
 import { removeCurrentWorkspaceProviderKey, updateCurrentWorkspaceSettings } from "@/app/actions/settings"
 import { toast } from "sonner"
 import {
     getCuratedModelsForProvider,
-    getDefaultImageModelForProvider,
     getDefaultTextModelForProvider,
     getFallbackModelsForProvider,
     getModelRecommendationLabel,
@@ -63,10 +61,9 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
         gemini_api_key: '',
         openai_api_key: '',
         ai_text_model_name: settings?.ai_text_model_name || settings?.ai_model_name || getDefaultTextModelForProvider(initialProvider),
-        ai_image_model_name: settings?.ai_image_model_name || getDefaultImageModelForProvider(initialProvider) || '',
         ai_temperature: settings?.ai_temperature || 0.7,
         ai_max_tokens: settings?.ai_max_tokens || 2048,
-        floating_assistant_enabled: settings?.floating_assistant_enabled ?? false,
+
     })
 
     const fetcher = async (url: string) => {
@@ -85,50 +82,17 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
         }
     )
 
-    const { data: imageModelsData } = useSWR(
-        `/api/ai/models?provider=${formData.ai_provider}&capability=image`,
-        fetcher,
-        {
-            revalidateOnFocus: false,
-            dedupingInterval: 30000,
-        }
-    )
-
     const textModelOptions =
         Array.isArray(textModelsData?.models) && textModelsData.models.length > 0
             ? textModelsData.models
             : getFallbackModelsForProvider(formData.ai_provider, 'text')
-
-    const imageModelOptions =
-        Array.isArray(imageModelsData?.models) && imageModelsData.models.length > 0
-            ? imageModelsData.models
-            : getFallbackModelsForProvider(formData.ai_provider, 'image')
 
     const curatedTextModels =
         Array.isArray(textModelsData?.curated) && textModelsData.curated.length > 0
             ? textModelsData.curated
             : getCuratedModelsForProvider(formData.ai_provider, 'text')
 
-    const curatedImageModels =
-        Array.isArray(imageModelsData?.curated) && imageModelsData.curated.length > 0
-            ? imageModelsData.curated
-            : getCuratedModelsForProvider(formData.ai_provider, 'image')
-
-    useEffect(() => {
-        if (!textModelOptions.length) return
-        setFormData((prev) => {
-            if (textModelOptions.includes(prev.ai_text_model_name)) return prev
-            return { ...prev, ai_text_model_name: textModelOptions[0] }
-        })
-    }, [formData.ai_provider, textModelOptions])
-
-    useEffect(() => {
-        if (!imageModelOptions.length) return
-        setFormData((prev) => {
-            if (imageModelOptions.includes(prev.ai_image_model_name)) return prev
-            return { ...prev, ai_image_model_name: imageModelOptions[0] }
-        })
-    }, [formData.ai_provider, imageModelOptions])
+    const resolvedTextModelName = textModelOptions.includes(formData.ai_text_model_name) ? formData.ai_text_model_name : (textModelOptions[0] || '')
 
     const handleTestKey = async () => {
         const key =
@@ -137,7 +101,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                 : formData.ai_provider === 'openai'
                     ? formData.openai_api_key
                     : formData.gemini_api_key
-        if (!key.trim()) {
+        if (!key.trim() && !savedKeys[formData.ai_provider]) {
             setTestResult({ valid: false, error: 'Enter an API key first.' })
             return
         }
@@ -147,7 +111,10 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
             const res = await fetch('/api/ai/validate-key', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ provider: formData.ai_provider, apiKey: key }),
+                body: JSON.stringify({
+                    provider: formData.ai_provider,
+                    ...(key.trim() ? { apiKey: key } : {}),
+                }),
             })
             const data = await res.json()
             setTestResult(data)
@@ -165,7 +132,6 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
             ...prev,
             ai_provider: provider,
             ai_text_model_name: getDefaultTextModelForProvider(provider),
-            ai_image_model_name: getDefaultImageModelForProvider(provider) || '',
         }))
     }
 
@@ -204,11 +170,9 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
         try {
             const payload: Parameters<typeof updateCurrentWorkspaceSettings>[0] = {
                 ai_provider: formData.ai_provider,
-                ai_text_model_name: formData.ai_text_model_name,
-                ai_image_model_name: formData.ai_image_model_name || undefined,
+                ai_text_model_name: resolvedTextModelName,
                 ai_temperature: formData.ai_temperature,
                 ai_max_tokens: formData.ai_max_tokens,
-                floating_assistant_enabled: formData.floating_assistant_enabled,
             }
 
             if (formData.openrouter_api_key.trim()) {
@@ -252,6 +216,17 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
     const hasSavedOpenRouterKey = savedKeys.openrouter
     const hasSavedGeminiKey = savedKeys.gemini
     const hasSavedOpenAIKey = savedKeys.openai
+    const activeDraftKey =
+        formData.ai_provider === 'openrouter'
+            ? formData.openrouter_api_key
+            : formData.ai_provider === 'openai'
+                ? formData.openai_api_key
+                : formData.gemini_api_key
+    const testKeyLabel = activeDraftKey.trim()
+        ? 'Test New Key'
+        : savedKeys[formData.ai_provider]
+            ? 'Test Saved Key'
+            : 'Test Key'
     const recommendationClassMap = {
         cost: "border-emerald-300/20 bg-emerald-400/10 text-emerald-100/90",
         balanced: "border-cyan-300/20 bg-cyan-400/10 text-cyan-100/90",
@@ -282,7 +257,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
             <CardHeader>
                 <CardTitle className="text-white/90">AI Provider Settings</CardTitle>
                 <CardDescription className="text-white/50">
-                    Configure your AI provider and API keys for generating content
+                    Configure the AI provider and API keys used by automation reply nodes
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -313,32 +288,8 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                             </SelectContent>
                         </Select>
                         <p className={helperClass}>
-                            OpenRouter is the preferred provider for model switching. Gemini and OpenAI remain available during migration.
+                            OpenRouter is the preferred provider for model switching. Gemini and OpenAI remain available for automation replies.
                         </p>
-                    </div>
-
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <div className="flex items-start justify-between gap-4">
-                            <div className="flex min-w-0 gap-3">
-                                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cyan-400/10 text-cyan-200">
-                                    <Bot className="h-4 w-4" />
-                                </span>
-                                <div className="space-y-1">
-                                    <Label htmlFor="floating_assistant_enabled" className="text-white/80">
-                                        Floating AI assistant
-                                    </Label>
-                                    <p className={helperClass}>
-                                        Show a compact read-only assistant on dashboard pages. It can answer workspace questions without creating content or changing data.
-                                    </p>
-                                </div>
-                            </div>
-                            <Switch
-                                id="floating_assistant_enabled"
-                                checked={formData.floating_assistant_enabled}
-                                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, floating_assistant_enabled: checked }))}
-                                className="mt-1 data-[state=checked]:bg-cyan-400/80"
-                            />
-                        </div>
                     </div>
 
                     {/* OpenRouter API Key */}
@@ -353,7 +304,10 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     id="openrouter_api_key"
                                     type={showOpenRouterKey ? "text" : "password"}
                                     value={formData.openrouter_api_key}
-                                    onChange={(e) => setFormData({ ...formData, openrouter_api_key: e.target.value })}
+                                    onChange={(e) => {
+                                        setTestResult(null)
+                                        setFormData((prev) => ({ ...prev, openrouter_api_key: e.target.value }))
+                                    }}
                                     placeholder={hasSavedOpenRouterKey ? "Saved key on file. Enter a new key to replace it." : "sk-or-v1-..."}
                                     className={`${fieldClass} pr-10`}
                                     required={formData.ai_provider === 'openrouter' && !hasSavedOpenRouterKey}
@@ -389,7 +343,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     disabled={isTesting}
                                 >
                                     {isTesting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                                    Test Key
+                                    {testKeyLabel}
                                 </Button>
                             </div>
                             {hasSavedOpenRouterKey && (
@@ -431,7 +385,10 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     id="gemini_api_key"
                                     type={showGeminiKey ? "text" : "password"}
                                     value={formData.gemini_api_key}
-                                    onChange={(e) => setFormData({ ...formData, gemini_api_key: e.target.value })}
+                                    onChange={(e) => {
+                                        setTestResult(null)
+                                        setFormData((prev) => ({ ...prev, gemini_api_key: e.target.value }))
+                                    }}
                                     placeholder={hasSavedGeminiKey ? "Saved key on file. Enter a new key to replace it." : "AIzaSy..."}
                                     className={`${fieldClass} pr-10`}
                                     required={formData.ai_provider === 'gemini' && !hasSavedGeminiKey}
@@ -467,7 +424,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     disabled={isTesting}
                                 >
                                     {isTesting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                                    Test Key
+                                    {testKeyLabel}
                                 </Button>
                             </div>
                             {hasSavedGeminiKey && (
@@ -509,7 +466,10 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     id="openai_api_key"
                                     type={showOpenAIKey ? "text" : "password"}
                                     value={formData.openai_api_key}
-                                    onChange={(e) => setFormData({ ...formData, openai_api_key: e.target.value })}
+                                    onChange={(e) => {
+                                        setTestResult(null)
+                                        setFormData((prev) => ({ ...prev, openai_api_key: e.target.value }))
+                                    }}
                                     placeholder={hasSavedOpenAIKey ? "Saved key on file. Enter a new key to replace it." : "sk-..."}
                                     className={`${fieldClass} pr-10`}
                                     required={formData.ai_provider === 'openai' && !hasSavedOpenAIKey}
@@ -545,7 +505,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                     disabled={isTesting}
                                 >
                                     {isTesting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                                    Test Key
+                                    {testKeyLabel}
                                 </Button>
                             </div>
                             {hasSavedOpenAIKey && (
@@ -579,7 +539,7 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                     <div className="space-y-2">
                         <Label htmlFor="ai_text_model_name" className="text-white/80">Text Generation Model</Label>
                         <Select
-                            value={formData.ai_text_model_name}
+                            value={resolvedTextModelName}
                             onValueChange={(value) => setFormData({ ...formData, ai_text_model_name: value })}
                             disabled={isTextModelsLoading || textModelOptions.length === 0}
                         >
@@ -600,33 +560,6 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
                                 : 'Using fallback model list. Save API key first to load account-specific models.'}
                         </p>
                         {renderModelTips(curatedTextModels)}
-                    </div>
-
-                    {/* Image Model */}
-                    <div className="space-y-2">
-                        <Label htmlFor="ai_image_model_name" className="text-white/80">Image Generation Model</Label>
-                        <Select
-                            value={formData.ai_image_model_name}
-                            onValueChange={(value) => setFormData({ ...formData, ai_image_model_name: value })}
-                            disabled={imageModelOptions.length === 0}
-                        >
-                            <SelectTrigger id="ai_image_model_name" className={selectTriggerClass}>
-                                <SelectValue placeholder="Select image model" />
-                            </SelectTrigger>
-                            <SelectContent className={selectContentClass}>
-                                {imageModelOptions.map((model) => (
-                                    <SelectItem key={model} value={model}>
-                                        {model}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <p className={helperClass}>
-                            {imageModelsData?.source === 'live'
-                                ? 'Loaded from provider API using exact image-capable model IDs.'
-                                : 'Using curated image-model fallbacks. Save API key first to load account-aware image models where available.'}
-                        </p>
-                        {renderModelTips(curatedImageModels)}
                     </div>
 
                     {showAdvancedSamplingControls ? (

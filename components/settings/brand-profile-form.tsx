@@ -55,6 +55,16 @@ type BrandAssetUploadResponse = {
     error?: string
 }
 
+async function requestBrandProfile(): Promise<BrandProfileState> {
+    const response = await fetch('/api/brand-profile')
+    if (!response.ok) {
+        const text = await response.text()
+        console.error('API Error:', response.status, text)
+        throw new Error(`API Error: ${response.status}`)
+    }
+    return response.json()
+}
+
 export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -66,25 +76,23 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
     const canEditSettings = useWorkspacePermission("settings:write")
 
     useEffect(() => {
-        fetchProfile()
-    }, [workspaceId])
+        let cancelled = false
 
-    const fetchProfile = async () => {
-        try {
-            const res = await fetch('/api/brand-profile')
-            if (!res.ok) {
-                const text = await res.text()
-                console.error('API Error:', res.status, text)
-                throw new Error(`API Error: ${res.status}`)
-            }
-            const data = await res.json()
-            setProfile(data)
-        } catch (error) {
-            console.error('Failed to fetch profile:', error)
-        } finally {
-            setLoading(false)
+        void requestBrandProfile()
+            .then((data) => {
+                if (!cancelled) setProfile(data)
+            })
+            .catch((error) => {
+                if (!cancelled) console.error('Failed to fetch profile:', error)
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false)
+            })
+
+        return () => {
+            cancelled = true
         }
-    }
+    }, [workspaceId])
 
     const handleSave = async () => {
         if (!canEditSettings) return
@@ -530,7 +538,11 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                         <Label className={labelClass}>Logo</Label>
                         <div className="flex items-center gap-4">
                             {profile?.logo_url && (
+                                <>
+                                {/* User-configured image hosts intentionally bypass the Next image proxy. */}
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={profile.logo_url} alt="Logo" className="h-16 w-16 object-contain rounded border border-white/10 bg-[#1b1d28] p-2" />
+                                </>
                             )}
                             <Input
                                 className={inputClass}
@@ -553,6 +565,8 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
                             {profile?.reference_image_urls?.map((url: string, i: number) => (
                                 <div key={i} className="relative group">
+                                    {/* User-configured image hosts intentionally bypass the Next image proxy. */}
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
                                     <img src={url} alt={`Reference ${i + 1}`} className="w-full aspect-square object-cover rounded border border-white/10" />
                                     <button
                                         onClick={() => removeReferenceImage(i)}

@@ -13,11 +13,9 @@ export interface WorkspaceSettings {
 
   // AI Model Configuration
   ai_text_model_name: string
-  ai_image_model_name: string | null
   ai_model_name: string
   ai_temperature: number
   ai_max_tokens: number
-  floating_assistant_enabled: boolean
 
 
   // Other Settings
@@ -37,11 +35,9 @@ export interface UpdateSettingsInput {
 
   // AI Model Configuration
   ai_text_model_name?: string
-  ai_image_model_name?: string
   ai_model_name?: string
   ai_temperature?: number
   ai_max_tokens?: number
-  floating_assistant_enabled?: boolean
 
 
   // Other Settings

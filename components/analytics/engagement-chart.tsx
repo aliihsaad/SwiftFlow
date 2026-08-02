@@ -1,14 +1,27 @@
 "use client"
 
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts"
-import { FollowerGrowthData } from "@/types/analytics"
+import { AnalyticsPlatformView, FollowerGrowthData } from "@/types/analytics"
 import { TrendingUp, Calendar, BarChart3, Info } from "lucide-react"
 
 interface FollowerGrowthChartProps {
     data: FollowerGrowthData
+    platformView?: AnalyticsPlatformView
+}
+type TooltipEntry = {
+    name: string
+    color: string
+    value?: number
 }
 
-function DarkTooltip({ active, payload, label }: any) {
+type ChartTooltipProps = {
+    active?: boolean
+    payload?: TooltipEntry[]
+    label?: string
+}
+
+
+function DarkTooltip({ active, payload, label }: ChartTooltipProps) {
     if (!active || !payload?.length) return null
     return (
         <div
@@ -22,7 +35,7 @@ function DarkTooltip({ active, payload, label }: any) {
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.4)' }}>
                 {label}
             </p>
-            {payload.map((entry: any) => (
+            {payload.map((entry) => (
                 <div key={entry.name} className="flex items-center gap-2 text-xs">
                     <span className="h-2 w-2 rounded-full" style={{ background: entry.color }} />
                     <span style={{ color: 'rgba(255,255,255,0.55)' }}>
@@ -37,7 +50,9 @@ function DarkTooltip({ active, payload, label }: any) {
     )
 }
 
-export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
+export function FollowerGrowthChart({ data, platformView = "all" }: FollowerGrowthChartProps) {
+    const showFacebook = platformView === "all" || platformView === "facebook"
+    const showInstagram = platformView === "all" || platformView === "instagram"
     let chartData = data.labels.map((label, index) => ({
         label,
         facebook: data.facebookValues?.[index] ?? 0,
@@ -84,20 +99,24 @@ export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
                     </p>
                 </div>
                 <div className="flex items-center gap-4 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full" style={{ background: '#22d3ee' }} />
-                        Facebook
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full" style={{ background: '#fb7185' }} />
-                        Instagram
-                    </div>
+                    {showFacebook ? (
+                        <div className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full" style={{ background: '#22d3ee' }} />
+                            Facebook
+                        </div>
+                    ) : null}
+                    {showInstagram ? (
+                        <div className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full" style={{ background: '#fb7185' }} />
+                            Instagram
+                        </div>
+                    ) : null}
                 </div>
             </div>
 
             {/* Body */}
             <div className="px-4 pb-4 pt-5">
-                {data.labels.length <= 1 && (
+                {data.labels.length <= 1 ? (
                     <div
                         className="flex items-center gap-2 mb-4 rounded-lg px-3 py-2 text-xs"
                         style={{ background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.15)', color: '#67e8f9' }}
@@ -105,7 +124,7 @@ export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
                         <Info className="h-3.5 w-3.5 shrink-0" />
                         <span>Limited data available. The chart will fill in as more daily syncs run.</span>
                     </div>
-                )}
+                ) : null}
 
                 <div className="h-[300px] w-full">
                     <ResponsiveContainer width="100%" height="100%" minWidth={0}>
@@ -148,28 +167,32 @@ export function FollowerGrowthChart({ data }: FollowerGrowthChartProps) {
                                 cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
                             />
 
-                            <Area
-                                type="monotone"
-                                dataKey="facebook"
-                                name="facebook"
-                                stroke="#22d3ee"
-                                strokeWidth={2}
-                                fillOpacity={1}
-                                fill="url(#gradFacebook)"
-                                dot={false}
-                                activeDot={{ r: 4, fill: '#22d3ee', strokeWidth: 0 }}
-                            />
-                            <Area
-                                type="monotone"
-                                dataKey="instagram"
-                                name="instagram"
-                                stroke="#fb7185"
-                                strokeWidth={2}
-                                fillOpacity={1}
-                                fill="url(#gradInstagram)"
-                                dot={false}
-                                activeDot={{ r: 4, fill: '#fb7185', strokeWidth: 0 }}
-                            />
+                            {showFacebook ? (
+                                <Area
+                                    type="monotone"
+                                    dataKey="facebook"
+                                    name="facebook"
+                                    stroke="#22d3ee"
+                                    strokeWidth={2}
+                                    fillOpacity={1}
+                                    fill="url(#gradFacebook)"
+                                    dot={false}
+                                    activeDot={{ r: 4, fill: '#22d3ee', strokeWidth: 0 }}
+                                />
+                            ) : null}
+                            {showInstagram ? (
+                                <Area
+                                    type="monotone"
+                                    dataKey="instagram"
+                                    name="instagram"
+                                    stroke="#fb7185"
+                                    strokeWidth={2}
+                                    fillOpacity={1}
+                                    fill="url(#gradInstagram)"
+                                    dot={false}
+                                    activeDot={{ r: 4, fill: '#fb7185', strokeWidth: 0 }}
+                                />
+                            ) : null}
                         </AreaChart>
                     </ResponsiveContainer>
                 </div>

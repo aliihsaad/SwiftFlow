@@ -78,24 +78,16 @@ describe("secret log redaction", () => {
     expect(source("app", "api", "developer", "keys", "[id]", "route.ts")).toContain("redactSensitiveLogValue(error)")
     expect(source("app", "api", "developer", "access-model", "route.ts")).toContain("redactSensitiveLogValue(error)")
     expect(source("app", "api", "developer", "audit-logs", "route.ts")).toContain("redactSensitiveLogValue(error)")
-    expect(source("app", "api", "developer", "v1", "posts", "route.ts")).toContain("redactSensitiveLogValue(error)")
-    expect(source("app", "api", "assistant", "command", "route.ts")).toContain("redactSensitiveLogValue(error)")
+    expect(source("app", "api", "assistant", "invoke", "route.ts")).toContain("redactSensitiveLogValue(error)")
 
     for (const file of [
       ["supabase", "functions", "automation-orchestrator", "index.ts"],
       ["supabase", "functions", "automation-worker-run", "index.ts"],
-      ["supabase", "functions", "chat-assistant", "index.ts"],
-      ["supabase", "functions", "generate-caption", "index.ts"],
-      ["supabase", "functions", "generate-carousel", "index.ts"],
-      ["supabase", "functions", "generate-ideas", "index.ts"],
-      ["supabase", "functions", "generate-image", "index.ts"],
       ["supabase", "functions", "generate-message-reply", "index.ts"],
       ["supabase", "functions", "generate-reply", "index.ts"],
-      ["supabase", "functions", "process-scheduled-posts", "index.ts"],
       ["supabase", "functions", "process-scheduled-executions", "index.ts"],
       ["supabase", "functions", "process-automations", "index.ts"],
       ["supabase", "functions", "process-automations", "graph-executor.ts"],
-      ["supabase", "functions", "research-topic", "index.ts"],
       ["supabase", "functions", "sync-comments", "index.ts"],
       ["supabase", "functions", "sync-messages", "index.ts"],
       ["supabase", "functions", "sync-analytics", "index.ts"],

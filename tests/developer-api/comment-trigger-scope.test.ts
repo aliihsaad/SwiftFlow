@@ -111,17 +111,15 @@ describe("developer API graph validation with scopes", () => {
         const { graph } = validateDeveloperAutomationGraph(
             commentTriggerGraph({ post_scope: "any", post_id: "17895695668004550", post_caption: "old" }),
         )
-        const config = graph?.nodes[0]?.data?.config as Record<string, unknown>
-        expect(config.post_id).toBe("")
-        expect(config.post_caption).toBeUndefined()
+        expect(graph?.nodes[0]?.data?.config).toHaveProperty("post_id", "")
+        expect(graph?.nodes[0]?.data?.config).not.toHaveProperty("post_caption")
     })
 
     it("drops invalid scope values so legacy resolution applies", () => {
         const { graph, errors } = validateDeveloperAutomationGraph(
             commentTriggerGraph({ post_scope: "everything", post_id: "17895695668004550" }),
         )
-        const config = graph?.nodes[0]?.data?.config as Record<string, unknown>
-        expect(config.post_scope).toBeUndefined()
+        expect(graph?.nodes[0]?.data?.config).not.toHaveProperty("post_scope")
         expect(errors).toEqual([])
     })
 })

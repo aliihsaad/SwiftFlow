@@ -1,12 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { canReadConnectedMediaWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
-import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
+import { getMetaGraphApiBaseUrl } from '@/lib/meta-graph-version';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace } from '@/lib/workspace-utils';
 
-const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+type InstagramMediaApiItem = {
+    id: string;
+    media_type: string;
+    media_url?: string;
+    thumbnail_url?: string;
+    caption?: string;
+    timestamp?: string;
+    permalink?: string;
+};
+
+type InstagramMediaApiResponse = {
+    data?: InstagramMediaApiItem[];
+    error?: {
+        message?: string;
+    };
+};
+
 
 // GET - Fetch Instagram media for post selection
 export async function GET(request: NextRequest) {
@@ -52,6 +68,9 @@ export async function GET(request: NextRequest) {
             );
         }
         const decryptedAccount = decryptMetaAccountRow(account);
+        const graphBaseUrl = getMetaGraphApiBaseUrl(
+            decryptedAccount.metadata?.connection_method
+        );
 
         if (!decryptedAccount.access_token) {
             return NextResponse.json(
@@ -73,17 +92,17 @@ export async function GET(request: NextRequest) {
         }
 
         // Fetch media from Instagram Graph API
-        const mediaUrl = `${META_GRAPH_URL}/${decryptedAccount.account_id}/media?fields=id,media_type,media_url,thumbnail_url,caption,timestamp,permalink&limit=${limit}&access_token=${decryptedAccount.access_token}`;
+        const mediaUrl = `${graphBaseUrl}/${decryptedAccount.account_id}/media?fields=id,media_type,media_url,thumbnail_url,caption,timestamp,permalink&limit=${limit}&access_token=${decryptedAccount.access_token}`;
 
         const response = await fetch(mediaUrl, { cache: 'no-store' });
-        const result = await response.json();
+        const result = await response.json() as InstagramMediaApiResponse;
 
         if (!response.ok) {
             throw new Error(result.error?.message || 'Failed to fetch Instagram media');
         }
 
         // Transform the response
-        const media = (result.data || []).map((item: any) => ({
+        const media = (result.data || []).map((item) => ({
             id: item.id,
             media_type: item.media_type,
             media_url: item.media_url,
@@ -97,10 +116,11 @@ export async function GET(request: NextRequest) {
             media
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Failed to fetch Instagram media';
         console.error('Get Instagram media API error:', error);
         return NextResponse.json(
-            { error: error.message || 'Failed to fetch Instagram media' },
+            { error: errorMessage },
             { status: 500 }
         );
     }

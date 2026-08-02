@@ -7,11 +7,21 @@
  * condition nodes and parallel edges.
  */
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
+import {
+  recordAutomationRuntimeOutcome,
+  reserveAutomationRuntimeBudget,
+  resolveAutomationRuntimeGuardPolicy,
+  type AutomationRuntimeResource,
+} from "../_shared/automation-runtime-guard.ts"
 import { buildAutomationAiPrompt } from "../_shared/automation-context.ts"
 import { buildAutomationEmailMessage } from "../_shared/automation-email.ts"
 import { sendResendEmail, textToSimpleHtml } from "../_shared/resend-email.ts"
 import { resolveAIConfig, toUserFriendlyError } from "../_shared/ai-config.ts"
 import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
+import {
+  recordAutomationNodeEvent,
+  type AutomationTimelineContext,
+} from "../_shared/automation-timeline.ts"
 import {
   canManageCommentsWithMetaAccount,
   canManageMessagesWithMetaAccount,
@@ -19,9 +29,12 @@ import {
   decryptMetaAccountRow,
 } from "../_shared/meta-account.ts"
 
-import { META_GRAPH_API_BASE_URL, toMetaGraphFormBody } from "../_shared/meta-graph.ts";
+import { getMetaGraphApiBaseUrl, toMetaGraphFormBody } from "../_shared/meta-graph.ts";
+import {
+  getAutomationConditionPolicyIssue,
+} from "../_shared/automation-condition-policy.ts";
+import { upsertAutomationNodeRuns } from "../_shared/automation-node-runs.ts";
 
-const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 const DM_FALLBACK_CODES = new Set([
   '551',
@@ -97,10 +110,11 @@ interface TriggerContext {
   platform?: string
 }
 
-interface ExecutionResult {
+export interface ExecutionResult {
   processed: number
   dmsSent: number
   errors: number
+  pendingContinuations: number
   nodeResults: Record<string, { success: boolean; output?: any; error?: string }>
 }
 
@@ -309,12 +323,12 @@ function getGraphCapabilityIssues(
     issues.push('Missing comment-read capability');
   }
 
-  if (nodeTypes.has('action_reply_comment') &&
+  if ((nodeTypes.has('action_reply_comment') || nodeTypes.has('action_private_reply')) &&
       !canManageCommentsWithMetaAccount(account?.metadata, platform)) {
     issues.push('Missing comment-management capability');
   }
 
-  if ((nodeTypes.has('action_send_dm') || nodeTypes.has('action_private_reply')) &&
+  if (nodeTypes.has('action_send_dm') &&
       !canManageMessagesWithMetaAccount(account?.metadata, platform)) {
     issues.push('Missing messaging capability');
   }
@@ -378,9 +392,16 @@ export async function executeWorkflowGraph(
   automation: any,
   triggerContext: TriggerContext,
   account: { account_id: string; access_token: string; metadata?: Record<string, any>; platform?: string },
+  timelineContext: AutomationTimelineContext = {},
 ): Promise<ExecutionResult> {
   const graph: WorkflowGraph = automation.workflow_graph;
-  const result: ExecutionResult = { processed: 0, dmsSent: 0, errors: 0, nodeResults: {} };
+  const result: ExecutionResult = {
+    processed: 0,
+    dmsSent: 0,
+    errors: 0,
+    pendingContinuations: 0,
+    nodeResults: {},
+  };
 
   if (!graph?.nodes?.length) {
     console.error(`[GRAPH] Automation ${automation.id}: No graph nodes`);
@@ -420,6 +441,26 @@ export async function executeWorkflowGraph(
     return result;
   }
 
+  const triggerStartedAt = Date.now();
+  await recordAutomationNodeEvent({
+    supabase,
+    automation,
+    node: triggerNode,
+    context: timelineContext,
+    eventType: 'started',
+    input: { config: triggerNode.data?.config || {}, trigger_context: triggerContext },
+  });
+  await recordAutomationNodeEvent({
+    supabase,
+    automation,
+    node: triggerNode,
+    context: timelineContext,
+    eventType: 'succeeded',
+    input: { config: triggerNode.data?.config || {}, trigger_context: triggerContext },
+    output: { matched: true },
+    durationMs: Date.now() - triggerStartedAt,
+  });
+
   // Build adjacency map: sourceId → [{ targetId, sourceHandle }]
   const adjacency = new Map<string, { targetId: string; sourceHandle?: string }[]>();
   for (const edge of graph.edges) {
@@ -454,6 +495,16 @@ export async function executeWorkflowGraph(
     const node = graph.nodes.find(n => n.id === nodeId);
     if (!node) continue;
 
+    const nodeStartedAt = Date.now();
+    const timelineInput = { config: node.data?.config || {}, context: runtimeContext };
+    await recordAutomationNodeEvent({
+      supabase,
+      automation,
+      node,
+      context: timelineContext,
+      eventType: 'started',
+      input: timelineInput,
+    });
     console.log(`[GRAPH] Executing node: ${node.data.type} (${node.data.label})`);
 
     try {
@@ -462,6 +513,18 @@ export async function executeWorkflowGraph(
       );
 
       result.nodeResults[nodeId] = nodeResult;
+
+      await recordAutomationNodeEvent({
+        supabase,
+        automation,
+        node,
+        context: timelineContext,
+        eventType: nodeResult.success ? 'succeeded' : 'failed',
+        input: timelineInput,
+        output: nodeResult.output || {},
+        error: nodeResult.error,
+        durationMs: Date.now() - nodeStartedAt,
+      });
 
       // If an AI node produced a response, make it available to downstream nodes
       if (node.data.type === 'action_ai_response' && nodeResult.success && nodeResult.output?.response) {
@@ -509,12 +572,15 @@ export async function executeWorkflowGraph(
           .filter((edge) => edge.sourceHandle !== 'error')
           .map((e) => e.targetId);
         if (remainingNodes.length > 0) {
-          await supabase.from('automation_scheduled_executions').insert({
+          const { error: scheduleError } = await supabase.from('automation_scheduled_executions').insert({
             automation_id: automation.id,
+            workflow_version_id:
+              automation.workflow_version_id || automation.current_workflow_version_id,
             execution_id: crypto.randomUUID(),
             node_id: nodeId,
             execution_context: {
               automation_id: automation.id,
+              run_id: timelineContext.runId || null,
               trigger_data: runtimeContext,
               next_nodes: remainingNodes,
               variables: {},
@@ -523,6 +589,10 @@ export async function executeWorkflowGraph(
             scheduled_for: scheduledFor,
             status: 'pending',
           });
+          if (scheduleError) {
+            throw new Error(`Failed to schedule delayed continuation: ${scheduleError.message || 'unknown database error'}`);
+          }
+          result.pendingContinuations++;
           console.log(`[GRAPH] Delay node: scheduled resumption for ${scheduledFor}`);
         }
         // Don't add children to queue — they'll be executed after the delay
@@ -537,6 +607,17 @@ export async function executeWorkflowGraph(
       const failedNodeResult = { success: false, error: err?.message || 'Unknown error' };
       result.nodeResults[nodeId] = failedNodeResult;
       result.errors++;
+      await recordAutomationNodeEvent({
+        supabase,
+        automation,
+        node,
+        context: timelineContext,
+        eventType: 'failed',
+        input: timelineInput,
+        output: {},
+        error: failedNodeResult.error,
+        durationMs: Date.now() - nodeStartedAt,
+      });
       queueErrorBranchIfPresent(adjacency, nodeId, executionQueue, runtimeContext, node, failedNodeResult);
     }
   }
@@ -551,8 +632,12 @@ export async function resumeFromDelay(
   supabase: any,
   scheduledExec: any,
 ): Promise<ExecutionResult> {
-  const { automation_id, execution_context } = scheduledExec;
+  const { automation_id, workflow_version_id, execution_context } = scheduledExec;
   const { trigger_data, next_nodes, node_outputs } = execution_context;
+  const timelineContext: AutomationTimelineContext = {
+    runId: execution_context?.run_id || undefined,
+    scheduledExecutionId: scheduledExec.id,
+  };
 
   // Fetch the automation
   const { data: automation, error } = await supabase
@@ -563,24 +648,47 @@ export async function resumeFromDelay(
 
   if (error || !automation) {
     console.error(`[GRAPH_RESUME] Automation ${automation_id} not found`);
-    return { processed: 0, dmsSent: 0, errors: 1, nodeResults: {} };
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {} };
   }
 
   if (!automation.is_active) {
     console.log(`[GRAPH_RESUME] Automation ${automation_id} is inactive, skipping`);
-    return { processed: 0, dmsSent: 0, errors: 0, nodeResults: {} };
+    return { processed: 0, dmsSent: 0, errors: 0, pendingContinuations: 0, nodeResults: {} };
   }
+
+  if (!workflow_version_id) {
+    console.error(`[GRAPH_RESUME] Scheduled execution for ${automation_id} has no workflow version`);
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {} };
+  }
+
+  const { data: workflowVersion, error: workflowVersionError } = await supabase
+    .from('automation_workflow_versions')
+    .select('id, workflow_graph')
+    .eq('id', workflow_version_id)
+    .eq('automation_id', automation_id)
+    .maybeSingle();
+
+  if (workflowVersionError || !workflowVersion) {
+    console.error(
+      `[GRAPH_RESUME] Workflow version ${workflow_version_id} not found for ${automation_id}`,
+      redactSensitiveLogValue(workflowVersionError),
+    );
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {} };
+  }
+
+  automation.workflow_graph = workflowVersion.workflow_graph;
+  automation.workflow_version_id = workflowVersion.id;
 
   const account = automation.social_accounts ? await decryptMetaAccountRow(automation.social_accounts) : null;
   if (!account?.access_token) {
     console.error(`[GRAPH_RESUME] Automation ${automation_id} has no access token`);
-    return { processed: 0, dmsSent: 0, errors: 1, nodeResults: {} };
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {} };
   }
   const graph: WorkflowGraph = automation.workflow_graph;
   const graphIssues = validateExecutableGraph(graph);
   if (graphIssues.length > 0) {
     console.error(`[GRAPH_RESUME] Automation ${automation_id} invalid workflow graph`, redactSensitiveLogValue(graphIssues));
-    return { processed: 0, dmsSent: 0, errors: 1, nodeResults: { } };
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: { } };
   }
   const pageId = account.metadata?.connected_page_id || account.account_id;
 
@@ -588,7 +696,8 @@ export async function resumeFromDelay(
     processed: 0,
     dmsSent: 0,
     errors: 0,
-    nodeResults: { ...node_outputs },
+    pendingContinuations: 0,
+    nodeResults: {},
   };
 
   // Build adjacency
@@ -612,6 +721,16 @@ export async function resumeFromDelay(
     const node = graph.nodes.find(n => n.id === nodeId);
     if (!node) continue;
 
+    const nodeStartedAt = Date.now();
+    const timelineInput = { config: node.data?.config || {}, context: runtimeContext };
+    await recordAutomationNodeEvent({
+      supabase,
+      automation,
+      node,
+      context: timelineContext,
+      eventType: 'started',
+      input: timelineInput,
+    });
     try {
       const nodeResult = await executeNode(
         supabase, automation, node, runtimeContext, account, pageId
@@ -620,6 +739,17 @@ export async function resumeFromDelay(
       if (nodeResult.dmSent) result.dmsSent++;
       if (!nodeResult.success) result.errors++;
       result.processed++;
+      await recordAutomationNodeEvent({
+        supabase,
+        automation,
+        node,
+        context: timelineContext,
+        eventType: nodeResult.success ? 'succeeded' : 'failed',
+        input: timelineInput,
+        output: nodeResult.output || {},
+        error: nodeResult.error,
+        durationMs: Date.now() - nodeStartedAt,
+      });
 
       if (node.data.type === 'action_ai_response' && nodeResult.success && nodeResult.output?.response) {
         runtimeContext.ai_response = nodeResult.output.response;
@@ -653,20 +783,29 @@ export async function resumeFromDelay(
           .filter((edge) => edge.sourceHandle !== 'error')
           .map((e) => e.targetId);
         if (remainingNodes.length > 0) {
-          await supabase.from('automation_scheduled_executions').insert({
+          const { error: scheduleError } = await supabase.from('automation_scheduled_executions').insert({
             automation_id: automation.id,
+            workflow_version_id: automation.workflow_version_id,
             execution_id: crypto.randomUUID(),
             node_id: nodeId,
             execution_context: {
               automation_id: automation.id,
+              run_id: timelineContext.runId || null,
               trigger_data: runtimeContext,
               next_nodes: remainingNodes,
               variables: {},
-              node_outputs: result.nodeResults,
+              node_outputs: {
+                ...(node_outputs || {}),
+                ...result.nodeResults,
+              },
             },
             scheduled_for: new Date(Date.now() + delayMs).toISOString(),
             status: 'pending',
           });
+          if (scheduleError) {
+            throw new Error(`Failed to schedule delayed continuation: ${scheduleError.message || 'unknown database error'}`);
+          }
+          result.pendingContinuations++;
         }
         continue;
       } else {
@@ -676,16 +815,109 @@ export async function resumeFromDelay(
       const failedNodeResult = { success: false, error: err?.message || 'Unknown error' };
       result.nodeResults[nodeId] = failedNodeResult;
       result.errors++;
+      await recordAutomationNodeEvent({
+        supabase,
+        automation,
+        node,
+        context: timelineContext,
+        eventType: 'failed',
+        input: timelineInput,
+        output: {},
+        error: failedNodeResult.error,
+        durationMs: Date.now() - nodeStartedAt,
+      });
       queueErrorBranchIfPresent(adjacency, nodeId, queue, runtimeContext, node, failedNodeResult);
     }
   }
+
+  await upsertAutomationNodeRuns({
+    supabase,
+    workspaceId: automation.workspace_id,
+    automation,
+    runId: timelineContext.runId,
+    triggerContext: runtimeContext,
+    nodeResults: result.nodeResults,
+  });
 
   return result;
 }
 
 // ─── Node Executors ──────────────────────────────────────────────
 
+const GUARDED_RESOURCE_BY_NODE_TYPE: Readonly<Record<string, AutomationRuntimeResource>> = {
+  action_reply_comment: 'provider_send',
+  action_send_dm: 'provider_send',
+  action_private_reply: 'provider_send',
+  action_ai_response: 'ai_generation',
+};
+
 async function executeNode(
+  supabase: any,
+  automation: any,
+  node: WorkflowNode,
+  triggerContext: TriggerContext,
+  account: any,
+  pageId: string,
+): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
+  const resourceKind = GUARDED_RESOURCE_BY_NODE_TYPE[node.data.type];
+  if (!resourceKind) {
+    return executeNodeUnchecked(supabase, automation, node, triggerContext, account, pageId);
+  }
+
+  const socialAccountId = String(automation.social_account_id || account?.id || '').trim();
+  if (!automation.workspace_id || !automation.id || !socialAccountId) {
+    return { success: false, error: 'runtime_guard_scope_missing' };
+  }
+
+  const scope = {
+    workspaceId: String(automation.workspace_id),
+    socialAccountId,
+    automationId: String(automation.id),
+    resourceKind,
+  };
+  const policy = resolveAutomationRuntimeGuardPolicy(resourceKind);
+  const reservation = await reserveAutomationRuntimeBudget(supabase, scope, policy);
+  if (!reservation.allowed) {
+    return {
+      success: false,
+      error: reservation.reason,
+      output: {
+        guarded: true,
+        retry_after_seconds: reservation.retryAfterSeconds,
+        account_remaining: reservation.accountRemaining,
+        automation_remaining: reservation.automationRemaining,
+      },
+    };
+  }
+
+  let result: { success: boolean; output?: any; error?: string; dmSent?: boolean };
+  try {
+    result = await executeNodeUnchecked(
+      supabase,
+      automation,
+      node,
+      triggerContext,
+      account,
+      pageId,
+    );
+  } catch (error) {
+    await recordAutomationRuntimeOutcome(supabase, scope, policy, {
+      succeeded: false,
+      failureCode: error instanceof Error ? error.name : 'node_exception',
+    });
+    throw error;
+  }
+
+  await recordAutomationRuntimeOutcome(supabase, scope, policy, {
+    succeeded: result.success,
+    failureCode: result.success
+      ? undefined
+      : String(result.error || 'node_failed').split(':', 1)[0],
+  });
+  return result;
+}
+
+async function executeNodeUnchecked(
   supabase: any,
   automation: any,
   node: WorkflowNode,
@@ -730,6 +962,7 @@ async function executeNode(
         access_token: account?.access_token,
         page_id: pageId,
         platform: account?.platform,
+        connection_method: account?.metadata?.connection_method,
       });
 
       if (workerResult.ok && workerResult.data) {
@@ -742,13 +975,13 @@ async function executeNode(
 
   switch (nodeType) {
     case 'action_reply_comment':
-      return await executeReplyComment(config, triggerContext, account.access_token, account?.platform);
+      return await executeReplyComment(config, triggerContext, account.access_token, account?.platform, account?.metadata?.connection_method);
 
     case 'action_send_dm':
-      return await executeSendDM(config, triggerContext, account.access_token, pageId);
+      return await executeSendDM(config, triggerContext, account.access_token, pageId, account?.metadata?.connection_method);
 
     case 'action_private_reply':
-      return await executePrivateReply(config, triggerContext, account.access_token, pageId);
+      return await executePrivateReply(config, triggerContext, account.access_token, pageId, account?.metadata?.connection_method);
 
     case 'action_condition':
       return executeCondition(config, triggerContext);
@@ -768,7 +1001,7 @@ async function executeNode(
 
     default:
       console.warn(`[GRAPH] Unknown node type: ${node.data.type}`);
-      return { success: true };
+      return { success: false, error: `Unsupported node type: ${node.data.type}` };
   }
 }
 
@@ -832,6 +1065,7 @@ async function executeReplyComment(
   ctx: TriggerContext & { ai_response?: string },
   accessToken: string,
   platform?: string,
+  connectionMethod?: string,
 ): Promise<{ success: boolean; output?: any; error?: string }> {
   if (!ctx.comment_id) return { success: false, error: 'No comment_id in trigger context' };
 
@@ -853,11 +1087,11 @@ async function executeReplyComment(
   message = normalizeCommentReply(message);
 
   const replyPath = String(platform || '').toLowerCase() === 'facebook' ? 'comments' : 'replies';
-  const url = `${META_GRAPH_URL}/${ctx.comment_id}/${replyPath}`;
+  const url = `${getMetaGraphApiBaseUrl(connectionMethod)}/${ctx.comment_id}/${replyPath}`;
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: await toMetaGraphFormBody({ message, access_token: accessToken }, accessToken),
+    body: await toMetaGraphFormBody({ message, access_token: accessToken }, accessToken, { connectionMethod }),
   });
 
   const result = await response.json();
@@ -873,6 +1107,7 @@ async function executeSendDM(
   ctx: TriggerContext,
   accessToken: string,
   pageId: string,
+  connectionMethod?: string,
 ): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
   const recipientId = ctx.commenter_id || ctx.sender_id || ctx.follower_id;
   if (!recipientId) return { success: false, error: 'No recipient ID in trigger context' };
@@ -914,7 +1149,7 @@ async function executeSendDM(
     };
   }
 
-  const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
+  const sendUrl = `${getMetaGraphApiBaseUrl(connectionMethod)}/${pageId}/messages`;
 
   // Try normal DM
   const openingResponse = await fetch(sendUrl, {
@@ -924,7 +1159,7 @@ async function executeSendDM(
       recipient: { id: recipientId },
       message: { text: openingMessage },
       access_token: accessToken,
-    }, accessToken),
+    }, accessToken, { connectionMethod }),
   });
 
   const openingResult = await openingResponse.json();
@@ -960,6 +1195,7 @@ async function executeSendDM(
       ctx,
       accessToken,
       pageId,
+      connectionMethod,
     );
 
     if (!privateReplyResult.success) {
@@ -986,7 +1222,7 @@ async function executeSendDM(
           recipient: { id: recipientId },
           message: { text: linkMessage },
           access_token: accessToken,
-        }, accessToken),
+        }, accessToken, { connectionMethod }),
       });
     } else {
       const linkResp = await fetch(sendUrl, {
@@ -1005,7 +1241,7 @@ async function executeSendDM(
             },
           },
           access_token: accessToken,
-        }, accessToken),
+        }, accessToken, { connectionMethod }),
       });
 
       const linkResult = await linkResp.json();
@@ -1017,7 +1253,7 @@ async function executeSendDM(
             recipient: { id: recipientId },
             message: { text: linkMessage },
             access_token: accessToken,
-          }, accessToken),
+          }, accessToken, { connectionMethod }),
         });
       }
     }
@@ -1031,6 +1267,7 @@ async function executePrivateReply(
   ctx: TriggerContext & { ai_response?: string },
   accessToken: string,
   pageId: string,
+  connectionMethod?: string,
 ): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
   if (!ctx.comment_id) {
     return { success: false, error: 'Private Reply requires comment context' };
@@ -1051,7 +1288,7 @@ async function executePrivateReply(
     };
   }
 
-  const sendUrl = `${META_GRAPH_URL}/${pageId}/messages`;
+  const sendUrl = `${getMetaGraphApiBaseUrl(connectionMethod)}/${pageId}/messages`;
   const response = await fetch(sendUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -1059,7 +1296,7 @@ async function executePrivateReply(
       recipient: { comment_id: ctx.comment_id },
       message: { text: message },
       access_token: accessToken,
-    }, accessToken),
+    }, accessToken, { connectionMethod }),
   });
 
   const result = await response.json();
@@ -1077,7 +1314,12 @@ async function executePrivateReply(
 function executeCondition(
   config: any,
   ctx: TriggerContext,
-): { success: boolean; output: { conditionResult: boolean } } {
+): { success: boolean; output?: { conditionResult: boolean }; error?: string } {
+  const conditionIssue = getAutomationConditionPolicyIssue(config.condition_type);
+  if (conditionIssue) {
+    return { success: false, error: conditionIssue.message };
+  }
+
   let conditionResult = false;
   const text = (ctx.comment_text || ctx.message_text || '').toLowerCase();
 
@@ -1093,11 +1335,8 @@ function executeCondition(
       }
       break;
     }
-    case 'follower_count':
-    case 'comment_count':
-      // These would need API calls — placeholder
-      conditionResult = true;
-      break;
+    default:
+      return { success: false, error: 'Unsupported automation condition.' };
   }
 
   return { success: true, output: { conditionResult } };

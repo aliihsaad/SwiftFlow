@@ -15,17 +15,16 @@ No test suite is configured. There is no test command.
 
 ## Architecture Overview
 
-This is a **Next.js 16 App Router** application for managing social media (Instagram/Facebook via Meta Graph API) with AI-powered content generation.
+This is a **Next.js 16 App Router** application for managing social media (Instagram/Facebook via Meta Graph API) focused on engagement automation, inbox workflows, and analytics.
 
 ### Core Stack
 - **Next.js 16** (App Router, server + client components)
 - **Supabase** (PostgreSQL + Auth + Storage + Edge Functions + Realtime)
-- **Google Gemini AI** for content generation
+- **OpenRouter / Gemini / OpenAI** for automation reply generation
 - **Meta Graph API v25.0** for Instagram/Facebook integration
 - **Tailwind CSS v4** + **shadcn/ui** (new-york style) + **Radix UI**
 - **SWR** for client-side data fetching/polling
 - **@xyflow/react** for the automation workflow canvas
-- **@dnd-kit** for drag-and-drop (calendar rescheduling)
 
 ### Path Aliases
 `@/*` maps to the repo root.
@@ -41,12 +40,11 @@ All data is scoped to `workspace_id`. The active workspace is tracked via a cook
 4. **API routes** (`app/api/`) — Handle third-party integrations, webhook callbacks, and background task triggers.
 
 ### Edge Functions
-23 Deno-based Supabase Edge Functions in `supabase/functions/`. They handle AI generation (`generate-ideas`, `generate-caption`, `generate-image`, `generate-carousel`, `chat-assistant`), sync operations (`sync-analytics`, `sync-comments`, `sync-messages`), automation (`process-automations`, `automation-orchestrator`, plus 7 `automation-worker-*` functions), and scheduling (`process-scheduled-posts`, `scheduler-tick`). API routes fire-and-forget trigger these functions.
+Supabase Edge Functions handle AI replies, sync operations, durable automation execution, delayed continuations, and maintenance. No active function publishes or generates social content.
 
 ### AI Integration Architecture
 All AI calls (Gemini/OpenAI) go through a centralized config resolver:
 - **Edge functions** use `supabase/functions/_shared/ai-config.ts` → `resolveAIConfig()` for key resolution, model validation, and error handling.
-- **Next.js server** uses `lib/gemini.ts` which reads from `getWorkspaceSettings()`.
 - **Error sanitization**: `toUserFriendlyError()` (edge) and `toUserFriendlyAIError()` (server) strip raw SDK errors into actionable messages.
 - **Key validation**: `POST /api/ai/validate-key` tests keys before saving (used by settings form "Test Key" button).
 - **Model defaults**: `gemini-2.0-flash` everywhere. Deprecated models (`gemini-pro`, `gemini-1.5-flash-latest`) are auto-upgraded.
@@ -54,7 +52,6 @@ All AI calls (Gemini/OpenAI) go through a centralized config resolver:
 
 ### Key Libraries
 - `lib/meta-api-client.ts` — Typed Meta Graph API client
-- `lib/gemini.ts` — Gemini AI integration (supports per-workspace API keys)
 - `lib/ai-models.ts` — AI provider/model constants and defaults
 - `supabase/functions/_shared/ai-config.ts` — Centralized AI config for all edge functions
 - `utils/supabase/server.ts` — Server-side Supabase client
@@ -64,7 +61,6 @@ All AI calls (Gemini/OpenAI) go through a centralized config resolver:
 - `app/dashboard/*/page.tsx` — Page-level server components
 - `app/dashboard/layout.tsx` — Dashboard shell (auth guard, sidebar, workspace context)
 - `components/` — Feature components organized by domain (`analytics/`, `automation/`, `posts/`, `messages/`, `scheduled/`, `settings/`, `dashboard/`)
-- `app/dashboard/assistant/` — AI chat interface (has its own sub-components directory)
 
 ### Automation Canvas
 The automation builder uses `@xyflow/react` for a node-based workflow editor. Canvas components live in `components/automation/canvas/` with custom node types (`trigger-node`, `action-node`) and a `node-config-panel`.
@@ -86,13 +82,6 @@ NEXT_PUBLIC_APP_URL
 INSTAGRAM_APP_SECRET
 
 # Billing (Stripe) — all optional; billing routes return 503 when unset
-STRIPE_SECRET_KEY
-STRIPE_WEBHOOK_SECRET
-STRIPE_PRICE_PRO_MONTHLY
-STRIPE_PRICE_PRO_YEARLY
-STRIPE_PRICE_AGENCY_MONTHLY
-STRIPE_PRICE_AGENCY_YEARLY
-BILLING_ENFORCEMENT_MODE   # off (default) | log | enforce — plan gates are no-ops while off
 
 # Retention cleanup (Supabase edge function secret)
 RETENTION_CLEANUP_MODE     # off (default) | dry_run | enabled — destructive deletes only when enabled

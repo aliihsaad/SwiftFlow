@@ -36,8 +36,18 @@ export function timingSafeStringEqual(a: string, b: string): boolean {
   return timingSafeEqual(left, right)
 }
 
+function getLegacyDeveloperApiPepperFallback(): string {
+  return process.env.NEXTAUTH_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY || ""
+}
+
+export function getDeveloperApiKeyPeppers(): string[] {
+  const primary = process.env.DEVELOPER_API_KEY_PEPPER || getLegacyDeveloperApiPepperFallback()
+  if (!primary.trim()) throw new Error("DEVELOPER_API_KEY_PEPPER is required")
+
+  const previous = String(process.env.DEVELOPER_API_KEY_PEPPER_PREVIOUS || "").trim()
+  return previous && previous !== primary ? [primary, previous] : [primary]
+}
+
 export function getDeveloperApiKeyPepper(): string {
-  const pepper = process.env.DEVELOPER_API_KEY_PEPPER || process.env.NEXTAUTH_SECRET || process.env.SUPABASE_SERVICE_KEY || ""
-  if (!pepper.trim()) throw new Error("DEVELOPER_API_KEY_PEPPER is required")
-  return pepper
+  return getDeveloperApiKeyPeppers()[0]!
 }

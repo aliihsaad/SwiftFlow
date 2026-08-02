@@ -10,9 +10,8 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog"
-import { CheckCircle2, Facebook, Instagram, Loader2 } from "lucide-react"
+import { CheckCircle2, Instagram, Loader2, ShieldCheck, Webhook } from "lucide-react"
 import { useState } from "react"
-import { redirectToMetaOAuth } from "@/utils/meta-oauth"
 
 interface InstagramConnectDialogProps {
     workspaceId: string;
@@ -28,7 +27,7 @@ export function InstagramConnectDialog({ workspaceId, trigger, isConnecting = fa
         if (isConnecting) return;
         onConnectStart?.();
         setIsOpen(false);
-        redirectToMetaOAuth(workspaceId);
+        window.location.href = `/dashboard/onboarding/instagram?workspaceId=${encodeURIComponent(workspaceId)}`;
     };
 
     return (
@@ -50,7 +49,7 @@ export function InstagramConnectDialog({ workspaceId, trigger, isConnecting = fa
                         Connect Instagram Business
                     </DialogTitle>
                     <DialogDescription className="pt-2 text-white/50">
-                        To connect Instagram, your account must meet Meta's API requirements.
+                        Connect directly with Instagram. A linked Facebook Page is not required.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -62,7 +61,7 @@ export function InstagramConnectDialog({ workspaceId, trigger, isConnecting = fa
                         <div className="space-y-1">
                             <h4 className="text-sm font-medium text-white/85">Switch to Professional Account</h4>
                             <p className="text-xs leading-relaxed text-white/50">
-                                Your Instagram account must be a <strong>Business</strong> or <strong>Creator</strong> account. Public Personal accounts are not supported by Meta's API.
+                                Your Instagram account must be a <strong>Business</strong> or <strong>Creator</strong> account. Public Personal accounts are not supported by Meta&apos;s API.
                             </p>
                         </div>
                     </div>
@@ -72,9 +71,9 @@ export function InstagramConnectDialog({ workspaceId, trigger, isConnecting = fa
                             2
                         </div>
                         <div className="space-y-1">
-                            <h4 className="text-sm font-medium text-white/85">Link to a Facebook Page</h4>
+                            <h4 className="flex items-center gap-2 text-sm font-medium text-white/85"><ShieldCheck className="h-4 w-4 text-cyan-300" /> Approve focused permissions</h4>
                             <p className="text-xs leading-relaxed text-white/50">
-                                Go to your Instagram Profile &gt; Edit Profile &gt; Page and ensure a Facebook Page is connected.
+                                SwiftFlow asks only for basic professional-account access and comment management for this automation setup.
                             </p>
                         </div>
                     </div>
@@ -84,9 +83,9 @@ export function InstagramConnectDialog({ workspaceId, trigger, isConnecting = fa
                             3
                         </div>
                         <div className="space-y-1">
-                            <h4 className="text-sm font-medium text-white/85">Connect via Facebook</h4>
+                            <h4 className="flex items-center gap-2 text-sm font-medium text-white/85"><Webhook className="h-4 w-4 text-amber-300" /> Verify automations</h4>
                             <p className="text-xs leading-relaxed text-white/50">
-                                Log in with the Facebook account that manages that Page.
+                                The guided setup subscribes comment webhooks and checks token health before marking the account ready.
                             </p>
                         </div>
                     </div>
@@ -105,8 +104,8 @@ export function InstagramConnectDialog({ workspaceId, trigger, isConnecting = fa
                             </>
                         ) : (
                             <>
-                                <Facebook className="h-4 w-4" />
-                                Connect via Facebook
+                                <CheckCircle2 className="h-4 w-4" />
+                                Open Instagram Quick Start
                             </>
                         )}
                     </Button>

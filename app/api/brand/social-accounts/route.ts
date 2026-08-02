@@ -32,9 +32,26 @@ export async function DELETE(request: NextRequest) {
         await requireWorkspacePermission(supabase, user.id, workspaceId, 'integrations:write')
 
         const supabaseAdmin = createAdminClient()
-        const platformsToDelete = platform === 'facebook'
-            ? ['facebook', 'instagram']
-            : ['instagram']
+        const platformsToDelete: DisconnectPlatform[] = [platform]
+
+        if (platform === 'facebook') {
+            const { data: instagramAccount, error: instagramLookupError } = await supabaseAdmin
+                .from('social_accounts')
+                .select('metadata')
+                .eq('workspace_id', workspaceId)
+                .eq('platform', 'instagram')
+                .maybeSingle()
+
+            if (instagramLookupError) {
+                return NextResponse.json({ error: instagramLookupError.message }, { status: 500 })
+            }
+            const metadata = instagramAccount?.metadata && typeof instagramAccount.metadata === 'object'
+                ? instagramAccount.metadata as Record<string, unknown>
+                : {}
+            if (instagramAccount && metadata.connection_method !== 'instagram_login') {
+                platformsToDelete.push('instagram')
+            }
+        }
 
         const { data: deletedAccounts, error } = await supabaseAdmin
             .from('social_accounts')

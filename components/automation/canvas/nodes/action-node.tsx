@@ -1,19 +1,10 @@
 "use client"
 
-import { memo } from 'react'
-import { Handle, Position, type NodeProps } from '@xyflow/react'
-import {
-  Send,
-  Reply,
-  MessageSquare,
-  Timer,
-  GitBranch,
-  MailPlus,
-  Globe,
-  Sparkles,
-  Info,
-} from 'lucide-react'
-import type { WorkflowNodeData } from '@/types/automation-graph'
+import { memo } from "react"
+import { Handle, Position, type NodeProps } from "@xyflow/react"
+import { GitBranch, Globe, Info, MailPlus, MessageSquare, Reply, Send, Sparkles, Timer } from "lucide-react"
+
+import type { WorkflowNodeData } from "@/types/automation-graph"
 
 const iconMap: Record<string, React.ElementType> = {
   action_send_dm: Send,
@@ -26,132 +17,91 @@ const iconMap: Record<string, React.ElementType> = {
   action_ai_response: Sparkles,
 }
 
-const colorMap: Record<string, { bg: string; border: string; borderSelected: string; handle: string; trueLabel?: string }> = {
-  action_send_dm: { bg: 'linear-gradient(135deg, #fb7185, #f59e0b)', border: 'rgba(251,113,133,0.35)', borderSelected: 'rgba(251,113,133,0.85)', handle: '#fb7185' },
-  action_private_reply: { bg: 'linear-gradient(135deg, #fb7185, #f59e0b)', border: 'rgba(251,113,133,0.35)', borderSelected: 'rgba(251,113,133,0.85)', handle: '#fb7185' },
-  action_reply_comment: { bg: 'linear-gradient(135deg, #fb7185, #f59e0b)', border: 'rgba(251,113,133,0.35)', borderSelected: 'rgba(251,113,133,0.85)', handle: '#fb7185' },
-  action_delay: { bg: 'linear-gradient(135deg, #f59e0b, #fbbf24)', border: 'rgba(245,158,11,0.35)', borderSelected: 'rgba(245,158,11,0.85)', handle: '#f59e0b' },
-  action_condition: { bg: 'linear-gradient(135deg, #34d399, #10b981)', border: 'rgba(16,185,129,0.35)', borderSelected: 'rgba(16,185,129,0.85)', handle: '#10b981' },
-  action_send_email: { bg: 'linear-gradient(135deg, #38bdf8, #0ea5e9)', border: 'rgba(56,189,248,0.35)', borderSelected: 'rgba(56,189,248,0.85)', handle: '#38bdf8' },
-  action_http_request: { bg: 'linear-gradient(135deg, #38bdf8, #0ea5e9)', border: 'rgba(56,189,248,0.35)', borderSelected: 'rgba(56,189,248,0.85)', handle: '#38bdf8' },
-  action_ai_response: { bg: 'linear-gradient(135deg, #f43f5e, #fb7185)', border: 'rgba(251,113,133,0.35)', borderSelected: 'rgba(251,113,133,0.85)', handle: '#fb7185' },
+const colorMap: Record<string, { accent: string; border: string; selected: string; glow: string }> = {
+  action_send_dm: { accent: "#f9a8d4", border: "rgba(249,168,212,.20)", selected: "rgba(249,168,212,.72)", glow: "rgba(249,168,212,.16)" },
+  action_private_reply: { accent: "#f9a8d4", border: "rgba(249,168,212,.20)", selected: "rgba(249,168,212,.72)", glow: "rgba(249,168,212,.16)" },
+  action_reply_comment: { accent: "#f9a8d4", border: "rgba(249,168,212,.20)", selected: "rgba(249,168,212,.72)", glow: "rgba(249,168,212,.16)" },
+  action_delay: { accent: "#fcd34d", border: "rgba(252,211,77,.20)", selected: "rgba(252,211,77,.72)", glow: "rgba(252,211,77,.14)" },
+  action_condition: { accent: "#6ee7b7", border: "rgba(110,231,183,.20)", selected: "rgba(110,231,183,.72)", glow: "rgba(110,231,183,.14)" },
+  action_send_email: { accent: "#67e8f9", border: "rgba(103,232,249,.20)", selected: "rgba(103,232,249,.72)", glow: "rgba(103,232,249,.14)" },
+  action_http_request: { accent: "#67e8f9", border: "rgba(103,232,249,.20)", selected: "rgba(103,232,249,.72)", glow: "rgba(103,232,249,.14)" },
+  action_ai_response: { accent: "#c4b5fd", border: "rgba(196,181,253,.20)", selected: "rgba(196,181,253,.72)", glow: "rgba(196,181,253,.16)" },
 }
 
 function ActionNodeComponent({ data, selected }: NodeProps) {
   const nodeData = data as unknown as WorkflowNodeData
   const Icon = iconMap[nodeData.type] || Send
   const colors = colorMap[nodeData.type] || colorMap.action_send_dm
-  const isCondition = nodeData.type === 'action_condition'
-  const supportsAlertOutput = !isCondition && nodeData.type !== 'action_send_email'
-  const nodeHelp = getActionNodeHelp(nodeData)
+  const isCondition = nodeData.type === "action_condition"
+  const supportsAlertOutput = !isCondition && nodeData.type !== "action_send_email"
+  const description = nodeData.description || getDescription(nodeData)
 
   return (
     <div
-      className={`
-        relative rounded-xl border-2 shadow-md min-w-[180px] max-w-[220px]
-        transition-all duration-150
-        ${selected ? 'shadow-lg' : ''}
-      `}
+      className="relative min-w-[230px] max-w-[250px] overflow-hidden rounded-2xl border bg-[#151722]/95 shadow-[0_18px_45px_rgba(0,0,0,.28)] backdrop-blur transition duration-150"
       style={{
-        background: '#151620',
-        borderColor: selected ? colors.borderSelected : colors.border,
-        boxShadow: selected ? `0 10px 26px ${colors.border.replace('0.35', '0.16')}` : undefined,
+        borderColor: selected ? colors.selected : colors.border,
+        boxShadow: selected ? "0 18px 48px " + colors.glow : undefined,
       }}
     >
-      {/* Input Handle (top) */}
       <Handle
         type="target"
         position={Position.Top}
-        className="!w-3 !h-3 !border-2"
-        style={{ background: isCondition ? '#10b981' : colors.handle, borderColor: '#151620' }}
+        className="!size-3.5 !border-[3px] !border-[#151722]"
+        style={{ background: colors.accent }}
       />
 
-      {/* Header */}
-      <div
-        className="flex items-center gap-2 px-3 py-2 rounded-t-[10px]"
-        style={{ background: colors.bg }}
-      >
-        <Icon className="h-4 w-4 text-white shrink-0" />
-        <span className="text-sm font-medium text-white truncate flex-1">
-          {nodeData.label}
-        </span>
-        <span
-          title={nodeHelp}
-          className="inline-flex items-center justify-center rounded-full bg-black/20 p-1 text-white/80 shrink-0"
-          aria-label={`${nodeData.label} help`}
-        >
-          <Info className="h-3.5 w-3.5" />
-        </span>
-      </div>
-
-      {/* Body */}
-      <div className="px-3 py-2">
-        <p className="text-xs truncate" style={{ color: 'rgba(255,255,255,0.55)' }}>
-          {nodeData.description || getDescription(nodeData)}
+      <div className="h-1" style={{ background: "linear-gradient(90deg, transparent, " + colors.accent + ", transparent)" }} />
+      <div className="p-3.5">
+        <div className="flex items-start gap-3">
+          <span
+            className="grid size-10 shrink-0 place-items-center rounded-xl border"
+            style={{ color: colors.accent, borderColor: colors.border, backgroundColor: colors.glow }}
+          >
+            <Icon className="size-4.5" aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/28">
+              {isCondition ? "Decision" : nodeData.type === "action_ai_response" ? "Intelligence" : "Action"}
+            </span>
+            <p className="mt-0.5 truncate text-sm font-semibold text-white/90">{nodeData.label}</p>
+          </div>
+          <span
+            title={getActionNodeHelp(nodeData)}
+            className="grid size-7 shrink-0 place-items-center rounded-lg border border-white/[0.07] bg-white/[0.03] text-white/30"
+            aria-label={nodeData.label + " help"}
+          >
+            <Info className="size-3.5" aria-hidden="true" />
+          </span>
+        </div>
+        <p className="mt-3 line-clamp-2 rounded-xl border border-white/[0.065] bg-white/[0.025] p-2.5 text-[11px] leading-4 text-white/48">
+          {description}
         </p>
       </div>
 
-      {/* Output Handles */}
       {isCondition ? (
-        <>
-          {/* True output (left-bottom) */}
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="true"
-            className="!w-3 !h-3 !border-2"
-            style={{ left: '24%', background: '#10b981', borderColor: '#151620' }}
-          />
-          {/* Alert output (center-bottom) */}
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="error"
-            className="!w-3 !h-3 !border-2"
-            style={{ left: '50%', background: '#f59e0b', borderColor: '#151620' }}
-          />
-          {/* False output (right-bottom) */}
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="false"
-            className="!w-3 !h-3 !border-2"
-            style={{ left: '76%', background: '#f87171', borderColor: '#151620' }}
-          />
-          <div className="grid grid-cols-3 items-center px-3 pb-1 text-center">
-            <span className="text-[10px]" style={{ color: '#34d399' }}>True</span>
-            <span className="text-[10px]" style={{ color: '#fbbf24' }}>Alert</span>
-            <span className="text-[10px]" style={{ color: '#f87171' }}>False</span>
-          </div>
-        </>
+        <div className="grid grid-cols-3 border-t border-white/[0.06] px-3 py-2 text-center text-[9px] font-semibold uppercase tracking-wider">
+          <span className="text-emerald-200/60">True</span>
+          <span className="text-amber-200/60">Alert</span>
+          <span className="text-rose-200/60">False</span>
+          <Handle type="source" position={Position.Bottom} id="true" className="!size-3.5 !border-[3px] !border-[#151722] !bg-emerald-300" style={{ left: "24%" }} />
+          <Handle type="source" position={Position.Bottom} id="error" className="!size-3.5 !border-[3px] !border-[#151722] !bg-amber-300" style={{ left: "50%" }} />
+          <Handle type="source" position={Position.Bottom} id="false" className="!size-3.5 !border-[3px] !border-[#151722] !bg-rose-300" style={{ left: "76%" }} />
+        </div>
       ) : (
-        <>
+        <div className="flex justify-around border-t border-white/[0.06] px-4 py-2 text-[9px] font-semibold uppercase tracking-wider">
+          <span className="text-white/38">Next</span>
+          {supportsAlertOutput && <span className="text-amber-200/60">Alert</span>}
           <Handle
             type="source"
             position={Position.Bottom}
-            className="!w-3 !h-3 !border-2"
-            style={{ left: supportsAlertOutput ? '35%' : '50%', background: colors.handle, borderColor: '#151620' }}
+            className="!size-3.5 !border-[3px] !border-[#151722]"
+            style={{ left: supportsAlertOutput ? "35%" : "50%", background: colors.accent }}
           />
           {supportsAlertOutput && (
-            <Handle
-              type="source"
-              position={Position.Bottom}
-              id="error"
-              className="!w-3 !h-3 !border-2"
-              style={{ left: '65%', background: '#f59e0b', borderColor: '#151620' }}
-            />
+            <Handle type="source" position={Position.Bottom} id="error" className="!size-3.5 !border-[3px] !border-[#151722] !bg-amber-300" style={{ left: "65%" }} />
           )}
-          {supportsAlertOutput ? (
-            <div className="flex justify-between px-4 pb-1">
-              <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.6)' }}>Next</span>
-              <span className="text-[10px]" style={{ color: '#fbbf24' }}>Alert</span>
-            </div>
-          ) : (
-            <div className="flex justify-center px-4 pb-1">
-              <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.6)' }}>Next</span>
-            </div>
-          )}
-        </>
+        </div>
       )}
     </div>
   )
@@ -159,43 +109,36 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
 
 function getActionNodeHelp(data: WorkflowNodeData): string {
   const base = data.description || getDescription(data)
-
-  if (data.type === 'action_condition') {
-    return `${data.label}: ${base}\nTrue/False are normal branches.\nAlert runs only if this node fails and should point to Send Email.`
+  if (data.type === "action_condition") {
+    return data.label + ": " + base + "\nTrue/False are normal branches.\nAlert runs only if this node fails and should point to Send Email."
   }
-
-  if (data.type === 'action_send_email') {
-    return `${data.label}: Sends an email to a custom address.\nUse this as the target of an Alert path for failure notifications.`
+  if (data.type === "action_send_email") {
+    return data.label + ": Sends an email to a custom address.\nUse this as the target of an Alert path for failure notifications."
   }
-
-  return `${data.label}: ${base}\nNext continues the normal path.\nAlert runs only if this node fails and should point to Send Email.`
+  return data.label + ": " + base + "\nNext continues the normal path.\nAlert runs only if this node fails and should point to Send Email."
 }
 
 function getDescription(data: WorkflowNodeData): string {
   const config = data.config as unknown as Record<string, unknown>
   switch (data.type) {
-    case 'action_send_dm':
-      return config.opening_message
-        ? (config.opening_message as string).substring(0, 40) + '...'
-        : 'Configure DM message'
-    case 'action_private_reply':
-      return config.message
-        ? (config.message as string).substring(0, 40) + '...'
-        : 'Configure private reply'
-    case 'action_reply_comment': {
-      const msgs = config.messages as string[]
-      return msgs?.length ? `${msgs.length} reply message(s)` : 'Configure reply'
+    case "action_send_dm":
+      return config.opening_message ? String(config.opening_message).substring(0, 40) + "…" : "Configure DM message"
+    case "action_private_reply":
+      return config.message ? String(config.message).substring(0, 40) + "…" : "Configure private reply"
+    case "action_reply_comment": {
+      const messages = config.messages as string[]
+      return messages?.length ? messages.length + " reply message(s)" : "Configure reply"
     }
-    case 'action_delay':
-      return `Wait ${config.duration_value || '?'} ${config.duration_unit || 'minutes'}`
-    case 'action_condition':
-      return `${config.condition_type || 'condition'}: ${config.operator || 'check'}`
-    case 'action_http_request':
-      return `${config.method || 'GET'} ${config.url ? (config.url as string).substring(0, 30) : 'URL not set'}`
-    case 'action_ai_response':
-      return `${config.provider || 'AI'} response`
+    case "action_delay":
+      return "Wait " + (config.duration_value || "?") + " " + (config.duration_unit || "minutes")
+    case "action_condition":
+      return String(config.condition_type || "condition") + ": " + String(config.operator || "check")
+    case "action_http_request":
+      return String(config.method || "GET") + " " + (config.url ? String(config.url).substring(0, 30) : "URL not set")
+    case "action_ai_response":
+      return String(config.provider || "AI") + " response"
     default:
-      return 'Configure action'
+      return "Configure action"
   }
 }
 

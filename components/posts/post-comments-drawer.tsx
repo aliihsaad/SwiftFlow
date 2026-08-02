@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import NextImage from "next/image"
+import { useState } from "react"
 import useSWR from "swr"
 import {
     Sheet,
@@ -146,23 +147,20 @@ export function PostCommentsDrawer({
     const roleActionsBlocked = !canWriteContent
     const canManageFacebookPost = platform === 'facebook' && !!post
 
-    useEffect(() => {
-        if (!open) {
+    const handleDrawerOpenChange = (nextOpen: boolean) => {
+        if (!nextOpen) {
             setActionsBlocked(null)
             setReplyingTo(null)
             setReplyText("")
             setShowHiddenComments(false)
             setIsEditingPost(false)
             setEditPostText("")
-        }
-    }, [open, post?.id, platform])
-
-    useEffect(() => {
-        if (post) {
+        } else if (post) {
             setEditPostText(post.caption || "")
             setIsEditingPost(false)
         }
-    }, [post?.id, post])
+        onOpenChange(nextOpen)
+    }
 
     const handleAIReply = async (comment: CommentData) => {
         if (!canWriteContent) {
@@ -385,7 +383,7 @@ export function PostCommentsDrawer({
             }
 
             onPostDeleted?.(post.id)
-            onOpenChange(false)
+            handleDrawerOpenChange(false)
             toast({
                 title: "Facebook post deleted",
                 description: "The Page post was removed successfully.",
@@ -403,31 +401,36 @@ export function PostCommentsDrawer({
     }
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
+        <Sheet open={open} onOpenChange={handleDrawerOpenChange}>
             <SheetContent
                 side="right"
-                className="w-full sm:max-w-lg p-0 flex flex-col border-0"
+                className="flex w-full flex-col border-0 p-0 sm:max-w-2xl"
                 style={{
-                    background: '#11131c',
-                    borderLeft: `1px solid ${COMMENTS_THEME.border}`,
+                    background: '#0d1019',
+                    borderLeft: '1px solid rgba(255,255,255,0.08)',
+                    boxShadow: '-28px 0 90px rgba(2,4,12,0.42)',
                 }}
             >
                 {/* Header */}
                 <SheetHeader
-                    className="px-5 py-4 flex-none space-y-3"
+                    className="relative flex-none space-y-4 overflow-hidden bg-[radial-gradient(circle_at_10%_0%,rgba(34,211,238,0.12),transparent_38%),radial-gradient(circle_at_92%_4%,rgba(244,114,182,0.12),transparent_34%)] px-5 py-5 sm:px-6"
                     style={{ borderBottom: `1px solid ${COMMENTS_THEME.borderSoft}` }}
                 >
                     <div className="flex items-center justify-between gap-3">
-                        <SheetTitle className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                            Comments
-                        </SheetTitle>
+                        <div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-cyan-100/55">Engagement desk</p>
+                            <SheetTitle className="mt-1 text-lg font-semibold tracking-[-0.02em] text-white/88">
+                                Comments & moderation
+                            </SheetTitle>
+                            <p className="mt-1 text-[11px] text-white/30">{comments.length} provider comment{comments.length === 1 ? '' : 's'} in this thread</p>
+                        </div>
                         <div className="mr-8 flex items-center gap-2">
                             {post?.permalink && (
                                 <a
                                     href={post.permalink}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center gap-1 text-xs transition-colors"
+                                    className="flex items-center gap-1.5 rounded-lg border border-white/[0.07] bg-white/[0.035] px-2.5 py-1.5 text-[10px] font-semibold text-white/44 transition hover:bg-white/[0.06] hover:text-white/70"
                                     style={{ color: 'rgba(255,255,255,0.4)' }}
                                 >
                                     View on {platform === 'instagram' ? 'Instagram' : 'Facebook'}
@@ -439,13 +442,16 @@ export function PostCommentsDrawer({
 
                     {/* Mini post preview */}
                     {post && (
-                        <div className="space-y-3">
+                        <div className="space-y-3 rounded-2xl border border-white/[0.065] bg-black/20 p-3.5 backdrop-blur-sm">
                             <div className="flex gap-3 items-start">
                                 {post.media_url && (
-                                    <img
+                                    <NextImage
                                         src={post.thumbnail_url || post.media_url}
                                         alt=""
-                                        className="h-14 w-14 rounded-lg object-cover flex-none"
+                                        width={64}
+                                        height={64}
+                                        unoptimized
+                                        className="h-16 w-16 flex-none rounded-xl object-cover"
                                         style={{ border: `1px solid ${COMMENTS_THEME.border}` }}
                                     />
                                 )}
@@ -546,7 +552,7 @@ export function PostCommentsDrawer({
                 </SheetHeader>
 
                 {/* Comments list */}
-                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+                <div className="flex-1 space-y-3 overflow-y-auto bg-[radial-gradient(circle_at_50%_0%,rgba(139,92,246,0.035),transparent_30%)] px-4 py-4 sm:px-6 sm:py-5">
                     {!isLoading && !error && comments.length > 0 && (
                         <div className="flex items-center justify-between gap-3 rounded-lg px-3 py-2" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${COMMENTS_THEME.borderSoft}` }}>
                             <div className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
@@ -653,10 +659,10 @@ export function PostCommentsDrawer({
                     )}
 
                     {visibleComments.map((comment) => (
-                        <div key={comment.id} className="space-y-2">
+                        <div key={comment.id} className="space-y-2.5">
                             {/* Main comment */}
                             <div
-                                className="rounded-xl p-3 transition-all duration-150"
+                                className="rounded-2xl p-3.5 transition-all duration-150"
                                 style={{
                                     background: COMMENTS_THEME.panel,
                                     border: `1px solid ${COMMENTS_THEME.border}`,

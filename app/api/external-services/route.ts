@@ -1,64 +1,33 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { createClient } from "@/utils/supabase/server"
+import {
+  buildExternalServiceCreatePayload,
+  sanitizeExternalServiceForClient,
+  type ExternalServiceRow,
+} from "@/lib/external-service-credentials"
+import { assertJsonBodySize, assertUuid } from "@/lib/security/phase1-validation"
+import { needsSecretReencryption, reencryptSecretIfNeeded } from "@/lib/secret-crypto"
+import {
+  getWorkspacePermissionErrorStatus,
+  requireWorkspacePermission,
+  WorkspacePermissionError,
+} from "@/lib/workspace-permissions"
 import { createAdminClient } from "@/utils/supabase/admin"
-import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
-import { decryptSecretIfNeeded, encryptSecretIfNeeded, isEncryptedSecret, normalizeOptionalSecretInput } from "@/lib/secret-crypto"
+import { createClient } from "@/utils/supabase/server"
 
-type ExternalServiceRow = {
-  id: string
-  workspace_id: string
-  service_name: string
-  website: string | null
-  email: string | null
-  password: string | null
-  subscription_tier: string | null
-  price: string | null
-  api_key: string | null
-  created_at: string
-}
-
-function normalizeOptionalText(value: unknown): string | null {
-  if (typeof value !== "string") return null
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : null
-}
-
-function decryptExternalServiceRow(row: ExternalServiceRow): ExternalServiceRow {
-  return {
-    ...row,
-    password: decryptSecretIfNeeded(row.password),
-    api_key: decryptSecretIfNeeded(row.api_key),
-  }
-}
-
-function buildExternalServicePayload(body: Record<string, unknown>) {
-  const serviceName = normalizeOptionalText(body.service_name)
-  if (!serviceName) {
-    throw new Error("Service name is required")
-  }
-
-  return {
-    service_name: serviceName,
-    website: normalizeOptionalText(body.website),
-    email: normalizeOptionalText(body.email),
-    password: encryptSecretIfNeeded(normalizeOptionalSecretInput(body.password)),
-    subscription_tier: normalizeOptionalText(body.subscription_tier),
-    price: normalizeOptionalText(body.price),
-    api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(body.api_key)),
-  }
+const NO_STORE_HEADERS = {
+  "Cache-Control": "private, no-store, max-age=0",
+  Pragma: "no-cache",
 }
 
 async function requireAuthorizedWorkspace(workspaceId: string) {
+  const validatedWorkspaceId = assertUuid(workspaceId, "workspaceId")
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    throw new Error("Unauthorized")
-  }
+  if (!user) throw new WorkspacePermissionError("Unauthorized", 401)
 
-  // Credentials are sensitive; require admin+ settings access for read/write.
-  await requireWorkspacePermission(supabase, user.id, workspaceId, "settings:write")
-  return createAdminClient()
+  await requireWorkspacePermission(supabase, user.id, validatedWorkspaceId, "settings:write")
+  return { supabaseAdmin: createAdminClient(), workspaceId: validatedWorkspaceId }
 }
 
 export async function GET(request: NextRequest) {
@@ -68,11 +37,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabaseAdmin = await requireAuthorizedWorkspace(workspaceId)
-    const { data, error } = await supabaseAdmin
+    const authorized = await requireAuthorizedWorkspace(workspaceId)
+    const { data, error } = await authorized.supabaseAdmin
       .from("external_services")
       .select("*")
-      .eq("workspace_id", workspaceId)
+      .eq("workspace_id", authorized.workspaceId)
       .order("created_at", { ascending: false })
 
     if (error) {
@@ -81,54 +50,58 @@ export async function GET(request: NextRequest) {
     }
 
     const rows = (data || []) as ExternalServiceRow[]
-
-    // Lazy-upgrade legacy plaintext secrets on first read when encryption is configured.
     for (const row of rows) {
-      const needsMigration =
-        (typeof row.password === "string" && row.password.length > 0 && !isEncryptedSecret(row.password)) ||
-        (typeof row.api_key === "string" && row.api_key.length > 0 && !isEncryptedSecret(row.api_key))
-
-      if (!needsMigration) continue
+      if (!needsSecretReencryption(row.password) && !needsSecretReencryption(row.api_key)) continue
 
       try {
-        await supabaseAdmin
+        await authorized.supabaseAdmin
           .from("external_services")
           .update({
-            password: encryptSecretIfNeeded(normalizeOptionalSecretInput(row.password)),
-            api_key: encryptSecretIfNeeded(normalizeOptionalSecretInput(row.api_key)),
+            password: reencryptSecretIfNeeded(row.password),
+            api_key: reencryptSecretIfNeeded(row.api_key),
           })
           .eq("id", row.id)
-          .eq("workspace_id", workspaceId)
+          .eq("workspace_id", authorized.workspaceId)
       } catch (migrationError) {
         console.warn("[EXTERNAL_SERVICES] Secret lazy-migration failed:", migrationError)
       }
     }
 
-    return NextResponse.json(rows.map((row) => decryptExternalServiceRow(row)))
+    return NextResponse.json(
+      rows.map((row) => sanitizeExternalServiceForClient(row)),
+      { headers: NO_STORE_HEADERS },
+    )
   } catch (error) {
+    if (error instanceof Error && error.message === "Invalid workspaceId") {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
     const permissionStatus = getWorkspacePermissionErrorStatus(error)
     if (permissionStatus) {
-      return NextResponse.json({ error: error instanceof Error ? error.message : "Forbidden" }, { status: permissionStatus })
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Forbidden" },
+        { status: permissionStatus },
+      )
     }
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    assertJsonBodySize(request, 32 * 1024)
     const body = await request.json()
     const workspaceId = typeof body.workspaceId === "string" ? body.workspaceId : ""
     if (!workspaceId) {
       return NextResponse.json({ error: "Missing workspaceId" }, { status: 400 })
     }
 
-    const supabaseAdmin = await requireAuthorizedWorkspace(workspaceId)
-    const payload = buildExternalServicePayload(body as Record<string, unknown>)
+    const authorized = await requireAuthorizedWorkspace(workspaceId)
+    const payload = buildExternalServiceCreatePayload(body as Record<string, unknown>)
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await authorized.supabaseAdmin
       .from("external_services")
       .insert({
-        workspace_id: workspaceId,
+        workspace_id: authorized.workspaceId,
         ...payload,
       })
       .select("*")
@@ -139,12 +112,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to create external service" }, { status: 500 })
     }
 
-    return NextResponse.json(decryptExternalServiceRow(data as ExternalServiceRow))
+    return NextResponse.json(
+      sanitizeExternalServiceForClient(data as ExternalServiceRow),
+      { headers: NO_STORE_HEADERS },
+    )
   } catch (error) {
+    if (
+      error instanceof Error &&
+      /Missing workspaceId|Invalid workspaceId|Service name is required|Credential is too long|Request payload too large|Invalid content length/i.test(error.message)
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 400 })
+    }
     const permissionStatus = getWorkspacePermissionErrorStatus(error)
     if (permissionStatus) {
-      return NextResponse.json({ error: error instanceof Error ? error.message : "Forbidden" }, { status: permissionStatus })
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Forbidden" },
+        { status: permissionStatus },
+      )
     }
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

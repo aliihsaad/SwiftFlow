@@ -1,0 +1,39 @@
+name: swiftflow-webhook-test
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: swiftflow_test
+      POSTGRES_PASSWORD: swiftflow_test
+      POSTGRES_DB: swiftflow_test
+    ports:
+      - "127.0.0.1:${SWIFTFLOW_TEST_POSTGRES_PORT:-55432}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./tests/integration/postgres/000-base-schema.sql:/docker-entrypoint-initdb.d/000-base-schema.sql:ro
+      - ./supabase/migrations/20260726190000_add_durable_webhook_inbox.sql:/docker-entrypoint-initdb.d/100-webhook-inbox.sql:ro
+      - ./supabase/migrations/20260726203000_add_webhook_comparison_worker_role.sql:/docker-entrypoint-initdb.d/200-webhook-comparison-role.sql:ro
+      - ./supabase/migrations/20260726213000_add_webhook_ingress_role.sql:/docker-entrypoint-initdb.d/210-webhook-ingress-role.sql:ro
+      - ./supabase/migrations/20260727090000_add_automation_action_outbox.sql:/docker-entrypoint-initdb.d/220-action-outbox.sql:ro
+      - ./supabase/migrations/20260727091000_add_automation_action_executor_role.sql:/docker-entrypoint-initdb.d/230-action-executor-role.sql:ro
+      - ./supabase/migrations/20260728100000_add_immutable_automation_workflow_versions.sql:/docker-entrypoint-initdb.d/240-workflow-versions.sql:ro
+      - ./supabase/migrations/20260728110000_add_automation_execution_timeline.sql:/docker-entrypoint-initdb.d/250-execution-timeline.sql:ro
+      - ./supabase/migrations/20260728120000_add_automation_runtime_guards.sql:/docker-entrypoint-initdb.d/260-runtime-guards.sql:ro
+      - ./tests/integration/postgres/300-worker-login.sql:/docker-entrypoint-initdb.d/300-worker-login.sql:ro
+      - ./tests/integration/postgres/310-ingress-login.sql:/docker-entrypoint-initdb.d/310-ingress-login.sql:ro
+      - ./tests/integration/postgres/320-executor-login.sql:/docker-entrypoint-initdb.d/320-executor-login.sql:ro
+      - ./scripts/postgres/verify-webhook-comparison-role.sql:/opt/swiftflow/verify-webhook-comparison-role.sql:ro
+      - ./scripts/postgres/verify-webhook-ingress-role.sql:/opt/swiftflow/verify-webhook-ingress-role.sql:ro
+      - ./scripts/postgres/verify-action-executor-role.sql:/opt/swiftflow/verify-action-executor-role.sql:ro
+      - ./scripts/postgres/self-host-inventory.sql:/opt/swiftflow/self-host-inventory.sql:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U swiftflow_test -d swiftflow_test
+      interval: 1s
+      timeout: 5s
+      retries: 30
+      start_period: 3s
+    restart: "no"

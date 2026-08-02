@@ -1,0 +1,44 @@
+{
+  "object": "instagram",
+  "entry": [
+    {
+      "id": "17890000000000000",
+      "time": 1785103200,
+      "messaging": [
+        {
+          "sender": {
+            "id": "igsid-customer-001"
+          },
+          "recipient": {
+            "id": "17890000000000000"
+          },
+          "timestamp": 1785103200000,
+          "message": {
+            "mid": "mid.message.001",
+            "text": "Hello"
+          }
+        },
+        {
+          "sender": {
+            "id": "igsid-customer-002"
+          },
+          "recipient": {
+            "id": "17890000000000000"
+          },
+          "timestamp": 1785103201000,
+          "message": {
+            "mid": "mid.message.002",
+            "attachments": [
+              {
+                "type": "image",
+                "payload": {
+                  "url": "https://cdn.example/image.jpg"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

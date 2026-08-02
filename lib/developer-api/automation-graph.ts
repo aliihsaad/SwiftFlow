@@ -6,6 +6,7 @@ import {
 } from "@/types/automation-graph"
 import { isMetaGraphNodeId } from "@/lib/security/phase1-validation"
 import { isCommentPostScope } from "@/supabase/functions/_shared/comment-scope"
+import { getAutomationConditionPolicyIssue } from "@/supabase/functions/_shared/automation-condition-policy"
 
 export type DeveloperAutomationGraphError = {
   code: string
@@ -272,11 +273,11 @@ export function validateDeveloperAutomationGraph(
         }
         break
       }
-      case "action_condition":
-        if (!text(config.condition_type)) {
-          errors.push({ code: "MISSING_FIELD", message: "Condition requires condition_type.", nodeId: node.id })
-        }
+      case "action_condition": {
+        const conditionIssue = getAutomationConditionPolicyIssue(config.condition_type)
+        if (conditionIssue) errors.push({ ...conditionIssue, nodeId: node.id })
         break
+      }
       case "action_delay":
         if (typeof config.duration_value !== "number" || config.duration_value <= 0) {
           errors.push({ code: "MISSING_FIELD", message: "Delay requires a positive duration_value.", nodeId: node.id })

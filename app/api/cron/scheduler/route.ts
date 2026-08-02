@@ -4,7 +4,7 @@ import { createAdminClient } from '@/utils/supabase/admin'
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
-type JobName = 'process-scheduled-posts' | 'process-scheduled-executions' | 'process-publishing-automations'
+type JobName = 'process-scheduled-executions'
 
 function isAuthorizedCronRequest(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET
@@ -63,15 +63,9 @@ async function handleSchedulerTick(request: NextRequest) {
   const supabaseAdmin = createAdminClient()
   const tickStartedAt = Date.now()
 
-  const [postsJob, delayedExecutionsJob, publishingAutomationsJob] = await Promise.all([
-    invokeJob(supabaseAdmin, 'process-scheduled-posts'),
-    invokeJob(supabaseAdmin, 'process-scheduled-executions'),
-    invokeJob(supabaseAdmin, 'process-publishing-automations'),
-  ])
-
-  const jobs = [postsJob, delayedExecutionsJob, publishingAutomationsJob]
-  const hasFailure = jobs.some((job) => !job.ok)
-
+  const delayedExecutionsJob = await invokeJob(supabaseAdmin, 'process-scheduled-executions')
+  const jobs = [delayedExecutionsJob]
+  const hasFailure = !delayedExecutionsJob.ok
   const payload = {
     success: !hasFailure,
     tick: {

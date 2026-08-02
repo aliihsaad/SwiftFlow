@@ -4,11 +4,13 @@ import { getExplicitActiveWorkspace } from "@/lib/workspace-utils"
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from "@/lib/workspace-permissions"
 import { assertJsonBodySize } from "@/lib/security/phase1-validation"
 import { enforceRateLimit, getClientIp, RateLimitExceededError } from "@/lib/security/rate-limit"
+import { getWorkspaceSettingsWithSecrets } from "@/lib/workspace-settings"
 
 /**
  * POST /api/ai/validate-key
  * Tests whether an API key is valid by making a lightweight API call.
- * Body: { provider: "openrouter" | "gemini" | "openai", apiKey: string }
+ * Body: { provider: "openrouter" | "gemini" | "openai", apiKey?: string }
+ * When apiKey is omitted, the saved workspace credential is resolved server-side.
  */
 export async function POST(request: NextRequest) {
     try {
@@ -41,11 +43,31 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ valid: false, error: "Invalid provider." }, { status: 400 })
         }
 
-        if (!apiKey || typeof apiKey !== "string") {
-            return NextResponse.json({ valid: false, error: "API key is required." }, { status: 400 })
+        if (apiKey !== undefined && typeof apiKey !== "string") {
+            return NextResponse.json({ valid: false, error: "API key must be a string." }, { status: 400 })
         }
 
-        const trimmedKey = apiKey.trim().replace(/^['"]|['"]$/g, "")
+        let trimmedKey = typeof apiKey === "string"
+            ? apiKey.trim().replace(/^['"]|['"]$/g, "")
+            : ""
+
+        if (!trimmedKey) {
+            const settings = await getWorkspaceSettingsWithSecrets(activeWorkspace.id)
+            const savedKey =
+                provider === "openrouter"
+                    ? settings?.openrouter_api_key
+                    : provider === "openai"
+                        ? settings?.openai_api_key
+                        : settings?.gemini_api_key
+            trimmedKey = String(savedKey ?? "").trim()
+        }
+
+        if (!trimmedKey) {
+            return NextResponse.json(
+                { valid: false, error: "No saved API key is available for this provider." },
+                { status: 400 }
+            )
+        }
         if (trimmedKey.length > 500) {
             return NextResponse.json({ valid: false, error: "API key is too long." }, { status: 400 })
         }

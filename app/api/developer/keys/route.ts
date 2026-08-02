@@ -12,6 +12,7 @@ import {
   getDeveloperApiCapabilities,
   getDeveloperApiScopeOptions,
   normalizeDeveloperApiScopes,
+  normalizeStoredDeveloperApiScopes,
 } from "@/lib/developer-api/scopes"
 import type { DeveloperApiKeyMetadata } from "@/lib/developer-api/types"
 
@@ -33,7 +34,7 @@ function normalizeExpiresAt(value: unknown): string | null {
 }
 
 function serializeKey(row: DeveloperApiKeyMetadata) {
-  const scopes = normalizeDeveloperApiScopes(row.scopes || [])
+  const scopes = normalizeStoredDeveloperApiScopes(row.scopes || [])
   return {
     id: row.id,
     name: row.name,

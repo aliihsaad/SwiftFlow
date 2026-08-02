@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { Suspense, useState } from "react"
 import Link from "next/link"
@@ -249,7 +249,7 @@ function LoginPageContent() {
                         AI-assisted social ops for Instagram + Facebook
                     </p>
                     <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-                        {["Publishing", "Messages", "Analytics", "Automations"].map((pill, i) => (
+                        {["Inbox", "Messages", "Analytics", "Automations"].map((pill, i) => (
                             <span
                                 key={pill}
                                 className="rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em]"
@@ -595,18 +595,6 @@ function LoginPageContent() {
                     </Tabs>
 
                 </div>
-
-                {/* Footer links */}
-                <p className="text-center text-[11px] mt-5" style={{ color: 'rgba(255,255,255,0.18)' }}>
-                    By continuing you agree to our{' '}
-                    <a href="/terms" className="underline underline-offset-2 transition-colors hover:text-white/40">
-                        Terms
-                    </a>{' '}
-                    &{' '}
-                    <a href="/privacy" className="underline underline-offset-2 transition-colors hover:text-white/40">
-                        Privacy Policy
-                    </a>
-                </p>
             </div>
             <style jsx>{`
                 @keyframes auth-progress {

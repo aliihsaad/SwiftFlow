@@ -9,6 +9,11 @@ export const runtime = 'edge'
 
 type MetricStatus = 'available' | 'partial' | 'unavailable'
 type PlatformKey = 'instagram' | 'facebook'
+const ANALYTICS_SCOPE_ALIASES = {
+    instagram: ['instagram_business_manage_insights', 'instagram_manage_insights'],
+    facebook: ['pages_read_engagement'],
+} as const
+
 
 type PlatformAnalyticsMeta = {
     platform: PlatformKey
@@ -155,16 +160,23 @@ function buildAnalyticsMeta(params: {
     const platformExactScopesKnown = new Map<string, boolean>()
     ;(socialAccounts || []).forEach((a) => {
         if (a?.id) accountIdToPlatform.set(a.id, a.platform)
-        const rawScopes = Array.isArray(a?.metadata?.granted_scopes)
+        const grantedScopes = Array.isArray(a?.metadata?.granted_scopes)
             ? a.metadata.granted_scopes.filter((s: unknown) => typeof s === 'string')
             : []
+        const granularScopes = Array.isArray(a?.metadata?.granted_granular_scopes)
+            ? a.metadata.granted_granular_scopes
+                .map((entry: any) => entry?.scope)
+                .filter((scope: unknown) => typeof scope === 'string')
+            : []
+        const rawScopes = Array.from(new Set([...grantedScopes, ...granularScopes]))
         const scopeSet = new Set<string>(rawScopes)
         if (a?.id) accountIdToGrantedScopes.set(a.id, scopeSet)
         if (a?.platform) {
             const existing = platformGrantedScopes.get(a.platform) || new Set<string>()
             rawScopes.forEach((s: string) => existing.add(s))
             platformGrantedScopes.set(a.platform, existing)
-            if (Array.isArray(a?.metadata?.granted_scopes)) {
+            if (Array.isArray(a?.metadata?.granted_scopes)
+                || Array.isArray(a?.metadata?.granted_granular_scopes)) {
                 platformExactScopesKnown.set(a.platform, true)
             } else if (!platformExactScopesKnown.has(a.platform)) {
                 platformExactScopesKnown.set(a.platform, false)
@@ -172,16 +184,18 @@ function buildAnalyticsMeta(params: {
         }
     })
 
-    const getPlatformScopeState = (platform: PlatformKey, scope: string): 'granted' | 'missing' | 'unknown' => {
+    const getPlatformScopeState = (platform: PlatformKey, acceptedScopes: readonly string[]): 'granted' | 'missing' | 'unknown' => {
         const exactKnown = platformExactScopesKnown.get(platform)
         if (!exactKnown) return 'unknown'
-        return (platformGrantedScopes.get(platform)?.has(scope)) ? 'granted' : 'missing'
+        return acceptedScopes.some((scope) => platformGrantedScopes.get(platform)?.has(scope))
+            ? 'granted'
+            : 'missing'
     }
 
-    const noteRequiredPermission = (platform: PlatformKey, scope: string) => {
-        const state = getPlatformScopeState(platform, scope)
+    const noteRequiredPermission = (platform: PlatformKey, acceptedScopes: readonly string[], preferredScope: string) => {
+        const state = getPlatformScopeState(platform, acceptedScopes)
         if (state === 'missing' || state === 'unknown') {
-            suspectedMissingPermissions.add(scope)
+            suspectedMissingPermissions.add(preferredScope)
         }
     }
 
@@ -218,13 +232,13 @@ function buildAnalyticsMeta(params: {
 
     if (accountStatus !== 'available' && connectedPlatforms.length > 0) {
         warnings.push('Account-level analytics is partially available. Follower metrics may be missing for some connected platforms.')
-        if (connectedPlatforms.includes('instagram')) noteRequiredPermission('instagram', 'instagram_manage_insights')
-        if (connectedPlatforms.includes('facebook')) noteRequiredPermission('facebook', 'pages_read_engagement')
+        if (connectedPlatforms.includes('instagram')) noteRequiredPermission('instagram', ANALYTICS_SCOPE_ALIASES.instagram, ANALYTICS_SCOPE_ALIASES.instagram[0])
+        if (connectedPlatforms.includes('facebook')) noteRequiredPermission('facebook', ANALYTICS_SCOPE_ALIASES.facebook, ANALYTICS_SCOPE_ALIASES.facebook[0])
     }
 
     const totalPublishedPosts = (publishedPosts || []).length
     const postsWithAnalyticsRows = new Set((postAnalytics || []).map((row) => row.published_post_id)).size
-    let postStatus: MetricStatus =
+    const postStatus: MetricStatus =
         totalPublishedPosts === 0
             ? 'unavailable'
             : postsWithAnalyticsRows === 0
@@ -235,8 +249,8 @@ function buildAnalyticsMeta(params: {
 
     if (hasPublishedPosts && postStatus !== 'available') {
         warnings.push('Post analytics is partial. Some posts were found without synced metrics.')
-        if (platformsWithPublishedPosts.has('instagram')) noteRequiredPermission('instagram', 'instagram_manage_insights')
-        if (platformsWithPublishedPosts.has('facebook')) noteRequiredPermission('facebook', 'pages_read_engagement')
+        if (platformsWithPublishedPosts.has('instagram')) noteRequiredPermission('instagram', ANALYTICS_SCOPE_ALIASES.instagram, ANALYTICS_SCOPE_ALIASES.instagram[0])
+        if (platformsWithPublishedPosts.has('facebook')) noteRequiredPermission('facebook', ANALYTICS_SCOPE_ALIASES.facebook, ANALYTICS_SCOPE_ALIASES.facebook[0])
     }
 
     if (reason === 'no_published_posts') {
@@ -265,7 +279,7 @@ function buildAnalyticsMeta(params: {
         const accountMetricsStatus: MetricStatus =
             platformAccountMetricsRows.length === 0 ? 'unavailable' : 'available'
 
-        let postMetricsStatus: MetricStatus =
+        const postMetricsStatus: MetricStatus =
             platformPublishedRows.length === 0
                 ? 'unavailable'
                 : platformAnalyticsRows.length === 0
@@ -279,8 +293,8 @@ function buildAnalyticsMeta(params: {
         const exactScopesKnown = !!platformExactScopesKnown.get(platform)
 
         if (platform === 'instagram') {
-            const scopeState = getPlatformScopeState('instagram', 'instagram_manage_insights')
-            if (scopeState === 'missing') missingPermissions.push('instagram_manage_insights')
+            const scopeState = getPlatformScopeState('instagram', ANALYTICS_SCOPE_ALIASES.instagram)
+            if (scopeState === 'missing') missingPermissions.push(ANALYTICS_SCOPE_ALIASES.instagram[0])
 
             if (accountMetricsStatus === 'unavailable') {
                 platformWarnings.push(
@@ -290,7 +304,7 @@ function buildAnalyticsMeta(params: {
                 )
             }
         } else if (platform === 'facebook') {
-            const scopeState = getPlatformScopeState('facebook', 'pages_read_engagement')
+            const scopeState = getPlatformScopeState('facebook', ANALYTICS_SCOPE_ALIASES.facebook)
             if (scopeState === 'missing') missingPermissions.push('pages_read_engagement')
 
             if (accountMetricsStatus === 'unavailable') {

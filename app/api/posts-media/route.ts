@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-    canPublishWithMetaAccount,
+    canManageProviderPostsWithMetaAccount,
     canReadConnectedMediaWithMetaAccount,
     decryptMetaAccountRow,
 } from '@/lib/meta-account';
-import { META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
+import { getMetaGraphApiBaseUrl, META_GRAPH_API_BASE_URL } from '@/lib/meta-graph-version';
 import { normalizeMetaGraphError, type MetaGraphErrorShape } from '@/lib/meta-graph-errors';
 import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
@@ -259,6 +259,9 @@ export async function GET(request: NextRequest) {
             );
         }
         const decryptedAccount = decryptMetaAccountRow(account);
+        const graphBaseUrl = getMetaGraphApiBaseUrl(
+            decryptedAccount.metadata?.connection_method
+        );
 
         if (!decryptedAccount.access_token) {
             return NextResponse.json(
@@ -281,7 +284,7 @@ export async function GET(request: NextRequest) {
 
         if (platform === 'instagram') {
             // Instagram: GET /{ig-user-id}/media
-            let mediaUrl = `${META_GRAPH_URL}/${decryptedAccount.account_id}/media?fields=id,media_type,media_url,thumbnail_url,caption,timestamp,permalink,comments_count,like_count&limit=${limit}&access_token=${decryptedAccount.access_token}`;
+            let mediaUrl = `${graphBaseUrl}/${decryptedAccount.account_id}/media?fields=id,media_type,media_url,thumbnail_url,caption,timestamp,permalink,comments_count,like_count&limit=${limit}&access_token=${decryptedAccount.access_token}`;
             if (after) {
                 mediaUrl += `&after=${after}`;
             }
@@ -336,7 +339,7 @@ export async function GET(request: NextRequest) {
             // Facebook: keep the discovery request limited to Page-owned post fields.
             // Engagement summaries are intentionally not requested here because they can
             // require additional Page/user-content permissions and break the whole list.
-            let postsUrl = `${META_GRAPH_URL}/${decryptedAccount.account_id}/posts?fields=id,message,full_picture,created_time,permalink_url,attachments{media_type}&limit=${limit}&access_token=${decryptedAccount.access_token}`;
+            let postsUrl = `${graphBaseUrl}/${decryptedAccount.account_id}/posts?fields=id,message,full_picture,created_time,permalink_url,attachments{media_type}&limit=${limit}&access_token=${decryptedAccount.access_token}`;
             if (after) {
                 postsUrl += `&after=${after}`;
             }
@@ -481,7 +484,7 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: 'No Facebook account or token available' }, { status: 400 });
         }
 
-        if (!canPublishWithMetaAccount(decryptedAccount.metadata, 'facebook')) {
+        if (!canManageProviderPostsWithMetaAccount(decryptedAccount.metadata, 'facebook')) {
             return postMediaCapabilityErrorResponse(platform, 'manage');
         }
 
@@ -568,7 +571,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ error: 'No Facebook account or token available' }, { status: 400 });
         }
 
-        if (!canPublishWithMetaAccount(decryptedAccount.metadata, 'facebook')) {
+        if (!canManageProviderPostsWithMetaAccount(decryptedAccount.metadata, 'facebook')) {
             return postMediaCapabilityErrorResponse(platform, 'manage');
         }
 

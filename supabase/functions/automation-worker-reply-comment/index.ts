@@ -1,7 +1,7 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { META_GRAPH_URL, interpolateTemplate } from "../_shared/automation-context.ts"
-import { toMetaGraphFormBody } from "../_shared/meta-graph.ts"
+import { interpolateTemplate } from "../_shared/automation-context.ts"
+import { getMetaGraphApiBaseUrl, toMetaGraphFormBody } from "../_shared/meta-graph.ts"
 import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 
 const corsHeaders = {
@@ -66,6 +66,8 @@ serve(async (req) => {
     const context = body?.context || {};
     const accessToken = body?.access_token as string | undefined;
     const platform = String(body?.platform || '').toLowerCase();
+    const connectionMethod = body?.connection_method as string | undefined;
+    const metaGraphUrl = getMetaGraphApiBaseUrl(connectionMethod);
 
     if (!accessToken) {
       return new Response(JSON.stringify({ success: false, error: 'Missing access_token' }), {
@@ -109,11 +111,11 @@ serve(async (req) => {
     }
 
     const replyPath = platform === 'facebook' ? 'comments' : 'replies';
-    const url = `${META_GRAPH_URL}/${context.comment_id}/${replyPath}`;
+    const url = `${metaGraphUrl}/${context.comment_id}/${replyPath}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: await toMetaGraphFormBody({ message, access_token: accessToken }, accessToken),
+      body: await toMetaGraphFormBody({ message, access_token: accessToken }, accessToken, { connectionMethod }),
     });
     const result = await response.json();
 

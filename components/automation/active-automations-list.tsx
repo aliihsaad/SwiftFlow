@@ -33,22 +33,15 @@ import {
     Layers,
     Activity,
     Loader2,
+    History,
 } from "lucide-react"
-
-const AUTO_THEME = {
-    panel: '#151620',
-    panelAlt: '#1b1d28',
-    border: 'rgba(255,255,255,0.08)',
-    borderSoft: 'rgba(255,255,255,0.05)',
-    muted: 'rgba(255,255,255,0.45)',
-    mutedSoft: 'rgba(255,255,255,0.35)',
-}
 
 interface ActiveAutomationsListProps {
     automations: Automation[]
     onEdit: (automation: Automation) => void
     onToggle: (automationId: string, isActive: boolean) => void
     onDelete: (automationId: string) => Promise<void> | void
+    onViewRuns: (automation: Automation) => void
     togglingAutomationIds?: string[]
     deletingAutomationIds?: string[]
     readOnly?: boolean
@@ -96,28 +89,11 @@ function getAutomationPlatformLabel(automation: Automation): PlatformLabel {
     return 'Instagram'
 }
 
-function getPlatformChipStyles(platform: PlatformLabel) {
-    if (platform === 'Facebook') {
-        return {
-            background: 'rgba(56,189,248,0.12)',
-            color: '#dff6ff',
-            border: '1px solid rgba(56,189,248,0.24)',
-        }
-    }
-    if (platform === 'Instagram') {
-        return {
-            background: 'rgba(251,113,133,0.12)',
-            color: '#ffe4ea',
-            border: '1px solid rgba(251,113,133,0.24)',
-        }
-    }
-    return {
-        background: 'rgba(255,255,255,0.06)',
-        color: 'rgba(255,255,255,0.6)',
-        border: '1px solid rgba(255,255,255,0.08)',
-    }
+function getPlatformChipClass(platform: PlatformLabel): string {
+    if (platform === 'Facebook') return 'border-cyan-300/15 bg-cyan-300/[0.07] text-cyan-100'
+    if (platform === 'Instagram') return 'border-pink-300/15 bg-pink-300/[0.07] text-pink-100'
+    return 'border-white/10 bg-white/[0.05] text-white/55'
 }
-
 function getWizardTriggerSummary(automation: Automation): string {
     if (automation.trigger_config?.trigger_type === 'keywords') {
         const count = automation.trigger_config.keywords?.length || 0
@@ -212,6 +188,7 @@ export function ActiveAutomationsList({
     onEdit,
     onToggle,
     onDelete,
+    onViewRuns,
     togglingAutomationIds = [],
     deletingAutomationIds = [],
     readOnly = false,
@@ -237,248 +214,218 @@ export function ActiveAutomationsList({
 
     return (
         <>
-            <div className="space-y-3">
-                {automations.map((automation) => (
-                    (() => {
-                        const isCanvas = automation.editor_version === 'canvas'
-                        const isGraphWizard = isGraphBackedWizard(automation)
-                        const isGraph = isGraphAutomation(automation)
-                        const platformLabel = getAutomationPlatformLabel(automation)
-                        const platformChipStyles = getPlatformChipStyles(platformLabel)
-                        const triggerSummary = getAutomationTriggerSummary(automation)
-                        const actionSummary = getAutomationActionSummary(automation)
-                        const hasDMAction = automationUsesSendDM(automation)
-                        const graphNodeCount = isGraph ? (automation.workflow_graph?.nodes?.length || 0) : 0
-                        const graphActionCount = isGraph ? getGraphActionNodes(automation).length : 0
-                        const isToggling = togglingSet.has(automation.id)
-                        const isDeleting = deletingSet.has(automation.id)
-                        const isDraftWizard = isGraphWizard && !automation.is_active
-                        const statusLabel = isDraftWizard
-                            ? 'Draft'
-                            : automation.is_active
-                                ? 'Active'
-                                : 'Paused'
-                        const statusStyles = automation.is_active
-                            ? { background: 'rgba(52,211,153,0.12)', color: '#34d399', border: '1px solid rgba(52,211,153,0.2)' }
-                            : isDraftWizard
-                                ? { background: 'rgba(245,158,11,0.10)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.2)' }
-                                : { background: 'rgba(255,255,255,0.05)', color: AUTO_THEME.mutedSoft, border: `1px solid ${AUTO_THEME.border}` }
-                        const editorBadge = isCanvas ? 'Canvas' : isGraphWizard ? 'Graph Wizard' : 'Wizard'
+            <div className="grid gap-4 xl:grid-cols-2">
+                {automations.map((automation) => {
+                    const isCanvas = automation.editor_version === 'canvas'
+                    const isGraphWizard = isGraphBackedWizard(automation)
+                    const isGraph = isGraphAutomation(automation)
+                    const platformLabel = getAutomationPlatformLabel(automation)
+                    const triggerSummary = getAutomationTriggerSummary(automation)
+                    const actionSummary = getAutomationActionSummary(automation)
+                    const hasDMAction = automationUsesSendDM(automation)
+                    const graphNodeCount = isGraph ? (automation.workflow_graph?.nodes?.length || 0) : 0
+                    const graphActionCount = isGraph ? getGraphActionNodes(automation).length : 0
+                    const isToggling = togglingSet.has(automation.id)
+                    const isDeleting = deletingSet.has(automation.id)
+                    const isDraftWizard = isGraphWizard && !automation.is_active
+                    const statusLabel = isDraftWizard ? 'Draft' : automation.is_active ? 'Live' : 'Paused'
+                    const editorBadge = isCanvas ? 'Visual canvas' : isGraphWizard ? 'Guided graph' : 'Guided setup'
+                    const statusClass = automation.is_active
+                        ? 'border-emerald-300/15 bg-emerald-300/[0.08] text-emerald-200'
+                        : isDraftWizard
+                            ? 'border-amber-300/15 bg-amber-300/[0.08] text-amber-200'
+                            : 'border-white/10 bg-white/[0.045] text-white/40'
 
-                        return (
+                    return (
+                        <article
+                            key={automation.id}
+                            className="group relative overflow-hidden rounded-[22px] border border-white/[0.08] bg-white/[0.025] transition duration-200 hover:-translate-y-0.5 hover:border-white/[0.14] hover:bg-white/[0.035]"
+                        >
                             <div
-                                key={automation.id}
-                                className="overflow-hidden rounded-xl transition-all duration-200"
-                                style={{
-                                    background: AUTO_THEME.panel,
-                                    border: automation.is_active
-                                        ? '1px solid rgba(74,222,128,0.22)'
-                                        : `1px solid ${AUTO_THEME.border}`,
-                                    boxShadow: automation.is_active
-                                        ? '0 8px 28px rgba(74,222,128,0.08)'
-                                        : '0 4px 20px rgba(0,0,0,0.18)',
-                                }}
-                            >
-                                <div className="flex flex-col sm:flex-row sm:items-stretch">
-                            {/* Post Thumbnail */}
-                            <div
-                                className="relative w-full sm:w-24 h-28 sm:h-auto shrink-0 overflow-hidden"
-                                style={{ background: AUTO_THEME.panelAlt, borderRight: `1px solid ${AUTO_THEME.borderSoft}` }}
-                            >
-                                {automation.post_thumbnail_url ? (
-                                    <Image
-                                        src={automation.post_thumbnail_url}
-                                        alt={automation.name}
-                                        fill
-                                        unoptimized
-                                        sizes="96px"
-                                        className="absolute inset-0 w-full h-full object-cover opacity-80"
-                                    />
-                                ) : (
-                                    <div className="flex items-center justify-center h-full">
-                                        <Zap className="h-7 w-7" style={{ color: 'rgba(255,255,255,0.16)' }} />
-                                    </div>
+                                className={'absolute inset-x-0 top-0 h-px ' + (
+                                    automation.is_active
+                                        ? 'bg-gradient-to-r from-transparent via-emerald-300/70 to-transparent'
+                                        : 'bg-gradient-to-r from-transparent via-white/15 to-transparent'
                                 )}
-                            </div>
+                            />
 
-                            {/* Content */}
-                                <div className="flex-1 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                    <div className="min-w-0 flex-1">
-                                        <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
-                                            <h3
-                                                className="font-semibold text-sm truncate"
-                                                style={{ color: 'rgba(255,255,255,0.85)' }}
-                                            >
-                                                {automation.name}
-                                            </h3>
-                                            <span
-                                                className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide shrink-0"
-                                                style={statusStyles}
-                                            >
-                                                {statusLabel}
-                                            </span>
-                                        </div>
-
-                                        <div className="flex flex-wrap items-center gap-2 mb-2">
-                                            <span
-                                                className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                                                style={platformChipStyles}
-                                            >
-                                                {platformLabel}
-                                            </span>
-                                            <span
-                                                className="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                                                style={{ background: 'rgba(245,158,11,0.10)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.2)' }}
-                                            >
-                                                {editorBadge}
-                                            </span>
-                                        </div>
-
-                                        <div
-                                            className="space-y-1 text-xs"
-                                            style={{ color: AUTO_THEME.muted }}
-                                        >
-                                            <div className="flex items-center gap-1.5 min-w-0">
-                                                <MessageCircle className="h-3.5 w-3.5 shrink-0" style={{ color: '#38bdf8' }} />
-                                                <span className="truncate">
-                                                    Trigger: <span style={{ color: 'rgba(255,255,255,0.72)' }}>{triggerSummary}</span>
-                                                </span>
+                            <div className="p-4 sm:p-5">
+                                <div className="flex items-start gap-4">
+                                    <div className="relative size-14 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#171923]">
+                                        {automation.post_thumbnail_url ? (
+                                            <Image
+                                                src={automation.post_thumbnail_url}
+                                                alt=""
+                                                fill
+                                                unoptimized
+                                                sizes="56px"
+                                                className="object-cover opacity-85 transition duration-300 group-hover:scale-105"
+                                            />
+                                        ) : (
+                                            <div className="grid h-full place-items-center bg-gradient-to-br from-cyan-300/[0.10] to-violet-400/[0.10]">
+                                                <Layers className="size-5 text-cyan-100/60" aria-hidden="true" />
                                             </div>
-                                            <div className="flex items-center gap-1.5 min-w-0">
-                                                <Zap className="h-3.5 w-3.5 shrink-0" style={{ color: '#f59e0b' }} />
-                                                <span className="truncate">
-                                                    Actions: <span style={{ color: 'rgba(255,255,255,0.72)' }}>{actionSummary}</span>
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div
-                                            className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs mt-2"
-                                            style={{ color: AUTO_THEME.mutedSoft }}
-                                        >
-                                            <span className="flex items-center gap-1">
-                                                <Activity className="h-3 w-3" style={{ color: '#4ade80' }} />
-                                                {automation.total_triggered} runs
-                                            </span>
-
-                                            {hasDMAction && (
-                                                <span className="flex items-center gap-1">
-                                                    <Send className="h-3 w-3" style={{ color: '#fb7185' }} />
-                                                    {automation.total_dms_sent} DMs sent
-                                                </span>
-                                            )}
-
-                                            {isGraph && (
-                                                <span className="flex items-center gap-1">
-                                                    <Zap className="h-3 w-3" style={{ color: '#f59e0b' }} />
-                                                    {graphActionCount} actions
-                                                </span>
-                                            )}
-
-                                            {isCanvas && (
-                                                <span className="flex items-center gap-1">
-                                                    <Layers className="h-3 w-3" style={{ color: '#fbbf24' }} />
-                                                    {graphNodeCount} nodes
-                                                </span>
-                                            )}
-
-                                            {!isGraph && automation.trigger_config?.trigger_type === 'keywords' && (
-                                                <span className="flex items-center gap-1">
-                                                    <Hash className="h-3 w-3" style={{ color: '#38bdf8' }} />
-                                                    {automation.trigger_config.keywords?.length || 0} keywords
-                                                </span>
-                                            )}
-                                        </div>
-
-                                        {automation.post_caption && (
-                                            <p
-                                                className="text-xs mt-1.5 truncate max-w-[200px] sm:max-w-md"
-                                                style={{ color: 'rgba(255,255,255,0.28)' }}
-                                            >
-                                                {automation.post_caption}
-                                            </p>
                                         )}
-
                                     </div>
 
-                                {/* Actions */}
-                                    <div className="flex items-center gap-3 self-end sm:self-center">
-                                        {(isToggling || isDeleting) && (
-                                            <div
-                                                className="flex items-center gap-1.5 text-[10px] font-semibold"
-                                                style={{ color: 'rgba(255,255,255,0.45)' }}
-                                            >
-                                                <Loader2 className="h-3 w-3 animate-spin" />
-                                                {isDeleting ? 'Deleting…' : 'Updating…'}
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <h3 className="truncate text-[15px] font-semibold text-white/90">
+                                                    {automation.name}
+                                                </h3>
+                                                <div className="mt-2 flex flex-wrap gap-1.5">
+                                                    <span className={'rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.16em] ' + statusClass}>
+                                                        {statusLabel}
+                                                    </span>
+                                                    <span className={'rounded-full border px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] ' + getPlatformChipClass(platformLabel)}>
+                                                        {platformLabel}
+                                                    </span>
+                                                    <span className="rounded-full border border-violet-300/15 bg-violet-300/[0.06] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-violet-100/70">
+                                                        {editorBadge}
+                                                    </span>
+                                                </div>
                                             </div>
-                                        )}
-                                        <Switch
-                                            checked={automation.is_active}
-                                            disabled={readOnly || isToggling || isDeleting}
-                                            onCheckedChange={(checked) => {
-                                                if (readOnly) return
-                                                onToggle(automation.id, checked)
-                                            }}
-                                        />
 
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <button
-                                                    disabled={readOnly || isDeleting}
-                                                className="flex h-8 w-8 items-center justify-center rounded-lg transition-all duration-150"
-                                                    style={{ background: 'rgba(255,255,255,0.05)', color: AUTO_THEME.muted }}
-                                                >
-                                                    <MoreVertical className="h-4 w-4" />
-                                                </button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent
-                                                align="end"
-                                                style={{ background: AUTO_THEME.panelAlt, border: `1px solid ${AUTO_THEME.border}` }}
-                                            >
-                                                <DropdownMenuItem
-                                                    disabled={readOnly || isDeleting}
-                                                    onClick={() => {
-                                                        if (readOnly) return
-                                                        onEdit(automation)
-                                                    }}
-                                                    style={{ color: 'rgba(255,255,255,0.7)' }}
-                                                >
-                                                    <Edit2 className="h-4 w-4 mr-2" />
-                                                    Edit
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator style={{ background: 'rgba(255,255,255,0.06)' }} />
-                                                <DropdownMenuItem
-                                                    disabled={readOnly || isDeleting}
-                                                    onClick={() => {
-                                                        if (readOnly) return
-                                                        setDeleteConfirmId(automation.id)
-                                                    }}
-                                                    style={{ color: '#f87171' }}
-                                                >
-                                                    <Trash2 className="h-4 w-4 mr-2" />
-                                                    Delete
-                                                </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <button
+                                                        type="button"
+                                                        disabled={isDeleting}
+                                                        aria-label={'More options for ' + automation.name}
+                                                        className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.035] text-white/35 transition hover:bg-white/[0.07] hover:text-white/70 disabled:opacity-40"
+                                                    >
+                                                        <MoreVertical className="size-4" aria-hidden="true" />
+                                                    </button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="border-white/10 bg-[#191b26] text-white/75">
+                                                    <DropdownMenuItem onClick={() => onViewRuns(automation)}>
+                                                        <History className="mr-2 size-4" />
+                                                        Execution history
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator className="bg-white/[0.07]" />
+                                                    <DropdownMenuItem
+                                                        disabled={readOnly || isDeleting}
+                                                        onClick={() => {
+                                                            if (!readOnly) onEdit(automation)
+                                                        }}
+                                                    >
+                                                        <Edit2 className="mr-2 size-4" />
+                                                        Edit workflow
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator className="bg-white/[0.07]" />
+                                                    <DropdownMenuItem
+                                                        disabled={readOnly || isDeleting}
+                                                        onClick={() => {
+                                                            if (!readOnly) setDeleteConfirmId(automation.id)
+                                                        }}
+                                                        className="text-rose-300 focus:text-rose-200"
+                                                    >
+                                                        <Trash2 className="mr-2 size-4" />
+                                                        Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                                    <div className="rounded-xl border border-cyan-300/10 bg-cyan-300/[0.035] p-3">
+                                        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-cyan-100/45">
+                                            <MessageCircle className="size-3.5" aria-hidden="true" />
+                                            When
+                                        </div>
+                                        <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/65">{triggerSummary}</p>
+                                    </div>
+                                    <div className="rounded-xl border border-violet-300/10 bg-violet-300/[0.035] p-3">
+                                        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-violet-100/45">
+                                            <Zap className="size-3.5" aria-hidden="true" />
+                                            Then
+                                        </div>
+                                        <p className="mt-2 line-clamp-2 text-xs leading-5 text-white/65">{actionSummary}</p>
+                                    </div>
+                                </div>
+
+                                {automation.post_caption && (
+                                    <p className="mt-3 truncate text-[11px] text-white/25">{automation.post_caption}</p>
+                                )}
+
+                                <div className="mt-4 flex flex-col gap-3 border-t border-white/[0.065] pt-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-white/38">
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <Activity className="size-3 text-emerald-300" aria-hidden="true" />
+                                            {automation.total_triggered} runs
+                                        </span>
+                                        {hasDMAction && (
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <Send className="size-3 text-pink-300" aria-hidden="true" />
+                                                {automation.total_dms_sent} DMs
+                                            </span>
+                                        )}
+                                        {isGraph && (
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <Layers className="size-3 text-violet-300" aria-hidden="true" />
+                                                {graphActionCount} actions
+                                            </span>
+                                        )}
+                                        {isCanvas && (
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <Zap className="size-3 text-amber-300" aria-hidden="true" />
+                                                {graphNodeCount} nodes
+                                            </span>
+                                        )}
+                                        {!isGraph && automation.trigger_config?.trigger_type === 'keywords' && (
+                                            <span className="inline-flex items-center gap-1.5">
+                                                <Hash className="size-3 text-cyan-300" aria-hidden="true" />
+                                                {automation.trigger_config.keywords?.length || 0} keywords
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center justify-between gap-3 sm:justify-end">
+                                        {(isToggling || isDeleting) && (
+                                            <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-white/40">
+                                                <Loader2 className="size-3 animate-spin" aria-hidden="true" />
+                                                {isDeleting ? 'Deleting…' : 'Updating…'}
+                                            </span>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() => onViewRuns(automation)}
+                                            className="inline-flex h-9 items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.03] px-3 text-xs font-semibold text-white/50 transition hover:bg-white/[0.065] hover:text-white/80"
+                                        >
+                                            <History className="size-3.5" aria-hidden="true" />
+                                            Activity
+                                        </button>
+                                        <div className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.025] px-2.5 py-1.5">
+                                            <span className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
+                                                {automation.is_active ? 'On' : 'Off'}
+                                            </span>
+                                            <Switch
+                                                aria-label={(automation.is_active ? 'Pause ' : 'Activate ') + automation.name}
+                                                checked={automation.is_active}
+                                                disabled={readOnly || isToggling || isDeleting}
+                                                onCheckedChange={(checked) => {
+                                                    if (!readOnly) onToggle(automation.id, checked)
+                                                }}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        )
-                    })()
-                ))}
+                        </article>
+                    )
+                })}
             </div>
 
-            <AlertDialog
-                open={!!deleteConfirmId}
+            <AlertDialog                open={!!deleteConfirmId}
                 onOpenChange={(open) => {
                     if (isDeleteSubmitting) return
                     if (!open) setDeleteConfirmId(null)
                 }}
             >
-                <AlertDialogContent
-                    style={{ background: AUTO_THEME.panel, border: `1px solid ${AUTO_THEME.border}` }}
-                >
+                <AlertDialogContent className="border-white/10 bg-[#171923]">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete Automation?</AlertDialogTitle>
                         <AlertDialogDescription>

@@ -37,6 +37,13 @@ export interface MetaAccountMetadata extends Record<string, unknown> {
   instagram_business_account_id?: string | null
   connected_page_id?: string | null
   ig_username?: string | null
+  connection_method?: "instagram_login" | "facebook_login"
+  account_type?: string | null
+  scope_source?: "oauth_response" | "oauth_request"
+  webhook_subscription_status?: "active" | "missing" | "error" | "unknown"
+  webhook_subscribed_fields?: string[]
+  webhook_checked_at?: string
+  webhook_error_code?: string | null
 }
 
 export interface MetaAccountRow {
@@ -81,13 +88,15 @@ export function deriveMetaCapabilities(scopes: readonly string[]): MetaCapabilit
     facebook_publish: granted.has("pages_manage_posts"),
     facebook_user_content_read: granted.has("pages_read_user_content"),
     business_management: granted.has("business_management"),
-    instagram_basic: granted.has("instagram_basic"),
-    instagram_publish: granted.has("instagram_content_publish"),
-    analytics_read: granted.has("pages_read_engagement") || granted.has("instagram_manage_insights"),
+    instagram_basic: granted.has("instagram_basic") || granted.has("instagram_business_basic"),
+    instagram_publish: granted.has("instagram_content_publish") || granted.has("instagram_business_content_publish"),
+    analytics_read: granted.has("pages_read_engagement")
+      || granted.has("instagram_manage_insights")
+      || granted.has("instagram_business_manage_insights"),
     facebook_comments_read: granted.has("pages_read_user_content") || granted.has("pages_read_engagement") || granted.has("pages_manage_engagement"),
     facebook_comments_manage: granted.has("pages_manage_engagement"),
-    comments_manage: granted.has("instagram_manage_comments"),
-    messages_manage: granted.has("instagram_manage_messages"),
+    comments_manage: granted.has("instagram_manage_comments") || granted.has("instagram_business_manage_comments"),
+    messages_manage: granted.has("instagram_manage_messages") || granted.has("instagram_business_manage_messages"),
     pages_messaging: granted.has("pages_messaging"),
   }
 }
@@ -181,6 +190,13 @@ export function sanitizeMetaAccountMetadataForClient(
     token_status: metadata.token_status,
     token_health: metadata.token_health,
     token_checked_at: metadata.token_checked_at,
+    connection_method: metadata.connection_method,
+    account_type: metadata.account_type ?? null,
+    scope_source: metadata.scope_source,
+    webhook_subscription_status: metadata.webhook_subscription_status,
+    webhook_subscribed_fields: sanitizeScopes(metadata.webhook_subscribed_fields),
+    webhook_checked_at: metadata.webhook_checked_at,
+    webhook_error_code: metadata.webhook_error_code ?? null,
   }
 
   return Object.fromEntries(
@@ -188,7 +204,7 @@ export function sanitizeMetaAccountMetadataForClient(
   ) as MetaAccountMetadata
 }
 
-export function canPublishWithMetaAccount(
+export function canManageProviderPostsWithMetaAccount(
   metadata: MetaAccountMetadata | null | undefined,
   platform: MetaPlatform,
 ): boolean {

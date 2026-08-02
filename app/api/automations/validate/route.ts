@@ -4,6 +4,7 @@ import { isTriggerNode, SUPPORTED_CANVAS_TRIGGER_TYPES } from '@/types/automatio
 import { validateSendEmailNodeConfigs } from '@/lib/automation-send-email-validation'
 import { isMetaGraphNodeId } from '@/lib/security/phase1-validation'
 import { resolveCommentPostScope } from '@/supabase/functions/_shared/comment-scope'
+import { getAutomationConditionPolicyIssue } from '@/supabase/functions/_shared/automation-condition-policy'
 
 interface ValidationError {
   code: string
@@ -324,6 +325,13 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
             message: 'Reply to Comment is set to use AI response with no fallback reply.',
             nodeId: node.id,
           })
+        }
+        break
+      }
+      case 'action_condition': {
+        const conditionIssue = getAutomationConditionPolicyIssue(config.condition_type)
+        if (conditionIssue) {
+          errors.push({ ...conditionIssue, nodeId: node.id })
         }
         break
       }

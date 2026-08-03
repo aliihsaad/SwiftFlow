@@ -261,7 +261,7 @@ export function TeamMembersPanel({
 
     if (!activeWorkspace) {
         return (
-            <div className="rounded-xl border border-white/10 bg-white/5 p-5 text-sm text-white/60">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-white/60">
                 No active workspace selected. Switch to a workspace to manage team members.
             </div>
         )
@@ -269,7 +269,7 @@ export function TeamMembersPanel({
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col gap-3 rounded-xl border border-white/10 bg-[#1b1d28] p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 rounded-2xl border border-cyan-300/10 bg-gradient-to-r from-cyan-300/[0.055] via-white/[0.025] to-violet-300/[0.055] p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2 text-sm text-white/75">
                         <Users className="h-4 w-4 text-cyan-200/80" />
@@ -287,13 +287,13 @@ export function TeamMembersPanel({
             </div>
 
             {inviteFeatureMessage && (
-                <div className="rounded-xl border border-amber-300/20 bg-amber-300/8 px-4 py-3 text-sm text-amber-100/90">
+                <div className="rounded-2xl border border-amber-300/20 bg-amber-300/8 px-4 py-3 text-sm text-amber-100/90">
                     {inviteFeatureMessage}
                 </div>
             )}
 
             {canManage && inviteFeatureReady && (
-                <form onSubmit={handleInviteSubmit} className="space-y-3 rounded-xl border border-white/10 bg-[#1b1d28] p-4">
+                <form onSubmit={handleInviteSubmit} className="space-y-3 rounded-2xl border border-white/10 bg-white/[0.035] p-4">
                     <div className="flex items-center gap-2 text-sm font-medium text-white/85">
                         <Link2 className="h-4 w-4 text-cyan-200/80" />
                         Create Invite Link
@@ -309,16 +309,16 @@ export function TeamMembersPanel({
                                 placeholder="teammate@company.com"
                                 required
                                 disabled={isInviting}
-                                className="border-white/10 bg-[#151620] text-white/85 placeholder:text-white/30"
+                                className="border-white/10 bg-black/20 text-white/85 placeholder:text-white/30"
                             />
                         </div>
                         <div className="space-y-2">
                             <Label className="text-white/70">Role</Label>
                             <Select value={inviteRole} onValueChange={(value) => setInviteRole(value as TeamInviteRole)}>
-                                <SelectTrigger className="w-full border-white/10 bg-[#151620] text-white/85">
+                                <SelectTrigger className="w-full border-white/10 bg-black/20 text-white/85">
                                     <SelectValue />
                                 </SelectTrigger>
-                                <SelectContent className="border-white/10 bg-[#1b1d28] text-white/85">
+                                <SelectContent className="border-white/10 bg-white/[0.035] text-white/85">
                                     {INVITE_ROLE_OPTIONS.map((role) => (
                                         <SelectItem key={role} value={role} className="focus:bg-white/10 focus:text-white">
                                             {roleLabel(role)}
@@ -339,7 +339,7 @@ export function TeamMembersPanel({
                         Sends an invite email and creates a shareable link (7-day expiry). The teammate must sign up or sign in with the same invited email address to accept.
                     </p>
                     {lastInviteLink && (
-                        <div className="space-y-2 rounded-lg border border-white/10 bg-[#151620] p-3">
+                        <div className="space-y-2 rounded-lg border border-white/10 bg-black/20 p-3">
                             <div className="text-xs font-medium uppercase tracking-[0.08em] text-white/45">Latest Invite Link</div>
                             <div className="flex flex-col gap-2 sm:flex-row">
                                 <Input
@@ -367,7 +367,7 @@ export function TeamMembersPanel({
                     <h4 className="text-sm font-semibold tracking-wide text-white/85">Current Members</h4>
                     <span className="text-xs text-white/45">{teamMembers.length} total</span>
                 </div>
-                <div className="overflow-hidden rounded-xl border border-white/10 bg-[#151620]">
+                <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
                     <Table className="min-w-[760px]">
                         <TableHeader>
                             <TableRow className="border-white/10 hover:bg-transparent">
@@ -424,10 +424,10 @@ export function TeamMembersPanel({
                                                         }
                                                         disabled={isRowBusy}
                                                     >
-                                                        <SelectTrigger className="w-[132px] border-white/10 bg-[#1b1d28] text-white/80">
+                                                        <SelectTrigger className="w-[132px] border-white/10 bg-white/[0.035] text-white/80">
                                                             <SelectValue />
                                                         </SelectTrigger>
-                                                        <SelectContent className="border-white/10 bg-[#1b1d28] text-white/85">
+                                                        <SelectContent className="border-white/10 bg-white/[0.035] text-white/85">
                                                             {INVITE_ROLE_OPTIONS.map((role) => (
                                                                 <SelectItem key={role} value={role} className="focus:bg-white/10 focus:text-white">
                                                                     {roleLabel(role)}
@@ -491,16 +491,16 @@ export function TeamMembersPanel({
                 </div>
 
                 {!inviteFeatureReady ? (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/50">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/50">
                         Invites are unavailable until the database migration is applied.
                     </div>
                 ) : !canManage ? (
-                    <div className="rounded-xl border border-white/10 bg-white/5 p-4 text-sm text-white/50">
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/50">
                         Only the workspace owner can view and manage invite links.
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        <div className="overflow-hidden rounded-xl border border-white/10 bg-[#151620]">
+                        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
                             <Table className="min-w-[820px]">
                                 <TableHeader>
                                     <TableRow className="border-white/10 hover:bg-transparent">
@@ -571,7 +571,7 @@ export function TeamMembersPanel({
                         </div>
 
                         {inviteHistory.length > 0 && (
-                            <div className="rounded-xl border border-white/10 bg-[#151620]">
+                            <div className="rounded-2xl border border-white/10 bg-black/20">
                                 <button
                                     type="button"
                                     onClick={() => setShowInviteHistory((prev) => !prev)}

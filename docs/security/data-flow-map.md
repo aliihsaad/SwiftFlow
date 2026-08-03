@@ -12,9 +12,9 @@ This map describes the data moving through SwiftFlow before the production harde
 | Developer API clients to REST | `/api/developer/v1/**` | Overbroad scopes, stale/revoked keys, destructive action abuse | HMAC-hashed API keys, scope checks, owner/admin key creation, audit logs |
 | MCP/connector clients to MCP bridge | `/api/developer/mcp` | OAuth token replay, wrong audience, pass-through token misuse, unsafe tool schemas | OAuth resource validation, backing key validation, no arbitrary route passthrough |
 | Meta to webhook | `/api/webhooks/instagram` | Forged webhooks, replay, duplicate processing, PII logging | Verify token/HMAC signature, idempotency keys, safe payload logging |
-| Scheduler to Edge Functions | `scheduler-tick`, `/api/cron/scheduler` | Duplicate due runs, public invocation, runaway publishing | Cron secret/service-role auth, locks, idempotency, run records |
+| Scheduler to Edge Functions | `scheduler-tick`, `/api/cron/scheduler` | Duplicate due runs, public invocation, runaway automation retries | Cron secret/service-role auth, locks, idempotency, run records |
 | Edge Functions to external providers | Meta, Gemini/OpenRouter/OpenAI, Resend, Unsplash, future trend providers | Token leakage, cost exhaustion, unsafe third-party API consumption | Timeout, retry policy, rate limits, error normalization, request IDs |
-| App to Supabase Storage | `post_media`, brand assets, generated images | Storage bloat, public URL exposure, path traversal, unbounded uploads | Workspace-scoped paths, MIME/size validation, quotas, retention cleanup |
+| App to Supabase Storage | synced media references and brand assets | Storage bloat, public URL exposure, path traversal, unbounded uploads | Workspace-scoped paths, MIME/size validation, quotas, retention cleanup |
 | Stripe to app | Future billing webhooks | Entitlement drift, unpaid access, webhook forgery | Stripe signature verification, idempotency, entitlement event handling |
 
 ## Workspace and Membership Flow
@@ -32,60 +32,25 @@ Phase 1 checks:
 - Service-role queries always include `workspace_id`.
 - Owner/admin-only operations are enforced server-side.
 
-## Posts, Drafts, Scheduling, and Publishing
+## Synced Social Content
 
 Data:
 
-- `posts` or equivalent scheduled/draft records.
-- Platform captions, status, scheduled time, platform list.
-- `media_urls` or `mediaUrls`.
-- Published platform IDs and error state.
+- Provider post, media, comment, and conversation identifiers.
+- Read-only media metadata used for analytics and automation targeting.
+- Comment and message events that enter the automation pipeline.
 
 Flows:
 
-1. User routes create/update/schedule posts from the dashboard.
-2. Developer API and MCP create/update/list/delete draft or scheduled posts with scopes:
-   - `posts:read`
-   - `posts:create`
-   - `posts:schedule`
-   - `posts:publish_now`
-   - `posts:update`
-   - `posts:delete`
-3. Immediate publish requests and scheduled due posts enter `process-scheduled-posts`.
-4. `process-scheduled-posts` reads workspace social accounts and decrypted Meta tokens, then calls Meta Graph API.
-5. Results update post status, platform IDs, and errors.
+1. SwiftFlow syncs existing Instagram/Facebook media for analytics and automation targeting.
+2. Comment and message webhooks are verified, deduplicated, and matched to workspace automations.
+3. Provider actions are limited to engagement responses such as comment replies, private replies, and DMs.
 
 Required controls:
 
-- `publish_now` remains separate from draft creation.
-- Draft/scheduled deletes cannot delete published posts through Developer API.
-- Scheduler uses idempotency keys per post/platform attempt.
-- All publishing attempts are auditable with request/run IDs.
-
-## Media and Generated Assets
-
-Data:
-
-- Uploaded base64 media.
-- AI-generated image bytes or URLs.
-- Public Supabase Storage URLs in `post_media`.
-- Brand assets and generated carousel slides.
-
-Flows:
-
-1. Dashboard uploads brand or post media.
-2. Developer API `swiftflow_upload_media` accepts base64 and stores to `post_media`.
-3. Developer API `swiftflow_generate_post_image` uses the SwiftFlow image pipeline, stores the generated result, and optionally appends/replaces a draft/scheduled post media array.
-4. Publishing workers send media URLs to Meta publish endpoints.
-
-Required controls:
-
-- Enforce MIME allowlist and byte-size limits.
-- Use workspace-prefixed storage paths.
-- Never fetch arbitrary URLs server-side unless SSRF controls exist.
-- Add plan-based quotas before public launch.
-- Add retention cleanup with dry-run before enabling deletes.
-
+- Every provider object must resolve through a workspace-owned social account.
+- Media reads must never expose access tokens.
+- Reply actions require explicit automation configuration, permissions, idempotency, and audit evidence.
 ## Analytics and Content Intelligence
 
 Data:
@@ -168,7 +133,7 @@ Data:
 - Page access tokens.
 - Instagram account IDs.
 - User access token metadata.
-- Permission-state metadata used to decide publish/comment/message capability.
+- Permission-state metadata used to decide comment, message, and analytics capability.
 
 Flows:
 
@@ -196,7 +161,7 @@ Future data:
 - Stripe customer ID.
 - Subscription status.
 - Active entitlement summary.
-- Plan limits for Developer API, media storage, AI images, trend research, automation runs, and retention.
+- Plan limits for Developer API, analytics refreshes, automation runs, and retention.
 
 Required controls:
 

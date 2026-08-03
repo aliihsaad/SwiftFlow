@@ -22,8 +22,8 @@ import { toast } from "sonner"
 import { createClient } from "@/utils/supabase/client"
 import { deleteAccount, updatePassword } from "@/app/actions/auth"
 
-const panelClass = "border-white/10 bg-[#151620] text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]"
-const inputClass = "h-10 border-white/10 bg-[#1b1d28] text-white/85 placeholder:text-white/25 focus-visible:ring-1 focus-visible:ring-white/20"
+const panelClass = "rounded-[22px] border-white/9 bg-white/[0.025] text-white/85 shadow-none"
+const inputClass = "h-10 border-white/10 bg-black/20 text-white/85 placeholder:text-white/25 focus-visible:ring-1 focus-visible:ring-white/20"
 const labelClass = "text-xs font-semibold uppercase tracking-wider text-white/45"
 
 const PASSWORD_POLICY = {
@@ -100,7 +100,7 @@ function ChangePasswordForm() {
 
     return (
         <Card className={panelClass}>
-            <CardHeader>
+            <CardHeader className="border-b border-white/8 pb-5">
                 <CardTitle className="flex items-center gap-2 text-white/90">
                     <Lock className="h-4 w-4" />
                     Change Password
@@ -207,7 +207,7 @@ function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
 
     return (
         <Card className={panelClass}>
-            <CardHeader>
+            <CardHeader className="border-b border-white/8 pb-5">
                 <CardTitle className="flex items-center gap-2 text-white/90">
                     <Mail className="h-4 w-4" />
                     Change Email
@@ -282,8 +282,8 @@ function DeleteAccountSection() {
     }
 
     return (
-        <Card className="border-red-400/20 bg-[#151620] text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]">
-            <CardHeader>
+        <Card className="rounded-[22px] border-red-400/20 bg-gradient-to-br from-red-500/[0.055] to-white/[0.02] text-white/85 shadow-none">
+            <CardHeader className="border-b border-white/8 pb-5">
                 <CardTitle className="flex items-center gap-2 text-red-200">
                     <Trash2 className="h-4 w-4" />
                     Delete Account

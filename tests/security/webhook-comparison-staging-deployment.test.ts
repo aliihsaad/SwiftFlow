@@ -9,7 +9,10 @@ import {
 } from "./helpers/compose-ports"
 
 function readRepositoryFile(file: string): string {
-  return readFileSync(path.join(process.cwd(), file), "utf8")
+  return readFileSync(path.join(process.cwd(), file), "utf8").replaceAll(
+    "\r\n",
+    "\n",
+  )
 }
 
 const compose = readRepositoryFile("compose.webhook-comparison.staging.yaml")

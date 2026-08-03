@@ -1,7 +1,7 @@
 # Security API Inventory
 
-Status date: 2026-05-17
-Generated from code under `app/api/**/route.ts`, `supabase/functions/**`, and `lib/developer-api/mcp.ts`.
+Status date: 2026-08-02
+Generated from the active code under `app/api/**/route.ts`, `supabase/functions/**`, and `lib/developer-api/mcp.ts`. The Developer API surface is engagement-only: workspace, brand, automations, connected-account metadata, and analytics.
 
 This is the Phase 0 inventory for authorization, capability, cost, and audit review. It is intentionally conservative: when a route uses helper-based auth or has incomplete direct auth signals, the entry calls out the Phase 1 check instead of assuming it is safe.
 
@@ -36,12 +36,9 @@ Capabilities:
 
 | Route file | Methods | Auth classification | Capability | Phase 1 notes |
 | --- | --- | --- | --- | --- |
-| `app/api/ai/generate-caption/route.ts` | POST | Supabase session + workspace membership, invokes Edge Function with service role path | AI, R | Confirm rate limits and workspace ID cannot be spoofed |
-| `app/api/ai/generate-ideas/route.ts` | POST | Supabase session via `getActiveWorkspace`; no explicit role permission | AI, R | Add/confirm explicit workspace permission and rate limit |
 | `app/api/ai/models/route.ts` | GET | Supabase session | R, T | Confirm provider key never leaks and settings access is role-gated |
 | `app/api/ai/validate-key/route.ts` | POST | Supabase session + `settings:write` | T, AI | Ensure candidate key is never persisted by this route |
 | `app/api/analytics/route.ts` | GET | Supabase session + active workspace; service role internally | R | Confirm all queries are workspace-filtered and analytics freshness behavior is bounded |
-| `app/api/assistant/command/route.ts` | POST | Supabase session through `resolveAssistantWorkspace` helper | AI, R | Keep write actions proposal-only until Phase 4 confirmation model |
 | `app/api/assistant/invoke/route.ts` | POST | Supabase session through `resolveAssistantWorkspace` helper | AI, R | Confirm function allowlist and per-user/per-IP rate limits |
 | `app/api/auth/forgot-password/route.ts` | POST | Public auth flow | T | Rate-limit and CAPTCHA/email abuse controls |
 | `app/api/auth/meta/callback/route.ts` | GET | Supabase session + workspace permission + service role | T, W | Meta token exchange, encryption, and workspace binding review |
@@ -67,11 +64,7 @@ Capabilities:
 | `app/api/brand/social-status/route.ts` | GET | Supabase session + workspace permission | R | Good candidate for BOLA tests |
 | `app/api/brand-profile/assets/route.ts` | POST | Supabase session + workspace permission + service role | M, W, AUDIT | Validate MIME/size and storage path isolation |
 | `app/api/brand-profile/route.ts` | GET, PUT | Supabase session + workspace permission | R, W, AUDIT | Field-level authorization and partial update tests |
-| `app/api/chat/sessions/[id]/route.ts` | GET, PATCH, DELETE | Supabase session + workspace permission | R, W, D | Add destructive confirmation for delete if exposed |
-| `app/api/chat/sessions/route.ts` | GET, POST | Supabase session + workspace permission | R, W | Confirm retention policy and workspace filters |
 | `app/api/content-intelligence/analytics-insights/route.ts` | GET | Supabase session | R, AI | Confirm workspace permission, cache bounds, and stale-source labels |
-| `app/api/content-intelligence/analyze-post/route.ts` | POST | Supabase session | AI, R | Confirm workspace permission, rate limit, and provider timeout |
-| `app/api/content-intelligence/recommend-slots/route.ts` | GET | Supabase session | R | Confirm workspace permission and cache behavior |
 | `app/api/content-intelligence/trend-report/route.ts` | POST | Supabase session | AI, external provider candidate | Must research provider rules before Phase 7 |
 | `app/api/cron/scheduler/route.ts` | GET, POST | Cron secret or Vercel cron header; dev-only fallback | S, P, AI, AUDIT | Require `CRON_SECRET` in production and add idempotency metrics |
 | `app/api/developer/access-model/route.ts` | GET, POST | Supabase session + owner/admin check for POST | R, T | GET exposes scope options; POST validates access model |
@@ -91,12 +84,6 @@ Capabilities:
 | `app/api/developer/v1/automations/route.ts` | GET, POST | Developer API key, `automations:read/create`, service role | R, W, A, AUDIT | Template path preferred; raw graph escape hatch is high risk |
 | `app/api/developer/v1/automation-templates/route.ts` | GET | Developer API key, `automations:read` | R | Template metadata must not expose tokens |
 | `app/api/developer/v1/brand-profile/route.ts` | GET, PUT, PATCH | Developer API key, `brand:read/write`, service role | R, W, AUDIT | Field-level partial update tests |
-| `app/api/developer/v1/content-intelligence/analyze-post/route.ts` | POST | Developer API key, `content_intelligence:run` | AI, R, AUDIT | Provider limits, stale analytics sync, and cache labels |
-| `app/api/developer/v1/media/generate/route.ts` | POST | Developer API key, `media:generate` plus `posts:update` when attaching | AI, M, W, AUDIT | Cost controls, append/replace tests, storage quotas |
-| `app/api/developer/v1/media/route.ts` | POST | Developer API key, `media:upload`, service role | M, W, AUDIT | Base64 size/MIME validation, storage quotas, malware/SSRF review |
-| `app/api/developer/v1/posts/drafts/[id]/route.ts` | PATCH, DELETE | Developer API key, `posts:update/delete`, service role | W, D, AUDIT | Confirm only draft/scheduled can change/delete |
-| `app/api/developer/v1/posts/drafts/route.ts` | GET, POST | Developer API key, `posts:read/create`, service role | R, W, AUDIT | Legacy draft route; keep behavior aligned with `/posts` |
-| `app/api/developer/v1/posts/route.ts` | GET, POST | Developer API key, `posts:read/create/schedule/publish_now`, service role | R, W, P, AUDIT | Publish-now scope must remain separate and tested |
 | `app/api/developer/v1/social-accounts/route.ts` | GET | Developer API key, `automations:read`, service role | R, T | Return only safe IDs/metadata, never access tokens |
 | `app/api/developer/v1/workspace/route.ts` | GET | Developer API key, `workspace:read`, service role | R | Used to validate backing API key during OAuth refresh |
 | `app/api/external-services/[id]/route.ts` | PUT, DELETE | Supabase session + `settings:write` + service role | W, D, T, AUDIT | External API key storage and delete audit |
@@ -104,18 +91,8 @@ Capabilities:
 | `app/api/live-messages/route.ts` | GET | Supabase session | R | Confirm workspace permission and token redaction |
 | `app/api/live-messages/send/route.ts` | POST | Supabase session + workspace permission | P, W, AUDIT | Meta messaging permissions, 24h window, and app-review constraints |
 | `app/api/messages/route.ts` | GET, POST | Supabase session + workspace permission | R, P, W, AUDIT | DM send/read BOLA and Meta permission tests |
-| `app/api/posts/route.ts` | POST, PUT, PATCH | Supabase session + workspace permission + service role | W, M, P, AUDIT | Schedule/publish-now separation, media ownership |
 | `app/api/posts-media/comments/route.ts` | GET, POST, DELETE, PATCH | Supabase session + workspace permission | R, P, W, D, AUDIT | Comment/private reply Meta permission and object ownership |
 | `app/api/posts-media/route.ts` | GET, PATCH, DELETE | Supabase session + workspace permission + service role | R, W, D, M, AUDIT | External post/media sync and destructive handling |
-| `app/api/publishing-automations/[id]/route.ts` | GET, PUT, DELETE | Supabase session + workspace permission + service role | R, W, D, A, AUDIT | Scheduled publishing safety and delete confirmation |
-| `app/api/publishing-automations/[id]/run-now/route.ts` | POST | Supabase session + workspace permission + service role | S, AI, M, W, AUDIT | Idempotency, cost limits, and run log checks |
-| `app/api/publishing-automations/[id]/runs/[runId]/generate-image/route.ts` | POST | Supabase session + workspace permission + service role | AI, M, W, AUDIT | Ensure run belongs to automation/workspace |
-| `app/api/publishing-automations/[id]/runs/route.ts` | GET | Supabase session + workspace permission + service role | R | Workspace filter and retention |
-| `app/api/publishing-automations/[id]/toggle/route.ts` | POST | Supabase session + workspace permission + service role | W, A, AUDIT | Idempotency and audit |
-| `app/api/publishing-automations/model-recommendation/route.ts` | GET | Supabase session + workspace permission + service role | R, AI metadata | Safe model recommendation output |
-| `app/api/publishing-automations/route.ts` | GET, POST | Supabase session + workspace permission | R, W, A, AUDIT | Guardrails before auto-publish |
-| `app/api/recommend-next-slot/route.ts` | GET | Public deterministic helper | R | Acceptable only if no workspace data; consider moving behind session for consistency |
-| `app/api/recommend-timeslots/route.ts` | GET | Public deterministic helper | R | Acceptable only if no workspace data |
 | `app/api/sync-analytics/route.ts` | POST | Supabase session + workspace permission + service role | S, R, Meta, AUDIT | Rate-limit; may call Meta and mutate analytics cache |
 | `app/api/test-db/route.ts` | GET | Public disabled stub returning 404 | R | Remove before launch if route is not needed |
 | `app/api/webhooks/instagram/route.ts` | GET, POST | Meta challenge token and `X-Hub-Signature-256`, service role | S, A, P, T | Replay/idempotency and logging redaction |
@@ -163,12 +140,6 @@ All tools are exposed by `lib/developer-api/mcp.ts` through `/api/developer/mcp`
 | `swiftflow_get_workspace` | `GET /workspace` | `workspace:read` | R | Safe metadata read |
 | `swiftflow_get_brand_profile` | `GET /brand-profile` | `brand:read` | R | Workspace-scoped |
 | `swiftflow_update_brand_profile` | `PATCH /brand-profile` | `brand:write` | W, AUDIT | Partial update should preserve omitted fields |
-| `swiftflow_list_posts` | `GET /posts` | `posts:read` | R | Lists draft/scheduled/published/failed |
-| `swiftflow_create_post` | `POST /posts` | `posts:create`, `posts:schedule`, or `posts:publish_now` based on status | W, P, AUDIT | Publish-now must remain a separate scope |
-| `swiftflow_update_draft_post` | `PATCH /posts/drafts/{id}` | `posts:update` | W, AUDIT | Draft/scheduled only |
-| `swiftflow_delete_draft_post` | `DELETE /posts/drafts/{id}` | `posts:delete` | D, AUDIT | Confirmation required in clients |
-| `swiftflow_upload_media` | `POST /media` | `media:upload` | M, W, AUDIT | Base64 upload to `post_media` |
-| `swiftflow_generate_post_image` | `POST /media/generate` | `media:generate`; add `posts:update` when attaching | AI, M, W, AUDIT | Append/replace modes tested after user report |
 | `swiftflow_list_automations` | `GET /automations` | `automations:read` | R | Workspace-scoped |
 | `swiftflow_list_social_accounts` | `GET /social-accounts` | `automations:read` | R, T | Must not return tokens |
 | `swiftflow_list_automation_media` | `GET /automation-media` | `automations:read` | R, Meta | Uses account ID from social accounts |
@@ -181,7 +152,6 @@ All tools are exposed by `lib/developer-api/mcp.ts` through `/api/developer/mcp`
 | `swiftflow_toggle_automation` | `POST /automations/{id}/toggle` | `automations:toggle` | W, A, AUDIT | Idempotent active-state mutation |
 | `swiftflow_delete_automation` | `DELETE /automations/{id}` | `automations:delete` | D, A, AUDIT | Confirmation required in clients |
 | `swiftflow_get_analytics_summary` | `GET /analytics/summary` | `analytics:read` | R, Meta sync | Refreshes stale analytics when possible |
-| `swiftflow_analyze_post_content` | `POST /content-intelligence/analyze-post` | `content_intelligence:run` | AI, R | Evidence labels and rate limits required |
 
 ## Known Unknowns
 

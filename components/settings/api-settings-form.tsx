@@ -207,9 +207,9 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
         }
     }
 
-    const panelClass = "border-white/10 bg-[#151620] text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]"
-    const fieldClass = "border-white/10 bg-[#1b1d28] text-white/85 placeholder:text-white/25 focus-visible:ring-cyan-400/30 focus-visible:border-cyan-300/20"
-    const selectTriggerClass = "border-white/10 bg-[#1b1d28] text-white/85 focus:ring-cyan-400/30"
+    const panelClass = "rounded-[22px] border-white/9 bg-white/[0.025] text-white/85 shadow-none"
+    const fieldClass = "border-white/10 bg-black/20 text-white/85 placeholder:text-white/25 focus-visible:ring-cyan-400/30 focus-visible:border-cyan-300/20"
+    const selectTriggerClass = "border-white/10 bg-black/20 text-white/85 focus:ring-cyan-400/30"
     const selectContentClass = "border-white/10 bg-[#1b1d28] text-white/85"
     const helperClass = "text-xs text-white/45"
     const showAdvancedSamplingControls = formData.ai_provider !== 'openrouter'
@@ -254,10 +254,10 @@ export function ApiSettingsForm({ settings }: ApiSettingsFormProps) {
 
     return (
         <Card className={panelClass}>
-            <CardHeader>
-                <CardTitle className="text-white/90">AI Provider Settings</CardTitle>
+            <CardHeader className="border-b border-white/8 pb-5">
+                <CardTitle className="text-white/90">Provider credentials & reply model</CardTitle>
                 <CardDescription className="text-white/50">
-                    Configure the AI provider and API keys used by automation reply nodes
+                    Select the provider, encrypted credential, and model defaults used by AI automation nodes.
                 </CardDescription>
             </CardHeader>
             <CardContent>

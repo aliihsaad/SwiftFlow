@@ -1,6 +1,6 @@
 # Phase 1 Security Hardening Results
 
-Date: 2026-05-18
+Date: 2026-08-02
 Status: local code/test gates complete; deployment smoke checks pending
 
 ## Research Baseline
@@ -42,7 +42,7 @@ Every server route, Developer API route, MCP tool, assistant write path, Edge Fu
 - Workspace permission lookup filters `workspace_members` by exact `workspace_id` and `user_id`.
 - Developer API keys are one-time tokens; stored tokens use HMAC hashing with server-side pepper.
 - Query-string API keys are rejected; bearer tokens are required.
-- Developer API scopes are granular for brand, media, posts, automations, analytics, and content intelligence.
+- Developer API scopes are limited to workspace metadata, brand context, engagement automations, and analytics.
 - Developer API audit logging records route, action, required scopes, request id, hashed IP, and hashed user agent.
 - `lib/security/redaction.ts` redacts sensitive strings and nested log objects before high-risk Developer API, assistant, and Meta OAuth logs are written.
 - `supabase/functions/_shared/log-redaction.ts` provides the same redaction behavior for Deno Edge Functions.
@@ -61,12 +61,8 @@ Every server route, Developer API route, MCP tool, assistant write path, Edge Fu
 | --- | ---: | ---: | --- |
 | `read` | 120 | 60s | Normal reads |
 | `write` | 30 | 60s | Normal writes |
-| `media_upload` | 12 | 60s | Base64 media uploads |
-| `media_generate` | 5 | 60s | AI image generation and attach |
 | `analytics_refresh` | 12 | 60s | Analytics summary with read-through sync |
-| `content_intelligence` | 10 | 60s | Content intelligence analysis |
 | `automation_write` | 20 | 60s | Automation create/update/toggle/delete |
-| `post_publish_now` | 6 | 60s | Immediate publishing queue actions |
 | `failed_auth` | 20 | 600s | Invalid token attempts by IP |
 
 ## Tests Added
@@ -77,7 +73,7 @@ Every server route, Developer API route, MCP tool, assistant write path, Edge Fu
   - proves missing membership and insufficient roles fail with 403.
 - `tests/security/developer-api-scope-matrix.test.ts`
   - proves every declared scope is visible through settings/UI metadata.
-  - verifies route source scope and rate-limit contracts for workspace, brand, posts, drafts, media, analytics, content intelligence, and automations.
+  - verifies route source scope and rate-limit contracts for workspace, brand, analytics, and automations.
   - proves every Developer API route contract rejects API keys missing any exact required scope.
   - proves query-string API keys, malformed tokens, inactive keys, expired keys, and under-scoped keys fail.
   - proves valid keys require the exact scope and consume the expected rate-limit bucket.
@@ -87,7 +83,7 @@ Every server route, Developer API route, MCP tool, assistant write path, Edge Fu
   - proves user-facing workspace tables are scoped by workspace membership or `auth.uid()`.
   - proves internal OAuth/webhook tables are service-role constrained.
 - `tests/security/workspace-object-ownership.test.ts`
-  - checks Developer API post, draft, media, brand, analytics, content intelligence, and automation routes are pinned to `context.workspaceId`.
+  - checks Developer API brand, analytics, connected-account, and automation routes are pinned to `context.workspaceId`.
   - checks Developer API key management and assistant chat history are pinned to the active workspace.
   - checks linked social accounts and automation graph inputs remain workspace-scoped.
 - `tests/security/cross-workspace-route-mutations.test.ts`
@@ -101,7 +97,7 @@ Every server route, Developer API route, MCP tool, assistant write path, Edge Fu
   - proves auth failures still write audit records with request id, key prefix, route, scopes, and error code.
 - `tests/security/developer-api-runtime-audit-routes.test.ts`
   - executes real Developer API route handlers through `withDeveloperApiAuth`.
-  - proves route-specific audit records are written for post create/schedule/publish, draft update/delete, brand-profile write, media upload/generate, and automation create/update/toggle/delete.
+  - proves route-specific audit records are written for brand-profile writes and automation create/update/toggle/delete.
 - `tests/security/developer-api-mcp-auth-lifecycle.test.ts`
   - proves expired OAuth connector access tokens are rejected by `/api/developer/mcp` before tool handling.
   - proves OAuth connector access tokens minted for a different MCP resource are rejected.
@@ -109,7 +105,7 @@ Every server route, Developer API route, MCP tool, assistant write path, Edge Fu
   - proves assistant command/invoke routes are rate-limited by user/workspace and IP and redact unexpected errors.
   - proves trend research is rate-limited by workspace user and IP before provider calls and redacts unexpected errors.
 - `tests/security/developer-api-audit-actions.test.ts`
-  - proves route-specific action names, route labels, scopes, and rate-limit classes stay explicit for post create/schedule/publish, draft update/delete, brand-profile writes, media upload/generation, automation create/update/delete, and automation toggle.
+  - proves route-specific action names, route labels, scopes, and rate-limit classes stay explicit for brand-profile writes and automation create/update/delete/toggle.
 - `tests/security/object-property-escalation.test.ts`
   - proves post, brand profile, chat-session, and workspace-settings sanitizers do not mass-assign protected workspace/user/internal fields.
   - proves local, private, credentialed, and malformed media URLs are rejected before persistence.

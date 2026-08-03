@@ -13,6 +13,13 @@ function defaultWorkspaceSettings(workspaceId: string): WorkspaceSettings {
     openrouter_api_key: null,
     gemini_api_key: null,
     openai_api_key: null,
+    telegram_bot_token: null,
+    telegram_chat_id: null,
+    telegram_webhook_secret: null,
+    telegram_bot_id: null,
+    telegram_bot_username: null,
+    telegram_bot_name: null,
+    telegram_verified_at: null,
     ai_text_model_name: getDefaultModelForProvider("openrouter"),
     ai_model_name: getDefaultModelForProvider("openrouter"),
     ai_temperature: 0.7,
@@ -49,5 +56,10 @@ export async function getWorkspaceSettingsWithSecrets(
     openrouter_api_key: decryptSecretIfNeeded(data.openrouter_api_key),
     gemini_api_key: decryptSecretIfNeeded(data.gemini_api_key),
     openai_api_key: decryptSecretIfNeeded(data.openai_api_key),
+    telegram_bot_token: decryptSecretIfNeeded(data.telegram_bot_token),
+    telegram_chat_id: decryptSecretIfNeeded(data.telegram_chat_id),
+    telegram_webhook_secret: decryptSecretIfNeeded(
+      data.telegram_webhook_secret,
+    ),
   }
 }

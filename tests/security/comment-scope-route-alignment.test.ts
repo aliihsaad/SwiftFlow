@@ -28,7 +28,7 @@ describe("comment trigger scope alignment", () => {
   it("save routes store the shared __canvas__ sentinel for broad scopes", () => {
     for (const route of ROUTES.slice(0, 2)) {
       const source = readFileSync(path.join(root, route), "utf8")
-      expect(source).toContain("'__canvas__'")
+      expect(source).toMatch(/["']__canvas__["']/)
     }
   })
 })

@@ -173,8 +173,10 @@ describe("timeline runtime wiring", () => {
     )
 
     expect(graph).toContain("recordAutomationNodeEvent")
-    expect(graph).toContain("eventType: 'started'")
-    expect(graph).toContain("eventType: nodeResult.success ? 'succeeded' : 'failed'")
+    expect(graph).toMatch(/eventType:\s*["']started["']/)
+    expect(graph).toMatch(
+      /eventType:\s*nodeResult\.success\s*\?\s*["']succeeded["']\s*:\s*["']failed["']/,
+    )
     expect(worker).toContain("upsertAutomationNodeRuns")
     expect(nodeRunHelper).toContain("input: redactSensitiveLogValue({")
     expect(nodeRunHelper).toContain("output: redactSensitiveLogValue(nodeResult.output || {})")

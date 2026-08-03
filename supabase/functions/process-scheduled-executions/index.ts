@@ -48,7 +48,8 @@ async function mergeContinuationIntoRun(supabase, exec, result) {
     p_error_count: Number(result?.errors || 0),
     p_pending_continuations: Number(result?.pendingContinuations || 0),
     p_error_message: continuationErrorMessage(result),
-  })
+  },
+  )
 
   if (error) {
     throw new Error(`Failed to merge delayed run result: ${error.message}`)
@@ -65,7 +66,8 @@ async function mergeContinuationIntoRun(supabase, exec, result) {
       .eq('id', merged.event_id)
 
     if (eventError) {
-      console.error('[SCHEDULED] Failed to finalize automation event:', redactSensitiveLogValue(eventError))
+      console.error('[SCHEDULED] Failed to finalize automation event:', redactSensitiveLogValue(eventError),
+      )
     }
   }
 
@@ -89,7 +91,8 @@ async function markRunFinalizationFailure(supabase, exec, error) {
     .eq('id', runId)
 
   if (updateError) {
-    console.error('[SCHEDULED] Failed to mark the parent run failed:', redactSensitiveLogValue(updateError))
+    console.error('[SCHEDULED] Failed to mark the parent run failed:', redactSensitiveLogValue(updateError),
+    )
   }
 }
 
@@ -103,18 +106,22 @@ async function markRunFinalizationFailure(supabase, exec, error) {
  * failed for bookkeeping only — they are never re-executed because their
  * side effects (replies/DMs) may already have happened.
  */
-async function reclaimStalledAutomationRuns(supabase): Promise<{ reclaimed: number; abandoned: number }> {
-  const queuedCutoff = new Date(Date.now() - STALLED_RUN_AGE_MINUTES * 60 * 1000).toISOString()
+async function reclaimStalledAutomationRuns(supabase,
+): Promise<{ reclaimed: number; abandoned: number }> {
+  const queuedCutoff = new Date(Date.now() - STALLED_RUN_AGE_MINUTES * 60 * 1000,
+  ).toISOString()
   const { data: stalledRuns, error } = await supabase
     .from('automation_runs')
-    .select('id, workspace_id, automation_id, workflow_version_id, event_id, trigger_type, trigger_context')
+    .select('id, workspace_id, automation_id, workflow_version_id, event_id, trigger_type, trigger_context',
+    )
     .eq('status', 'queued')
     .lt('created_at', queuedCutoff)
     .order('created_at', { ascending: true })
     .limit(STALLED_RUN_BATCH)
 
   if (error) {
-    console.error('[SCHEDULED] Failed to list stalled automation runs:', redactSensitiveLogValue(error))
+    console.error('[SCHEDULED] Failed to list stalled automation runs:', redactSensitiveLogValue(error),
+    )
     return { reclaimed: 0, abandoned: 0 }
   }
 
@@ -134,7 +141,8 @@ async function reclaimStalledAutomationRuns(supabase): Promise<{ reclaimed: numb
           run_id: run.id,
           status: result.status,
           error: result.error,
-        }))
+        }),
+        )
       }
     }
   }
@@ -147,7 +155,8 @@ async function reclaimStalledAutomationRuns(supabase): Promise<{ reclaimed: numb
     }
   }
 
-  const abandonedCutoff = new Date(Date.now() - ABANDONED_RUNNING_AGE_MINUTES * 60 * 1000).toISOString()
+  const abandonedCutoff = new Date(Date.now() - ABANDONED_RUNNING_AGE_MINUTES * 60 * 1000,
+  ).toISOString()
   const { data: abandonedRuns } = await supabase
     .from('automation_runs')
     .update({
@@ -160,7 +169,8 @@ async function reclaimStalledAutomationRuns(supabase): Promise<{ reclaimed: numb
     .lt('started_at', abandonedCutoff)
     .select('id')
 
-  return { reclaimed: (stalledRuns || []).length, abandoned: (abandonedRuns || []).length }
+  return { reclaimed: (stalledRuns || []).length, abandoned: (abandonedRuns || []).length,
+  }
 }
 
 serve(async (req) => {
@@ -182,8 +192,22 @@ serve(async (req) => {
     // Reclaim webhook-triggered runs whose background dispatch was lost.
     const reclaim = await reclaimStalledAutomationRuns(supabase);
     if (reclaim.reclaimed > 0 || reclaim.abandoned > 0) {
-      console.log(`[SCHEDULED] Reclaimed ${reclaim.reclaimed} stalled run(s), abandoned ${reclaim.abandoned}`);
+      console.log(`[SCHEDULED] Reclaimed ${reclaim.reclaimed} stalled run(s), abandoned ${reclaim.abandoned}`,
+      );
     }
+
+    // Atomically claim due executions (FOR UPDATE SKIP LOCKED + claim token)
+    // so overlapping scheduler ticks never resume the same delayed node twice.
+    const { data: expiredApprovalCount, error: approvalExpiryError } =
+      await supabase.rpc('expire_due_telegram_approval_requests', {
+        p_limit: 50,
+      })
+    if (approvalExpiryError) {
+      throw new Error(
+        `Failed to expire Telegram approvals: ${approvalExpiryError.message}`,
+      )
+    }
+    const expiredApprovals = Number(expiredApprovalCount || 0)
 
     // Atomically claim due executions (FOR UPDATE SKIP LOCKED + claim token)
     // so overlapping scheduler ticks never resume the same delayed node twice.
@@ -193,20 +217,26 @@ serve(async (req) => {
         p_claim_token: claimToken,
         p_limit: 50,
         p_stale_after_minutes: 30,
-      });
+      },
+    );
 
     if (fetchError) {
-      throw new Error(`Failed to claim scheduled executions: ${fetchError.message}`);
+      throw new Error(`Failed to claim scheduled executions: ${fetchError.message}`,
+      );
     }
 
     if (!pendingExecs || pendingExecs.length === 0) {
       return new Response(
-        JSON.stringify({ success: true, message: 'No pending executions', count: 0, reclaim }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
+        JSON.stringify({ success: true, message: 'No pending executions', count: 0, reclaim,
+          expiredApprovals,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
+        },
       );
     }
 
-    console.log(`[SCHEDULED] Processing ${pendingExecs.length} pending execution(s)`);
+    console.log(`[SCHEDULED] Processing ${pendingExecs.length} pending execution(s)`,
+    );
 
     let processed = 0;
     let errors = 0;
@@ -227,10 +257,12 @@ serve(async (req) => {
             resume_result: result,
             resumed_at: executedAt,
           },
-        });
+        },
+        );
         if (!finalization.finalized) {
           errors++;
-          console.warn(`[SCHEDULED] Execution ${exec.id} was not counted because its claim was already lost`);
+          console.warn(`[SCHEDULED] Execution ${exec.id} was not counted because its claim was already lost`,
+          );
           continue;
         }
 
@@ -258,10 +290,12 @@ serve(async (req) => {
         }
 
         processed++;
-        console.log(`[SCHEDULED] Execution ${exec.id} completed: ${JSON.stringify(result)}`);
+        console.log(`[SCHEDULED] Execution ${exec.id} completed: ${JSON.stringify(result)}`,
+        );
       } catch (err) {
         errors++;
-        console.error(`[SCHEDULED] Execution ${exec.id} failed:`, redactSensitiveLogValue(err));
+        console.error(`[SCHEDULED] Execution ${exec.id} failed:`, redactSensitiveLogValue(err),
+        );
 
         if (scheduledFinalized) {
           await markRunFinalizationFailure(supabase, exec, err);
@@ -279,9 +313,11 @@ serve(async (req) => {
               resume_error: err?.message || 'Unknown error',
               resumed_at: executedAt,
             },
-          });
+          },
+          );
           if (!finalization.finalized) {
-            console.warn(`[SCHEDULED] Failed execution ${exec.id} was not finalized because its claim was already lost`);
+            console.warn(`[SCHEDULED] Failed execution ${exec.id} was not finalized because its claim was already lost`,
+            );
             continue;
           }
 
@@ -299,7 +335,8 @@ serve(async (req) => {
             },
           });
         } catch (finalizeErr) {
-          console.error(`[SCHEDULED] Failed to record failure for execution ${exec.id}:`, redactSensitiveLogValue(finalizeErr));
+          console.error(`[SCHEDULED] Failed to record failure for execution ${exec.id}:`, redactSensitiveLogValue(finalizeErr),
+          );
           if (scheduledFinalized) {
             await markRunFinalizationFailure(supabase, exec, finalizeErr);
           }
@@ -311,15 +348,19 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         message: `Processed ${processed} scheduled execution(s)`,
-        stats: { total: pendingExecs.length, processed, errors, reclaim },
+        stats: { total: pendingExecs.length, processed, errors, reclaim,
+          expiredApprovals,
+        },
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 },
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
+      },
     );
   } catch (error) {
     console.error('[SCHEDULED] Error:', redactSensitiveLogValue(error));
     return new Response(
       JSON.stringify({ error: error.message || 'Internal error' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 },
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500,
+      },
     );
   }
 });

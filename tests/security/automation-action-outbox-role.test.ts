@@ -175,14 +175,18 @@ describe("meta private reply adapter contract", () => {
     )
 
     expect(graphExecutor).toMatch(
-      /nodeTypes\.has\('action_reply_comment'\) \|\| nodeTypes\.has\('action_private_reply'\)[\s\S]{0,180}canManageCommentsWithMetaAccount/,
+      /nodeTypes\.has\(["']action_reply_comment["']\)\s*\|\|\s*nodeTypes\.has\(["']action_private_reply["']\)[\s\S]{0,240}canManageCommentsWithMetaAccount/,
     )
 
-    const messagingGuard = graphExecutor.slice(
-      graphExecutor.indexOf("if (nodeTypes.has('action_send_dm')"),
-      graphExecutor.indexOf('return issues;'),
+    const messagingGuardStart = graphExecutor.search(
+      /if\s*\(\s*nodeTypes\.has\(["']action_send_dm["']\)/,
     )
-    expect(messagingGuard).not.toContain('action_private_reply')
+    expect(messagingGuardStart).toBeGreaterThan(-1)
+    const messagingGuard = graphExecutor.slice(
+      messagingGuardStart,
+      graphExecutor.indexOf("return issues;", messagingGuardStart),
+    )
+    expect(messagingGuard).not.toContain("action_private_reply")
   })
 
   it("bounds the request and the response", () => {

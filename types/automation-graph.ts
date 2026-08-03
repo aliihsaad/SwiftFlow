@@ -69,6 +69,7 @@ export type ActionNodeType =
   | 'action_delay'
   | 'action_condition'
   | 'action_send_email'
+  | 'action_telegram'
   | 'action_http_request'
   | 'action_ai_response'
 
@@ -118,6 +119,16 @@ export interface ActionSendEmailConfig {
   include_technical_details?: boolean
 }
 
+export interface ActionTelegramConfig {
+  mode: 'notification' | 'approval'
+  message_template: string
+  include_context?: boolean
+  include_ai_response?: boolean
+  include_technical_details?: boolean
+  approval_timeout_value?: number
+  approval_timeout_unit?: 'minutes' | 'hours' | 'days'
+}
+
 export interface ActionHttpRequestConfig {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE'
   url: string
@@ -130,7 +141,8 @@ export interface ActionAiResponseConfig {
   model?: string // only used when use_global_settings is false
   prompt_template?: string // optional override, presets can drive prompt generation
   max_tokens: number
-  preset_goal?: 'auto' | 'reply_comment' | 'send_dm' | 'welcome_new_follower' | 'support_answer'
+  preset_goal?:
+    | 'auto' | 'reply_comment' | 'send_dm' | 'welcome_new_follower' | 'support_answer'
   tone?: 'friendly' | 'professional' | 'playful' | 'empathetic' | 'sales'
   length?: 'short' | 'medium' | 'long'
   language?: string
@@ -150,6 +162,7 @@ export type ActionConfig =
   | ActionDelayConfig
   | ActionConditionConfig
   | ActionSendEmailConfig
+  | ActionTelegramConfig
   | ActionHttpRequestConfig
   | ActionAiResponseConfig
 
@@ -333,12 +346,12 @@ export const NODE_CATALOG: NodeCatalogEntry[] = [
     color: '#10B981',
   },
   {
-    type: 'action_send_email',
-    label: 'Send Email',
-    description: 'Send an email to a custom address (alerts/notifications)',
+    type: 'action_telegram',
+    label: 'Telegram',
+    description: 'Send a notification or wait for human approval',
     category: 'action',
-    icon: 'MailPlus',
-    color: '#8B5CF6',
+    icon: 'MessageCircleMore',
+    color: '#38BDF8',
   },
   {
     type: 'action_http_request',
@@ -368,16 +381,20 @@ export function isActionNode(type: string): type is ActionNodeType {
   return type.startsWith('action_')
 }
 
-export function getDefaultConfig(type: WorkflowNodeType): TriggerConfig | ActionConfig {
+export function getDefaultConfig(type: WorkflowNodeType,
+): TriggerConfig | ActionConfig {
   switch (type) {
     case 'trigger_new_comment':
-      return { trigger_type: 'any', keywords: [], post_scope: 'any', post_id: '', social_account_id: '' } as TriggerNewCommentConfig
+      return { trigger_type: 'any', keywords: [], post_scope: 'any', post_id: '', social_account_id: '',
+      } as TriggerNewCommentConfig
     case 'trigger_new_message':
-      return { trigger_type: 'any', keywords: [], social_account_id: '' } as TriggerNewMessageConfig
+      return { trigger_type: 'any', keywords: [], social_account_id: '',
+      } as TriggerNewMessageConfig
     case 'trigger_new_follower':
       return { social_account_id: '' } as TriggerNewFollowerConfig
     case 'trigger_cron':
-      return { schedule: '0 9 * * *', timezone: 'UTC', social_account_id: '' } as TriggerCronConfig
+      return { schedule: '0 9 * * *', timezone: 'UTC', social_account_id: '',
+      } as TriggerCronConfig
     case 'trigger_story_mention':
       return { social_account_id: '' } as TriggerStoryMentionConfig
     case 'trigger_story_reply':
@@ -396,13 +413,17 @@ export function getDefaultConfig(type: WorkflowNodeType): TriggerConfig | Action
         fallback_message: '',
       } as ActionSendDMConfig
     case 'action_private_reply':
-      return { use_ai_response: false, message: '' } as ActionPrivateReplyConfig
+      return { use_ai_response: false, message: '',
+      } as ActionPrivateReplyConfig
     case 'action_reply_comment':
-      return { use_ai_response: false, messages: [''] } as ActionReplyCommentConfig
+      return { use_ai_response: false, messages: [''],
+      } as ActionReplyCommentConfig
     case 'action_delay':
-      return { duration_value: 5, duration_unit: 'minutes' } as ActionDelayConfig
+      return { duration_value: 5, duration_unit: 'minutes',
+      } as ActionDelayConfig
     case 'action_condition':
-      return { condition_type: 'keyword_match', keywords: [], operator: 'contains' } as ActionConditionConfig
+      return { condition_type: 'keyword_match', keywords: [], operator: 'contains',
+      } as ActionConditionConfig
     case 'action_send_email':
       return {
         recipient_type: 'custom',
@@ -411,8 +432,19 @@ export function getDefaultConfig(type: WorkflowNodeType): TriggerConfig | Action
         include_context: true,
         include_technical_details: false,
       } as ActionSendEmailConfig
+    case 'action_telegram':
+      return {
+        mode: 'notification',
+        message_template: '',
+        include_context: true,
+        include_ai_response: true,
+        include_technical_details: false,
+        approval_timeout_value: 30,
+        approval_timeout_unit: 'minutes',
+      } as ActionTelegramConfig
     case 'action_http_request':
-      return { method: 'POST', url: '', headers: {}, body: '' } as ActionHttpRequestConfig
+      return { method: 'POST', url: '', headers: {}, body: '',
+      } as ActionHttpRequestConfig
     case 'action_ai_response':
       return {
         use_global_settings: true,

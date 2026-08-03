@@ -11,6 +11,20 @@ export interface WorkspaceSettings {
   has_gemini_api_key?: boolean
   has_openai_api_key?: boolean
 
+  // Telegram automation notifications and approval gates. Secret values are
+  // only populated by trusted server readers and are always stripped before
+  // settings cross a browser boundary.
+  telegram_bot_token: string | null
+  telegram_chat_id: string | null
+  telegram_webhook_secret: string | null
+  telegram_bot_id: string | null
+  telegram_bot_username: string | null
+  telegram_bot_name: string | null
+  telegram_verified_at: string | null
+  has_telegram_bot_token?: boolean
+  has_telegram_chat_id?: boolean
+  telegram_chat_id_hint?: string | null
+
   // AI Model Configuration
   ai_text_model_name: string
   ai_model_name: string

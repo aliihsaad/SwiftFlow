@@ -3,7 +3,8 @@
 import { useEffect } from 'react'
 import useSWR from 'swr'
 import NextImage from 'next/image'
-import { X, Check, Clapperboard, Image as ImageIcon, Video, LayoutGrid, Instagram, Facebook, Settings2, Trash2 } from 'lucide-react'
+import { X, Check, Clapperboard, Image as ImageIcon, Video, LayoutGrid, Instagram, Facebook, Settings2, Trash2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -40,6 +41,7 @@ import type {
   ActionHttpRequestConfig,
   ActionAiResponseConfig,
   ActionSendEmailConfig,
+  ActionTelegramConfig,
 } from '@/types/automation-graph'
 
 interface NodeConfigPanelProps {
@@ -50,14 +52,16 @@ interface NodeConfigPanelProps {
   mobile?: boolean
 }
 
-export function NodeConfigPanel({ node, onUpdate, onClose, onDelete, mobile = false }: NodeConfigPanelProps) {
+export function NodeConfigPanel({ node, onUpdate, onClose, onDelete, mobile = false,
+}: NodeConfigPanelProps) {
   const data = node.data as WorkflowNodeData
   const config = data.config as unknown as Record<string, unknown>
 
   function updateConfig(updates: Record<string, unknown>) {
     onUpdate(node.id, {
       ...data,
-      config: { ...config, ...updates } as unknown as WorkflowNodeData['config'],
+      config: { ...config, ...updates,
+      } as unknown as WorkflowNodeData['config'],
     })
   }
 
@@ -76,14 +80,18 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onDelete, mobile = fa
       aria-label={'Configure ' + data.label}
     >
       <div className="sticky top-0 z-10 border-b border-white/[0.07] bg-[#11131c]/95 px-4 py-4 backdrop-blur-xl">
-        {mobile && <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/15" />}
+        {mobile && (
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/15" />
+        )}
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-violet-300/15 bg-violet-300/[0.07] text-violet-200">
               <Settings2 className="size-4" aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/28">Step inspector</p>
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/28">
+                Step inspector
+              </p>
               <h3 className="mt-1 truncate text-sm font-semibold text-white/88">{data.label}</h3>
             </div>
           </div>
@@ -112,8 +120,13 @@ export function NodeConfigPanel({ node, onUpdate, onClose, onDelete, mobile = fa
 
         <section className="rounded-2xl border border-white/[0.07] bg-white/[0.018] p-3.5">
           <div className="mb-4">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">Behavior</p>
-            <p className="mt-1 text-[11px] leading-4 text-white/28">Configure how this step reads context and moves the journey forward.</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/35">
+              Behavior
+            </p>
+            <p className="mt-1 text-[11px] leading-4 text-white/28">
+              Configure how this step reads context and moves the journey
+              forward.
+            </p>
           </div>
           <div className="space-y-4">
             {renderConfigFields(data.type, config, updateConfig)}
@@ -142,33 +155,70 @@ function renderConfigFields(
 ) {
   switch (type) {
     case 'trigger_new_comment':
-      return <TriggerCommentFields config={config as unknown as TriggerNewCommentConfig} onUpdate={updateConfig} />
+      return (
+        <TriggerCommentFields config={config as unknown as TriggerNewCommentConfig} onUpdate={updateConfig} />
+      )
     case 'trigger_new_message':
-      return <TriggerMessageFields config={config as unknown as TriggerNewMessageConfig} onUpdate={updateConfig} />
+      return (
+        <TriggerMessageFields config={config as unknown as TriggerNewMessageConfig} onUpdate={updateConfig} />
+      )
     case 'trigger_story_mention':
-      return <TriggerStoryMentionFields config={config as unknown as TriggerStoryMentionConfig} onUpdate={updateConfig} />
+      return (
+        <TriggerStoryMentionFields config={config as unknown as TriggerStoryMentionConfig} onUpdate={updateConfig} />
+      )
     case 'trigger_story_reply':
-      return <TriggerStoryMentionFields config={config as unknown as TriggerStoryReplyConfig} onUpdate={updateConfig} />
+      return (
+        <TriggerStoryMentionFields config={config as unknown as TriggerStoryReplyConfig} onUpdate={updateConfig} />
+      )
     case 'trigger_cron':
-      return <TriggerCronFields config={config as unknown as TriggerCronConfig} onUpdate={updateConfig} />
+      return (
+        <TriggerCronFields config={config as unknown as TriggerCronConfig} onUpdate={updateConfig} />
+      )
     case 'action_send_dm':
-      return <ActionDMFields config={config as unknown as ActionSendDMConfig} onUpdate={updateConfig} />
+      return (
+        <ActionDMFields config={config as unknown as ActionSendDMConfig} onUpdate={updateConfig} />
+      )
     case 'action_private_reply':
-      return <ActionPrivateReplyFields config={config as unknown as ActionPrivateReplyConfig} onUpdate={updateConfig} />
+      return (
+        <ActionPrivateReplyFields config={config as unknown as ActionPrivateReplyConfig} onUpdate={updateConfig} />
+      )
     case 'action_reply_comment':
-      return <ActionReplyFields config={config as unknown as ActionReplyCommentConfig} onUpdate={updateConfig} />
+      return (
+        <ActionReplyFields config={config as unknown as ActionReplyCommentConfig} onUpdate={updateConfig} />
+      )
     case 'action_delay':
-      return <ActionDelayFields config={config as unknown as ActionDelayConfig} onUpdate={updateConfig} />
+      return (
+        <ActionDelayFields config={config as unknown as ActionDelayConfig} onUpdate={updateConfig} />
+      )
     case 'action_condition':
-      return <ActionConditionFields config={config as unknown as ActionConditionConfig} onUpdate={updateConfig} />
+      return (
+        <ActionConditionFields config={config as unknown as ActionConditionConfig} onUpdate={updateConfig} />
+      )
     case 'action_send_email':
-      return <ActionEmailFields config={config as unknown as ActionSendEmailConfig} onUpdate={updateConfig} />
+      return (
+        <ActionEmailFields config={config as unknown as ActionSendEmailConfig} onUpdate={updateConfig} />
+      )
+    case 'action_telegram':
+      return (
+        <ActionTelegramFields
+          config={config as unknown as ActionTelegramConfig}
+          onUpdate={updateConfig}
+        />
+      )
     case 'action_http_request':
-      return <ActionHttpFields config={config as unknown as ActionHttpRequestConfig} onUpdate={updateConfig} />
+      return (
+        <ActionHttpFields config={config as unknown as ActionHttpRequestConfig} onUpdate={updateConfig} />
+      )
     case 'action_ai_response':
-      return <ActionAiFields config={config as unknown as ActionAiResponseConfig} onUpdate={updateConfig} />
+      return (
+        <ActionAiFields config={config as unknown as ActionAiResponseConfig} onUpdate={updateConfig} />
+      )
     default:
-      return <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>No configuration available.</p>
+      return (
+        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
+          No configuration available.
+        </p>
+      )
   }
 }
 
@@ -196,8 +246,11 @@ function getTriggerPlatformValue(value: unknown): TriggerPlatform {
 
 function PlatformAccountIcon({ platform }: { platform: TriggerPlatform }) {
   return platform === 'facebook'
-    ? <Facebook className="h-3.5 w-3.5 text-blue-500" />
-    : <Instagram className="h-3.5 w-3.5 text-pink-500" />
+    ? (
+    <Facebook className="h-3.5 w-3.5 text-blue-500" />
+  ) : (
+    <Instagram className="h-3.5 w-3.5 text-pink-500" />
+  )
 }
 
 /** Media scope options; Reel filters are Instagram-only concepts. */
@@ -213,7 +266,8 @@ function resolveScopeValue(config: TriggerNewCommentConfig): CommentPostScope {
   return config.post_id ? 'specific' : 'any'
 }
 
-function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+function TriggerCommentFields({ config, onUpdate,
+}: { config: TriggerNewCommentConfig; onUpdate: (u: Record<string, unknown>) => void }) {
   const platform = getTriggerPlatformValue(config.platform)
   const accountId = config.social_account_id || ''
   const postScope = resolveScopeValue(config)
@@ -221,8 +275,7 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
   // Fetch platform accounts
   const { data: accountsData, isLoading: accountsLoading } = useSWR<{ accounts: SocialAccount[] }>(
     `/api/automations/social-accounts?platform=${platform}`,
-    configFetcher,
-  )
+    configFetcher)
 
   // Fetch posts/media only when picking a specific post (IG media or FB posts)
   const { data: postsData, isLoading: postsLoading } = useSWR<{ media: InstagramMedia[] }>(
@@ -260,7 +313,8 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
     onUpdate({
       post_scope: nextScope,
       ...(nextScope !== 'specific'
-        ? { post_id: '', post_thumbnail_url: undefined, post_caption: undefined }
+        ? { post_id: '', post_thumbnail_url: undefined, post_caption: undefined,
+          }
         : {}),
     })
   }
@@ -353,7 +407,8 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
           </SelectTrigger>
           <SelectContent>
             {COMMENT_SCOPE_OPTIONS
-              .filter((option) => platform === 'instagram' || !option.instagramOnly)
+              .filter((option) => platform === 'instagram' || !option.instagramOnly,
+            )
               .map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   <span className="text-sm">{option.label}</span>
@@ -391,8 +446,8 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
                   className={cn(
                     "relative aspect-square rounded-md overflow-hidden group transition-all",
                     "ring-2 ring-transparent hover:ring-primary/50",
-                    isSelected && "ring-primary ring-offset-1"
-                  )}
+                    isSelected && "ring-primary ring-offset-1",
+                    )}
                 >
                   {post.thumbnail_url || post.media_url ? (
                     <NextImage
@@ -412,13 +467,17 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
                   {post.media_product_type === 'REELS' ? (
                     <div className="absolute top-0.5 right-0.5 flex items-center gap-0.5 px-1 py-0.5 bg-black/60 rounded">
                       <Clapperboard className="h-2.5 w-2.5 text-white" />
-                      <span className="text-[8px] font-semibold text-white uppercase">Reel</span>
+                      <span className="text-[8px] font-semibold text-white uppercase">
+                          Reel
+                        </span>
                     </div>
-                  ) : post.media_type !== 'IMAGE' && (
+                  ) : (
+                      post.media_type !== 'IMAGE' && (
                     <div className="absolute top-0.5 right-0.5 p-0.5 bg-black/50 rounded">
                       <MediaIcon className="h-2.5 w-2.5 text-white" />
                     </div>
-                  )}
+                  )
+                    )}
 
                   {isSelected && (
                     <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
@@ -438,7 +497,9 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
       {/* Selected post preview */}
       {postScope === 'specific' && config.post_id && config.post_caption && (
         <div className="rounded-md border border-border/50 bg-muted/30 p-2">
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Selected Post</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+            Selected Post
+          </p>
           <div className="flex items-start gap-2">
             {config.post_thumbnail_url && (
               <NextImage
@@ -473,7 +534,8 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
           <Label className="text-xs">Keywords (comma separated)</Label>
           <Input
             value={(config.keywords || []).join(', ')}
-            onChange={(e) => onUpdate({ keywords: e.target.value.split(',').map(k => k.trim()).filter(Boolean) })}
+            onChange={(e) => onUpdate({ keywords: e.target.value.split(',').map((k) => k.trim()).filter(Boolean),
+              })}
             placeholder="link, guide, yes"
             className="mt-1"
           />
@@ -483,14 +545,15 @@ function TriggerCommentFields({ config, onUpdate }: { config: TriggerNewCommentC
   )
 }
 
-function TriggerMessageFields({ config, onUpdate }: { config: TriggerNewMessageConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+function TriggerMessageFields({ config, onUpdate,
+}: { config: TriggerNewMessageConfig; onUpdate: (u: Record<string, unknown>) => void }) {
   const platform = getTriggerPlatformValue(config.platform)
   const { data: accountsData, isLoading: accountsLoading } = useSWR<{ accounts: SocialAccount[] }>(
     `/api/automations/social-accounts?platform=${platform}`,
-    configFetcher,
-  )
+    configFetcher)
 
-  const platformAccounts = (accountsData?.accounts || []).filter((a) => a.platform === platform)
+  const platformAccounts = (accountsData?.accounts || []).filter((a) => a.platform === platform,
+  )
 
   useEffect(() => {
     if (!config.social_account_id && platformAccounts.length > 0) {
@@ -577,7 +640,8 @@ function TriggerMessageFields({ config, onUpdate }: { config: TriggerNewMessageC
           <Label className="text-xs">Keywords (comma separated)</Label>
           <Input
             value={(config.keywords || []).join(', ')}
-            onChange={(e) => onUpdate({ keywords: e.target.value.split(',').map(k => k.trim()).filter(Boolean) })}
+            onChange={(e) => onUpdate({ keywords: e.target.value.split(',').map((k) => k.trim()).filter(Boolean),
+              })}
             className="mt-1"
           />
         </div>
@@ -586,7 +650,8 @@ function TriggerMessageFields({ config, onUpdate }: { config: TriggerNewMessageC
   )
 }
 
-function TriggerCronFields({ config, onUpdate }: { config: TriggerCronConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+function TriggerCronFields({ config, onUpdate,
+}: { config: TriggerCronConfig; onUpdate: (u: Record<string, unknown>) => void }) {
   return (
     <>
       <div>
@@ -597,7 +662,9 @@ function TriggerCronFields({ config, onUpdate }: { config: TriggerCronConfig; on
           placeholder="0 9 * * *"
           className="mt-1"
         />
-        <p className="text-[10px] text-muted-foreground mt-1">e.g., &quot;0 9 * * *&quot; = daily at 9am</p>
+        <p className="text-[10px] text-muted-foreground mt-1">
+          e.g., &quot;0 9 * * *&quot; = daily at 9am
+        </p>
       </div>
       <div>
         <Label className="text-xs">Timezone</Label>
@@ -611,7 +678,8 @@ function TriggerCronFields({ config, onUpdate }: { config: TriggerCronConfig; on
   )
 }
 
-function ActionDMFields({ config, onUpdate }: { config: ActionSendDMConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+function ActionDMFields({ config, onUpdate,
+}: { config: ActionSendDMConfig; onUpdate: (u: Record<string, unknown>) => void }) {
   const fallbackEnabled = config.fallback_to_private_reply_on_failure === true
   const useAiResponse = config.use_ai_response === true
   const useAiCta = config.use_ai_cta === true
@@ -690,7 +758,9 @@ function ActionDMFields({ config, onUpdate }: { config: ActionSendDMConfig; onUp
         <div className="rounded-md border border-border/60 p-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <Label className="text-xs">Fallback to Text Link if Button Fails</Label>
+              <Label className="text-xs">
+                Fallback to Text Link if Button Fails
+              </Label>
               <p className="text-[10px] text-muted-foreground mt-1">
                 Improves reliability when template buttons are rejected.
               </p>
@@ -736,7 +806,9 @@ function ActionDMFields({ config, onUpdate }: { config: ActionSendDMConfig; onUp
       <div className="rounded-md border border-border/60 p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <Label className="text-xs">Fallback to Private Reply on Failure</Label>
+            <Label className="text-xs">
+              Fallback to Private Reply on Failure
+            </Label>
             <p className="text-[10px] text-muted-foreground mt-1">
               Only falls back for DM delivery-window/recipient errors.
             </p>
@@ -751,7 +823,9 @@ function ActionDMFields({ config, onUpdate }: { config: ActionSendDMConfig; onUp
 
         {fallbackEnabled && (
           <div className="mt-3">
-            <Label className="text-xs">Fallback Private Reply Message (optional)</Label>
+            <Label className="text-xs">
+              Fallback Private Reply Message (optional)
+            </Label>
             <Textarea
               value={config.fallback_message || ''}
               onChange={(e) => onUpdate({ fallback_message: e.target.value })}
@@ -766,13 +840,13 @@ function ActionDMFields({ config, onUpdate }: { config: ActionSendDMConfig; onUp
   )
 }
 
-function TriggerStoryMentionFields({ config, onUpdate }: { config: TriggerStoryMentionConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+function TriggerStoryMentionFields({ config, onUpdate,
+}: { config: TriggerStoryMentionConfig; onUpdate: (u: Record<string, unknown>) => void }) {
   const { data: accountsData, isLoading: accountsLoading } = useSWR<{ accounts: SocialAccount[] }>(
     '/api/automations/instagram-accounts',
-    configFetcher,
-  )
+    configFetcher)
 
-  const instagramAccounts = accountsData?.accounts?.filter(a => a.platform === 'instagram') || []
+  const instagramAccounts = accountsData?.accounts?.filter((a) => a.platform === 'instagram') || []
 
   return (
     <div>
@@ -780,7 +854,9 @@ function TriggerStoryMentionFields({ config, onUpdate }: { config: TriggerStoryM
       {accountsLoading ? (
         <Skeleton className="h-9 w-full mt-1" />
       ) : instagramAccounts.length === 0 ? (
-        <p className="text-xs text-muted-foreground mt-1">No Instagram accounts connected.</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          No Instagram accounts connected.
+        </p>
       ) : (
         <Select
           value={config.social_account_id || ''}
@@ -807,7 +883,8 @@ function TriggerStoryMentionFields({ config, onUpdate }: { config: TriggerStoryM
   )
 }
 
-function ActionPrivateReplyFields({ config, onUpdate }: { config: ActionPrivateReplyConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+function ActionPrivateReplyFields({ config, onUpdate,
+}: { config: ActionPrivateReplyConfig; onUpdate: (u: Record<string, unknown>) => void }) {
   const useAiResponse = config.use_ai_response === true
   return (
     <>
@@ -838,14 +915,16 @@ function ActionPrivateReplyFields({ config, onUpdate }: { config: ActionPrivateR
           rows={3}
         />
         <p className="text-[10px] text-muted-foreground mt-1">
-          This action requires comment context and will fail on non-comment triggers.
+          This action requires comment context and will fail on non-comment
+          triggers.
         </p>
       </div>
     </>
   )
 }
 
-function ActionReplyFields({ config, onUpdate }: { config: ActionReplyCommentConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+function ActionReplyFields({ config, onUpdate,
+}: { config: ActionReplyCommentConfig; onUpdate: (u: Record<string, unknown>) => void }) {
   const useAiResponse = config.use_ai_response === true
   const messages = config.messages || ['']
   return (
@@ -905,7 +984,8 @@ function ActionReplyFields({ config, onUpdate }: { config: ActionReplyCommentCon
   )
 }
 
-function ActionDelayFields({ config, onUpdate }: { config: ActionDelayConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+function ActionDelayFields({ config, onUpdate,
+}: { config: ActionDelayConfig; onUpdate: (u: Record<string, unknown>) => void }) {
   return (
     <div className="flex gap-2">
       <div className="flex-1">
@@ -935,7 +1015,8 @@ function ActionDelayFields({ config, onUpdate }: { config: ActionDelayConfig; on
   )
 }
 
-function ActionConditionFields({ config, onUpdate }: { config: ActionConditionConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+function ActionConditionFields({ config, onUpdate,
+}: { config: ActionConditionConfig; onUpdate: (u: Record<string, unknown>) => void }) {
   const conditionType = config.condition_type || 'keyword_match'
   const conditionIssue = getAutomationConditionPolicyIssue(conditionType)
   return (
@@ -976,7 +1057,8 @@ function ActionConditionFields({ config, onUpdate }: { config: ActionConditionCo
           <Label className="text-xs">Keywords (comma separated)</Label>
           <Input
             value={(config.keywords || []).join(', ')}
-            onChange={(e) => onUpdate({ keywords: e.target.value.split(',').map(k => k.trim()).filter(Boolean) })}
+            onChange={(e) => onUpdate({ keywords: e.target.value.split(',').map((k) => k.trim()).filter(Boolean),
+              })}
             className="mt-1"
           />
         </div>
@@ -990,7 +1072,166 @@ function ActionConditionFields({ config, onUpdate }: { config: ActionConditionCo
   )
 }
 
-function ActionEmailFields({ config, onUpdate }: { config: ActionSendEmailConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+function ActionTelegramFields({
+  config,
+  onUpdate,
+}: {
+  config: ActionTelegramConfig
+  onUpdate: (u: Record<string, unknown>) => void
+}) {
+  const mode = config.mode === 'approval' ? 'approval' : 'notification'
+  const includeContext = config.include_context !== false
+  const includeAiResponse = config.include_ai_response !== false
+  const includeTechnicalDetails = config.include_technical_details === true
+
+  return (
+    <>
+      <div>
+        <Label className="text-xs">Telegram mode</Label>
+        <Select
+          value={mode}
+          onValueChange={(value) => onUpdate({ mode: value })}
+        >
+          <SelectTrigger className="mt-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="notification">Notification</SelectItem>
+            <SelectItem value="approval">Approval gate</SelectItem>
+          </SelectContent>
+        </Select>
+        <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">
+          {mode === 'approval'
+            ? 'Pauses this workflow until the workspace owner approves or rejects from the signed Telegram message.'
+            : 'Sends a private workspace notification and continues immediately.'}
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-sky-300/15 bg-sky-300/[0.05] p-3">
+        <p className="text-xs font-medium text-sky-100">
+          {mode === 'approval'
+            ? 'Approved · Rejected · Alert'
+            : 'Private bot delivery'}
+        </p>
+        <p className="mt-1 text-[10px] leading-relaxed text-sky-100/55">
+          {mode === 'approval'
+            ? 'Expired requests follow Rejected. Delivery or configuration failures follow Alert and never auto-approve.'
+            : 'Configure and test the encrypted bot token and private Chat ID in Settings → Telegram.'}
+        </p>
+      </div>
+
+      <div>
+        <Label className="text-xs">Message intro</Label>
+        <Textarea
+          value={config.message_template || ''}
+          onChange={(event) =>
+            onUpdate({ message_template: event.target.value })
+          }
+          className="mt-1"
+          rows={4}
+          placeholder={
+            mode === 'approval'
+              ? 'Please review the suggested response from {{username}}.'
+              : 'SwiftFlow completed an automation for {{username}}.'
+          }
+        />
+        <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+          Variables: {'{{username}}'}, {'{{comment_text}}'},{' '}
+          {'{{message_text}}'}, {'{{ai_response}}'}, {'{{alert_error}}'},{' '}
+          {'{{automation_name}}'}
+        </p>
+      </div>
+
+      <div className="space-y-3 rounded-xl border border-border/60 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label className="text-xs">Automation context</Label>
+            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+              Include trigger, account, automation, and node details.
+            </p>
+          </div>
+          <Switch
+            checked={includeContext}
+            onCheckedChange={(checked) =>
+              onUpdate({ include_context: checked })
+            }
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label className="text-xs">AI response</Label>
+            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+              Include the previous AI node output when one exists.
+            </p>
+          </div>
+          <Switch
+            checked={includeAiResponse}
+            onCheckedChange={(checked) =>
+              onUpdate({ include_ai_response: checked })
+            }
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label className="text-xs">Technical details</Label>
+            <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+              Add a redacted runtime snapshot for operator diagnostics.
+            </p>
+          </div>
+          <Switch
+            checked={includeTechnicalDetails}
+            onCheckedChange={(checked) =>
+              onUpdate({ include_technical_details: checked })
+            }
+          />
+        </div>
+      </div>
+
+      {mode === 'approval' && (
+        <div className="grid grid-cols-[1fr_1.2fr] gap-2">
+          <div>
+            <Label className="text-xs">Expires after</Label>
+            <Input
+              type="number"
+              min={1}
+              value={config.approval_timeout_value || 30}
+              onChange={(event) =>
+                onUpdate({
+                  approval_timeout_value: Math.max(
+                    1,
+                    Number(event.target.value) || 1,
+                  ),
+                })
+              }
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">Unit</Label>
+            <Select
+              value={config.approval_timeout_unit || 'minutes'}
+              onValueChange={(value) =>
+                onUpdate({ approval_timeout_unit: value })
+              }
+            >
+              <SelectTrigger className="mt-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="minutes">Minutes</SelectItem>
+                <SelectItem value="hours">Hours</SelectItem>
+                <SelectItem value="days">Days</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+function ActionEmailFields({ config, onUpdate,
+}: { config: ActionSendEmailConfig; onUpdate: (u: Record<string, unknown>) => void }) {
   const includeContext = config.include_context !== false
   const includeTechnicalDetails = config.include_technical_details === true
 
@@ -1006,7 +1247,8 @@ function ActionEmailFields({ config, onUpdate }: { config: ActionSendEmailConfig
       <div className="rounded-md border border-border/60 bg-muted/30 p-3">
         <Label className="text-xs">Recipient Type</Label>
         <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
-          This node sends to a custom email address only. Use it for internal alerts, error notifications, and other custom emails.
+          This node sends to a custom email address only. Use it for internal
+          alerts, error notifications, and other custom emails.
         </p>
       </div>
       <div>
@@ -1014,7 +1256,8 @@ function ActionEmailFields({ config, onUpdate }: { config: ActionSendEmailConfig
         <Input
           type="email"
           value={config.recipient_email || ''}
-          onChange={(e) => onUpdate({ recipient_email: e.target.value, recipient_type: 'custom' })}
+          onChange={(e) => onUpdate({ recipient_email: e.target.value, recipient_type: 'custom',
+            })}
           placeholder="alerts@company.com"
           className="mt-1"
         />
@@ -1024,7 +1267,8 @@ function ActionEmailFields({ config, onUpdate }: { config: ActionSendEmailConfig
           <div>
             <Label className="text-xs">Add Automation Context</Label>
             <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
-              Adds trigger text, user IDs, AI output, automation/node details, and alert errors when connected from an Alert output.
+              Adds trigger text, user IDs, AI output, automation/node details,
+              and alert errors when connected from an Alert output.
             </p>
           </div>
           <Switch
@@ -1039,7 +1283,8 @@ function ActionEmailFields({ config, onUpdate }: { config: ActionSendEmailConfig
             <div>
               <Label className="text-xs">Technical Details</Label>
               <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
-                Includes a redacted runtime payload. Alert emails include this automatically.
+                Includes a redacted runtime payload. Alert emails include this
+                automatically.
               </p>
             </div>
             <Switch
@@ -1068,14 +1313,17 @@ function ActionEmailFields({ config, onUpdate }: { config: ActionSendEmailConfig
           placeholder={includeContext ? 'Optional intro above the automation context.' : 'Email body'}
         />
         <p className="text-[10px] text-muted-foreground mt-1 leading-relaxed">
-          Variables: {'{{username}}'}, {'{{comment_text}}'}, {'{{message_text}}'}, {'{{ai_response}}'}, {'{{alert_error}}'}, {'{{alert_source_node_label}}'}
+          Variables: {'{{username}}'}, {'{{comment_text}}'},{' '}
+          {'{{message_text}}'}, {'{{ai_response}}'}, {'{{alert_error}}'},{' '}
+          {'{{alert_source_node_label}}'}
         </p>
       </div>
     </>
   )
 }
 
-function ActionHttpFields({ config, onUpdate }: { config: ActionHttpRequestConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+function ActionHttpFields({ config, onUpdate,
+}: { config: ActionHttpRequestConfig; onUpdate: (u: Record<string, unknown>) => void }) {
   return (
     <>
       <div>
@@ -1149,7 +1397,8 @@ const AI_EMOJI_LEVELS = [
   { value: 'high', label: 'High' },
 ]
 
-function ActionAiFields({ config, onUpdate }: { config: ActionAiResponseConfig; onUpdate: (u: Record<string, unknown>) => void }) {
+function ActionAiFields({ config, onUpdate,
+}: { config: ActionAiResponseConfig; onUpdate: (u: Record<string, unknown>) => void }) {
   const useGlobal = config.use_global_settings !== false // default true
   const includeCta = config.include_cta === true
   const ctaMode = config.cta_mode || 'button'
@@ -1340,7 +1589,8 @@ function ActionAiFields({ config, onUpdate }: { config: ActionAiResponseConfig; 
           rows={5}
         />
         <p className="text-[10px] text-muted-foreground mt-1">
-          Variables: {'{{comment_text}}'}, {'{{username}}'}, {'{{message_text}}'}
+          Variables: {'{{comment_text}}'}, {'{{username}}'},{' '}
+          {'{{message_text}}'}
         </p>
       </div>
 
@@ -1357,11 +1607,14 @@ function ActionAiFields({ config, onUpdate }: { config: ActionAiResponseConfig; 
 
       {/* Info box */}
       <div className="rounded-md bg-muted/50 border border-border/50 p-2.5">
-        <p className="text-[10px] font-medium text-foreground mb-1">How it works</p>
+        <p className="text-[10px] font-medium text-foreground mb-1">
+          How it works
+        </p>
         <p className="text-[10px] text-muted-foreground leading-relaxed">
-          Generates one response using your presets + workspace AI provider. Downstream nodes (Send DM, Reply Comment)
-          can use <code className="bg-muted px-1 rounded">{'{{ai_response}}'}</code> in their
-          message templates to include the generated text.
+          Generates one response using your presets + workspace AI provider.
+          Downstream nodes (Send DM, Reply Comment) can use{' '}
+          <code className="bg-muted px-1 rounded">{'{{ai_response}}'}</code> in
+          their message templates to include the generated text.
         </p>
       </div>
     </>

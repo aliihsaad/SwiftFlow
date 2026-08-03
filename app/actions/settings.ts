@@ -3,34 +3,53 @@
 import { createClient } from "@/utils/supabase/server"
 import { revalidatePath } from "next/cache"
 import { UpdateSettingsInput, WorkspaceSettings } from "@/types/settings"
-import { getActiveWorkspace, getExplicitActiveWorkspace } from "@/lib/workspace-utils"
+import { getActiveWorkspace, getExplicitActiveWorkspace,
+} from "@/lib/workspace-utils"
 import { requireWorkspacePermission } from "@/lib/workspace-permissions"
-import { encryptSecret, normalizeOptionalSecretInput } from "@/lib/secret-crypto"
+import { encryptSecret, normalizeOptionalSecretInput,
+} from "@/lib/secret-crypto"
 import { getWorkspaceSettingsWithSecrets } from "@/lib/workspace-settings"
 
-function sanitizeWorkspaceSettingsForClient(row: WorkspaceSettings): WorkspaceSettings {
-    return {
+function sanitizeWorkspaceSettingsForClient(row: WorkspaceSettings,
+): WorkspaceSettings {
+  const telegramChatId =
+    typeof row.telegram_chat_id === 'string' ? row.telegram_chat_id : ''
+  return {
         ...row,
         openrouter_api_key: null,
         gemini_api_key: null,
         openai_api_key: null,
-        has_openrouter_api_key: typeof row.openrouter_api_key === 'string' && row.openrouter_api_key.length > 0,
+    telegram_bot_token: null,
+    telegram_chat_id: null,
+    telegram_webhook_secret: null,
+    has_openrouter_api_key: typeof row.openrouter_api_key === 'string' && row.openrouter_api_key.length > 0,
         has_gemini_api_key: typeof row.gemini_api_key === 'string' && row.gemini_api_key.length > 0,
         has_openai_api_key: typeof row.openai_api_key === 'string' && row.openai_api_key.length > 0,
-    }
+    has_telegram_bot_token:
+      typeof row.telegram_bot_token === 'string' &&
+      row.telegram_bot_token.length > 0,
+    has_telegram_chat_id: telegramChatId.length > 0,
+    telegram_chat_id_hint: telegramChatId
+      ? `••••${telegramChatId.slice(-4)}`
+      : null,
+  }
 }
 
-export async function togglePageSelection(platform: string, pageId: string, selected: boolean) {
+export async function togglePageSelection(platform: string, pageId: string, selected: boolean,
+) {
     const supabase = await createClient()
     const activeWorkspace = await getExplicitActiveWorkspace()
     if (!activeWorkspace) {
-        throw new Error("No active workspace. Create or switch to a workspace first.")
+        throw new Error("No active workspace. Create or switch to a workspace first.",
+    )
     }
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user },
+  } = await supabase.auth.getUser()
     if (!user) throw new Error("Unauthorized")
 
-    await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, "integrations:write")
+    await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, "integrations:write",
+  )
 
     const { data: account } = await supabase
         .from('social_accounts')
@@ -46,16 +65,17 @@ export async function togglePageSelection(platform: string, pageId: string, sele
             return { ...p, selected }
         }
         return p
-    })
+    },
+  )
 
     await supabase
         .from('social_accounts')
         .update({
             metadata: {
                 ...account.metadata,
-                pages: updatedPages
-            }
-        })
+                pages: updatedPages,
+      },
+    })
         .eq('id', account.id)
         .eq('workspace_id', activeWorkspace.id)
 
@@ -66,12 +86,14 @@ export async function togglePageSelection(platform: string, pageId: string, sele
  * Browser-safe settings action. Decrypted provider keys are consumed only
  * inside the server-only reader and are replaced with presence flags here.
  */
-export async function getWorkspaceSettings(workspaceId: string): Promise<WorkspaceSettings | null> {
+export async function getWorkspaceSettings(workspaceId: string,
+): Promise<WorkspaceSettings | null> {
     const settings = await getWorkspaceSettingsWithSecrets(workspaceId)
     return settings ? sanitizeWorkspaceSettingsForClient(settings) : null
 }
 
-export async function getWorkspaceSettingsForDisplay(workspaceId: string): Promise<WorkspaceSettings | null> {
+export async function getWorkspaceSettingsForDisplay(workspaceId: string,
+): Promise<WorkspaceSettings | null> {
     return getWorkspaceSettings(workspaceId)
 }
 
@@ -95,10 +117,11 @@ export async function getCurrentWorkspaceSettingsForDisplay(): Promise<Workspace
 
 export async function updateWorkspaceSettings(
     workspaceId: string,
-    settings: UpdateSettingsInput
+    settings: UpdateSettingsInput,
 ): Promise<void> {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user },
+  } = await supabase.auth.getUser()
 
     if (!user) {
         throw new Error("Unauthorized")
@@ -120,7 +143,8 @@ export async function updateWorkspaceSettings(
         throw new Error("No access to the selected workspace")
     }
 
-    await requireWorkspacePermission(supabase, user.id, workspaceId, "settings:write")
+    await requireWorkspacePermission(supabase, user.id, workspaceId, "settings:write",
+  )
 
     const updatePayload: Record<string, unknown> = {
         workspace_id: workspaceId,
@@ -171,8 +195,8 @@ export async function updateWorkspaceSettings(
     const { error } = await supabase
         .from('workspace_settings')
         .upsert(updatePayload, {
-            onConflict: 'workspace_id'
-        })
+            onConflict: 'workspace_id',
+    })
 
     if (error) {
         console.error('Error updating workspace settings:', error)
@@ -183,35 +207,39 @@ export async function updateWorkspaceSettings(
 }
 
 export async function updateCurrentWorkspaceSettings(
-    settings: UpdateSettingsInput
+    settings: UpdateSettingsInput,
 ): Promise<void> {
     const activeWorkspace = await getExplicitActiveWorkspace()
     if (!activeWorkspace) {
         const { cookies } = await import('next/headers')
         const cookieStore = await cookies()
         cookieStore.delete('active_workspace_id')
-        throw new Error("No active workspace. Create or switch to a workspace first.")
+        throw new Error("No active workspace. Create or switch to a workspace first.",
+    )
     }
 
     await updateWorkspaceSettings(activeWorkspace.id, settings)
 }
 
 export async function removeCurrentWorkspaceProviderKey(
-    provider: 'openrouter' | 'gemini' | 'openai'
+    provider: 'openrouter' | 'gemini' | 'openai',
 ): Promise<void> {
     const activeWorkspace = await getExplicitActiveWorkspace()
     if (!activeWorkspace) {
-        throw new Error("No active workspace. Create or switch to a workspace first.")
+        throw new Error("No active workspace. Create or switch to a workspace first.",
+    )
     }
 
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user },
+  } = await supabase.auth.getUser()
 
     if (!user) {
         throw new Error("Unauthorized")
     }
 
-    await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, "settings:write")
+    await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, "settings:write",
+  )
 
     const keyField =
         provider === 'openrouter'

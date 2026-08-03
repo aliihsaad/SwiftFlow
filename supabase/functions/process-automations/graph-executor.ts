@@ -29,10 +29,10 @@ import {
   decryptMetaAccountRow,
 } from "../_shared/meta-account.ts"
 
-import { getMetaGraphApiBaseUrl, toMetaGraphFormBody } from "../_shared/meta-graph.ts";
+import { getMetaGraphApiBaseUrl, toMetaGraphFormBody,
+} from "../_shared/meta-graph.ts";
 import {
-  getAutomationConditionPolicyIssue,
-} from "../_shared/automation-condition-policy.ts";
+  getAutomationConditionPolicyIssue } from "../_shared/automation-condition-policy.ts";
 import { upsertAutomationNodeRuns } from "../_shared/automation-node-runs.ts";
 
 
@@ -46,8 +46,7 @@ const DM_FALLBACK_CODES = new Set([
 ]);
 
 const TEMP_DISABLED_ACTION_TYPES = new Set([
-  'action_http_request',
-]);
+  'action_http_request']);
 
 function isDmFallbackError(error: { code?: number; error_subcode?: number }) {
   const key1 = String(error.code);
@@ -122,13 +121,33 @@ function isTriggerNodeType(type: unknown): boolean {
   return String(type || '').startsWith('trigger_');
 }
 
+function isTelegramApprovalNode(node: WorkflowNode | undefined): boolean {
+  return (
+    node?.data?.type === 'action_telegram' &&
+    node?.data?.config?.mode === 'approval'
+  );
+}
+
+function isTelegramNotificationNode(node: WorkflowNode | undefined): boolean {
+  return (
+    node?.data?.type === 'action_telegram' && !isTelegramApprovalNode(node)
+  );
+}
+
+function isAlertNotificationTarget(node: WorkflowNode | undefined): boolean {
+  return (
+    node?.data?.type === 'action_send_email' || isTelegramNotificationNode(node)
+  );
+}
+
 function validateExecutableGraph(graph: WorkflowGraph): string[] {
   const issues: string[] = [];
   const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
   const edges = Array.isArray(graph?.edges) ? graph.edges : [];
   const nodeMap = new Map(nodes.map((node) => [node.id, node]));
 
-  const triggerNodes = nodes.filter((node) => isTriggerNodeType(node?.data?.type));
+  const triggerNodes = nodes.filter((node) => isTriggerNodeType(node?.data?.type),
+  );
   if (triggerNodes.length !== 1) {
     issues.push('Workflow must contain exactly one trigger node.');
   }
@@ -138,7 +157,8 @@ function validateExecutableGraph(graph: WorkflowGraph): string[] {
 
   for (const edge of edges) {
     if (!nodeMap.has(edge.source) || !nodeMap.has(edge.target)) {
-      issues.push(`Edge ${edge.id || `${edge.source}->${edge.target}`} references a missing node.`);
+      issues.push(`Edge ${edge.id || `${edge.source}->${edge.target}`} references a missing node.`,
+      );
       continue;
     }
     if (edge.source === edge.target) {
@@ -152,44 +172,72 @@ function validateExecutableGraph(graph: WorkflowGraph): string[] {
     const handleKey = `${edge.source}:${sourceHandle || '__default__'}`;
 
     if (isTriggerNodeType(targetNode?.data?.type)) {
-      issues.push(`Trigger node ${edge.target} cannot have incoming connections.`);
+      issues.push(`Trigger node ${edge.target} cannot have incoming connections.`,
+      );
     }
 
-    incomingByTarget.set(edge.target, (incomingByTarget.get(edge.target) || 0) + 1);
+    incomingByTarget.set(edge.target, (incomingByTarget.get(edge.target) || 0) + 1,
+    );
+
+    if (sourceHandle === 'error' && !isAlertNotificationTarget(targetNode)) {
+      issues.push(
+        `Error/Alert output from ${edge.source} must target a Telegram Notification node.`,
+      );
+    }
 
     if (sourceType === 'action_condition') {
       if (!['true', 'false', 'error'].includes(sourceHandle)) {
-        issues.push(`Condition node ${edge.source} uses an invalid output handle.`);
+        issues.push(`Condition node ${edge.source} uses an invalid output handle.`,
+        );
       }
-      outgoingHandleCounts.set(handleKey, (outgoingHandleCounts.get(handleKey) || 0) + 1);
+      outgoingHandleCounts.set(handleKey, (outgoingHandleCounts.get(handleKey) || 0) + 1,
+      );
+    } else if (isTelegramApprovalNode(sourceNode)) {
+      if (!['approved', 'rejected', 'error'].includes(sourceHandle)) {
+        issues.push(
+          `Telegram Approval node ${edge.source} uses an invalid output handle.`,
+        );
+      }
+      outgoingHandleCounts.set(
+        handleKey,
+        (outgoingHandleCounts.get(handleKey) || 0) + 1,
+      );
     } else {
-      if (sourceHandle === 'true' || sourceHandle === 'false') {
-        issues.push(`Only Condition nodes can use True/False outputs (edge from ${edge.source}).`);
+      if (['true', 'false', 'approved', 'rejected'].includes(sourceHandle)) {
+        issues.push(
+          `Node ${edge.source} uses a branch output reserved for Condition or Telegram Approval.`,
+        );
       }
       if (sourceHandle === 'error' && isTriggerNodeType(sourceType)) {
         issues.push(`Trigger node ${edge.source} cannot use an Error output.`);
       }
-      if (sourceType === 'action_send_email' && sourceHandle === 'error') {
-        issues.push(`Send Email node ${edge.source} cannot use an Error output.`);
-      }
-      if (sourceHandle === 'error' && String(targetNode?.data?.type || '') !== 'action_send_email') {
-        issues.push(`Error/Alert output from ${edge.source} must target a Send Email node.`);
+      if (
+        (sourceType === 'action_send_email' ||
+          isTelegramNotificationNode(sourceNode)) &&
+        sourceHandle === 'error'
+      ) {
+        issues.push(
+          `Notification node ${edge.source} cannot use an Error output.`,
+        );
       }
       if (!isTriggerNodeType(sourceType)) {
-        outgoingHandleCounts.set(handleKey, (outgoingHandleCounts.get(handleKey) || 0) + 1);
+        outgoingHandleCounts.set(handleKey, (outgoingHandleCounts.get(handleKey) || 0) + 1,
+        );
       }
     }
   }
 
   for (const [targetId, count] of incomingByTarget) {
     if (count > 1) {
-      issues.push(`Node ${targetId} has multiple incoming connections. Only one is allowed.`);
+      issues.push(`Node ${targetId} has multiple incoming connections. Only one is allowed.`,
+      );
     }
   }
 
   for (const [key, count] of outgoingHandleCounts) {
     if (count > 1) {
-      issues.push(`Output handle ${key} has multiple connections. Only one per handle is allowed.`);
+      issues.push(`Output handle ${key} has multiple connections. Only one per handle is allowed.`,
+      );
     }
   }
 
@@ -254,10 +302,12 @@ function applyAlertContext(
   nodeResult: { success: boolean; output?: any; error?: string } | undefined,
 ) {
   if (!runtimeContext || !node) return;
-  runtimeContext.alert_error = String(nodeResult?.error || 'Node execution failed');
+  runtimeContext.alert_error = String(nodeResult?.error || 'Node execution failed',
+  );
   runtimeContext.alert_source_node_id = node.id;
   runtimeContext.alert_source_node_type = String(node.data?.type || '');
-  runtimeContext.alert_source_node_label = String(node.data?.label || node.data?.type || node.id);
+  runtimeContext.alert_source_node_label = String(node.data?.label || node.data?.type || node.id,
+  );
 }
 
 function queueErrorBranchIfPresent(
@@ -268,7 +318,8 @@ function queueErrorBranchIfPresent(
   node?: WorkflowNode,
   nodeResult?: { success: boolean; output?: any; error?: string },
 ): boolean {
-  const errorEdges = getOutgoingEdges(adjacency, nodeId).filter((edge) => edge.sourceHandle === 'error');
+  const errorEdges = getOutgoingEdges(adjacency, nodeId).filter((edge) => edge.sourceHandle === 'error',
+  );
   if (!errorEdges.length) return false;
   applyAlertContext(runtimeContext, node, nodeResult);
   queueEdges(errorEdges, queue);
@@ -285,14 +336,16 @@ function queueStandardActionChildren(
   nodeResult?: { success: boolean; output?: any; error?: string },
 ) {
   const outEdges = getOutgoingEdges(adjacency, nodeId);
-  const nonErrorEdges = outEdges.filter((edge) => edge.sourceHandle !== 'error');
+  const nonErrorEdges = outEdges.filter((edge) => edge.sourceHandle !== 'error',
+  );
 
   if (nodeSucceeded) {
     queueEdges(nonErrorEdges, queue);
     return;
   }
 
-  const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, queue, runtimeContext, node, nodeResult);
+  const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, queue, runtimeContext, node, nodeResult,
+  );
   if (!hadErrorBranch) {
     // Preserve legacy behavior: failed nodes continue on their normal path unless an explicit error edge is connected.
     queueEdges(nonErrorEdges, queue);
@@ -307,7 +360,60 @@ const NODE_WORKER_MAP: Record<string, string> = {
   action_http_request: 'automation-worker-http-request',
   action_ai_response: 'automation-worker-ai-response',
   action_send_email: 'automation-worker-send-email',
+  action_telegram: 'automation-worker-telegram',
 };
+
+function buildTelegramApprovalMetadata(input: {
+  node: WorkflowNode;
+  adjacency: Map<string, { targetId: string; sourceHandle?: string }[]>;
+  automation: any;
+  timelineContext: AutomationTimelineContext;
+  runtimeContext: TriggerContext;
+  nodeOutputs: Record<string, unknown>;
+}) {
+  if (!isTelegramApprovalNode(input.node)) return undefined;
+
+  const timeoutValue = Number(
+    input.node.data.config?.approval_timeout_value || 30,
+  );
+  const timeoutUnit = String(
+    input.node.data.config?.approval_timeout_unit || 'minutes',
+  );
+  const timeoutMs = Math.min(
+    Math.max(
+      getDelayMs(
+        Number.isFinite(timeoutValue) ? timeoutValue : 30,
+        timeoutUnit,
+      ),
+      60_000,
+    ),
+    7 * 24 * 60 * 60 * 1000,
+  );
+  const outgoing = getOutgoingEdges(input.adjacency, input.node.id);
+  const workflowVersionId =
+    input.automation.workflow_version_id ||
+    input.automation.current_workflow_version_id;
+
+  return {
+    request_id: crypto.randomUUID(),
+    run_id: input.timelineContext.runId || null,
+    workflow_version_id: workflowVersionId,
+    approved_next_nodes: outgoing
+      .filter((edge) => edge.sourceHandle === 'approved')
+      .map((edge) => edge.targetId),
+    rejected_next_nodes: outgoing
+      .filter((edge) => edge.sourceHandle === 'rejected')
+      .map((edge) => edge.targetId),
+    expires_at: new Date(Date.now() + timeoutMs).toISOString(),
+    execution_context: {
+      automation_id: input.automation.id,
+      run_id: input.timelineContext.runId || null,
+      trigger_data: input.runtimeContext,
+      variables: {},
+      node_outputs: input.nodeOutputs,
+    },
+  };
+}
 
 function getGraphCapabilityIssues(
   graph: WorkflowGraph,
@@ -315,8 +421,10 @@ function getGraphCapabilityIssues(
 ): string[] {
   const issues: string[] = [];
   const platform = account?.platform === 'facebook' ? 'facebook' : 'instagram';
-  const nodeTypes = new Set((graph?.nodes || []).map((node) => node?.data?.type).filter(Boolean));
-  const triggerType = (graph?.nodes || []).find((node) => String(node?.data?.type || '').startsWith('trigger_'))?.data?.type;
+  const nodeTypes = new Set((graph?.nodes || []).map((node) => node?.data?.type).filter(Boolean),
+  );
+  const triggerType = (graph?.nodes || []).find((node) => String(node?.data?.type || '').startsWith('trigger_'),
+  )?.data?.type;
 
   if ((triggerType === 'trigger_new_comment' || nodeTypes.has('action_reply_comment')) &&
       !canReadCommentsWithMetaAccount(account?.metadata, platform)) {
@@ -365,9 +473,11 @@ function normalizeCommentReply(text: string, maxLength = 220): string {
   return first.slice(0, maxLength).trim();
 }
 
-function pickFallbackReply(messages: unknown[], ctx: TriggerContext & { ai_response?: string }): string {
+function pickFallbackReply(messages: unknown[], ctx: TriggerContext & { ai_response?: string },
+): string {
   const usable = (Array.isArray(messages) ? messages : [])
-    .map((m) => String(m || '').replace(/\{\{ai_response\}\}/g, ctx.ai_response || '').trim())
+    .map((m) => String(m || '').replace(/\{\{ai_response\}\}/g, ctx.ai_response || '').trim(),
+    )
     .filter(Boolean);
   if (!usable.length) return '';
   return usable[Math.floor(Math.random() * usable.length)] || '';
@@ -381,7 +491,8 @@ function getDefaultCommentReplyFallback(ctx: TriggerContext): string {
 
 function isTransientAiError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error || '');
-  return /503|Service Unavailable|high demand|rate limit|too many requests|temporar/i.test(message);
+  return /503|Service Unavailable|high demand|rate limit|too many requests|temporar/i.test(message,
+  );
 }
 
 /**
@@ -410,7 +521,8 @@ export async function executeWorkflowGraph(
 
   const graphIssues = validateExecutableGraph(graph);
   if (graphIssues.length > 0) {
-    console.error(`[GRAPH] Automation ${automation.id}: Invalid workflow graph`, redactSensitiveLogValue(graphIssues));
+    console.error(`[GRAPH] Automation ${automation.id}: Invalid workflow graph`, redactSensitiveLogValue(graphIssues),
+    );
     return {
       ...result,
       errors: 1,
@@ -420,7 +532,8 @@ export async function executeWorkflowGraph(
 
   const capabilityIssues = getGraphCapabilityIssues(graph, account);
   if (capabilityIssues.length > 0) {
-    console.error(`[GRAPH] Automation ${automation.id}: Capability check failed`, redactSensitiveLogValue(capabilityIssues));
+    console.error(`[GRAPH] Automation ${automation.id}: Capability check failed`, redactSensitiveLogValue(capabilityIssues),
+    );
     return {
       ...result,
       errors: capabilityIssues.length,
@@ -435,7 +548,8 @@ export async function executeWorkflowGraph(
   }
 
   // Find trigger node
-  const triggerNode = graph.nodes.find(n => n.data.type.startsWith('trigger_'));
+  const triggerNode = graph.nodes.find((n) => n.data.type.startsWith('trigger_'),
+  );
   if (!triggerNode) {
     console.error(`[GRAPH] Automation ${automation.id}: No trigger node found`);
     return result;
@@ -448,7 +562,8 @@ export async function executeWorkflowGraph(
     node: triggerNode,
     context: timelineContext,
     eventType: 'started',
-    input: { config: triggerNode.data?.config || {}, trigger_context: triggerContext },
+    input: { config: triggerNode.data?.config || {}, trigger_context: triggerContext,
+    },
   });
   await recordAutomationNodeEvent({
     supabase,
@@ -456,7 +571,8 @@ export async function executeWorkflowGraph(
     node: triggerNode,
     context: timelineContext,
     eventType: 'succeeded',
-    input: { config: triggerNode.data?.config || {}, trigger_context: triggerContext },
+    input: { config: triggerNode.data?.config || {}, trigger_context: triggerContext,
+    },
     output: { matched: true },
     durationMs: Date.now() - triggerStartedAt,
   });
@@ -492,11 +608,12 @@ export async function executeWorkflowGraph(
     if (visited.has(nodeId)) continue;
     visited.add(nodeId);
 
-    const node = graph.nodes.find(n => n.id === nodeId);
+    const node = graph.nodes.find((n) => n.id === nodeId);
     if (!node) continue;
 
     const nodeStartedAt = Date.now();
-    const timelineInput = { config: node.data?.config || {}, context: runtimeContext };
+    const timelineInput = { config: node.data?.config || {}, context: runtimeContext,
+    };
     await recordAutomationNodeEvent({
       supabase,
       automation,
@@ -505,11 +622,21 @@ export async function executeWorkflowGraph(
       eventType: 'started',
       input: timelineInput,
     });
-    console.log(`[GRAPH] Executing node: ${node.data.type} (${node.data.label})`);
+    console.log(`[GRAPH] Executing node: ${node.data.type} (${node.data.label})`,
+    );
 
     try {
+      const approval = buildTelegramApprovalMetadata({
+        node,
+        adjacency,
+        automation,
+        timelineContext,
+        runtimeContext,
+        nodeOutputs: result.nodeResults,
+      });
       const nodeResult = await executeNode(
-        supabase, automation, node, runtimeContext, account, pageId
+        supabase, automation, node, runtimeContext, account, pageId,
+        { approval },
       );
 
       result.nodeResults[nodeId] = nodeResult;
@@ -550,7 +677,8 @@ export async function executeWorkflowGraph(
             }
           }
         } else {
-          const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, executionQueue, runtimeContext, node, nodeResult);
+          const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, executionQueue, runtimeContext, node, nodeResult,
+          );
           if (!hadErrorBranch) {
             // Preserve legacy behavior: failed condition nodes fall through the "false" path
             for (const edge of outEdges) {
@@ -560,6 +688,23 @@ export async function executeWorkflowGraph(
             }
           }
         }
+      }
+      // Handle delay: schedule future execution and stop
+      else if (isTelegramApprovalNode(node)) {
+        if (nodeResult.success && nodeResult.output?.awaiting_approval) {
+          result.pendingContinuations++;
+        } else {
+          queueErrorBranchIfPresent(
+            adjacency,
+            nodeId,
+            executionQueue,
+            runtimeContext,
+            node,
+            nodeResult,
+          );
+        }
+        // The signed Telegram callback selects Approved or Rejected later.
+        continue;
       }
       // Handle delay: schedule future execution and stop
       else if (node.data.type === 'action_delay') {
@@ -590,21 +735,26 @@ export async function executeWorkflowGraph(
             status: 'pending',
           });
           if (scheduleError) {
-            throw new Error(`Failed to schedule delayed continuation: ${scheduleError.message || 'unknown database error'}`);
+            throw new Error(`Failed to schedule delayed continuation: ${scheduleError.message || 'unknown database error'}`,
+            );
           }
           result.pendingContinuations++;
-          console.log(`[GRAPH] Delay node: scheduled resumption for ${scheduledFor}`);
+          console.log(`[GRAPH] Delay node: scheduled resumption for ${scheduledFor}`,
+          );
         }
         // Don't add children to queue — they'll be executed after the delay
         continue;
       }
       // Normal node: add all children to queue
       else {
-        queueStandardActionChildren(adjacency, nodeId, executionQueue, nodeResult.success, runtimeContext, node, nodeResult);
+        queueStandardActionChildren(adjacency, nodeId, executionQueue, nodeResult.success, runtimeContext, node, nodeResult,
+        );
       }
     } catch (err) {
-      console.error(`[GRAPH] Error executing node ${nodeId}:`, redactSensitiveLogValue(err));
-      const failedNodeResult = { success: false, error: err?.message || 'Unknown error' };
+      console.error(`[GRAPH] Error executing node ${nodeId}:`, redactSensitiveLogValue(err),
+      );
+      const failedNodeResult = { success: false, error: err?.message || 'Unknown error',
+      };
       result.nodeResults[nodeId] = failedNodeResult;
       result.errors++;
       await recordAutomationNodeEvent({
@@ -618,7 +768,8 @@ export async function executeWorkflowGraph(
         error: failedNodeResult.error,
         durationMs: Date.now() - nodeStartedAt,
       });
-      queueErrorBranchIfPresent(adjacency, nodeId, executionQueue, runtimeContext, node, failedNodeResult);
+      queueErrorBranchIfPresent(adjacency, nodeId, executionQueue, runtimeContext, node, failedNodeResult,
+      );
     }
   }
 
@@ -642,23 +793,29 @@ export async function resumeFromDelay(
   // Fetch the automation
   const { data: automation, error } = await supabase
     .from('automations')
-    .select('*, social_accounts(id, account_id, access_token, platform, metadata)')
+    .select('*, social_accounts(id, account_id, access_token, platform, metadata)',
+    )
     .eq('id', automation_id)
     .single();
 
   if (error || !automation) {
     console.error(`[GRAPH_RESUME] Automation ${automation_id} not found`);
-    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {} };
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {},
+    };
   }
 
   if (!automation.is_active) {
-    console.log(`[GRAPH_RESUME] Automation ${automation_id} is inactive, skipping`);
-    return { processed: 0, dmsSent: 0, errors: 0, pendingContinuations: 0, nodeResults: {} };
+    console.log(`[GRAPH_RESUME] Automation ${automation_id} is inactive, skipping`,
+    );
+    return { processed: 0, dmsSent: 0, errors: 0, pendingContinuations: 0, nodeResults: {},
+    };
   }
 
   if (!workflow_version_id) {
-    console.error(`[GRAPH_RESUME] Scheduled execution for ${automation_id} has no workflow version`);
-    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {} };
+    console.error(`[GRAPH_RESUME] Scheduled execution for ${automation_id} has no workflow version`,
+    );
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {},
+    };
   }
 
   const { data: workflowVersion, error: workflowVersionError } = await supabase
@@ -673,7 +830,8 @@ export async function resumeFromDelay(
       `[GRAPH_RESUME] Workflow version ${workflow_version_id} not found for ${automation_id}`,
       redactSensitiveLogValue(workflowVersionError),
     );
-    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {} };
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {},
+    };
   }
 
   automation.workflow_graph = workflowVersion.workflow_graph;
@@ -681,14 +839,18 @@ export async function resumeFromDelay(
 
   const account = automation.social_accounts ? await decryptMetaAccountRow(automation.social_accounts) : null;
   if (!account?.access_token) {
-    console.error(`[GRAPH_RESUME] Automation ${automation_id} has no access token`);
-    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {} };
+    console.error(`[GRAPH_RESUME] Automation ${automation_id} has no access token`,
+    );
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {},
+    };
   }
   const graph: WorkflowGraph = automation.workflow_graph;
   const graphIssues = validateExecutableGraph(graph);
   if (graphIssues.length > 0) {
-    console.error(`[GRAPH_RESUME] Automation ${automation_id} invalid workflow graph`, redactSensitiveLogValue(graphIssues));
-    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: { } };
+    console.error(`[GRAPH_RESUME] Automation ${automation_id} invalid workflow graph`, redactSensitiveLogValue(graphIssues),
+    );
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: { },
+    };
   }
   const pageId = account.metadata?.connected_page_id || account.account_id;
 
@@ -718,11 +880,12 @@ export async function resumeFromDelay(
     if (visited.has(nodeId)) continue;
     visited.add(nodeId);
 
-    const node = graph.nodes.find(n => n.id === nodeId);
+    const node = graph.nodes.find((n) => n.id === nodeId);
     if (!node) continue;
 
     const nodeStartedAt = Date.now();
-    const timelineInput = { config: node.data?.config || {}, context: runtimeContext };
+    const timelineInput = { config: node.data?.config || {}, context: runtimeContext,
+    };
     await recordAutomationNodeEvent({
       supabase,
       automation,
@@ -732,8 +895,20 @@ export async function resumeFromDelay(
       input: timelineInput,
     });
     try {
+      const approval = buildTelegramApprovalMetadata({
+        node,
+        adjacency,
+        automation,
+        timelineContext,
+        runtimeContext,
+        nodeOutputs: {
+          ...(node_outputs || {}),
+          ...result.nodeResults,
+        },
+      });
       const nodeResult = await executeNode(
-        supabase, automation, node, runtimeContext, account, pageId
+        supabase, automation, node, runtimeContext, account, pageId,
+        { approval },
       );
       result.nodeResults[nodeId] = nodeResult;
       if (nodeResult.dmSent) result.dmsSent++;
@@ -768,13 +943,28 @@ export async function resumeFromDelay(
             if (edge.sourceHandle === branch) queue.push(edge.targetId);
           }
         } else {
-          const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, queue, runtimeContext, node, nodeResult);
+          const hadErrorBranch = queueErrorBranchIfPresent(adjacency, nodeId, queue, runtimeContext, node, nodeResult,
+          );
           if (!hadErrorBranch) {
             for (const edge of outEdges) {
               if (edge.sourceHandle === 'false') queue.push(edge.targetId);
             }
           }
         }
+      } else if (isTelegramApprovalNode(node)) {
+        if (nodeResult.success && nodeResult.output?.awaiting_approval) {
+          result.pendingContinuations++;
+        } else {
+          queueErrorBranchIfPresent(
+            adjacency,
+            nodeId,
+            queue,
+            runtimeContext,
+            node,
+            nodeResult,
+          );
+        }
+        continue;
       } else if (node.data.type === 'action_delay') {
         // Another delay — schedule again
         const config = node.data.config;
@@ -803,16 +993,19 @@ export async function resumeFromDelay(
             status: 'pending',
           });
           if (scheduleError) {
-            throw new Error(`Failed to schedule delayed continuation: ${scheduleError.message || 'unknown database error'}`);
+            throw new Error(`Failed to schedule delayed continuation: ${scheduleError.message || 'unknown database error'}`,
+            );
           }
           result.pendingContinuations++;
         }
         continue;
       } else {
-        queueStandardActionChildren(adjacency, nodeId, queue, nodeResult.success, runtimeContext, node, nodeResult);
+        queueStandardActionChildren(adjacency, nodeId, queue, nodeResult.success, runtimeContext, node, nodeResult,
+        );
       }
     } catch (err) {
-      const failedNodeResult = { success: false, error: err?.message || 'Unknown error' };
+      const failedNodeResult = { success: false, error: err?.message || 'Unknown error',
+      };
       result.nodeResults[nodeId] = failedNodeResult;
       result.errors++;
       await recordAutomationNodeEvent({
@@ -826,7 +1019,8 @@ export async function resumeFromDelay(
         error: failedNodeResult.error,
         durationMs: Date.now() - nodeStartedAt,
       });
-      queueErrorBranchIfPresent(adjacency, nodeId, queue, runtimeContext, node, failedNodeResult);
+      queueErrorBranchIfPresent(adjacency, nodeId, queue, runtimeContext, node, failedNodeResult,
+      );
     }
   }
 
@@ -858,13 +1052,17 @@ async function executeNode(
   triggerContext: TriggerContext,
   account: any,
   pageId: string,
+  executionMetadata: Record<string, unknown> = {},
 ): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
   const resourceKind = GUARDED_RESOURCE_BY_NODE_TYPE[node.data.type];
   if (!resourceKind) {
-    return executeNodeUnchecked(supabase, automation, node, triggerContext, account, pageId);
+    return executeNodeUnchecked(supabase, automation, node, triggerContext, account, pageId,
+      executionMetadata,
+    );
   }
 
-  const socialAccountId = String(automation.social_account_id || account?.id || '').trim();
+  const socialAccountId = String(automation.social_account_id || account?.id || '',
+  ).trim();
   if (!automation.workspace_id || !automation.id || !socialAccountId) {
     return { success: false, error: 'runtime_guard_scope_missing' };
   }
@@ -876,7 +1074,8 @@ async function executeNode(
     resourceKind,
   };
   const policy = resolveAutomationRuntimeGuardPolicy(resourceKind);
-  const reservation = await reserveAutomationRuntimeBudget(supabase, scope, policy);
+  const reservation = await reserveAutomationRuntimeBudget(supabase, scope, policy,
+  );
   if (!reservation.allowed) {
     return {
       success: false,
@@ -899,6 +1098,7 @@ async function executeNode(
       triggerContext,
       account,
       pageId,
+      executionMetadata,
     );
   } catch (error) {
     await recordAutomationRuntimeOutcome(supabase, scope, policy, {
@@ -924,6 +1124,7 @@ async function executeNodeUnchecked(
   triggerContext: TriggerContext,
   account: any,
   pageId: string,
+  executionMetadata: Record<string, unknown> = {},
 ): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
   const config = node.data.config;
   const nodeType = node.data.type;
@@ -959,6 +1160,7 @@ async function executeNodeUnchecked(
         node_label: node.data?.label,
         config,
         context: enrichedContext,
+        ...executionMetadata,
         access_token: account?.access_token,
         page_id: pageId,
         platform: account?.platform,
@@ -969,19 +1171,64 @@ async function executeNodeUnchecked(
         return workerResult.data;
       }
 
-      console.warn(`[GRAPH] Worker ${workerFunction} failed for node ${node.id}, using local fallback:`, redactSensitiveLogValue(workerResult.error));
+      if (nodeType === 'action_telegram') {
+        const approvalMetadata = (executionMetadata as any)?.approval;
+        const approvalRequestId = String(
+          approvalMetadata?.request_id || '',
+        ).trim();
+
+        // If the worker persisted and sent the approval before its response was
+        // interrupted, recover that durable result instead of sending twice.
+        if (approvalRequestId) {
+          const { data: existingApproval } = await supabase
+            .from('automation_approval_requests')
+            .select('status, telegram_message_id, expires_at')
+            .eq('id', approvalRequestId)
+            .eq('workspace_id', automation.workspace_id)
+            .maybeSingle();
+
+          if (
+            existingApproval?.status === 'pending' &&
+            existingApproval?.telegram_message_id
+          ) {
+            return {
+              success: true,
+              output: {
+                provider: 'telegram',
+                mode: 'approval',
+                awaiting_approval: true,
+                approval_request_id: approvalRequestId,
+                message_id: existingApproval.telegram_message_id,
+                expires_at: existingApproval.expires_at,
+                recovered: true,
+              },
+            };
+          }
+        }
+
+        return {
+          success: false,
+          error: workerResult.error || 'Telegram worker is unavailable',
+        };
+      }
+
+      console.warn(`[GRAPH] Worker ${workerFunction} failed for node ${node.id}, using local fallback:`, redactSensitiveLogValue(workerResult.error),
+      );
     }
   }
 
   switch (nodeType) {
     case 'action_reply_comment':
-      return await executeReplyComment(config, triggerContext, account.access_token, account?.platform, account?.metadata?.connection_method);
+      return await executeReplyComment(config, triggerContext, account.access_token, account?.platform, account?.metadata?.connection_method,
+      );
 
     case 'action_send_dm':
-      return await executeSendDM(config, triggerContext, account.access_token, pageId, account?.metadata?.connection_method);
+      return await executeSendDM(config, triggerContext, account.access_token, pageId, account?.metadata?.connection_method,
+      );
 
     case 'action_private_reply':
-      return await executePrivateReply(config, triggerContext, account.access_token, pageId, account?.metadata?.connection_method);
+      return await executePrivateReply(config, triggerContext, account.access_token, pageId, account?.metadata?.connection_method,
+      );
 
     case 'action_condition':
       return executeCondition(config, triggerContext);
@@ -994,14 +1241,17 @@ async function executeNodeUnchecked(
       return await executeHttpRequest(config);
 
     case 'action_ai_response':
-      return await executeAiResponse(supabase, config, triggerContext, automation.workspace_id);
+      return await executeAiResponse(supabase, config, triggerContext, automation.workspace_id,
+      );
 
     case 'action_send_email':
-      return await executeSendEmail(config, { ...triggerContext, platform: account?.platform }, automation, node);
+      return await executeSendEmail(config, { ...triggerContext, platform: account?.platform }, automation, node,
+      );
 
     default:
       console.warn(`[GRAPH] Unknown node type: ${node.data.type}`);
-      return { success: false, error: `Unsupported node type: ${node.data.type}` };
+      return { success: false, error: `Unsupported node type: ${node.data.type}`,
+      };
   }
 }
 
@@ -1014,7 +1264,8 @@ async function executeSendEmail(
   try {
     const recipientType = String(config?.recipient_type || 'custom');
     if (recipientType !== 'custom') {
-      return { success: false, error: 'Send Email node supports custom recipients only' };
+      return { success: false, error: 'Send Email node supports custom recipients only',
+      };
     }
 
     const to = String(config?.recipient_email || '').trim();
@@ -1073,7 +1324,7 @@ async function executeReplyComment(
   const aiGeneratedMessage = String(ctx.ai_response || '').trim();
   const fallbackMessage = pickFallbackReply(config.messages || [], ctx);
   let message = useAiResponse
-    ? (aiGeneratedMessage || fallbackMessage || getDefaultCommentReplyFallback(ctx))
+    ? aiGeneratedMessage || fallbackMessage || getDefaultCommentReplyFallback(ctx)
     : fallbackMessage;
   if (!message) {
     return {
@@ -1091,12 +1342,14 @@ async function executeReplyComment(
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: await toMetaGraphFormBody({ message, access_token: accessToken }, accessToken, { connectionMethod }),
+    body: await toMetaGraphFormBody({ message, access_token: accessToken }, accessToken, { connectionMethod },
+    ),
   });
 
   const result = await response.json();
   if (!response.ok || result.error) {
-    return { success: false, error: result.error?.message || 'Reply failed', output: { platform, replyPath, meta_error: result.error || null } };
+    return { success: false, error: result.error?.message || 'Reply failed', output: { platform, replyPath, meta_error: result.error || null },
+    };
   }
 
   return { success: true, output: { replyId: result.id } };
@@ -1115,28 +1368,27 @@ async function executeSendDM(
   const useAiResponse = config.use_ai_response === true;
   const aiGeneratedMessage = String(ctx.ai_response || '').trim();
   const fallbackOpeningMessage = (config.opening_message || '')
-    .replace(/\{\{ai_response\}\}/g, ctx.ai_response || '');
+    .replace(/\{\{ai_response\}\}/g, ctx.ai_response || '',
+  );
   const openingMessage = useAiResponse
-    ? (aiGeneratedMessage || fallbackOpeningMessage)
+    ? aiGeneratedMessage || fallbackOpeningMessage
     : fallbackOpeningMessage;
 
   const useAiCta = config.use_ai_cta === true;
   const fallbackCtaMode = config.cta_mode === 'text' ? 'text' : 'button';
   const effectiveCtaMode = useAiCta
-    ? (
-      ctx.ai_cta_mode === 'text'
+    ? ctx.ai_cta_mode === 'text'
         ? 'text'
-        : (ctx.ai_cta_mode === 'button' ? 'button' : fallbackCtaMode)
-    )
+        : ctx.ai_cta_mode === 'button' ? 'button' : fallbackCtaMode
     : fallbackCtaMode;
   const effectiveLinkUrl = useAiCta
-    ? (String(ctx.ai_cta_link_url || '').trim() || String(config.link_url || '').trim())
+    ? String(ctx.ai_cta_link_url || '').trim() || String(config.link_url || '').trim()
     : String(config.link_url || '').trim();
   const effectiveButtonText = useAiCta
-    ? (String(ctx.ai_cta_button_text || '').trim() || String(config.button_text || '').trim() || 'Open Link')
-    : (String(config.button_text || '').trim() || 'Open Link');
+    ? String(ctx.ai_cta_button_text || '').trim() || String(config.button_text || '').trim() || 'Open Link'
+    : String(config.button_text || '').trim() || 'Open Link';
   const effectiveLinkMessage = useAiCta
-    ? (String(ctx.ai_cta_link_message || '').trim() || String(config.link_message || '').trim())
+    ? String(ctx.ai_cta_link_message || '').trim() || String(config.link_message || '').trim()
     : String(config.link_message || '').trim();
   const buttonFallbackToText = config.cta_button_fallback_to_text !== false;
 
@@ -1159,7 +1411,8 @@ async function executeSendDM(
       recipient: { id: recipientId },
       message: { text: openingMessage },
       access_token: accessToken,
-    }, accessToken, { connectionMethod }),
+    }, accessToken, { connectionMethod },
+    ),
   });
 
   const openingResult = await openingResponse.json();
@@ -1222,7 +1475,8 @@ async function executeSendDM(
           recipient: { id: recipientId },
           message: { text: linkMessage },
           access_token: accessToken,
-        }, accessToken, { connectionMethod }),
+        }, accessToken, { connectionMethod },
+        ),
       });
     } else {
       const linkResp = await fetch(sendUrl, {
@@ -1236,12 +1490,15 @@ async function executeSendDM(
               payload: {
                 template_type: 'button',
                 text: effectiveLinkMessage || "Here's your link!",
-                buttons: [{ type: 'web_url', url: effectiveLinkUrl, title: effectiveButtonText }],
+                buttons: [{ type: 'web_url', url: effectiveLinkUrl, title: effectiveButtonText,
+                    },
+                  ],
               },
             },
           },
           access_token: accessToken,
-        }, accessToken, { connectionMethod }),
+        }, accessToken, { connectionMethod },
+        ),
       });
 
       const linkResult = await linkResp.json();
@@ -1253,13 +1510,15 @@ async function executeSendDM(
             recipient: { id: recipientId },
             message: { text: linkMessage },
             access_token: accessToken,
-          }, accessToken, { connectionMethod }),
+          }, accessToken, { connectionMethod },
+          ),
         });
       }
     }
   }
 
-  return { success: true, dmSent: true, output: { channel: 'dm', messageId: openingResult.message_id } };
+  return { success: true, dmSent: true, output: { channel: 'dm', messageId: openingResult.message_id },
+  };
 }
 
 async function executePrivateReply(
@@ -1278,7 +1537,8 @@ async function executePrivateReply(
   const fallbackMessage = (config.message || '')
     .replace(/\{\{ai_response\}\}/g, ctx.ai_response || '')
     .trim();
-  const message = useAiResponse ? (aiGeneratedMessage || fallbackMessage) : fallbackMessage;
+  const message = useAiResponse ? aiGeneratedMessage || fallbackMessage
+    : fallbackMessage;
   if (!message) {
     return {
       success: false,
@@ -1296,12 +1556,14 @@ async function executePrivateReply(
       recipient: { comment_id: ctx.comment_id },
       message: { text: message },
       access_token: accessToken,
-    }, accessToken, { connectionMethod }),
+    }, accessToken, { connectionMethod },
+    ),
   });
 
   const result = await response.json();
   if (!response.ok || result.error) {
-    return { success: false, error: result.error?.message || 'Private reply failed' };
+    return { success: false, error: result.error?.message || 'Private reply failed',
+    };
   }
 
   return {
@@ -1315,7 +1577,8 @@ function executeCondition(
   config: any,
   ctx: TriggerContext,
 ): { success: boolean; output?: { conditionResult: boolean }; error?: string } {
-  const conditionIssue = getAutomationConditionPolicyIssue(config.condition_type);
+  const conditionIssue = getAutomationConditionPolicyIssue(config.condition_type,
+  );
   if (conditionIssue) {
     return { success: false, error: conditionIssue.message };
   }
@@ -1327,11 +1590,11 @@ function executeCondition(
     case 'keyword_match': {
       const keywords: string[] = config.keywords || [];
       if (config.operator === 'contains') {
-        conditionResult = keywords.some(k => text.includes(k.toLowerCase()));
+        conditionResult = keywords.some((k) => text.includes(k.toLowerCase()));
       } else if (config.operator === 'not_contains') {
-        conditionResult = !keywords.some(k => text.includes(k.toLowerCase()));
+        conditionResult = !keywords.some((k) => text.includes(k.toLowerCase()));
       } else if (config.operator === 'equals') {
-        conditionResult = keywords.some(k => text === k.toLowerCase());
+        conditionResult = keywords.some((k) => text === k.toLowerCase());
       }
       break;
     }
@@ -1392,10 +1655,12 @@ async function executeAiResponse(
     const genAI = new GoogleGenerativeAI(aiConfig.apiKey);
     const model = genAI.getGenerativeModel({
       model: aiConfig.modelName,
-      generationConfig: { temperature: aiConfig.temperature, maxOutputTokens: aiConfig.maxTokens },
+      generationConfig: { temperature: aiConfig.temperature, maxOutputTokens: aiConfig.maxTokens,
+      },
     });
 
-    console.log(`[GRAPH] AI response: model=${aiConfig.modelName}, promptLength=${prompt.length}`);
+    console.log(`[GRAPH] AI response: model=${aiConfig.modelName}, promptLength=${prompt.length}`,
+    );
 
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();

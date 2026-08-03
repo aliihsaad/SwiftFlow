@@ -186,7 +186,7 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
   secureTool({
     name: "swiftflow_create_automation_from_template",
     title: "Create automation from template",
-    description: "Create a configured graph-backed automation by applying user inputs to a stable SwiftFlow template. Use this instead of raw workflow_graph creation for normal ChatGPT, Claude, or Codex connector workflows.",
+    description: "Create a configured graph-backed automation by applying user inputs to a stable SwiftFlow template. Use this instead of raw workflow_graph creation for normal MCP client workflows.",
     inputSchema: {
       type: "object",
       properties: {

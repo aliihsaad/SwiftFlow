@@ -7,6 +7,7 @@ import {
 import { isMetaGraphNodeId } from "@/lib/security/phase1-validation"
 import { isCommentPostScope } from "@/supabase/functions/_shared/comment-scope"
 import { getAutomationConditionPolicyIssue } from "@/supabase/functions/_shared/automation-condition-policy"
+import { validateTelegramNodeConfigs } from "@/lib/automation-telegram-validation"
 
 export type DeveloperAutomationGraphError = {
   code: string
@@ -36,7 +37,8 @@ const TEMP_DISABLED_NODE_TYPES = new Set([
 ])
 
 function record(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>)
+    : {}
 }
 
 function text(value: unknown): string {
@@ -74,7 +76,8 @@ function durationUnit(value: unknown): string {
   return ""
 }
 
-function normalizeNodeConfig(nodeType: string, value: unknown): Record<string, unknown> {
+function normalizeNodeConfig(nodeType: string, value: unknown,
+): Record<string, unknown> {
   const config = { ...record(value) }
 
   if (nodeType === "trigger_new_comment" || nodeType === "trigger_new_message") {
@@ -96,9 +99,11 @@ function normalizeNodeConfig(nodeType: string, value: unknown): Record<string, u
   }
 
   if (nodeType === "action_delay") {
-    const duration = numberValue(config.duration_value ?? config.duration ?? config.value)
+    const duration = numberValue(config.duration_value ?? config.duration ?? config.value,
+    )
     if (duration !== null) config.duration_value = duration
-    const unit = durationUnit(config.duration_unit ?? config.unit ?? config.durationUnit)
+    const unit = durationUnit(config.duration_unit ?? config.unit ?? config.durationUnit,
+    )
     if (unit) config.duration_unit = unit
   }
 
@@ -112,17 +117,28 @@ function normalizeNodeConfig(nodeType: string, value: unknown): Record<string, u
     if (useAiResponse !== null) config.use_ai_response = useAiResponse
   }
 
-  if (nodeType === "action_send_email") {
+  if (nodeType === "action_send_email" || nodeType === "action_telegram") {
     const includeContext = booleanValue(config.include_context)
     if (includeContext !== null) config.include_context = includeContext
-    const includeTechnicalDetails = booleanValue(config.include_technical_details)
+    const includeTechnicalDetails = booleanValue(config.include_technical_details,
+    )
     if (includeTechnicalDetails !== null) config.include_technical_details = includeTechnicalDetails
+  }
+
+  if (nodeType === "action_telegram") {
+    const includeAiResponse = booleanValue(config.include_ai_response)
+    if (includeAiResponse !== null)
+      config.include_ai_response = includeAiResponse
+    const approvalTimeout = numberValue(config.approval_timeout_value)
+    if (approvalTimeout !== null)
+      config.approval_timeout_value = approvalTimeout
   }
 
   return config
 }
 
-function normalizeDeveloperAutomationGraph(graph: WorkflowGraph): WorkflowGraph {
+function normalizeDeveloperAutomationGraph(graph: WorkflowGraph,
+): WorkflowGraph {
   return {
     ...graph,
     nodes: graph.nodes.map((node) => {
@@ -151,11 +167,13 @@ function graphShape(value: unknown): WorkflowGraph | null {
   return maybeGraph as WorkflowGraph
 }
 
-export function summarizeDeveloperAutomationGraph(graph: unknown): DeveloperAutomationGraphSummary | null {
+export function summarizeDeveloperAutomationGraph(graph: unknown,
+): DeveloperAutomationGraphSummary | null {
   const rawGraph = graphShape(graph)
   if (!rawGraph) return null
   const workflowGraph = normalizeDeveloperAutomationGraph(rawGraph)
-  const triggerNode = workflowGraph.nodes.find((node) => isTriggerNode(String(node.data?.type || "")))
+  const triggerNode = workflowGraph.nodes.find((node) => isTriggerNode(String(node.data?.type || "")),
+  )
   if (!triggerNode) return null
   const config = record(triggerNode.data?.config)
   const triggerType = String(triggerNode.data?.type || "")
@@ -170,7 +188,8 @@ export function summarizeDeveloperAutomationGraph(graph: unknown): DeveloperAuto
     socialAccountId: text(config.social_account_id),
     // Broad-scope comment triggers have no post selection; use the same
     // '__canvas__' sentinel the app's automations route stores.
-    platformPostId: triggerType === "trigger_new_comment" ? (text(config.post_id) || "__canvas__") : "__canvas__",
+    platformPostId: triggerType === "trigger_new_comment" ? text(config.post_id) || "__canvas__"
+        : "__canvas__",
     postThumbnailUrl: text(config.post_thumbnail_url) || null,
     postCaption: text(config.post_caption) || null,
     triggerConfig: {
@@ -193,12 +212,15 @@ export function validateDeveloperAutomationGraph(
     return {
       graph: null,
       summary: null,
-      errors: [{ code: "INVALID_GRAPH", message: "workflow_graph must include nodes and edges arrays." }],
+      errors: [{ code: "INVALID_GRAPH", message: "workflow_graph must include nodes and edges arrays.",
+        },
+      ],
     }
   }
   const workflowGraph = normalizeDeveloperAutomationGraph(rawGraph)
 
-  const triggerNodes = workflowGraph.nodes.filter((node) => isTriggerNode(String(node.data?.type || "")))
+  const triggerNodes = workflowGraph.nodes.filter((node) => isTriggerNode(String(node.data?.type || "")),
+  )
   if (triggerNodes.length !== 1) {
     errors.push({
       code: triggerNodes.length === 0 ? "NO_TRIGGER" : "MULTIPLE_TRIGGERS",
@@ -214,24 +236,30 @@ export function validateDeveloperAutomationGraph(
     const nodeType = String(node.data?.type || "")
     const config = record(node.data?.config)
     if (!nodeType || (!isTriggerNode(nodeType) && !isActionNode(nodeType))) {
-      errors.push({ code: "INVALID_NODE_TYPE", message: "Each node must include a supported data.type.", nodeId: node.id })
+      errors.push({ code: "INVALID_NODE_TYPE", message: "Each node must include a supported data.type.", nodeId: node.id,
+      })
       continue
     }
     if (TEMP_DISABLED_NODE_TYPES.has(nodeType)) {
-      errors.push({ code: "NODE_TEMPORARILY_DISABLED", message: `${node.data?.label || nodeType} is temporarily disabled.`, nodeId: node.id })
+      errors.push({ code: "NODE_TEMPORARILY_DISABLED", message: `${node.data?.label || nodeType} is temporarily disabled.`, nodeId: node.id,
+      })
       continue
     }
-    if (isTriggerNode(nodeType) && !supportedTriggers.has(nodeType as typeof SUPPORTED_CANVAS_TRIGGER_TYPES[number])) {
-      errors.push({ code: "UNSUPPORTED_TRIGGER", message: `${node.data?.label || nodeType} is not enabled for live automations yet.`, nodeId: node.id })
+    if (isTriggerNode(nodeType) && !supportedTriggers.has(nodeType as (typeof SUPPORTED_CANVAS_TRIGGER_TYPES)[number],
+      )) {
+      errors.push({ code: "UNSUPPORTED_TRIGGER", message: `${node.data?.label || nodeType} is not enabled for live automations yet.`, nodeId: node.id,
+      })
     }
 
     switch (nodeType) {
       case "trigger_new_comment":
         if (!text(config.social_account_id)) {
-          errors.push({ code: "MISSING_FIELD", message: "Comment trigger requires social_account_id.", nodeId: node.id })
+          errors.push({ code: "MISSING_FIELD", message: "Comment trigger requires social_account_id.", nodeId: node.id,
+          })
         }
         if (options.expectedSocialAccountId && text(config.social_account_id) !== options.expectedSocialAccountId) {
-          errors.push({ code: "ACCOUNT_MISMATCH", message: "Trigger social_account_id must match the automation social_account_id.", nodeId: node.id })
+          errors.push({ code: "ACCOUNT_MISMATCH", message: "Trigger social_account_id must match the automation social_account_id.", nodeId: node.id,
+          })
         }
         // Broad scopes must be opted into explicitly via post_scope; without
         // one, the Developer API keeps its original contract of requiring a
@@ -240,63 +268,79 @@ export function validateDeveloperAutomationGraph(
         {
           const explicitBroadScope = isCommentPostScope(config.post_scope) && config.post_scope !== "specific"
           if (options.requirePostId && !explicitBroadScope && !text(config.post_id)) {
-            errors.push({ code: "MISSING_FIELD", message: "Comment trigger requires post_id (or an explicit post_scope of any/any_post/any_reel).", nodeId: node.id })
+            errors.push({ code: "MISSING_FIELD", message: "Comment trigger requires post_id (or an explicit post_scope of any/any_post/any_reel).", nodeId: node.id,
+            })
           }
         }
         if (text(config.post_id) && !isMetaGraphNodeId(text(config.post_id))) {
-          errors.push({ code: "INVALID_POST_ID", message: "Comment trigger post_id must be a valid Meta object ID.", nodeId: node.id })
+          errors.push({ code: "INVALID_POST_ID", message: "Comment trigger post_id must be a valid Meta object ID.", nodeId: node.id,
+          })
         }
         break
       case "trigger_new_message":
       case "trigger_story_reply":
         if (!text(config.social_account_id)) {
-          errors.push({ code: "MISSING_FIELD", message: "Trigger requires social_account_id.", nodeId: node.id })
+          errors.push({ code: "MISSING_FIELD", message: "Trigger requires social_account_id.", nodeId: node.id,
+          })
         }
         if (options.expectedSocialAccountId && text(config.social_account_id) !== options.expectedSocialAccountId) {
-          errors.push({ code: "ACCOUNT_MISMATCH", message: "Trigger social_account_id must match the automation social_account_id.", nodeId: node.id })
+          errors.push({ code: "ACCOUNT_MISMATCH", message: "Trigger social_account_id must match the automation social_account_id.", nodeId: node.id,
+          })
         }
         break
       case "action_send_dm":
         if (config.use_ai_response !== true && !hasMeaningfulMessage(config.opening_message)) {
-          errors.push({ code: "MISSING_FIELD", message: "Send DM requires opening_message or use_ai_response: true.", nodeId: node.id })
+          errors.push({ code: "MISSING_FIELD", message: "Send DM requires opening_message or use_ai_response: true.", nodeId: node.id,
+          })
         }
         break
       case "action_private_reply":
         if (config.use_ai_response !== true && !hasMeaningfulMessage(config.message)) {
-          errors.push({ code: "MISSING_FIELD", message: "Private Reply requires message or use_ai_response: true.", nodeId: node.id })
+          errors.push({ code: "MISSING_FIELD", message: "Private Reply requires message or use_ai_response: true.", nodeId: node.id,
+          })
         }
         break
       case "action_reply_comment": {
         const messages = Array.isArray(config.messages) ? config.messages : []
         if (config.use_ai_response !== true && !messages.some(hasMeaningfulMessage)) {
-          errors.push({ code: "MISSING_FIELD", message: "Reply to Comment requires at least one real reply message or use_ai_response: true.", nodeId: node.id })
+          errors.push({ code: "MISSING_FIELD", message: "Reply to Comment requires at least one real reply message or use_ai_response: true.", nodeId: node.id,
+          })
         }
         break
       }
       case "action_condition": {
-        const conditionIssue = getAutomationConditionPolicyIssue(config.condition_type)
+        const conditionIssue = getAutomationConditionPolicyIssue(config.condition_type,
+        )
         if (conditionIssue) errors.push({ ...conditionIssue, nodeId: node.id })
         break
       }
       case "action_delay":
         if (typeof config.duration_value !== "number" || config.duration_value <= 0) {
-          errors.push({ code: "MISSING_FIELD", message: "Delay requires a positive duration_value.", nodeId: node.id })
+          errors.push({ code: "MISSING_FIELD", message: "Delay requires a positive duration_value.", nodeId: node.id,
+          })
         }
         break
       case "action_send_email":
         if (!text(config.subject)) {
-          errors.push({ code: "MISSING_FIELD", message: "Send Email requires subject.", nodeId: node.id })
+          errors.push({ code: "MISSING_FIELD", message: "Send Email requires subject.", nodeId: node.id,
+          })
         }
         if (config.include_context === false && !text(config.body)) {
-          errors.push({ code: "MISSING_FIELD", message: "Send Email requires body when include_context is false.", nodeId: node.id })
+          errors.push({ code: "MISSING_FIELD", message: "Send Email requires body when include_context is false.", nodeId: node.id,
+          })
         }
         break
       case "action_ai_response":
         if (config.max_tokens !== undefined && (typeof config.max_tokens !== "number" || config.max_tokens <= 0)) {
-          errors.push({ code: "INVALID_FIELD", message: "AI Response max_tokens must be a positive number.", nodeId: node.id })
+          errors.push({ code: "INVALID_FIELD", message: "AI Response max_tokens must be a positive number.", nodeId: node.id,
+          })
         }
         break
     }
+  }
+
+  for (const issue of validateTelegramNodeConfigs(workflowGraph)) {
+    errors.push(issue)
   }
 
   return { graph: workflowGraph, errors, summary }

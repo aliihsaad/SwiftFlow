@@ -29,7 +29,7 @@ import type { DeveloperApiScope } from "@/lib/developer-api/types"
 import {
   buildDeveloperApiGuide,
   DEVELOPER_API_AUTH_HEADER_EXAMPLE,
-  DEVELOPER_API_CODEX_CONFIG_TEMPLATE,
+  DEVELOPER_API_MCP_CONFIG_TEMPLATE,
 } from "@/lib/developer-api/guide"
 
 const fetcher = async <T,>(url: string): Promise<T> => {
@@ -116,7 +116,7 @@ function copyText(value: string) {
 export function DeveloperApiView() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [name, setName] = useState("Codex workspace key")
+  const [name, setName] = useState("Workspace automation key")
   const [selectedScopes, setSelectedScopes] = useState<DeveloperApiScope[]>(defaultScopes)
   const [expiresInDays, setExpiresInDays] = useState(90)
   const [createdSecret, setCreatedSecret] = useState<string | null>(null)
@@ -280,7 +280,7 @@ export function DeveloperApiView() {
                 Developer API
               </CardTitle>
               <CardDescription className="text-white/50">
-                Create scoped keys for Codex, Claude, scripts, and automation clients.
+                Create scoped keys for MCP clients, scripts, and trusted automations.
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -419,19 +419,19 @@ export function DeveloperApiView() {
             <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-sm font-semibold text-white/85">
                 <Link2 className="size-4 text-cyan-300" />
-                Codex MCP config
+                MCP client config
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => copyText(DEVELOPER_API_CODEX_CONFIG_TEMPLATE)} className="w-full sm:w-auto">
+              <Button type="button" variant="outline" size="sm" onClick={() => copyText(DEVELOPER_API_MCP_CONFIG_TEMPLATE)} className="w-full sm:w-auto">
                 <Clipboard className="size-4" />
                 Copy
               </Button>
             </div>
             <pre className="max-w-full overflow-x-auto rounded-md border border-white/10 bg-[#0b0c12] p-3 text-xs leading-5 text-white/70">
-              <code>{DEVELOPER_API_CODEX_CONFIG_TEMPLATE}</code>
+              <code>{DEVELOPER_API_MCP_CONFIG_TEMPLATE}</code>
             </pre>
             <div className="mt-3 grid gap-2 text-xs text-white/55">
               <p>Store the key in the local environment as SWIFTFLOW_API_KEY. Do not paste the secret into config files or source control.</p>
-              <p>Claude Desktop and ChatGPT use the same MCP endpoint with OAuth linking. For the smoothest setup, add or reconnect SwiftFlow from the desktop browser experience first, then use it on desktop or mobile after it is linked.</p>
+              <p>Compatible MCP clients use the same endpoint with OAuth linking. For the smoothest setup, add or reconnect SwiftFlow from the desktop browser experience first, then use it on desktop or mobile after it is linked.</p>
             </div>
           </div>
         </CardContent>
@@ -598,7 +598,7 @@ export function DeveloperApiView() {
             <AlertDialogDescription className="text-white/55">
               {confirmKeyAction?.action === "delete"
                 ? "This removes the revoked key record from Settings. Existing requests using this key are already blocked."
-                : "This immediately blocks Codex, Claude, ChatGPT, scripts, and other clients using this key."}
+                : "This immediately blocks scripts, MCP clients, and other automations using this key."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {confirmKeyAction && (

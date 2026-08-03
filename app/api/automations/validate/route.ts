@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { TriggerNodeType, WorkflowGraph } from '@/types/automation-graph'
-import { isTriggerNode, SUPPORTED_CANVAS_TRIGGER_TYPES } from '@/types/automation-graph'
+import { isTriggerNode, SUPPORTED_CANVAS_TRIGGER_TYPES,
+} from '@/types/automation-graph'
 import { validateSendEmailNodeConfigs } from '@/lib/automation-send-email-validation'
+import { validateTelegramNodeConfigs } from '@/lib/automation-telegram-validation'
 import { isMetaGraphNodeId } from '@/lib/security/phase1-validation'
 import { resolveCommentPostScope } from '@/supabase/functions/_shared/comment-scope'
 import { getAutomationConditionPolicyIssue } from '@/supabase/functions/_shared/automation-condition-policy'
@@ -23,19 +25,45 @@ const TEMP_DISABLED_NODE_TYPES = new Set([
   'action_http_request',
 ])
 
+function isTelegramApprovalNode(
+  node: WorkflowGraph['nodes'][number] | undefined,
+): boolean {
+  return (
+    node?.data?.type === 'action_telegram' &&
+    (node.data.config as unknown as Record<string, unknown> | undefined)
+      ?.mode === 'approval'
+  )
+}
+
+function isTelegramNotificationNode(
+  node: WorkflowGraph['nodes'][number] | undefined,
+): boolean {
+  return node?.data?.type === 'action_telegram' && !isTelegramApprovalNode(node)
+}
+
+function isAlertNotificationTarget(
+  node: WorkflowGraph['nodes'][number] | undefined,
+): boolean {
+  return (
+    node?.data?.type === 'action_send_email' || isTelegramNotificationNode(node)
+  )
+}
+
 function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warnings: ValidationWarning[] } {
   const errors: ValidationError[] = []
   const warnings: ValidationWarning[] = []
 
   if (!graph.nodes || !Array.isArray(graph.nodes)) {
-    errors.push({ code: 'INVALID_GRAPH', message: 'Graph must contain a nodes array.' })
+    errors.push({ code: 'INVALID_GRAPH', message: 'Graph must contain a nodes array.',
+    })
     return { errors, warnings }
   }
 
   // 1. Exactly 1 trigger node
-  const triggerNodes = graph.nodes.filter(n => isTriggerNode(n.data?.type))
+  const triggerNodes = graph.nodes.filter((n) => isTriggerNode(n.data?.type))
   if (triggerNodes.length === 0) {
-    errors.push({ code: 'NO_TRIGGER', message: 'Workflow must have exactly one trigger node.' })
+    errors.push({ code: 'NO_TRIGGER', message: 'Workflow must have exactly one trigger node.',
+    })
   } else if (triggerNodes.length > 1) {
     errors.push({
       code: 'MULTIPLE_TRIGGERS',
@@ -60,7 +88,8 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
 
   // 2. Max 25 nodes
   if (graph.nodes.length > 25) {
-    errors.push({ code: 'TOO_MANY_NODES', message: 'Maximum 25 nodes per workflow.' })
+    errors.push({ code: 'TOO_MANY_NODES', message: 'Maximum 25 nodes per workflow.',
+    })
   }
 
   // 2b. Connection topology/handle validation
@@ -102,12 +131,14 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
         })
       }
 
-      incomingByTarget.set(edge.target, (incomingByTarget.get(edge.target) || 0) + 1)
+      incomingByTarget.set(edge.target, (incomingByTarget.get(edge.target) || 0) + 1,
+      )
 
-      if (sourceHandle === 'error' && targetType !== 'action_send_email') {
+      if (sourceHandle === 'error' && !isAlertNotificationTarget(targetNode)) {
         errors.push({
           code: 'ALERT_TARGET_INVALID',
-          message: 'Alert connections can only target a Send Email node.',
+          message:
+            'Alert connections must target a Telegram Notification node (legacy Send Email nodes are still supported).',
           nodeId: edge.target,
         })
       }
@@ -120,12 +151,27 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
             nodeId: edge.source,
           })
         }
-        outgoingHandleCounts.set(handleKey, (outgoingHandleCounts.get(handleKey) || 0) + 1)
+        outgoingHandleCounts.set(handleKey, (outgoingHandleCounts.get(handleKey) || 0) + 1,
+        )
+      } else if (isTelegramApprovalNode(sourceNode)) {
+        if (!['approved', 'rejected', 'error'].includes(sourceHandle)) {
+          errors.push({
+            code: 'INVALID_TELEGRAM_APPROVAL_HANDLE',
+            message:
+              'Telegram Approval outputs must use Approved, Rejected, or Alert.',
+            nodeId: edge.source,
+          })
+        }
+        outgoingHandleCounts.set(
+          handleKey,
+          (outgoingHandleCounts.get(handleKey) || 0) + 1,
+        )
       } else {
-        if (sourceHandle === 'true' || sourceHandle === 'false') {
+        if (['true', 'false', 'approved', 'rejected'].includes(sourceHandle)) {
           errors.push({
             code: 'INVALID_SOURCE_HANDLE',
-            message: 'Only Condition nodes can use True/False outputs.',
+            message:
+              'Only Condition nodes can use True/False outputs, and only Telegram Approval can use Approved/Rejected outputs.',
             nodeId: edge.source,
           })
         }
@@ -136,15 +182,18 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
             nodeId: edge.source,
           })
         }
-        if (sourceType === 'action_send_email' && sourceHandle === 'error') {
+        if (
+          (sourceType === 'action_send_email' ||
+            isTelegramNotificationNode(sourceNode)) && sourceHandle === 'error') {
           errors.push({
-            code: 'SEND_EMAIL_ALERT_INVALID',
-            message: 'Send Email node does not support an Alert output.',
+            code: 'NOTIFICATION_ALERT_INVALID',
+            message: 'Notification nodes do not support an Alert output.',
             nodeId: edge.source,
           })
         }
         if (!isTriggerNode(sourceType)) {
-          outgoingHandleCounts.set(handleKey, (outgoingHandleCounts.get(handleKey) || 0) + 1)
+          outgoingHandleCounts.set(handleKey, (outgoingHandleCounts.get(handleKey) || 0) + 1,
+          )
         }
       }
     }
@@ -233,7 +282,8 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
     }
 
     if (visited < graph.nodes.length) {
-      errors.push({ code: 'CYCLE_DETECTED', message: 'Workflow contains a cycle. Cycles are not allowed.' })
+      errors.push({ code: 'CYCLE_DETECTED', message: 'Workflow contains a cycle. Cycles are not allowed.',
+      })
     }
   }
 
@@ -257,25 +307,30 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
         // Broad scopes (any / any_post / any_reel) need no post selection;
         // only the "specific post" scope requires a post ID.
         if (resolveCommentPostScope(config) === 'specific' && !config.post_id) {
-          errors.push({ code: 'MISSING_FIELD', message: 'Comment trigger requires a post ID.', nodeId: node.id })
+          errors.push({ code: 'MISSING_FIELD', message: 'Comment trigger requires a post ID.', nodeId: node.id,
+          })
         }
         if (config.post_id && !isMetaGraphNodeId(config.post_id)) {
-          errors.push({ code: 'INVALID_POST_ID', message: 'Comment trigger post ID must be a valid Meta object ID.', nodeId: node.id })
+          errors.push({ code: 'INVALID_POST_ID', message: 'Comment trigger post ID must be a valid Meta object ID.', nodeId: node.id,
+          })
         }
         if (!config.social_account_id) {
-          errors.push({ code: 'MISSING_FIELD', message: 'Comment trigger requires an account.', nodeId: node.id })
+          errors.push({ code: 'MISSING_FIELD', message: 'Comment trigger requires an account.', nodeId: node.id,
+          })
         }
         break
       case 'trigger_new_message':
       case 'trigger_story_mention':
       case 'trigger_story_reply':
         if (!config.social_account_id) {
-          errors.push({ code: 'MISSING_FIELD', message: 'Trigger requires an account.', nodeId: node.id })
+          errors.push({ code: 'MISSING_FIELD', message: 'Trigger requires an account.', nodeId: node.id,
+          })
         }
         break
       case 'action_send_dm':
         if (config.use_ai_response !== true && !config.opening_message) {
-          errors.push({ code: 'MISSING_FIELD', message: 'Send DM requires an opening message.', nodeId: node.id })
+          errors.push({ code: 'MISSING_FIELD', message: 'Send DM requires an opening message.', nodeId: node.id,
+          })
         }
         if (config.use_ai_response === true && !config.opening_message) {
           warnings.push({
@@ -301,7 +356,8 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
         break
       case 'action_private_reply':
         if (config.use_ai_response !== true && !config.message) {
-          errors.push({ code: 'MISSING_FIELD', message: 'Private Reply requires a message.', nodeId: node.id })
+          errors.push({ code: 'MISSING_FIELD', message: 'Private Reply requires a message.', nodeId: node.id,
+          })
         }
         if (config.use_ai_response === true && !config.message) {
           warnings.push({
@@ -317,7 +373,8 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
           : []
 
         if (config.use_ai_response !== true && fallbackMessages.length === 0) {
-          errors.push({ code: 'MISSING_FIELD', message: 'Reply to Comment requires at least one reply message.', nodeId: node.id })
+          errors.push({ code: 'MISSING_FIELD', message: 'Reply to Comment requires at least one reply message.', nodeId: node.id,
+          })
         }
         if (config.use_ai_response === true && fallbackMessages.length === 0) {
           warnings.push({
@@ -329,7 +386,8 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
         break
       }
       case 'action_condition': {
-        const conditionIssue = getAutomationConditionPolicyIssue(config.condition_type)
+        const conditionIssue = getAutomationConditionPolicyIssue(config.condition_type,
+        )
         if (conditionIssue) {
           errors.push({ ...conditionIssue, nodeId: node.id })
         }
@@ -337,7 +395,8 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
       }
       case 'action_http_request':
         if (!config.url) {
-          errors.push({ code: 'MISSING_FIELD', message: 'HTTP Request requires a URL.', nodeId: node.id })
+          errors.push({ code: 'MISSING_FIELD', message: 'HTTP Request requires a URL.', nodeId: node.id,
+          })
         }
         break
       case 'action_ai_response':
@@ -401,6 +460,10 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
     errors.push(issue)
   }
 
+  for (const issue of validateTelegramNodeConfigs(graph)) {
+    errors.push(issue)
+  }
+
   return { errors, warnings }
 }
 
@@ -410,7 +473,8 @@ export async function POST(request: NextRequest) {
     const { workflow_graph } = body
 
     if (!workflow_graph) {
-      return NextResponse.json({ error: 'Missing workflow_graph' }, { status: 400 })
+      return NextResponse.json({ error: 'Missing workflow_graph' }, { status: 400 },
+      )
     }
 
     const result = validateGraph(workflow_graph as WorkflowGraph)
@@ -424,7 +488,6 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Validation failed'
     return NextResponse.json(
       { error: message },
-      { status: 500 },
-    )
+      { status: 500 })
   }
 }

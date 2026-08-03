@@ -8,7 +8,8 @@ import {
     Building2,
     ChevronRight,
     Fingerprint,
-    ShieldCheck,
+  MessageCircleMore,
+  ShieldCheck,
     Sparkles,
     UserRoundCog,
     UsersRound,
@@ -22,6 +23,7 @@ import { TeamMembersPanel } from "@/components/settings/team-members-panel"
 import { AccountSettingsSection } from "@/components/settings/account-settings-section"
 import { TeamMemberRow, WorkspaceInviteRow } from "@/types/team"
 import { DeveloperApiView } from "@/components/settings/developer-api-view"
+import { TelegramSettingsForm } from "@/components/settings/telegram-settings-form"
 
 interface SettingsViewProps {
     workspaces: (Workspace & { role: WorkspaceRole })[]
@@ -36,7 +38,7 @@ interface SettingsViewProps {
     userEmail: string
 }
 
-type SettingsTabValue = "workspaces" | "api" | "developer-api" | "members" | "account"
+type SettingsTabValue = "workspaces" | "api" | "telegram" | "developer-api" | "members" | "account"
 
 type SettingsTabMeta = {
     value: SettingsTabValue
@@ -71,7 +73,18 @@ const settingsTabs: SettingsTabMeta[] = [
         iconSurfaceClass: "border-violet-300/20 bg-violet-300/10",
     },
     {
-        value: "developer-api",
+        value: "telegram",
+    label: "Telegram",
+    eyebrow: "Human approval channel",
+    title: "Keep a human in the loop without slowing the flow.",
+    description:
+      "Connect a private Telegram chat for operational notifications and single-use approve or reject decisions.",
+    icon: MessageCircleMore,
+    iconClass: "text-sky-100",
+    iconSurfaceClass: "border-sky-300/20 bg-sky-300/10",
+  },
+  {
+    value: "developer-api",
         label: "Developer API",
         eyebrow: "Programmable control",
         title: "Give trusted tools narrow, auditable access.",
@@ -125,8 +138,8 @@ function SettingsSectionIntro({ tab }: { tab: SettingsTabMeta }) {
                 </div>
                 <div className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-emerald-300/15 bg-emerald-300/8 px-3 py-1.5 text-[11px] font-medium text-emerald-100/80">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.75)]" />
-                    Live configuration
-                </div>
+          Live configuration
+        </div>
             </div>
         </div>
     )
@@ -155,19 +168,25 @@ export function SettingsView({
                     <div className="max-w-3xl">
                         <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/15 bg-cyan-300/8 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-100/80">
                             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                            Workspace control room
-                        </div>
-                        <h1 className="mt-5 text-3xl font-semibold tracking-[-0.045em] text-white sm:text-4xl">Configure SwiftFlow around your team.</h1>
+              Workspace control room
+            </div>
+                        <h1 className="mt-5 text-3xl font-semibold tracking-[-0.045em] text-white sm:text-4xl">
+              Configure SwiftFlow around your team.
+            </h1>
                         <p className="mt-3 max-w-2xl text-sm leading-6 text-white/55 sm:text-base">
-                            One secure place for workspace structure, automation intelligence, API access, collaboration, and account protection.
-                        </p>
+              One secure place for workspace structure, automation intelligence,
+              API access, collaboration, and account protection.
+            </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-2">
                         {[
-                            { label: "Workspace", value: activeWorkspace?.name || "Not selected", icon: Building2 },
-                            { label: "Your access", value: titleCaseRole(activeWorkspaceRole), icon: ShieldCheck },
-                            { label: "Members", value: String(teamMembers.length), icon: UsersRound },
+                            { label: "Workspace", value: activeWorkspace?.name || "Not selected", icon: Building2,
+              },
+                            { label: "Your access", value: titleCaseRole(activeWorkspaceRole), icon: ShieldCheck,
+              },
+                            { label: "Members", value: String(teamMembers.length), icon: UsersRound,
+              },
                             { label: "Secrets", value: "Encrypted", icon: Fingerprint },
                         ].map((metric) => {
                             const MetricIcon = metric.icon
@@ -189,8 +208,12 @@ export function SettingsView({
                 <div className="grid items-start gap-5 xl:grid-cols-[286px_minmax(0,1fr)]">
                     <aside className="rounded-[26px] border border-white/9 bg-[#11131c]/95 p-3 shadow-[0_20px_70px_rgba(0,0,0,0.25)] xl:sticky xl:top-5">
                         <div className="px-3 pb-3 pt-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">Settings areas</p>
-                            <p className="mt-1 text-xs leading-5 text-white/45">Changes apply to the active workspace unless marked personal.</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35">
+                Settings areas
+              </p>
+                            <p className="mt-1 text-xs leading-5 text-white/45">
+                Changes apply to the active workspace unless marked personal.
+              </p>
                         </div>
                         <TabsList className="grid h-auto w-full grid-cols-2 gap-2 bg-transparent p-0 xl:grid-cols-1">
                             {settingsTabs.map((tab) => {
@@ -216,9 +239,12 @@ export function SettingsView({
                         <div className="mt-3 rounded-2xl border border-white/8 bg-white/[0.025] p-3">
                             <div className="flex items-center gap-2 text-xs font-medium text-white/65">
                                 <ShieldCheck className="h-4 w-4 text-emerald-200/70" aria-hidden="true" />
-                                Security boundary
-                            </div>
-                            <p className="mt-1.5 text-[11px] leading-5 text-white/38">Provider secrets remain server-side and are never returned to the browser after saving.</p>
+                Security boundary
+              </div>
+                            <p className="mt-1.5 text-[11px] leading-5 text-white/38">
+                Provider secrets remain server-side and are never returned to
+                the browser after saving.
+              </p>
                         </div>
                     </aside>
 
@@ -231,7 +257,13 @@ export function SettingsView({
                             <TabsContent value="api" className="m-0 focus-visible:outline-none">
                                 <ApiSettingsForm settings={settings} />
                             </TabsContent>
-                            <TabsContent value="developer-api" className="m-0 focus-visible:outline-none">
+                            <TabsContent value="telegram"
+                className="m-0 focus-visible:outline-none"
+              >
+                <TelegramSettingsForm settings={settings} />
+              </TabsContent>
+              <TabsContent
+                value="developer-api" className="m-0 focus-visible:outline-none">
                                 <DeveloperApiView />
                             </TabsContent>
                             <TabsContent value="members" className="m-0 focus-visible:outline-none">

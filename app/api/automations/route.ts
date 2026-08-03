@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { canManageMessagesWithMetaAccount, canReadCommentsWithMetaAccount, decryptMetaAccountRow } from '@/lib/meta-account';
+import { canManageMessagesWithMetaAccount, canReadCommentsWithMetaAccount, decryptMetaAccountRow,
+} from '@/lib/meta-account';
 import { createClient } from '@/utils/supabase/server';
-import { getActiveWorkspace, getExplicitActiveWorkspace } from '@/lib/workspace-utils';
-import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
+import { getActiveWorkspace, getExplicitActiveWorkspace,
+} from '@/lib/workspace-utils';
+import { getWorkspacePermissionErrorStatus, requireWorkspacePermission,
+} from '@/lib/workspace-permissions';
 import { getMetaGraphApiBaseUrl } from '@/lib/meta-graph-version';
-import { assertJsonBodySize, assertMetaGraphNodeId } from '@/lib/security/phase1-validation';
+import { assertJsonBodySize, assertMetaGraphNodeId,
+} from '@/lib/security/phase1-validation';
 import { validateSendEmailNodeConfigs } from '@/lib/automation-send-email-validation';
+import { validateTelegramNodeConfigs } from '@/lib/automation-telegram-validation';
 import { resolveCommentPostScope } from '@/supabase/functions/_shared/comment-scope';
 import { gateWorkspaceLimit } from '@/lib/billing/gate';
 import { createAdminClient } from '@/utils/supabase/admin';
@@ -39,7 +44,8 @@ function errorDetail(error: unknown): unknown {
     return maybeError.details || maybeError.hint || maybeError.code || null;
 }
 
-function graphConfigValue(config: Record<string, unknown>, key: string): string {
+function graphConfigValue(config: Record<string, unknown>, key: string,
+): string {
     const value = config[key];
     return typeof value === 'string' ? value : '';
 }
@@ -55,7 +61,8 @@ export async function GET() {
         const supabase = await createClient();
 
         // Auth check
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user },
+    } = await supabase.auth.getUser();
         if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -63,9 +70,11 @@ export async function GET() {
         // Get active workspace
         const activeWorkspace = await getActiveWorkspace();
         if (!activeWorkspace) {
-            return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
+            return NextResponse.json({ error: 'No active workspace found' }, { status: 404 },
+      );
         }
-        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'workspace:read');
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'workspace:read',
+    );
 
         const { data: automations, error } = await supabase
             .from('automations')
@@ -94,7 +103,8 @@ export async function GET() {
                         console.error('Failed to count automation_runs for canvas automation:', {
                             automationId: automation.id,
                             error: runsCountError,
-                        });
+                        },
+            );
                     }
 
                     return {
@@ -120,29 +130,30 @@ export async function GET() {
                 return {
                     ...automation,
                     total_triggered: totalTriggered || 0,
-                    total_dms_sent: totalDmsSent || 0
-                };
-            })
-        );
+                    total_dms_sent: totalDmsSent || 0,
+        };
+            }),
+    );
 
         return NextResponse.json({
-            automations: automationsWithStats
-        });
+            automations: automationsWithStats,
+    });
 
     } catch (error: unknown) {
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
-            return NextResponse.json({ error: summarizeError(error) || 'Forbidden' }, { status: permissionStatus });
+            return NextResponse.json({ error: summarizeError(error) || 'Forbidden' }, { status: permissionStatus },
+      );
         }
         console.error('Get automations API error:', error);
         console.error(`Get automations API details: ${summarizeError(error)}`);
         return NextResponse.json(
             {
                 error: summarizeError(error) || 'Failed to fetch automations',
-                details: errorDetail(error)
-            },
-            { status: 500 }
-        );
+                details: errorDetail(error),
+      },
+            { status: 500 },
+    );
     }
 }
 
@@ -152,7 +163,8 @@ export async function POST(request: NextRequest) {
         const supabase = await createClient();
 
         // Auth check
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: { user },
+    } = await supabase.auth.getUser();
         if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -160,9 +172,11 @@ export async function POST(request: NextRequest) {
         // Get active workspace
         const activeWorkspace = await getExplicitActiveWorkspace();
         if (!activeWorkspace) {
-            return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
+            return NextResponse.json({ error: 'No active workspace found' }, { status: 404 },
+      );
         }
-        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write');
+        await requireWorkspacePermission(supabase, user.id, activeWorkspace.id, 'automation:write',
+    );
 
         // Plan quota gate (no-op unless BILLING_ENFORCEMENT_MODE is log/enforce).
         const quotaGate = await gateWorkspaceLimit(activeWorkspace.id, 'active_automations', async () => {
@@ -172,11 +186,12 @@ export async function POST(request: NextRequest) {
                 .eq('workspace_id', activeWorkspace.id)
                 .eq('is_active', true);
             return count ?? 0;
-        });
+        },
+    );
         if (quotaGate) return quotaGate;
 
         assertJsonBodySize(request, 256 * 1024);
-        const body = await request.json() as CreateAutomationBody;
+        const body = (await request.json()) as CreateAutomationBody;
         const {
             social_account_id,
             name,
@@ -196,7 +211,8 @@ export async function POST(request: NextRequest) {
         const isCanvasMode = isGraphBackedMode;
         const shouldStoreCanvasEditor = editor_version === 'canvas';
         const requestedIsActive = typeof is_active === 'boolean' ? is_active : true;
-        const graphTriggerNode = workflow_graph?.nodes?.find((node) => node.data.type.startsWith('trigger_'));
+        const graphTriggerNode = workflow_graph?.nodes?.find((node) => node.data.type.startsWith('trigger_'),
+    );
         const graphTriggerType = graphTriggerNode?.data?.type as string | undefined;
         const graphTriggerConfig = (graphTriggerNode?.data?.config || {}) as Record<string, unknown>;
         const graphPostId = graphConfigValue(graphTriggerConfig, 'post_id');
@@ -210,42 +226,46 @@ export async function POST(request: NextRequest) {
             if (!workflow_graph || !name) {
                 return NextResponse.json(
                     { error: 'Canvas mode requires name and workflow_graph' },
-                    { status: 400 }
-                );
+                    { status: 400 },
+        );
             }
             if (!graphTriggerNode) {
                 return NextResponse.json(
                     { error: 'Canvas workflow must include a trigger node' },
-                    { status: 400 }
-                );
+                    { status: 400 },
+        );
             }
 
-            const sendEmailIssues = validateSendEmailNodeConfigs(workflow_graph);
-            if (sendEmailIssues.length > 0) {
+            const nodeConfigIssues = [
+        ...validateSendEmailNodeConfigs(workflow_graph),
+        ...validateTelegramNodeConfigs(workflow_graph),
+      ];
+      if (nodeConfigIssues.length > 0) {
                 return NextResponse.json(
-                    { error: sendEmailIssues[0].message, validationErrors: sendEmailIssues },
-                    { status: 400 }
-                );
+                    { error: nodeConfigIssues[0].message, validationErrors: nodeConfigIssues,
+          },
+                    { status: 400 },
+        );
             }
         } else if (!social_account_id || !name || !platform_post_id || !dm_config) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
-                { status: 400 }
-            );
+                { status: 400 },
+      );
         }
         const validatedPlatformPostId = !isCanvasMode ? assertMetaGraphNodeId(platform_post_id, 'platform_post_id') : null;
 
         // Resolve social_account_id: from body or from graph trigger node
         const resolvedAccountId = social_account_id ||
-            workflow_graph?.nodes?.map((node) => node.data.config as unknown as Record<string, unknown>)
+      (workflow_graph?.nodes?.map((node) => node.data.config as unknown as Record<string, unknown>)
                 .find((config) => typeof config.social_account_id === 'string')
-                ?.social_account_id as string | undefined;
+                ?.social_account_id as string | undefined);
 
-        if (isCanvasMode && !resolvedAccountId) {
+    if (isCanvasMode && !resolvedAccountId) {
             return NextResponse.json(
                 { error: 'Canvas trigger must include social_account_id' },
-                { status: 400 }
-            );
+                { status: 400 },
+      );
         }
 
         // Verify the social account belongs to this workspace
@@ -261,15 +281,15 @@ export async function POST(request: NextRequest) {
             if (accountError || !acc) {
                 return NextResponse.json(
                     { error: 'Invalid social account' },
-                    { status: 400 }
-                );
+                    { status: 400 },
+        );
             }
             account = decryptMetaAccountRow(acc);
         } else if (!isCanvasMode) {
             return NextResponse.json(
                 { error: 'Missing social account' },
-                { status: 400 }
-            );
+                { status: 400 },
+      );
         }
 
         if (account && !isCanvasMode) {
@@ -285,8 +305,8 @@ export async function POST(request: NextRequest) {
                             : ['instagram_manage_comments'],
                         requiresReconnect: false,
                     },
-                    { status: 403 }
-                );
+                    { status: 403 },
+        );
             }
 
             if (!canManageMessagesWithMetaAccount(account.metadata, accountPlatform)) {
@@ -299,8 +319,8 @@ export async function POST(request: NextRequest) {
                             : ['instagram_manage_messages'],
                         requiresReconnect: false,
                     },
-                    { status: 403 }
-                );
+                    { status: 403 },
+        );
             }
         }
 
@@ -312,14 +332,15 @@ export async function POST(request: NextRequest) {
             const testResult = await testResponse.json();
 
             if (!testResponse.ok || testResult.error) {
-                console.error(`Post accessibility check failed: ${summarizeError(testResult?.error)}`);
+                console.error(`Post accessibility check failed: ${summarizeError(testResult?.error)}`,
+        );
                 return NextResponse.json(
                     {
                         error: 'This post is not accessible. It may have been posted before your account was connected, or it has been deleted. Please select a more recent post.',
-                        details: testResult.error?.message
-                    },
-                    { status: 400 }
-                );
+                        details: testResult.error?.message,
+          },
+                    { status: 400 },
+        );
             }
         }
 
@@ -340,8 +361,8 @@ export async function POST(request: NextRequest) {
                 opening_message: '',
                 button_text: '',
                 link_url: '',
-                link_message: ''
-            };
+                link_message: '',
+      };
             insertData.comment_reply_config = { enabled: false, messages: [] };
 
             if (graphTriggerType === 'trigger_new_comment') {
@@ -352,8 +373,8 @@ export async function POST(request: NextRequest) {
                     if (isSpecificScope && requestedIsActive) {
                         return NextResponse.json(
                             { error: 'Comment trigger requires post_id' },
-                            { status: 400 }
-                        );
+                            { status: 400 },
+            );
                     }
 
                     // Same sentinel the developer API stores for broad-scope
@@ -363,28 +384,32 @@ export async function POST(request: NextRequest) {
                     insertData.post_caption = null;
                     insertData.trigger_config = {
                         trigger_type: graphTriggerConfigType,
-                        keywords: graphTriggerKeywords
-                    };
+                        keywords: graphTriggerKeywords,
+          };
                 } else {
-                    insertData.platform_post_id = assertMetaGraphNodeId(graphPostId, 'post_id');
+                    insertData.platform_post_id = assertMetaGraphNodeId(graphPostId, 'post_id',
+          );
                     insertData.post_thumbnail_url = graphConfigValue(graphTriggerConfig, 'post_thumbnail_url') || null;
                     insertData.post_caption = graphConfigValue(graphTriggerConfig, 'post_caption') || null;
                     insertData.trigger_config = {
                         trigger_type: graphTriggerConfigType,
-                        keywords: graphTriggerKeywords
-                    };
+                        keywords: graphTriggerKeywords,
+          };
                 }
             } else {
                 // Non-comment triggers don't have a post id; store a sentinel to satisfy legacy NOT NULL.
                 insertData.platform_post_id = shouldStoreCanvasEditor ? '__canvas__' : '__wizard_graph__';
-                insertData.trigger_config = { trigger_type: 'any_comment', keywords: [] };
+                insertData.trigger_config = { trigger_type: 'any_comment', keywords: [],
+        };
             }
         } else {
             insertData.platform_post_id = validatedPlatformPostId;
             insertData.post_thumbnail_url = post_thumbnail_url;
             insertData.post_caption = post_caption;
-            insertData.trigger_config = trigger_config || { trigger_type: 'any_comment', keywords: [] };
-            insertData.comment_reply_config = comment_reply_config || { enabled: false, messages: [] };
+            insertData.trigger_config = trigger_config || { trigger_type: 'any_comment', keywords: [],
+      };
+            insertData.comment_reply_config = comment_reply_config || { enabled: false, messages: [],
+      };
             insertData.dm_config = dm_config;
         }
 
@@ -405,22 +430,24 @@ export async function POST(request: NextRequest) {
                 .insert({
                     workspace_id: activeWorkspace.id,
                     automation_id: automation.id,
-                    comment_id: '00000000000'
-                });
+                    comment_id: '00000000000',
+        });
 
             if (placeholderError) {
-                console.error('Failed to create placeholder processed_comment:', placeholderError);
+                console.error('Failed to create placeholder processed_comment:', placeholderError,
+        );
                 // Non-critical error, don't fail the automation creation
             }
         }
 
         return NextResponse.json({
             success: true,
-            automation
-        });
+            automation,
+    });
 
     } catch (error: unknown) {
-        if (error instanceof Error && /Invalid platform_post_id|Invalid post_id|Request payload too large|Invalid content length/i.test(error.message)) {
+        if (error instanceof Error && /Invalid platform_post_id|Invalid post_id|Request payload too large|Invalid content length/i.test(error.message,
+      )) {
             return NextResponse.json(
                 { error: error.message },
                 { status: 400 }
@@ -428,16 +455,17 @@ export async function POST(request: NextRequest) {
         }
         const permissionStatus = getWorkspacePermissionErrorStatus(error);
         if (permissionStatus) {
-            return NextResponse.json({ error: summarizeError(error) || 'Forbidden' }, { status: permissionStatus });
+            return NextResponse.json({ error: summarizeError(error) || 'Forbidden' }, { status: permissionStatus },
+      );
         }
         console.error('Create automation API error:', error);
         console.error(`Create automation API details: ${summarizeError(error)}`);
         return NextResponse.json(
             {
                 error: summarizeError(error) || 'Failed to create automation',
-                details: errorDetail(error)
-            },
-            { status: 500 }
-        );
+                details: errorDetail(error),
+      },
+            { status: 500 },
+    );
     }
 }

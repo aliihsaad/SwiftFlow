@@ -29,7 +29,9 @@ describe("workspace mutation strictness", () => {
 
   it("settings actions verify the selected workspace before writing", () => {
     const actions = source("app", "actions", "settings.ts")
-    expect(actions).toContain(".eq('workspace_id', workspaceId)")
-    expect(actions).toContain('requireWorkspacePermission(supabase, user.id, workspaceId, "settings:write")')
+    expect(actions).toMatch(/\.eq\(["']workspace_id["'],\s*workspaceId\)/)
+    expect(actions).toMatch(
+      /requireWorkspacePermission\(\s*supabase,\s*user\.id,\s*workspaceId,\s*["']settings:write["'],?\s*\)/,
+    )
   })
 })

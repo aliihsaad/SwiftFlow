@@ -18,7 +18,7 @@ These functions generate responses for automation nodes. They do not expose stan
 ## Automation runtime
 
 - process-automations
-- process-scheduled-executions — resumes Delay nodes
+- process-scheduled-executions — resumes Delay nodes and resolved/expired Telegram approvals
 - automation-orchestrator
 - automation-worker-run
 - automation-worker-ai-response
@@ -27,7 +27,9 @@ These functions generate responses for automation nodes. They do not expose stan
 - automation-worker-private-reply
 - automation-worker-reply-comment
 - automation-worker-send-dm
-- automation-worker-send-email
+- automation-worker-send-email — legacy saved workflows only
+- automation-worker-telegram
+- telegram-automation-webhook — signed Telegram callback endpoint
 
 ## Operations
 
@@ -36,7 +38,7 @@ These functions generate responses for automation nodes. They do not expose stan
 - token-health-sweep
 - _shared/
 
-The scheduler only resumes delayed automation nodes and runs maintenance jobs.
+The scheduler resumes delayed nodes, resolves expired Telegram approvals through their Rejected branch, and runs maintenance jobs.
 
 ## Internal invocation
 
@@ -51,6 +53,8 @@ Functions called by other server components or edge functions should be deployed
     supabase functions deploy automation-worker-reply-comment --no-verify-jwt
     supabase functions deploy automation-worker-send-dm --no-verify-jwt
     supabase functions deploy automation-worker-send-email --no-verify-jwt
+    supabase functions deploy automation-worker-telegram --no-verify-jwt
+    supabase functions deploy telegram-automation-webhook --no-verify-jwt
     supabase functions deploy retention-cleanup --no-verify-jwt
     supabase functions deploy token-health-sweep --no-verify-jwt
 

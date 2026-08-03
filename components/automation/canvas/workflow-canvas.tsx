@@ -52,7 +52,8 @@ interface WorkflowCanvasProps {
   automationName: string
   isActive: boolean
   initialGraph?: WorkflowGraph
-  onSave: (graph: WorkflowGraph, name: string, isActive: boolean) => Promise<void>
+  onSave: (graph: WorkflowGraph, name: string, isActive: boolean,
+  ) => Promise<void>
   onBack: () => void
 }
 
@@ -73,16 +74,34 @@ function normalizeHandleKey(handle: string | null | undefined): string {
   return handle || '__default__'
 }
 
-function getEdgeLabelFromSourceHandle(handle: string | null | undefined): string {
+function isTelegramApprovalData(data: WorkflowNodeData): boolean {
+  return (
+    data.type === 'action_telegram' &&
+    (data.config as unknown as Record<string, unknown> | undefined)?.mode ===
+      'approval'
+  )
+}
+
+function isAlertTargetData(data: WorkflowNodeData): boolean {
+  return (
+    data.type === 'action_send_email' ||
+    (data.type === 'action_telegram' && !isTelegramApprovalData(data))
+  )
+}
+
+function getEdgeLabelFromSourceHandle(handle: string | null | undefined,
+): string {
   if (handle === 'true') return 'True'
   if (handle === 'false') return 'False'
+  if (handle === 'approved') return 'Approved'
+  if (handle === 'rejected') return 'Rejected'
   if (handle === 'error') return 'Alert'
   return 'Next'
 }
 
 function getEdgeStyleFromSourceHandle(handle: string | null | undefined): { stroke?: string } {
-  if (handle === 'true') return { stroke: '#34d399' }
-  if (handle === 'false') return { stroke: '#f87171' }
+  if (handle === 'true' || handle === 'approved') return { stroke: '#34d399' }
+  if (handle === 'false' || handle === 'rejected') return { stroke: '#f87171' }
   if (handle === 'error') return { stroke: '#fbbf24' }
   return { stroke: '#64748B' }
 }
@@ -98,8 +117,10 @@ export function WorkflowCanvas({
   const reactFlowWrapper = useRef<HTMLDivElement>(null)
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null)
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialGraph?.nodes || [])
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph?.edges || [])
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialGraph?.nodes || [],
+  )
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialGraph?.edges || [],
+  )
 
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null)
   const [automationName, setAutomationName] = useState(initialName)
@@ -115,7 +136,7 @@ export function WorkflowCanvas({
   const [history, setHistory] = useState<{ nodes: WorkflowNode[]; edges: WorkflowEdge[] }[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
   const pushHistory = useCallback(() => {
-    setHistory(prev => {
+    setHistory((prev) => {
       const newHistory = prev.slice(0, historyIndex + 1)
       newHistory.push({
         nodes: JSON.parse(JSON.stringify(nodes)),
@@ -123,7 +144,7 @@ export function WorkflowCanvas({
       })
       return newHistory.slice(-50) // keep last 50
     })
-    setHistoryIndex(prev => Math.min(prev + 1, 49))
+    setHistoryIndex((prev) => Math.min(prev + 1, 49))
   }, [nodes, edges, historyIndex])
 
   const handleUndo = useCallback(() => {
@@ -132,7 +153,7 @@ export function WorkflowCanvas({
     if (prev) {
       setNodes(prev.nodes)
       setEdges(prev.edges)
-      setHistoryIndex(i => i - 1)
+      setHistoryIndex((i) => i - 1)
     }
   }, [history, historyIndex, setNodes, setEdges])
 
@@ -142,14 +163,15 @@ export function WorkflowCanvas({
     if (next) {
       setNodes(next.nodes)
       setEdges(next.edges)
-      setHistoryIndex(i => i + 1)
+      setHistoryIndex((i) => i + 1)
     }
   }, [history, historyIndex, setNodes, setEdges])
 
   const getNodeById = useCallback((nodeId: string | null | undefined) => {
     if (!nodeId) return null
     return nodes.find((node) => node.id === nodeId) || null
-  }, [nodes])
+  }, [nodes],
+  )
 
   const checkConnection = useCallback((
     params: ConnectionLike,
@@ -159,7 +181,8 @@ export function WorkflowCanvas({
     const targetId = params.target || null
 
     if (!sourceId || !targetId) {
-      return { ok: false, reason: 'Connect a source node to a target node handle.' }
+      return { ok: false, reason: 'Connect a source node to a target node handle.',
+        }
     }
 
     if (sourceId === targetId) {
@@ -181,7 +204,8 @@ export function WorkflowCanvas({
     const sourceHandleKey = normalizeHandleKey(sourceHandle)
 
     if (isTriggerNode(targetType)) {
-      return { ok: false, reason: 'Trigger nodes cannot have incoming connections.' }
+      return { ok: false, reason: 'Trigger nodes cannot have incoming connections.',
+        }
     }
 
     const exactDuplicate = currentEdges.some((edge) =>
@@ -194,40 +218,72 @@ export function WorkflowCanvas({
       return { ok: false, reason: 'That connection already exists.' }
     }
 
-    const incomingToTarget = currentEdges.filter((edge) => edge.target === targetId)
+    const incomingToTarget = currentEdges.filter((edge) => edge.target === targetId,
+      )
     if (incomingToTarget.length >= 1) {
-      return { ok: false, reason: 'Each action node can only have one incoming connection.' }
+      return { ok: false, reason: 'Each action node can only have one incoming connection.',
+        }
     }
 
     const outgoingFromSameHandle = currentEdges.filter((edge) =>
       edge.source === sourceId && normalizeHandleKey(edge.sourceHandle) === sourceHandleKey,
     )
 
-    if (sourceHandle === 'error' && targetType !== 'action_send_email') {
-      return { ok: false, reason: 'Alert paths can only connect to a Send Email node.' }
+    if (sourceHandle === 'error' && !isAlertTargetData(targetData)) {
+      return { ok: false, reason:
+            'Alert paths can only connect to a Telegram Notification node.',
+        }
     }
 
     const isConditionSource = sourceType === 'action_condition'
-    if (isConditionSource) {
+      const isTelegramApprovalSource = isTelegramApprovalData(sourceData)
+      if (isConditionSource) {
       if (!['true', 'false', 'error'].includes(sourceHandle || '')) {
-        return { ok: false, reason: 'Condition nodes must connect from True, False, or Error outputs.' }
+        return { ok: false, reason:
+              'Condition nodes must connect from True, False, or Alert outputs.',
+          }
       }
       if (outgoingFromSameHandle.length >= 1) {
-        return { ok: false, reason: `Condition "${sourceHandle}" output can only connect to one node.` }
+        return { ok: false, reason: `Condition "${sourceHandle}" output can only connect to one node.`,
+          }
       }
-    } else {
-      if (sourceHandle === 'true' || sourceHandle === 'false') {
-        return { ok: false, reason: 'Only Condition nodes can use True/False outputs.' }
+    } else if (isTelegramApprovalSource) {
+      if (!['approved', 'rejected', 'error'].includes(sourceHandle || '')) {
+          return {
+            ok: false,
+            reason:
+              'Telegram Approval must connect from Approved, Rejected, or Alert outputs.',
+          }
+        }
+        if (outgoingFromSameHandle.length >= 1) {
+          return {
+            ok: false,
+            reason: `Telegram Approval "${sourceHandle}" output can only connect to one node.`,
+          }
+        }
+      } else {
+        if (
+          ['true', 'false', 'approved', 'rejected'].includes(sourceHandle || '')
+        ) {
+        return { ok: false, reason:
+              'That branch output is reserved for Condition or Telegram Approval nodes.',
+          }
       }
       if (sourceHandle === 'error' && isTriggerNode(sourceType)) {
-        return { ok: false, reason: 'Trigger nodes do not have an Alert output.' }
+        return { ok: false, reason: 'Trigger nodes do not have an Alert output.',
+          }
       }
-      if (sourceType === 'action_send_email' && sourceHandle === 'error') {
-        return { ok: false, reason: 'Send Email does not support an Alert output.' }
+      if (
+          (sourceType === 'action_send_email' ||
+            (sourceType === 'action_telegram' && !isTelegramApprovalSource)) &&
+          sourceHandle === 'error') {
+        return { ok: false, reason: 'Notification nodes do not support an Alert output.',
+          }
       }
       if (!isTriggerNode(sourceType) && outgoingFromSameHandle.length >= 1) {
         const handleLabel = sourceHandle === 'error' ? 'Alert' : 'Next'
-        return { ok: false, reason: `"${sourceData.label}" ${handleLabel} output can only connect to one node.` }
+        return { ok: false, reason: `"${sourceData.label}" ${handleLabel} output can only connect to one node.`,
+          }
       }
     }
 
@@ -250,7 +306,8 @@ export function WorkflowCanvas({
     while (stack.length > 0) {
       const current = stack.pop()!
       if (current === sourceId) {
-        return { ok: false, reason: 'This connection creates a cycle. Workflows must stay acyclic.' }
+        return { ok: false, reason: 'This connection creates a cycle. Workflows must stay acyclic.',
+          }
       }
       if (seen.has(current)) continue
       seen.add(current)
@@ -260,7 +317,8 @@ export function WorkflowCanvas({
     }
 
     return { ok: true }
-  }, [getNodeById, nodes])
+  }, [getNodeById, nodes],
+  )
 
   const validateCurrentGraphConnections = useCallback((): string[] => {
     const issues: string[] = []
@@ -272,10 +330,12 @@ export function WorkflowCanvas({
         target: edge.target,
         sourceHandle: edge.sourceHandle ?? null,
         targetHandle: edge.targetHandle ?? null,
-      }, accepted)
+      }, accepted,
+      )
 
       if (!result.ok) {
-        issues.push(`Invalid connection (${edge.source} -> ${edge.target}): ${result.reason}`)
+        issues.push(`Invalid connection (${edge.source} -> ${edge.target}): ${result.reason}`,
+        )
       } else {
         accepted.push(edge)
       }
@@ -291,7 +351,8 @@ export function WorkflowCanvas({
       title: 'Connection deleted',
       description: 'The link between nodes was removed.',
     })
-  }, [pushHistory, setEdges, toast])
+  }, [pushHistory, setEdges, toast],
+  )
 
   // Connection handler
   const onConnect = useCallback(
@@ -350,10 +411,11 @@ export function WorkflowCanvas({
     return { x: 250, y: 250 }
   }, [reactFlowInstance])
 
-  const addNodeToCanvas = useCallback((type: WorkflowNodeType, label: string, position?: { x: number; y: number }) => {
+  const addNodeToCanvas = useCallback((type: WorkflowNodeType, label: string, position?: { x: number; y: number },
+    ) => {
     // Enforce single trigger
     if (isTriggerNode(type)) {
-      const existingTrigger = nodes.find(n => {
+      const existingTrigger = nodes.find((n) => {
         const d = n.data as unknown as WorkflowNodeData
         return isTriggerNode(d.type)
       })
@@ -398,7 +460,8 @@ export function WorkflowCanvas({
     }
 
     setNodes((nds) => nds.concat(newNode))
-  }, [nodes, toast, pushHistory, getCanvasCenterPosition, setNodes])
+  }, [nodes, toast, pushHistory, getCanvasCenterPosition, setNodes],
+  )
 
   // Drag & drop handler
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -410,7 +473,8 @@ export function WorkflowCanvas({
     (event: React.DragEvent) => {
       event.preventDefault()
 
-      const type = event.dataTransfer.getData('application/reactflow-type') as WorkflowNodeType
+      const type = event.dataTransfer.getData('application/reactflow-type',
+      ) as WorkflowNodeType
       const label = event.dataTransfer.getData('application/reactflow-label')
       if (!type) return
 
@@ -429,8 +493,7 @@ export function WorkflowCanvas({
     (_: React.MouseEvent, node: Node) => {
       setSelectedNode(node as WorkflowNode)
     },
-    [],
-  )
+    [])
 
   const onPaneClick = useCallback(() => {
     setSelectedNode(null)
@@ -464,7 +527,8 @@ export function WorkflowCanvas({
     (nodeId: string) => {
       pushHistory()
       setNodes((nds) => nds.filter((n) => n.id !== nodeId))
-      setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId))
+      setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId),
+      )
       setSelectedNode(null)
     },
     [setNodes, setEdges, pushHistory],
@@ -474,7 +538,7 @@ export function WorkflowCanvas({
   const handleNodesChange = useCallback(
     (changes: NodeChange<Node>[]) => {
       const hasRemoveOrPosition = changes.some(
-        (c) => c.type === 'remove' || (c.type === 'position' && c.dragging === false)
+        (c) => c.type === 'remove' || (c.type === 'position' && c.dragging === false),
       )
       if (hasRemoveOrPosition) pushHistory()
       onNodesChange(changes as NodeChange<WorkflowNode>[])
@@ -494,7 +558,7 @@ export function WorkflowCanvas({
   // Save
   const handleSave = useCallback(async () => {
     // Validate: at least 1 trigger
-    const triggerCount = nodes.filter(n => {
+    const triggerCount = nodes.filter((n) => {
       const d = n.data as unknown as WorkflowNodeData
       return isTriggerNode(d.type)
     }).length
@@ -553,14 +617,15 @@ export function WorkflowCanvas({
     } finally {
       setIsSaving(false)
     }
-  }, [nodes, edges, automationName, isActive, onSave, toast, validateCurrentGraphConnections])
+  }, [nodes, edges, automationName, isActive, onSave, toast, validateCurrentGraphConnections,
+  ])
 
   // Auto-layout (simple dagre-like top-down)
   const handleAutoLayout = useCallback(() => {
     pushHistory()
 
     // Find trigger node as root
-    const triggerNode = nodes.find(n => {
+    const triggerNode = nodes.find((n) => {
       const d = n.data as unknown as WorkflowNodeData
       return isTriggerNode(d.type)
     })
@@ -577,7 +642,8 @@ export function WorkflowCanvas({
 
     const visited = new Set<string>()
     const levels = new Map<string, number>()
-    const queue: { id: string; level: number }[] = [{ id: triggerNode.id, level: 0 }]
+    const queue: { id: string; level: number }[] = [{ id: triggerNode.id, level: 0 },
+    ]
 
     while (queue.length > 0) {
       const { id, level } = queue.shift()!
@@ -604,7 +670,7 @@ export function WorkflowCanvas({
     // Position nodes
     const xGap = 250
     const yGap = 150
-    const updatedNodes = nodes.map(n => {
+    const updatedNodes = nodes.map((n) => {
       const level = levels.get(n.id)
       if (level === undefined) return n
 
@@ -645,7 +711,7 @@ export function WorkflowCanvas({
       <div className="automation-canvas-shell flex flex-1 overflow-hidden border-t border-white/[0.02]">
         <WorkflowSidebar
           collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(c => !c)}
+          onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
           onAddNode={addNodeToCanvas}
         />
 
@@ -677,7 +743,8 @@ export function WorkflowCanvas({
               Drag from an output port to connect the next step
             </div>
             <div className="pointer-events-none absolute left-3 right-3 top-3 z-20 rounded-xl border border-white/[0.07] bg-[#151722]/90 px-3 py-2 text-[10px] leading-4 text-white/50 shadow-xl backdrop-blur-xl sm:hidden">
-              Tap a node to configure it. Use the library icons to add the next step.
+              Tap a node to configure it. Use the library icons to add the next
+              step.
             </div>
             <Controls className="automation-canvas-controls !overflow-hidden !rounded-xl !border !border-white/[0.08] !bg-[#151722]/90 !text-white/70 !shadow-[0_16px_40px_rgba(0,0,0,.3)] !backdrop-blur-xl" />
             <div className="hidden sm:block">
@@ -747,7 +814,9 @@ export function WorkflowCanvas({
           color: rgba(255, 255, 255, 0.8) !important;
           width: 30px !important;
           height: 30px !important;
-          transition: background 0.15s ease, color 0.15s ease;
+          transition:
+            background 0.15s ease,
+            color 0.15s ease;
         }
 
         .automation-canvas-shell .react-flow__controls-button svg {

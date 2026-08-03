@@ -58,10 +58,10 @@ describe("runtime version selection", () => {
   })
 
   it("carries the same version through every delayed continuation", () => {
-    expect(graphExecutor).toContain(
-      "automation.workflow_version_id || automation.current_workflow_version_id",
+    expect(graphExecutor).toMatch(
+      /automation\.workflow_version_id\s*\|\|\s*automation\.current_workflow_version_id/,
     )
-    expect(graphExecutor).toContain(".from('automation_workflow_versions')")
+    expect(graphExecutor).toMatch(/\.from\(["']automation_workflow_versions["']\)/)
     expect(graphExecutor).toContain("workflow_version_id: automation.workflow_version_id")
     expect(graphExecutor).not.toMatch(
       /const graph: WorkflowGraph = automation\.workflow_graph;[\s\S]{0,300}scheduledExec[\s\S]{0,300}from\('automations'\)/,

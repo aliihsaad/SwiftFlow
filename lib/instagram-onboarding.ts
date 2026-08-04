@@ -82,12 +82,19 @@ export type InstagramAutomationHealth = {
 export class InstagramApiError extends Error {
   status: number
   code: string
+  meta?: { message?: string; subcode?: number; type?: string }
 
-  constructor(operation: string, status: number, code = "instagram_api_error") {
+  constructor(
+    operation: string,
+    status: number,
+    code = "instagram_api_error",
+    meta?: { message?: string; subcode?: number; type?: string },
+  ) {
     super(`${operation} failed (${status})`)
     this.name = "InstagramApiError"
     this.status = status
     this.code = code
+    this.meta = meta
   }
 }
 
@@ -180,7 +187,20 @@ function parseMetaErrorCode(raw: string): string {
 async function requireOk(response: Response, operation: string): Promise<Response> {
   if (response.ok) return response
   const raw = await response.text().catch(() => "")
-  throw new InstagramApiError(operation, response.status, parseMetaErrorCode(raw))
+  const code = parseMetaErrorCode(raw)
+  let meta: InstagramApiError["meta"] | undefined
+  try {
+    const parsed = JSON.parse(raw)
+    const error = parsed?.error && typeof parsed.error === "object" ? parsed.error : {}
+    meta = {
+      message: typeof error.message === "string" ? error.message : undefined,
+      subcode: typeof error.error_subcode === "number" ? error.error_subcode : undefined,
+      type: typeof error.type === "string" ? error.type : undefined,
+    }
+  } catch {
+    meta = undefined
+  }
+  throw new InstagramApiError(operation, response.status, code, meta)
 }
 
 function parsePermissions(value: unknown): string[] {
@@ -281,10 +301,13 @@ export async function refreshLongLivedInstagramToken(
   if (typeof parsed.access_token !== "string" || !parsed.access_token) {
     throw new InstagramApiError("Instagram token refresh", 502, "missing_access_token")
   }
+  if (typeof parsed.expires_in !== "number" || !Number.isFinite(parsed.expires_in) || parsed.expires_in <= 0) {
+    throw new InstagramApiError("Instagram token refresh", 502, "invalid_expires_in")
+  }
   return {
     access_token: parsed.access_token,
     token_type: typeof parsed.token_type === "string" ? parsed.token_type : undefined,
-    expires_in: typeof parsed.expires_in === "number" ? parsed.expires_in : undefined,
+    expires_in: parsed.expires_in,
   }
 }
 

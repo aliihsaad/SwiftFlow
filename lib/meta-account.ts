@@ -15,6 +15,19 @@ export interface MetaCapabilityMap {
   messages_manage: boolean
 }
 
+/**
+ * Lifecycle status of the last automatic token-renewal attempt. These are
+ * SwiftFlow-owned states, never raw provider errors.
+ */
+export const TOKEN_REFRESH_LAST_STATUSES = [
+  "succeeded",
+  "retry_scheduled",
+  "deferred_too_new",
+  "reconnect_required",
+] as const
+
+export type TokenRefreshLastStatus = (typeof TOKEN_REFRESH_LAST_STATUSES)[number]
+
 export interface MetaAccountMetadata extends Record<string, unknown> {
   granted_scopes?: string[]
   granted_granular_scopes?: MetaGrantedGranularScope[]
@@ -24,6 +37,11 @@ export interface MetaAccountMetadata extends Record<string, unknown> {
   token_status?: "available" | "missing"
   token_health?: "valid" | "expiring_soon" | "invalid"
   token_checked_at?: string
+  token_issued_at?: string
+  token_refreshed_at?: string
+  token_refresh_last_status?: TokenRefreshLastStatus
+  token_refresh_next_at?: string
+  reconnect_required?: boolean
   instagram_business_account_id?: string | null
   ig_username?: string | null
   connection_method?: "instagram_login"
@@ -139,6 +157,28 @@ export function decryptMetaAccountRow<T extends MetaAccountRow>(row: T): T & {
   }
 }
 
+function sanitizeIsoTimestamp(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined
+  const parsed = new Date(value)
+  return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : undefined
+}
+
+function sanitizeTokenRefreshLastStatus(value: unknown): TokenRefreshLastStatus | undefined {
+  return TOKEN_REFRESH_LAST_STATUSES.includes(value as TokenRefreshLastStatus)
+    ? (value as TokenRefreshLastStatus)
+    : undefined
+}
+
+/**
+ * Allow-list projection of account metadata for the browser.
+ *
+ * The automatic token-renewal lifecycle is surfaced so the UI can explain what
+ * will happen next (issued/refreshed timestamps, last status, next scheduled
+ * attempt, whether a reconnect is required). Everything diagnostic stays server
+ * side: tokens, `reconnect_reason`, `token_refresh_last_error_code`,
+ * `token_refresh_last_error_at`, attempt counts, and alert bookkeeping are all
+ * dropped by omission.
+ */
 export function sanitizeMetaAccountMetadataForClient(
   metadata: MetaAccountMetadata | null | undefined,
 ): MetaAccountMetadata {
@@ -155,6 +195,11 @@ export function sanitizeMetaAccountMetadataForClient(
     token_status: metadata.token_status,
     token_health: metadata.token_health,
     token_checked_at: metadata.token_checked_at,
+    token_issued_at: sanitizeIsoTimestamp(metadata.token_issued_at),
+    token_refreshed_at: sanitizeIsoTimestamp(metadata.token_refreshed_at),
+    token_refresh_last_status: sanitizeTokenRefreshLastStatus(metadata.token_refresh_last_status),
+    token_refresh_next_at: sanitizeIsoTimestamp(metadata.token_refresh_next_at),
+    reconnect_required: metadata.reconnect_required === true,
     connection_method: metadata.connection_method,
     account_type: metadata.account_type ?? null,
     scope_source: metadata.scope_source,

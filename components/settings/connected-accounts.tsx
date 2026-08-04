@@ -18,6 +18,12 @@ import { Instagram, AlertCircle, CheckCircle, Info, Loader2 } from "lucide-react
 import { InstagramConnectDialog } from "./instagram-connect-dialog"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 import { useToast } from "@/components/ui/use-toast"
+import {
+    type ConnectedSocialAccount,
+    type InstagramTokenHealth,
+    type RenewalNotice,
+    deriveRenewalNotice,
+} from "@/lib/instagram-token-renewal-notice"
 
 interface ConnectedAccountsProps {
     workspaceId: string;
@@ -33,6 +39,12 @@ type InstagramAutomationHealth = {
         tokenValid: boolean
         commentsWebhook: boolean
     }
+}
+
+const NOTICE_TONE_CLASSES: Record<RenewalNotice['tone'], string> = {
+    error: "rounded-xl border border-red-300/20 bg-red-500/10 p-4 text-red-100/90",
+    warning: "rounded-xl border border-amber-300/20 bg-amber-400/8 p-4 text-amber-100/90",
+    success: "rounded-xl border border-emerald-300/20 bg-emerald-500/10 p-4 text-emerald-100/90",
 }
 
 function ConnectedAccountSkeleton() {
@@ -63,9 +75,10 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     const { toast } = useToast()
     const [status, setStatus] = useState<{
         instagram: boolean
-        tokenHealth?: 'valid' | 'expiring_soon' | 'invalid' | null
+        tokenHealth?: InstagramTokenHealth
         instagramConnectionMethod?: "instagram_login" | null
         instagramAutomationHealth: InstagramAutomationHealth
+        accounts?: ConnectedSocialAccount[]
     }>({
         instagram: false,
         tokenHealth: null,
@@ -81,6 +94,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                 commentsWebhook: false,
             },
         },
+        accounts: [],
     });
     const [loading, setLoading] = useState(true);
     const [isConnectingInstagram, setIsConnectingInstagram] = useState(false);
@@ -91,7 +105,9 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     const error = searchParams.get('error');
     const success = searchParams.get('success');
     const errorMessage = searchParams.get('message');
-    const errorDetails = searchParams.get('details');
+
+    const instagramAccount = status.accounts?.find((account) => account.platform === 'instagram');
+    const renewalNotice = deriveRenewalNotice(status.instagram, instagramAccount, status.tokenHealth ?? null);
 
     const fetchStatus = useCallback(async () => {
         try {
@@ -205,22 +221,15 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                         <ConnectedAccountSkeleton />
                     ) : (
                         <>
-                            {(status.tokenHealth === 'invalid' || status.tokenHealth === 'expiring_soon') && (
-                                <div className={status.tokenHealth === 'invalid'
-                                    ? "rounded-xl border border-red-300/20 bg-red-500/10 p-4 text-red-100/90"
-                                    : "rounded-xl border border-amber-300/20 bg-amber-400/8 p-4 text-amber-100/90"
-                                }>
+                            {renewalNotice && (
+                                <div className={NOTICE_TONE_CLASSES[renewalNotice.tone]}>
                                     <div className="flex items-center gap-2 font-medium">
-                                        <AlertCircle className="h-4 w-4" />
-                                        {status.tokenHealth === 'invalid'
-                                            ? 'Connection expired — reconnect required'
-                                            : 'Connection expiring soon'}
+                                        {renewalNotice.tone === 'success'
+                                            ? <CheckCircle className="h-4 w-4" />
+                                            : <AlertCircle className="h-4 w-4" />}
+                                        {renewalNotice.title}
                                     </div>
-                                    <div className="mt-1 text-sm">
-                                        {status.tokenHealth === 'invalid'
-                                            ? 'Instagram reports the saved access token is no longer valid. Syncing and automations will fail until you reconnect.'
-                                            : 'The saved Instagram access token expires within 7 days. Reconnect before anything stops working.'}
-                                    </div>
+                                    <div className="mt-1 text-sm">{renewalNotice.message}</div>
                                 </div>
                             )}
 

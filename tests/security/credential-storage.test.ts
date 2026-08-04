@@ -82,7 +82,14 @@ describe("credential encryption", () => {
       hasPreviousKey: false,
     })
 
-    const tampered = `${encrypted!.slice(0, -1)}${encrypted!.endsWith("A") ? "B" : "A"}`
+    // Tamper one character in from the end, not the final one: the payload is
+    // unpadded base64url, so its last character can carry as few as 2
+    // significant bits and flipping it may decode to identical ciphertext
+    // bytes, leaving GCM authentication intact. Every non-final character
+    // carries a full 6 bits, so this always mutates the ciphertext.
+    const flipIndex = encrypted!.length - 2
+    const tampered = `${encrypted!.slice(0, flipIndex)}${encrypted![flipIndex] === "A" ? "B" : "A"}${encrypted!.slice(flipIndex + 1)}`
+    expect(tampered).not.toBe(encrypted)
     expect(() => decryptSecretIfNeeded(tampered)).toThrow()
   })
 

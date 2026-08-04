@@ -220,6 +220,7 @@ export async function GET(request: NextRequest) {
       scope_source: shortLived.permissionsSource,
       token_health: "valid",
       token_checked_at: now,
+      token_issued_at: now,
       webhook_subscription_status: webhookStatus,
       webhook_subscribed_fields: subscribedFields,
       webhook_checked_at: now,

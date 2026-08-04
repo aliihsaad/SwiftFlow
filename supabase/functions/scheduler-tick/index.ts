@@ -21,6 +21,7 @@ type JobName =
   | "process-scheduled-executions"
   | "retention-cleanup"
   | "token-health-sweep"
+  | "instagram-token-refresh"
 
 async function runJob(job: JobName, payload: Record<string, unknown> = {}) {
   const startedAt = Date.now()
@@ -74,9 +75,15 @@ serve(async (req) => {
     // cleanup enforces RETENTION_CLEANUP_MODE (off by default), a ~daily
     // interval guard, and dry-run-by-default semantics. The token health
     // sweep self-limits to one debug_token check per account per ~day.
+    // The Instagram token refresh worker runs once per hour, on the tick whose
+    // minute is 5. It claims only accounts inside the renewal window whose
+    // backoff has elapsed, so hourly checks add no extra Meta calls.
     const tickMinute = new Date(tickStartedAt).getMinutes()
     if (tickMinute === 0) {
       jobRuns.push(runJob("retention-cleanup", { triggeredBy: "scheduler" }))
+    }
+    if (tickMinute === 5) {
+      jobRuns.push(runJob("instagram-token-refresh", { triggeredBy: "scheduler" }))
     }
     if (tickMinute === 30) {
       jobRuns.push(runJob("token-health-sweep", { triggeredBy: "scheduler" }))

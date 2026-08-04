@@ -3,10 +3,10 @@ import { createAdminClient } from '@/utils/supabase/admin'
 import { createClient } from '@/utils/supabase/server'
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions'
 
-type DisconnectPlatform = 'facebook' | 'instagram'
+type DisconnectPlatform = 'instagram'
 
 function isDisconnectPlatform(value: string | null): value is DisconnectPlatform {
-    return value === 'facebook' || value === 'instagram'
+    return value === 'instagram'
 }
 
 export async function DELETE(request: NextRequest) {
@@ -32,32 +32,11 @@ export async function DELETE(request: NextRequest) {
         await requireWorkspacePermission(supabase, user.id, workspaceId, 'integrations:write')
 
         const supabaseAdmin = createAdminClient()
-        const platformsToDelete: DisconnectPlatform[] = [platform]
-
-        if (platform === 'facebook') {
-            const { data: instagramAccount, error: instagramLookupError } = await supabaseAdmin
-                .from('social_accounts')
-                .select('metadata')
-                .eq('workspace_id', workspaceId)
-                .eq('platform', 'instagram')
-                .maybeSingle()
-
-            if (instagramLookupError) {
-                return NextResponse.json({ error: instagramLookupError.message }, { status: 500 })
-            }
-            const metadata = instagramAccount?.metadata && typeof instagramAccount.metadata === 'object'
-                ? instagramAccount.metadata as Record<string, unknown>
-                : {}
-            if (instagramAccount && metadata.connection_method !== 'instagram_login') {
-                platformsToDelete.push('instagram')
-            }
-        }
-
         const { data: deletedAccounts, error } = await supabaseAdmin
             .from('social_accounts')
             .delete()
             .eq('workspace_id', workspaceId)
-            .in('platform', platformsToDelete)
+            .eq('platform', platform)
             .select('id, platform, account_name')
 
         if (error) {

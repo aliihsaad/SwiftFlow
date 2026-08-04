@@ -17,14 +17,14 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "SwiftFlow — Social Media Manager",
-  description: "Instagram and Facebook engagement command center for inbox management, automations, provider content monitoring, and analytics.",
-  keywords: ["social media manager", "Instagram automation", "Facebook automation", "engagement automation", "social inbox", "SwiftFlow"],
+  description: "Instagram engagement command center for inbox management, automations, provider content monitoring, and analytics.",
+  keywords: ["social media manager", "Instagram automation", "engagement automation", "social inbox", "SwiftFlow"],
   authors: [{ name: "SwiftFlow" }],
   creator: "SwiftFlow",
   metadataBase: new URL("https://swiftflow.app"),
   openGraph: {
     title: "SwiftFlow — Social Media Manager",
-    description: "Manage Instagram and Facebook conversations, automate engagement, and understand performance.",
+    description: "Manage Instagram conversations, automate engagement, and understand performance.",
     type: "website",
     locale: "en_US",
     siteName: "SwiftFlow",
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "SwiftFlow — Social Media Manager",
-    description: "AI-powered social media management for Instagram and Facebook.",
+    description: "AI-powered engagement automation for Instagram.",
   },
   icons: {
     icon: [

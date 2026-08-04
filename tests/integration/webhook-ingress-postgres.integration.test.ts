@@ -51,7 +51,7 @@ function sign(body: string, secret = APP_SECRET): string {
 
 const config = resolveWebhookIngressConfig({
   META_WEBHOOK_VERIFY_TOKEN: VERIFY_TOKEN,
-  META_APP_SECRET: APP_SECRET,
+  INSTAGRAM_APP_SECRET: APP_SECRET,
   WEBHOOK_INGRESS_HOST: "127.0.0.1",
 })
 

@@ -50,12 +50,9 @@ describe("direct Instagram onboarding", () => {
       "instagram_business_manage_comments",
       "instagram_business_manage_insights",
     ])
-    expect(url.toString()).not.toContain("pages_")
-    expect(url.toString()).not.toContain("facebook.com")
   })
-  it("requires the dedicated Instagram app ID and never falls back to a Meta app ID", () => {
+  it("requires the dedicated Instagram app ID", () => {
     vi.stubEnv("INSTAGRAM_APP_ID", "")
-    vi.stubEnv("NEXT_PUBLIC_META_APP_ID", "facebook-platform-app-id")
     vi.stubEnv("INSTAGRAM_APP_SECRET", "instagram-secret")
 
     try {
@@ -310,9 +307,8 @@ describe("Instagram onboarding route safety", () => {
     expect(quickStart).toContain("Technical reference:")
   })
 
-  it("preserves direct Instagram Login accounts when Facebook is disconnected", () => {
+  it("only accepts Instagram as a disconnect platform", () => {
     const source = route("app/api/brand/social-accounts/route.ts")
-    expect(source).toContain("metadata.connection_method !== 'instagram_login'")
-    expect(source).toContain("platformsToDelete.push('instagram')")
-  })
-})
+    expect(source).toContain("type DisconnectPlatform = 'instagram'")
+    expect(source).toContain("return value === 'instagram'")
+  })})

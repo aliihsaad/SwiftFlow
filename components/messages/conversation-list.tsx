@@ -38,7 +38,6 @@ interface ConversationListProps {
     conversations: Conversation[]
     selectedId: string | undefined
     onSelect: (conversation: Conversation) => void
-    platform: "instagram" | "facebook"
 }
 
 type QueueFilter = "all" | "unread"
@@ -76,7 +75,6 @@ export function ConversationList({
     conversations,
     selectedId,
     onSelect,
-    platform,
 }: ConversationListProps) {
     const [query, setQuery] = useState("")
     const [filter, setFilter] = useState<QueueFilter>("all")
@@ -103,13 +101,8 @@ export function ConversationList({
                         <p className="text-sm font-semibold tracking-[-0.01em] text-white/80">Conversation queue</p>
                         <p className="mt-1 text-[11px] text-white/30">{conversations.length} total · {unreadConversations} unread</p>
                     </div>
-                    <span className={cn(
-                        "rounded-full border px-2 py-1 text-[9px] font-bold uppercase tracking-[0.13em]",
-                        platform === "instagram"
-                            ? "border-pink-200/15 bg-pink-300/[0.08] text-pink-100/70"
-                            : "border-cyan-200/15 bg-cyan-300/[0.08] text-cyan-100/70",
-                    )}>
-                        {platform === "instagram" ? "IG" : "FB"}
+                    <span className="rounded-full border border-pink-200/15 bg-pink-300/[0.08] px-2 py-1 text-[9px] font-bold uppercase tracking-[0.13em] text-pink-100/70">
+                        IG
                     </span>
                 </div>
 

@@ -26,9 +26,6 @@ export function AccountAnalyticsCard({ data }: AccountAnalyticsCardProps) {
             value: data.followers.toLocaleString(),
             icon: Users,
             color: '#84cc16',
-            breakdown: (data.facebookFollowers > 0 || data.instagramFollowers > 0)
-                ? { fb: data.facebookFollowers, ig: data.instagramFollowers }
-                : null,
         },
     ]
 
@@ -72,18 +69,6 @@ export function AccountAnalyticsCard({ data }: AccountAnalyticsCardProps) {
                                         {stat.label}
                                     </p>
                                 </div>
-                                {'breakdown' in stat && stat.breakdown && (
-                                    <div className="flex items-center justify-center gap-2">
-                                        <span className="flex items-center gap-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                                            <span className="h-1.5 w-1.5 rounded-full inline-block" style={{ background: '#22d3ee' }} />
-                                            {stat.breakdown.fb.toLocaleString()}
-                                        </span>
-                                        <span className="flex items-center gap-1 text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                                            <span className="h-1.5 w-1.5 rounded-full inline-block" style={{ background: '#fb7185' }} />
-                                            {stat.breakdown.ig.toLocaleString()}
-                                        </span>
-                                    </div>
-                                )}
                             </div>
                         )
                     })}

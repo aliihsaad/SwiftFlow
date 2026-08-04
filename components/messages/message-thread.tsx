@@ -67,7 +67,6 @@ interface MessageThreadProps {
     isLoading: boolean
     onSendMessage: (message: string) => Promise<void>
     workspaceId: string | null
-    platform?: string
     composerDisabled?: boolean
     composerDisabledReason?: string | null
 }
@@ -78,7 +77,6 @@ export function MessageThread({
     isLoading,
     onSendMessage,
     workspaceId,
-    platform = 'instagram',
     composerDisabled = false,
     composerDisabledReason = null,
 }: MessageThreadProps) {
@@ -86,26 +84,15 @@ export function MessageThread({
     const [isSending, setIsSending] = useState(false)
     const [isGeneratingAI, setIsGeneratingAI] = useState(false)
     const scrollAreaRef = useRef<HTMLDivElement>(null)
-    const accent = platform === 'facebook'
-        ? {
-            primary: '#38bdf8',
-            secondary: '#0ea5e9',
-            tint: 'rgba(56,189,248,0.16)',
-            tintStrong: 'rgba(56,189,248,0.26)',
-            softText: '#dff6ff',
-            focus: 'rgba(56,189,248,0.4)',
-            glow: 'rgba(56,189,248,0.28)',
-        }
-        : {
-            primary: '#fb7185',
-            secondary: '#f59e0b',
-            tint: 'rgba(251,113,133,0.16)',
-            tintStrong: 'rgba(251,113,133,0.26)',
-            softText: '#ffe7ee',
-            focus: 'rgba(251,113,133,0.4)',
-            glow: 'rgba(251,113,133,0.28)',
-        }
-
+    const accent = {
+        primary: '#fb7185',
+        secondary: '#f59e0b',
+        tint: 'rgba(251,113,133,0.16)',
+        tintStrong: 'rgba(251,113,133,0.26)',
+        softText: '#ffe7ee',
+        focus: 'rgba(251,113,133,0.4)',
+        glow: 'rgba(251,113,133,0.28)',
+    }
 
     useEffect(() => {
         if (scrollAreaRef.current) {
@@ -155,7 +142,6 @@ export function MessageThread({
                         message: lastCustomerMessage.message,
                         participantUsername: conversation.participant_username,
                         conversationHistory: recentMessages,
-                        platform,
                         workspaceId,
                     },
                 }),
@@ -272,7 +258,7 @@ export function MessageThread({
                         {conversation.participant_username || 'Unknown User'}
                     </h3>
                     <p className="text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                        {platform === 'instagram' ? 'Instagram' : 'Facebook'} DM
+                        Instagram DM
                     </p>
                 </div>
             </div>
@@ -302,7 +288,7 @@ export function MessageThread({
                             const hasAttachments = Array.isArray(attachments) && attachments.length > 0
                             const showMessageText = !!message.message && !(hasAttachments && isAttachmentPlaceholderMessage(message.message))
                             const showUnsupportedAttachmentPlaceholder = !showMessageText && !hasAttachments
-                            const unsupportedInstagramOpenUrl = platform === 'instagram' && showUnsupportedAttachmentPlaceholder
+                            const unsupportedInstagramOpenUrl = showUnsupportedAttachmentPlaceholder
                                 ? getInstagramOpenUrl(conversation)
                                 : null
                             const showDate = index === 0 ||

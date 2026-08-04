@@ -10,7 +10,7 @@
  *   - metadata.token_health: valid | expiring_soon | invalid
  *   - metadata.token_checked_at
  *   - re-synced granted scopes (so permission drift after the user edits
- *     Facebook settings is picked up without a reconnect)
+ *     Instagram permissions are picked up without a reconnect)
  *
  * Read-only towards Meta; never deletes accounts. Invalid tokens surface as
  * metadata so the UI can prompt a reconnect.
@@ -38,20 +38,11 @@ function json(payload: unknown, status = 200): Response {
   })
 }
 
-function resolveAppCredentials(metadata: Record<string, unknown> | null | undefined) {
-  const connectionMethod = metadata?.connection_method === "instagram_login"
-    ? "instagram_login"
-    : "facebook_login"
-  const appId = connectionMethod === "instagram_login"
-    ? Deno.env.get("INSTAGRAM_APP_ID") || ""
-    : Deno.env.get("META_APP_ID") || Deno.env.get("NEXT_PUBLIC_META_APP_ID") || ""
-  const appSecret = connectionMethod === "instagram_login"
-    ? Deno.env.get("INSTAGRAM_APP_SECRET") || ""
-    : Deno.env.get("META_APP_SECRET") || ""
+function resolveAppCredentials() {
   return {
-    connectionMethod,
-    appId: appId.trim(),
-    appSecret: appSecret.trim(),
+    connectionMethod: "instagram_login" as const,
+    appId: (Deno.env.get("INSTAGRAM_APP_ID") || "").trim(),
+    appSecret: (Deno.env.get("INSTAGRAM_APP_SECRET") || "").trim(),
   }
 }
 
@@ -74,7 +65,7 @@ serve(async (req) => {
     const { data: accounts, error } = await supabase
       .from("social_accounts")
       .select("id, workspace_id, platform, account_name, access_token, metadata")
-      .in("platform", ["facebook", "instagram"])
+      .eq("platform", "instagram")
       .limit(500)
 
     if (error) throw new Error(`Failed to list social accounts: ${error.message}`)
@@ -94,7 +85,7 @@ serve(async (req) => {
           continue
         }
 
-        const { connectionMethod, appId, appSecret } = resolveAppCredentials(account.metadata)
+        const { connectionMethod, appId, appSecret } = resolveAppCredentials()
         if (!appId || !appSecret) {
           results.errors++
           console.warn("[TOKEN_HEALTH] Missing app credentials for account connection method", {

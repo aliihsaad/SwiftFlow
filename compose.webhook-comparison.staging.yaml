@@ -107,7 +107,6 @@ services:
       WEBHOOK_INGRESS_PATH: ${WEBHOOK_INGRESS_PATH:-/webhooks/meta}
       WEBHOOK_INGRESS_MAX_BODY_BYTES: ${WEBHOOK_INGRESS_MAX_BODY_BYTES:-1048576}
       INSTAGRAM_APP_SECRET: ${INSTAGRAM_APP_SECRET:?Set the staging Instagram Login app secret}
-      META_APP_SECRET: ${META_APP_SECRET:?Set the staging Meta app secret}
       META_WEBHOOK_VERIFY_TOKEN: ${META_WEBHOOK_VERIFY_TOKEN:?Set the staging Meta webhook verify token}
     healthcheck:
       test:

@@ -1,17 +1,17 @@
 # SwiftFlow
 
-SwiftFlow is a self-hostable social engagement command center for Instagram and Facebook. Its product scope is deliberately focused on connected-account setup, comments and messages, engagement automations, provider content monitoring, and analytics.
+SwiftFlow is a self-hostable social engagement command center for Instagram. Its product scope is deliberately focused on connected-account setup, comments and messages, engagement automations, provider content monitoring, and analytics.
 
 SwiftFlow does not create, generate, schedule, or publish social content.
 
 ## Core capabilities
 
-- Direct Instagram and Facebook account connection through Meta OAuth
+- Direct Instagram account connection through Instagram Login
 - Webhook ingestion for comments, messages, and supported engagement events
 - Unified inbox and provider post/comment moderation
 - Visual automation builder with comment, message, story-reply, delay, condition, email, HTTP, and AI-response nodes
 - Durable automation execution, retries, delayed continuations, and redacted execution history
-- Instagram and Facebook analytics synchronization and reporting
+- Instagram analytics synchronization and reporting
 - Per-workspace AI provider configuration for reply-generation nodes
 - Workspace isolation, encrypted credentials, roles, and developer API access
 - Supabase-backed database, authentication, storage, realtime, and edge functions
@@ -62,14 +62,10 @@ The app validates its environment before production builds.
     NEXT_PUBLIC_APP_URL
     APP_SECRETS_ENCRYPTION_KEY
 
-Configure one or both Meta integrations as credential pairs:
-
-    NEXT_PUBLIC_META_APP_ID
-    META_APP_SECRET
+Configure the Instagram app credentials and webhook verification token:
 
     INSTAGRAM_APP_ID
     INSTAGRAM_APP_SECRET
-
     META_WEBHOOK_VERIFY_TOKEN
 
 Optional AI provider keys may be configured globally or per workspace:

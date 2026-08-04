@@ -38,7 +38,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 }
 
 function buildResearchPrompt(request: ResearchRequest): string {
-  const platform = request.platform && request.platform !== "all" ? request.platform : "Instagram and Facebook"
+  const platform = request.platform && request.platform !== "all" ? request.platform : "Instagram"
   return `Use Google Search to research current trends, news, and high-performing content angles about "${request.topic}" for ${platform} content creators.
 
 Return ONLY a JSON array (no markdown fences, no commentary) with 4 to 8 findings:

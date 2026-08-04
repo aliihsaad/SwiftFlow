@@ -1,10 +1,10 @@
 // @ts-nocheck - Deno runtime helper
 
 export const META_GRAPH_API_VERSION = "v25.0"
-export const META_GRAPH_API_BASE_URL = `https://graph.facebook.com/${META_GRAPH_API_VERSION}`
 export const INSTAGRAM_GRAPH_API_BASE_URL = `https://graph.instagram.com/${META_GRAPH_API_VERSION}`
+export const META_GRAPH_API_BASE_URL = INSTAGRAM_GRAPH_API_BASE_URL
 
-export type MetaConnectionMethod = "facebook_login" | "instagram_login"
+export type MetaConnectionMethod = "instagram_login"
 
 export interface MetaGraphCredentialContext {
   connectionMethod?: MetaConnectionMethod | string | null
@@ -36,20 +36,15 @@ async function createMetaAppSecretProof(accessToken: string, appSecret: string) 
 }
 
 export function getMetaGraphApiBaseUrl(
-  connectionMethod?: MetaGraphCredentialContext["connectionMethod"],
+  _connectionMethod?: MetaGraphCredentialContext["connectionMethod"],
 ): string {
-  return connectionMethod === "instagram_login"
-    ? INSTAGRAM_GRAPH_API_BASE_URL
-    : META_GRAPH_API_BASE_URL
+  return INSTAGRAM_GRAPH_API_BASE_URL
 }
 
 export function getMetaAppSecret(
-  context: MetaGraphCredentialContext = {},
+  _context: MetaGraphCredentialContext = {},
 ): string {
-  const secretName = context.connectionMethod === "instagram_login"
-    ? "INSTAGRAM_APP_SECRET"
-    : "META_APP_SECRET"
-  return Deno.env.get(secretName)?.trim() || ""
+  return Deno.env.get("INSTAGRAM_APP_SECRET")?.trim() || ""
 }
 
 export async function withMetaAppSecretProof<T extends Record<string, unknown>>(

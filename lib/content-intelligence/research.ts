@@ -76,8 +76,6 @@ const PROVIDER_PRIORITY: ResearchProviderId[] = [
 const PRIMARY_SOURCE_DOMAINS = [
   "about.instagram.com",
   "business.instagram.com",
-  "developers.facebook.com",
-  "facebook.com/business",
   "google.com",
   "trends.google.com",
   "dataforseo.com",

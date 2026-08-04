@@ -55,7 +55,6 @@ export async function GET() {
                 },
                 reference_image_urls: [],
                 instagram_handle: '',
-                facebook_page: '',
                 content_themes: []
             })
         }

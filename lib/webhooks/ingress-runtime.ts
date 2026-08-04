@@ -12,7 +12,6 @@ export interface WebhookIngressEnvironment
   WEBHOOK_INGRESS_HEALTH_PATH?: string
   WEBHOOK_INGRESS_MAX_BODY_BYTES?: string
   META_WEBHOOK_VERIFY_TOKEN?: string
-  META_APP_SECRET?: string
   INSTAGRAM_APP_SECRET?: string
 }
 
@@ -229,17 +228,13 @@ export function resolveWebhookIngressConfig(
     )
   }
 
-  const appSecrets = [
-    environment.INSTAGRAM_APP_SECRET?.trim(),
-    environment.META_APP_SECRET?.trim(),
-  ].filter((secret, index, all): secret is string =>
-    Boolean(secret) && all.indexOf(secret) === index)
-
-  if (appSecrets.length === 0) {
+  const appSecret = environment.INSTAGRAM_APP_SECRET?.trim()
+  if (!appSecret) {
     throw new Error(
-      "INSTAGRAM_APP_SECRET or META_APP_SECRET is required for the webhook ingress service",
+      "INSTAGRAM_APP_SECRET is required for the webhook ingress service",
     )
   }
+  const appSecrets = [appSecret]
 
   const deliveryPath = normalizedPath(
     environment.WEBHOOK_INGRESS_PATH,

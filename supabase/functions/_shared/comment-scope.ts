@@ -26,7 +26,7 @@ export type CommentMediaType = "post" | "reel" | "unknown"
 
 /**
  * Normalizes Instagram's media_product_type (FEED | REELS | STORY | AD) from
- * webhook payloads. Facebook feed comments carry no media type and resolve to
+ * webhook payloads. Missing media types resolve to
  * "unknown".
  */
 export function normalizeCommentMediaType(value: unknown): CommentMediaType {
@@ -56,7 +56,7 @@ export function resolveCommentPostScope(config: CommentScopeConfig | null | unde
  *
  * "specific" keeps the legacy lenient behavior: it only rejects when both the
  * configured and incoming post ids are present and differ. "any_reel" requires
- * a positively identified Reel, so unknown media (e.g. Facebook comments)
+ * a positively identified Reel, so unknown media
  * never matches Reel-only triggers, while "any_post" accepts it.
  */
 export function commentTriggerScopeMatches(

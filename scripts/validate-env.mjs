@@ -12,8 +12,8 @@ const sharedRequired = [
 ]
 
 const reviewPhase1Required = [
-  "NEXT_PUBLIC_META_APP_ID",
-  "META_APP_SECRET",
+  "INSTAGRAM_APP_ID",
+  "INSTAGRAM_APP_SECRET",
   "META_WEBHOOK_VERIFY_TOKEN",
 ]
 
@@ -101,7 +101,7 @@ if (!developerPepper) {
   console.warn("[validate-env] DEVELOPER_API_KEY_PEPPER is not set; Developer API HMACs use the legacy server-secret fallback")
 }
 
-assertCredentialPair("NEXT_PUBLIC_META_APP_ID", "META_APP_SECRET")
+
 assertCredentialPair("INSTAGRAM_APP_ID", "INSTAGRAM_APP_SECRET")
 
 if (channel === "review_phase_1") {
@@ -110,10 +110,6 @@ if (channel === "review_phase_1") {
     failList("[validate-env] review_phase_1 deployment is missing required environment variables:", missingReview)
   }
 
-  if (String(process.env.META_OAUTH_SCOPE_PROFILE || "").trim() !== "review_phase_1") {
-    console.error("[validate-env] review_phase_1 deployment must set META_OAUTH_SCOPE_PROFILE=review_phase_1")
-    process.exit(1)
-  }
 }
 
 console.log(`[validate-env] OK for channel: ${channel}; credential encryption writes: ${encryptionVersion}`)

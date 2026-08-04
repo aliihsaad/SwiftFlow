@@ -77,15 +77,8 @@ vi.stubGlobal("fetch", async (url: string) => {
   }
 
   return new Response(JSON.stringify({
-    data: [{
-      id: "987654321_123456789",
-      message: "Latest Facebook post",
-      full_picture: "https://cdn.example.test/fb.jpg",
-      created_time: "2026-05-14T09:05:00+0000",
-      permalink_url: "https://facebook.com/post/test",
-    }],
-  }), { status: 200 })
-})
+    error: { message: "Unexpected provider request" },
+  }), { status: 500 })})
 
 import * as automationMediaRoute from "@/app/api/developer/v1/automation-media/route"
 
@@ -133,25 +126,15 @@ describe("developer API automation media route", () => {
     })
   })
 
-  it("lists selectable Facebook page posts in the same normalized media shape", async () => {
+  it("does not expose legacy Facebook page rows", async () => {
     const response = await automationMediaRoute.GET(new NextRequest(`${origin}/api/developer/v1/automation-media?account_id=${facebookAccountId}`))
 
-    expect(response.status).toBe(200)
-    expect(state.fetchUrls[0]).toMatch(/^https:\/\/graph\.facebook\.com\/v25\.0\//)
-    expect(state.fetchUrls[0]).toContain("/fb-page-1/posts")
+    expect(response.status).toBe(404)
+    expect(state.fetchUrls).toHaveLength(0)
     await expect(response.json()).resolves.toMatchObject({
-      platform: "facebook",
-      account_id: facebookAccountId,
-      media: [{
-        id: "987654321_123456789",
-        media_type: "IMAGE",
-        media_url: "https://cdn.example.test/fb.jpg",
-        thumbnail_url: "https://cdn.example.test/fb.jpg",
-        caption: "Latest Facebook post",
-      }],
+      error: "Instagram account not found",
     })
   })
-
   it("rejects missing account ids before calling Meta", async () => {
     const response = await automationMediaRoute.GET(new NextRequest(`${origin}/api/developer/v1/automation-media`))
 

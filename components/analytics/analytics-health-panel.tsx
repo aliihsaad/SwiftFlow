@@ -5,7 +5,6 @@ import {
     AlertTriangle,
     ArrowRight,
     CheckCircle2,
-    Facebook,
     Instagram,
     LoaderCircle,
     RefreshCw,
@@ -13,7 +12,6 @@ import {
 } from "lucide-react"
 import type {
     AnalyticsPlatformStatus,
-    AnalyticsPlatformView,
     AnalyticsMetricStatus,
 } from "@/types/analytics"
 
@@ -26,7 +24,6 @@ export type AnalyticsSyncFeedback = {
 }
 
 type AnalyticsHealthPanelProps = {
-    platformView: AnalyticsPlatformView
     platformStatuses: AnalyticsPlatformStatus[]
     warnings: string[]
     suspectedMissingPermissions: string[]
@@ -50,7 +47,6 @@ function metricTone(status: AnalyticsMetricStatus): string {
 }
 
 export function AnalyticsHealthPanel({
-    platformView,
     platformStatuses,
     warnings,
     suspectedMissingPermissions,
@@ -60,9 +56,7 @@ export function AnalyticsHealthPanel({
     canSync,
     onSync,
 }: AnalyticsHealthPanelProps) {
-    const relevantStatuses = platformStatuses.filter((status) =>
-        platformView === "all" ? true : status.platform === platformView
-    )
+    const relevantStatuses = platformStatuses.filter((status) => status.platform === "instagram")
     const connected = relevantStatuses.length > 0
     const isNoConnectedAccount =
         reason === "no_connected_accounts" ||
@@ -99,7 +93,7 @@ export function AnalyticsHealthPanel({
         : requiresReconnect
             ? "Your current token predates the insights permission. Reconnecting once will attach the permission you enabled in Meta."
             : allLive
-                ? "Account and post metrics are available for every platform in this view."
+                ? "Instagram account and post metrics are available."
                 : hasSelectedRangeGap
                     ? "Try a wider date range or publish new content. Account-level metrics can still continue syncing."
                     : "SwiftFlow will keep the available metrics visible while it finishes filling the remaining gaps."
@@ -176,7 +170,6 @@ export function AnalyticsHealthPanel({
             {relevantStatuses.length > 0 ? (
                 <div className="grid border-t border-white/[0.07] md:grid-cols-2">
                     {relevantStatuses.map((status, index) => {
-                        const PlatformIcon = status.platform === "instagram" ? Instagram : Facebook
                         return (
                             <article
                                 key={status.platform}
@@ -185,7 +178,7 @@ export function AnalyticsHealthPanel({
                                 }`}
                             >
                                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-white/72">
-                                    <PlatformIcon className="h-5 w-5" />
+                                    <Instagram className="h-5 w-5" />
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-center justify-between gap-3">

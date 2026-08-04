@@ -14,20 +14,12 @@ export async function GET(request: NextRequest) {
       route: "/api/developer/v1/social-accounts",
     },
     async (context) => {
-      const platform = request.nextUrl.searchParams.get("platform")
       const admin = createAdminClient()
-      let query = admin
+      const { data, error } = await admin
         .from("social_accounts")
         .select("id, platform, account_name, account_id, created_at, updated_at")
         .eq("workspace_id", context.workspaceId)
-        .in("platform", ["instagram", "facebook"])
-
-      if (platform === "instagram" || platform === "facebook") {
-        query = query.eq("platform", platform)
-      }
-
-      const { data, error } = await query
-        .order("platform", { ascending: true })
+        .eq("platform", "instagram")
         .order("account_name", { ascending: true })
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })

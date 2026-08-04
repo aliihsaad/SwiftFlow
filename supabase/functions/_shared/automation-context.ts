@@ -88,7 +88,7 @@ const MAX_ENRICHED_CAPTION_LENGTH = 1000;
 export async function enrichCommentPostContext(
   triggerContext: TriggerContext,
   automation: any,
-  account: { access_token?: string; platform?: string } | null,
+  account: { access_token?: string } | null,
 ): Promise<TriggerContext> {
   const ctx: TriggerContext = { ...triggerContext };
   if (!ctx.post_id || ctx.post_caption) return ctx;
@@ -105,15 +105,14 @@ export async function enrichCommentPostContext(
   if (!account?.access_token) return ctx;
 
   try {
-    // IG media exposes caption/media_product_type; FB page posts expose message.
-    const fields = account.platform === 'facebook' ? 'message' : 'caption,media_product_type';
+    const fields = 'caption,media_product_type';
     const response = await fetch(
       `${META_GRAPH_URL}/${ctx.post_id}?fields=${fields}&access_token=${account.access_token}`,
     );
     if (!response.ok) return ctx;
 
     const media = await response.json();
-    const caption = typeof media?.caption === 'string' ? media.caption : (typeof media?.message === 'string' ? media.message : '');
+    const caption = typeof media?.caption === 'string' ? media.caption : '';
     if (caption) ctx.post_caption = caption.slice(0, MAX_ENRICHED_CAPTION_LENGTH);
     if (!ctx.media_type && typeof media?.media_product_type === 'string') {
       ctx.media_type = media.media_product_type;

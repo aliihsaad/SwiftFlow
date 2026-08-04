@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { canReadConnectedMediaWithMetaAccount, sanitizeMetaAccountMetadataForClient } from '@/lib/meta-account';
+import { sanitizeMetaAccountMetadataForClient } from '@/lib/meta-account';
 import { deriveInstagramAutomationHealth } from '@/lib/instagram-onboarding';
 import { getWorkspacePermissionErrorStatus, requireWorkspacePermission } from '@/lib/workspace-permissions';
 import { createClient } from '@/utils/supabase/server';
@@ -23,7 +23,8 @@ export async function GET(request: NextRequest) {
         const { data: accounts, error } = await supabase
             .from('social_accounts')
             .select('platform, account_name, account_id, token_expires_at, metadata')
-            .eq('workspace_id', workspaceId);
+            .eq('workspace_id', workspaceId)
+            .eq('platform', 'instagram');
 
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 });
@@ -38,11 +39,6 @@ export async function GET(request: NextRequest) {
                 account.metadata && typeof account.metadata === 'object' ? account.metadata : undefined
             ),
         }));
-        const facebookAccount = sanitizedAccounts.find((account) => account.platform === 'facebook');
-        const facebookGrantedScopes = Array.isArray(facebookAccount?.metadata?.granted_scopes)
-            ? facebookAccount.metadata.granted_scopes.filter((scope): scope is string => typeof scope === 'string')
-            : [];
-        const facebookRequiredReadScopes = ['pages_read_engagement'];
         const instagramAccount = sanitizedAccounts.find((account) => account.platform === 'instagram');
         const instagramAutomationHealth = deriveInstagramAutomationHealth({
             connected: Boolean(instagramAccount),
@@ -54,17 +50,7 @@ export async function GET(request: NextRequest) {
         });
 
         const status = {
-            facebook: sanitizedAccounts.some((account) => account.platform === 'facebook'),
-            instagram: sanitizedAccounts.some(
-                (account) =>
-                    account.platform === 'instagram'
-                    || (account.platform === 'facebook' && Boolean(account.metadata.instagram_business_account_id))
-            ),
-            facebookReadReady: sanitizedAccounts.some(
-                (account) => account.platform === 'facebook' && canReadConnectedMediaWithMetaAccount(account.metadata, 'facebook')
-            ),
-            facebookGrantedScopes,
-            facebookMissingReadScopes: facebookRequiredReadScopes.filter((scope) => !facebookGrantedScopes.includes(scope)),
+            instagram: Boolean(instagramAccount),
             instagramAutomationHealth,
             instagramConnectionMethod: instagramAccount?.metadata.connection_method ?? null,
             instagramWebhookStatus: instagramAccount?.metadata.webhook_subscription_status ?? null,

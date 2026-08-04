@@ -9,7 +9,7 @@ export const replyCommentsAi: AutomationTemplateDefinition = {
   description: 'Auto-generate a friendly reply for every new comment on a specific post.',
   category: 'comments',
   icon: MessageSquareReply,
-  supportedPlatforms: ['instagram', 'facebook'],
+  supportedPlatforms: ['instagram'],
   tags: ['comments', 'ai', 'engagement'],
   buildGraph: () => {
     return buildGraphFromBlueprint(

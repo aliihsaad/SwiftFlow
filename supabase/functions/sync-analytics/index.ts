@@ -129,48 +129,6 @@ async function fetchInstagramMediaInsightsBestEffort(
     };
 }
 
-async function fetchFacebookPostInsightsBestEffort(postId: string, accessToken: string) {
-    const metrics: Record<string, number> = {
-        post_impressions: 0,
-        post_impressions_unique: 0,
-        post_engaged_users: 0,
-        post_video_views: 0,
-    };
-
-    const tryMetricRequest = async (metricNames: string[]) => {
-        const url = `${META_GRAPH_URL}/${postId}/insights?metric=${metricNames.join(',')}&access_token=${accessToken}`;
-        const res = await metaGraphFetch(url);
-        const data = await res.json();
-
-        if (!res.ok) {
-            logMetaGraphWarning(`[Sync] Facebook insights unavailable for ${postId} metrics=[${metricNames.join(',')}]`, data);
-            return false;
-        }
-
-        if (Array.isArray(data?.data)) {
-            for (const metric of data.data) {
-                const name = String(metric?.name || '');
-                if (!name) continue;
-                metrics[name] = extractInstagramInsightMetricValue(metric);
-            }
-        }
-        return true;
-    };
-
-    // Try commonly supported page post metrics first.
-    await tryMetricRequest(['post_impressions', 'post_impressions_unique', 'post_engaged_users']);
-    // Video posts may expose a dedicated views metric.
-    await tryMetricRequest(['post_video_views']);
-
-    return {
-        impressions: metrics.post_impressions || 0,
-        reach: metrics.post_impressions_unique || 0,
-        engaged_users: metrics.post_engaged_users || 0,
-        video_views: metrics.post_video_views || 0,
-        views: metrics.post_impressions || metrics.post_video_views || metrics.post_impressions_unique || 0,
-    };
-}
-
 /**
  * Sync post insights for published posts
  */
@@ -208,7 +166,8 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
         const { data: pubRows, error: pubPostsError } = await supabase
             .from('published_posts')
             .select('*')
-            .in('post_id', postIds);
+            .in('post_id', postIds)
+            .eq('platform', 'instagram');
 
         if (pubPostsError) {
             console.error(`[Sync] Error fetching published_posts:`, redactSensitiveLogValue(pubPostsError));
@@ -256,7 +215,8 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
     const { data: accounts } = await supabase
         .from('social_accounts')
         .select('*')
-        .eq('workspace_id', workspaceId);
+        .eq('workspace_id', workspaceId)
+        .eq('platform', 'instagram');
 
     console.log(`[Sync] Found ${accounts?.length || 0} social accounts`);
 
@@ -397,51 +357,6 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                     } else {
                         logMetaGraphWarning(`[Sync] Instagram basic info request failed for ${publishedPost.platform_post_id}`, basicData);
                     }
-                } else if (publishedPost.platform === 'facebook') {
-                    let likes = 0;
-                    let comments = 0;
-                    let shares = 0;
-                    let views = 0;
-                    let impressions = 0;
-                    let reach = 0;
-
-                    try {
-                        const metricsUrl = `${META_GRAPH_URL}/${publishedPost.platform_post_id}?fields=shares,likes.summary(true),comments.summary(true)&access_token=${account.access_token}`;
-                        const metricsResponse = await metaGraphFetch(metricsUrl);
-                        const metricsData = await metricsResponse.json();
-
-                        if (metricsResponse.ok) {
-                            likes = metricsData?.likes?.summary?.total_count || 0;
-                            comments = metricsData?.comments?.summary?.total_count || 0;
-                            shares = metricsData?.shares?.count || 0;
-                        } else {
-                            logMetaGraphWarning(`[Sync] Facebook metrics unavailable for ${publishedPost.platform_post_id}`, metricsData);
-                        }
-                    } catch (metricsError) {
-                        console.log(`[Sync] Facebook metrics fetch failed for ${publishedPost.platform_post_id}: ${summarizeError(metricsError)}`);
-                    }
-
-                    try {
-                        const fbInsights = await fetchFacebookPostInsightsBestEffort(
-                            publishedPost.platform_post_id,
-                            account.access_token,
-                        );
-                        views = fbInsights.views || 0;
-                        impressions = fbInsights.impressions || 0;
-                        reach = fbInsights.reach || 0;
-                    } catch (insightsError) {
-                        console.log(`[Sync] Facebook insights fetch failed for ${publishedPost.platform_post_id}: ${summarizeError(insightsError)}`);
-                    }
-
-                    insights = {
-                        likes,
-                        comments,
-                        shares,
-                        views,
-                        impressions,
-                        reach,
-                        saved: 0,
-                    };
                 }
 
                 if (insights) {
@@ -585,88 +500,6 @@ async function syncPostInsights(supabase: any, workspaceId: string) {
                         console.error(`[Sync] Failed syncing Instagram media item: ${summarizeError(itemError)}`);
                     }
                 }
-            } else if (account.platform === 'facebook') {
-                const pageId = account.metadata?.connected_page_id || account.account_id;
-                if (!pageId) {
-                    console.log(`[Sync] Facebook account ${account.id} missing page id, skipping direct sync`);
-                    continue;
-                }
-
-                // Request minimal fields first so posts are still ingested even without insights permissions.
-                const listUrl = `${META_GRAPH_URL}/${pageId}/posts?fields=id,message,created_time,permalink_url&limit=50&access_token=${account.access_token}`;
-                const listRes = await metaGraphFetch(listUrl);
-                const listData = await listRes.json();
-
-                if (!listRes.ok) {
-                    directErrorCount++;
-                    logMetaGraphWarning('[Sync] Facebook posts list request failed', listData);
-                    continue;
-                }
-
-                const postItems = Array.isArray(listData?.data) ? listData.data : [];
-                console.log(`[Sync] Facebook direct posts fetched: ${postItems.length} items for account ${account.id}`);
-
-                for (const fbPost of postItems) {
-                    try {
-                        let likes = 0;
-                        let comments = 0;
-                        let shares = 0;
-                        let views = 0;
-
-                        try {
-                            const metricsUrl = `${META_GRAPH_URL}/${fbPost.id}?fields=shares,likes.summary(true),comments.summary(true)&access_token=${account.access_token}`;
-                            const metricsRes = await metaGraphFetch(metricsUrl);
-                            const metricsData = await metricsRes.json();
-
-                            if (metricsRes.ok) {
-                                likes = metricsData?.likes?.summary?.total_count || 0;
-                                comments = metricsData?.comments?.summary?.total_count || 0;
-                                shares = metricsData?.shares?.count || 0;
-                            } else {
-                                logMetaGraphWarning(`[Sync] Facebook metrics unavailable for ${fbPost.id}`, metricsData);
-                            }
-                        } catch (metricsError) {
-                            console.log(`[Sync] Facebook metrics fetch failed for ${fbPost.id}: ${summarizeError(metricsError)}`);
-                        }
-
-                        try {
-                            const fbInsights = await fetchFacebookPostInsightsBestEffort(fbPost.id, account.access_token);
-                            views = fbInsights.views || 0;
-                        } catch (insightsError) {
-                            console.log(`[Sync] Facebook insights fetch failed for ${fbPost.id}: ${summarizeError(insightsError)}`);
-                        }
-
-                        const published = await upsertPublishedPost({
-                            platform: 'facebook',
-                            platform_post_id: fbPost.id,
-                            permalink: fbPost.permalink_url || null,
-                            published_at: fbPost.created_time || null,
-                            social_account_id: account.id,
-                            platform_caption: fbPost.message || null,
-                        });
-                        directPublishedCount++;
-
-                        try {
-                            await upsertPostAnalytics(published.id, {
-                                likes,
-                                comments,
-                                shares,
-                                views,
-                                saves: 0,
-                                engagement_rate: 0,
-                            });
-                            directMetricsCount++;
-                        } catch (analyticsError) {
-                            directErrorCount++;
-                            console.error(`[Sync] Failed upserting FB analytics for ${fbPost.id}: ${summarizeError(analyticsError)}`);
-                        }
-
-                        syncedCount++;
-                    } catch (itemError) {
-                        directErrorCount++;
-                        console.error(`[Sync] Failed syncing Facebook post item: ${summarizeError(itemError)}`);
-                    }
-                }
             }
         } catch (accountError) {
             directErrorCount++;
@@ -697,7 +530,8 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
     const { data: accounts, error: accountsError } = await supabase
         .from('social_accounts')
         .select('*')
-        .eq('workspace_id', workspaceId);
+        .eq('workspace_id', workspaceId)
+        .eq('platform', 'instagram');
 
     if (accountsError) {
         console.error(`[AccountSync] Error fetching accounts:`, redactSensitiveLogValue(accountsError));
@@ -757,33 +591,6 @@ async function syncAccountAnalytics(supabase: any, workspaceId: string) {
                         error_subcode: data?.error?.error_subcode,
                         type: data?.error?.type,
                         message: redactSensitiveString(data?.error?.message || 'Instagram account analytics request failed'),
-                    });
-                }
-            } else if (account.platform === 'facebook') {
-                // Facebook: GET /{page-id}?fields=fan_count,followers_count
-                const pageId = account.account_id;
-                const url = `${META_GRAPH_URL}/${pageId}?fields=fan_count,followers_count&access_token=${account.access_token}`;
-
-                console.log(`[AccountSync] Fetching Facebook page data for ${pageId}`);
-
-                const response = await metaGraphFetch(url);
-                const data = await response.json();
-
-                if (response.ok) {
-                    console.log(`[AccountSync] Facebook page data fetched for ${pageId}`);
-                    accountData = {
-                        followers: data.followers_count || data.fan_count || 0,
-                        following: 0, // Pages don't follow other pages
-                        posts_count: 0 // Would need separate API call
-                    };
-                } else {
-                    logMetaGraphWarning(`[AccountSync] Facebook page request failed for ${pageId}`, data);
-                    failures.push({
-                        platform: account.platform,
-                        code: data?.error?.code,
-                        error_subcode: data?.error?.error_subcode,
-                        type: data?.error?.type,
-                        message: redactSensitiveString(data?.error?.message || 'Facebook account analytics request failed'),
                     });
                 }
             }

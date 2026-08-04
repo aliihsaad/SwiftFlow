@@ -10,7 +10,7 @@ export const runtime = "edge"
 type AnalyticsRange = "last_7_days" | "last_30_days" | "last_90_days"
 
 function normalizePlatform(value: string | null): ContentPlatform | "all" {
-  return value === "instagram" || value === "facebook" ? value : "all"
+  return value === "instagram" ? value : "all"
 }
 
 function normalizeRange(value: string | null): AnalyticsRange {

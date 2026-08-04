@@ -14,23 +14,13 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Facebook, Instagram, AlertCircle, CheckCircle, Info, Settings, Loader2 } from "lucide-react"
+import { Instagram, AlertCircle, CheckCircle, Info, Loader2 } from "lucide-react"
 import { InstagramConnectDialog } from "./instagram-connect-dialog"
-import { redirectToMetaOAuth } from "@/utils/meta-oauth"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 import { useToast } from "@/components/ui/use-toast"
 
 interface ConnectedAccountsProps {
     workspaceId: string;
-}
-
-type ConnectedAccountStatus = {
-    platform: string
-    account_name: string
-    metadata?: {
-        instagram_business_account_id?: string | null
-        granted_scopes?: string[]
-    } | null
 }
 
 type InstagramAutomationHealth = {
@@ -45,12 +35,11 @@ type InstagramAutomationHealth = {
     }
 }
 
-function ConnectedAccountSkeleton({ accent }: { accent: "blue" | "pink" }) {
-    const iconBg = accent === "blue" ? "bg-cyan-400/10 border border-cyan-300/15" : "bg-rose-400/10 border border-rose-300/15"
+function ConnectedAccountSkeleton() {
     return (
         <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#1b1d28] p-4 animate-pulse">
             <div className="flex items-center gap-4">
-                <div className={`p-2 rounded-full ${iconBg}`}>
+                <div className="rounded-full border border-rose-300/15 bg-rose-400/10 p-2">
                     <div className="h-6 w-6 rounded bg-white/40 dark:bg-white/10" />
                 </div>
                 <div className="space-y-2">
@@ -73,21 +62,12 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
     const searchParams = useSearchParams();
     const { toast } = useToast()
     const [status, setStatus] = useState<{
-        facebook: boolean
         instagram: boolean
-        facebookReadReady: boolean
-        facebookGrantedScopes: string[]
-        facebookMissingReadScopes: string[]
         tokenHealth?: 'valid' | 'expiring_soon' | 'invalid' | null
-        instagramConnectionMethod?: "instagram_login" | "facebook_login" | null
+        instagramConnectionMethod?: "instagram_login" | null
         instagramAutomationHealth: InstagramAutomationHealth
-        accounts: ConnectedAccountStatus[]
     }>({
-        facebook: false,
         instagram: false,
-        facebookReadReady: false,
-        facebookGrantedScopes: [],
-        facebookMissingReadScopes: [],
         tokenHealth: null,
         instagramConnectionMethod: null,
         instagramAutomationHealth: {
@@ -101,21 +81,17 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                 commentsWebhook: false,
             },
         },
-        accounts: []
     });
     const [loading, setLoading] = useState(true);
-    const [isConnectingMeta, setIsConnectingMeta] = useState(false);
-    const [disconnectTarget, setDisconnectTarget] = useState<"facebook" | "instagram" | null>(null)
+    const [isConnectingInstagram, setIsConnectingInstagram] = useState(false);
+    const [disconnectTarget, setDisconnectTarget] = useState<"instagram" | null>(null)
     const [isDisconnecting, setIsDisconnecting] = useState(false)
     const canManageIntegrations = useWorkspacePermission("integrations:write");
 
-    // URL params for feedback
     const error = searchParams.get('error');
     const success = searchParams.get('success');
-    const pagesCount = searchParams.get('count');
     const errorMessage = searchParams.get('message');
     const errorDetails = searchParams.get('details');
-    const callbackWorkspace = searchParams.get('workspace');
 
     const fetchStatus = useCallback(async () => {
         try {
@@ -147,13 +123,6 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
         }
     }, [workspaceId]);
 
-    const handleConnectPages = () => {
-        if (!canManageIntegrations) return;
-        if (isConnectingMeta) return;
-        setIsConnectingMeta(true);
-        redirectToMetaOAuth(workspaceId);
-    };
-
     const handleDisconnectConfirm = async () => {
         if (!disconnectTarget || !canManageIntegrations) return
 
@@ -171,10 +140,8 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
             await fetchStatus()
             setDisconnectTarget(null)
             toast({
-                title: disconnectTarget === 'facebook' ? 'Meta accounts disconnected' : 'Instagram disconnected',
-                description: disconnectTarget === 'facebook'
-                    ? 'Facebook and any Instagram account linked through that Page were removed. Direct Instagram Login connections are preserved.'
-                    : 'Instagram was removed from this workspace.',
+                title: 'Instagram disconnected',
+                description: 'Instagram was removed from this workspace.',
             })
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Failed to disconnect account'
@@ -194,7 +161,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                 <CardHeader>
                     <CardTitle className="text-white/90">Connected Accounts</CardTitle>
                     <CardDescription className="text-white/50">
-                        Connect your social media accounts to this workspace to start posting.
+                        Connect one Instagram professional account for inbox, analytics, and automations.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -209,26 +176,6 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                             </div>
                         </div>
                     )}
-                    {/* Success: Pages Connected */}
-                    {success === 'pages_connected' && (
-                        <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/8 p-4 text-emerald-100/90">
-                            <div className="flex items-center gap-2 font-medium">
-                                <CheckCircle className="h-4 w-4" />
-                                Pages Connected Successfully
-                            </div>
-                            <div className="mt-1 text-sm">
-                                Connected {pagesCount || '0'} Facebook Page(s) to your workspace.
-                                You can now manage conversations, analytics, and engagement automations for these accounts.
-                            </div>
-                            {callbackWorkspace && callbackWorkspace !== workspaceId && (
-                                <div className="mt-2 text-xs font-medium text-amber-200">
-                                    Warning: Pages were connected to a different workspace ({callbackWorkspace.substring(0, 8)}...).
-                                    Please switch to that workspace or reconnect.
-                                </div>
-                            )}
-                        </div>
-                    )}
-
                     {success === 'instagram_connected' && (
                         <div className="rounded-xl border border-emerald-300/20 bg-emerald-400/8 p-4 text-emerald-100/90">
                             <div className="flex items-center gap-2 font-medium">
@@ -236,7 +183,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                 Instagram connected directly
                             </div>
                             <div className="mt-1 text-sm">
-                                The professional account is connected without requiring a Facebook Page.
+                                The professional account is connected.
                                 {status.instagramAutomationHealth.ready
                                     ? ' Comment automations are ready.'
                                     : ' Finish the webhook check in Quick Start before enabling automations.'}
@@ -244,81 +191,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                         </div>
                     )}
 
-                    {/* Success: Login Only */}
-                    {success === 'login_success' && (
-                        <div className="rounded-xl border border-cyan-300/20 bg-cyan-400/8 p-4 text-cyan-100/90">
-                            <div className="flex items-center gap-2 font-medium">
-                                <Info className="h-4 w-4" />
-                                Logged in with Facebook
-                            </div>
-                            <div className="mt-1 text-sm">
-                                Click &quot;Connect Facebook Pages&quot; below to grant access to your pages.
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Error: No Pages Found */}
-                    {error === 'no_pages' && (
-                        <div className="rounded-xl border border-amber-300/20 bg-amber-400/8 p-4 text-amber-100/90">
-                            <div className="flex items-center gap-2 font-medium">
-                                <AlertCircle className="h-4 w-4" />
-                                {status.facebook ? 'Reconnect did not return selectable Pages' : 'No Pages Found'}
-                            </div>
-                            <div className="mt-2 text-sm">
-                                {errorMessage || (status.facebook
-                                    ? 'Your existing Page connection is still saved, but Meta did not return selectable Pages during the latest reconnect attempt.'
-                                    : 'No Facebook Pages found.')}
-                            </div>
-                            {errorDetails && (
-                                <div className="mt-2 max-h-20 overflow-auto rounded bg-black/20 p-2 text-xs font-mono text-white/70">
-                                    {errorDetails}
-                                </div>
-                            )}
-                            <div className="mt-2 text-xs space-y-1">
-                                <p className="font-medium">Make sure:</p>
-                                <ul className="list-disc ml-4">
-                                    <li>You manage at least one Facebook Page</li>
-                                    <li>Your Facebook account is an Admin/Developer in the Meta app</li>
-                                    <li>You granted all requested permissions</li>
-                                </ul>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Error: Pages Fetch Failed */}
-                    {error === 'pages_fetch_failed' && (
-                        <div className="rounded-xl border border-red-400/20 bg-red-500/10 p-4 text-red-200">
-                            <div className="flex items-center gap-2 font-medium">
-                                <AlertCircle className="h-4 w-4" />
-                                Failed to Fetch Pages
-                            </div>
-                            <div className="mt-1 text-sm">
-                                Could not retrieve your Facebook Pages. Please ensure permissions were granted.
-                            </div>
-                            {errorDetails && (
-                                <div className="mt-2 max-h-20 overflow-auto rounded bg-black/20 p-2 text-xs font-mono text-white/70">
-                                    {errorDetails}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Error: Meta App Not Configured */}
-                    {error === 'meta_app_not_configured' && (
-                        <div className="rounded-xl border border-amber-300/20 bg-amber-400/8 p-4 text-amber-100/90">
-                            <div className="flex items-center gap-2 font-medium">
-                                <Settings className="h-4 w-4" />
-                                Meta App Not Configured
-                            </div>
-                            <div className="mt-1 text-sm">
-                                You need to configure your Meta app credentials before connecting Facebook Pages.
-                                Scroll down to set up your Meta App.
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Generic Error */}
-                    {error && error !== 'no_pages' && error !== 'pages_fetch_failed' && error !== 'meta_app_not_configured' && (
+                    {error && (
                         <div className="rounded-xl border border-red-400/20 bg-red-500/10 p-4 text-red-200">
                             <div className="flex items-center gap-2 font-medium">
                                 <AlertCircle className="h-4 w-4" />
@@ -329,10 +202,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                     )}
 
                     {loading ? (
-                        <>
-                            <ConnectedAccountSkeleton accent="blue" />
-                            <ConnectedAccountSkeleton accent="pink" />
-                        </>
+                        <ConnectedAccountSkeleton />
                     ) : (
                         <>
                             {(status.tokenHealth === 'invalid' || status.tokenHealth === 'expiring_soon') && (
@@ -348,82 +218,12 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                     </div>
                                     <div className="mt-1 text-sm">
                                         {status.tokenHealth === 'invalid'
-                                            ? 'Meta reports the saved access token is no longer valid. Syncing and automations will fail until you reconnect the account.'
-                                            : 'The saved Meta access token expires within 7 days. Reconnect the account to refresh it before anything stops working.'}
+                                            ? 'Instagram reports the saved access token is no longer valid. Syncing and automations will fail until you reconnect.'
+                                            : 'The saved Instagram access token expires within 7 days. Reconnect before anything stops working.'}
                                     </div>
                                 </div>
                             )}
 
-
-                            {status.facebook && !status.facebookReadReady && (
-                                <div className="rounded-xl border border-red-300/20 bg-red-500/10 p-4 text-red-100/90">
-                                    <div className="flex items-center gap-2 font-medium">
-                                        <AlertCircle className="h-4 w-4" />
-                                        Facebook Page read permission missing
-                                    </div>
-                                    <div className="mt-1 text-sm leading-relaxed">
-                                        The current Page token does not include <span className="font-semibold">pages_read_engagement</span>, so native Page posts cannot load. Reconnect once after the latest update. If it persists, remove SwiftFlow from Facebook Business Integrations and connect again.
-                                    </div>
-                                    <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-white/60">
-                                        <div>
-                                            Missing: <span className="text-red-100">{status.facebookMissingReadScopes.join(', ') || 'none recorded'}</span>
-                                        </div>
-                                        <div className="mt-1 break-words">
-                                            Stored granted scopes: <span className="text-white/80">{status.facebookGrantedScopes.join(', ') || 'none recorded'}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Facebook Connection */}
-                            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#1b1d28] p-4">
-                                <div className="flex items-center gap-4">
-                                    <div className="rounded-full border border-cyan-300/15 bg-cyan-400/10 p-2">
-                                        <Facebook className="h-6 w-6 text-cyan-300" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-semibold text-white/85">Facebook Pages</h4>
-                                        <p className="text-sm text-white/50">
-                                            {status.facebook
-                                                ? String(status.accounts.filter(a => a.platform === 'facebook').length) + ' page(s) connected'
-                                                : "Not connected"}
-                                        </p>
-                                    </div>
-                                </div>
-                                <Button
-                                    variant={status.facebook ? "outline" : "default"}
-                                    onClick={handleConnectPages}
-                                    disabled={!canManageIntegrations || isConnectingMeta}
-                                    className={status.facebook
-                                        ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15"
-                                        : "border-cyan-300/20 bg-linear-to-r from-cyan-400/20 via-cyan-300/10 to-amber-300/15 text-white hover:from-cyan-400/25 hover:to-amber-300/20"}
-                                >
-                                    {isConnectingMeta ? (
-                                        <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                            {status.facebook ? "Reconnecting..." : "Connecting..."}
-                                        </>
-                                    ) : !canManageIntegrations ? (
-                                        "Admin Only"
-                                    ) : (
-                                        status.facebook ? "Reconnect Pages" : "Connect Facebook Pages"
-                                    )}
-                                </Button>
-                            </div>
-                            {status.facebook && canManageIntegrations && (
-                                <div className="-mt-2 flex justify-end">
-                                    <Button
-                                        variant="ghost"
-                                        onClick={() => setDisconnectTarget("facebook")}
-                                        disabled={isConnectingMeta || isDisconnecting}
-                                        className="h-8 rounded-lg px-3 text-xs text-red-300/90 hover:bg-red-500/10 hover:text-red-200"
-                                    >
-                                        Disconnect Facebook
-                                    </Button>
-                                </div>
-                            )}
-
-                            {/* Instagram Connection */}
                             <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#1b1d28] p-4">
                                 <div className="flex items-center gap-4">
                                     <div className="rounded-full border border-rose-300/15 bg-rose-400/10 p-2">
@@ -434,29 +234,25 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                         <p className="text-sm text-white/50">
                                             {status.instagram
                                                 ? status.instagramAutomationHealth.ready
-                                                    ? status.instagramConnectionMethod === "instagram_login"
-                                                        ? "Directly connected and automation-ready"
-                                                        : "Connected and automation-ready"
-                                                    : status.instagramConnectionMethod === "instagram_login"
-                                                        ? "Directly connected — setup needs attention"
-                                                        : "Connected through a Facebook Page"
+                                                    ? "Connected and automation-ready"
+                                                    : "Connected — setup needs attention"
                                                 : "Not connected"}
                                         </p>
                                     </div>
                                 </div>
                                 <InstagramConnectDialog
                                     workspaceId={workspaceId}
-                                    isConnecting={isConnectingMeta}
-                                    onConnectStart={() => setIsConnectingMeta(true)}
+                                    isConnecting={isConnectingInstagram}
+                                    onConnectStart={() => setIsConnectingInstagram(true)}
                                     trigger={
                                         <Button
                                             variant={status.instagram ? "outline" : "default"}
-                                            disabled={!canManageIntegrations || isConnectingMeta}
+                                            disabled={!canManageIntegrations || isConnectingInstagram}
                                             className={status.instagram
                                                 ? "border-emerald-300/20 bg-emerald-400/10 text-emerald-200 hover:bg-emerald-400/15"
                                                 : "border-rose-300/20 bg-linear-to-r from-rose-400/20 via-rose-300/10 to-amber-300/15 text-white hover:from-rose-400/25 hover:to-amber-300/20"}
                                         >
-                                            {isConnectingMeta ? (
+                                            {isConnectingInstagram ? (
                                                 <>
                                                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                                     {status.instagram ? "Reconnecting..." : "Connecting..."}
@@ -475,7 +271,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                                     <Button
                                         variant="ghost"
                                         onClick={() => setDisconnectTarget("instagram")}
-                                        disabled={isConnectingMeta || isDisconnecting}
+                                        disabled={isConnectingInstagram || isDisconnecting}
                                         className="h-8 rounded-lg px-3 text-xs text-red-300/90 hover:bg-red-500/10 hover:text-red-200"
                                     >
                                         Disconnect Instagram
@@ -485,13 +281,11 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                         </>
                     )}
 
-                    {/* Info Note */}
                     <div className="rounded-xl border border-white/10 bg-[#1b1d28] p-3 text-sm text-white/55">
                         <p className="flex items-start gap-2">
                             <Info className="mt-0.5 h-4 w-4 shrink-0 text-cyan-300" />
                             <span>
-                                <strong>Recommended:</strong> connect Instagram directly for the shortest automation setup.
-                                Facebook Page connection remains available above when you also need Page inbox, comment, analytics, or moderation features.
+                                SwiftFlow stable v1 is Instagram-only. Connect a Business or Creator account to use inbox, analytics, and automations.
                             </span>
                         </p>
                     </div>
@@ -509,12 +303,10 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                 >
                     <AlertDialogHeader>
                         <AlertDialogTitle style={{ color: "rgba(255,255,255,0.92)" }}>
-                            {disconnectTarget === "facebook" ? "Disconnect Facebook and linked Instagram?" : "Disconnect Instagram?"}
+                            Disconnect Instagram?
                         </AlertDialogTitle>
                         <AlertDialogDescription style={{ color: "rgba(255,255,255,0.58)" }}>
-                            {disconnectTarget === "facebook"
-                                ? "This removes the connected Facebook Page and any Instagram account connected through that Page. A direct Instagram Login connection is kept."
-                                : "This removes the Instagram account from the workspace. You can reconnect it later from Brand Settings."}
+                            This removes the Instagram account from the workspace. You can reconnect it later from Brand Settings.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

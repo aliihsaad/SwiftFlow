@@ -89,9 +89,7 @@ export async function runWebhookIngressSmoke(
     environment.WEBHOOK_INGRESS_SMOKE_URL?.trim()
     || "http://webhook-ingress:8080/webhooks/meta"
   const verifyToken = requiredEnvironment("META_WEBHOOK_VERIFY_TOKEN", environment)
-  const appSecret =
-    environment.INSTAGRAM_APP_SECRET?.trim()
-    || requiredEnvironment("META_APP_SECRET", environment)
+  const appSecret = requiredEnvironment("INSTAGRAM_APP_SECRET", environment)
 
   const challenge = crypto.randomBytes(8).toString("hex")
   const handshakeUrl = new URL(deliveryUrl)

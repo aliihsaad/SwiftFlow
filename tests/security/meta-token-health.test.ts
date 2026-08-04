@@ -1,15 +1,14 @@
 import { describe, expect, it } from "vitest"
 import { isTokenCheckDue, resolveTokenHealth } from "../../supabase/functions/_shared/token-health.ts"
-import { sanitizeMetaPageSessionData } from "@/lib/security/phase1-validation"
 
 const now = new Date("2026-07-03T12:00:00Z")
 
 describe("resolveTokenHealth", () => {
     it("treats a valid non-expiring token (expires_at=0) as valid", () => {
-        const health = resolveTokenHealth({ is_valid: true, expires_at: 0, scopes: ["pages_show_list"] }, now)
+        const health = resolveTokenHealth({ is_valid: true, expires_at: 0, scopes: ["instagram_business_basic"] }, now)
         expect(health.status).toBe("valid")
         expect(health.expiresAt).toBeNull()
-        expect(health.scopes).toEqual(["pages_show_list"])
+        expect(health.scopes).toEqual(["instagram_business_basic"])
     })
 
     it("flags tokens expiring within 7 days", () => {
@@ -35,10 +34,10 @@ describe("resolveTokenHealth", () => {
         const health = resolveTokenHealth({
             is_valid: true,
             expires_at: 0,
-            scopes: ["pages_manage_posts"],
-            granular_scopes: [{ scope: "pages_manage_posts", target_ids: ["123"] }, { scope: 42 }],
+            scopes: ["instagram_business_manage_comments"],
+            granular_scopes: [{ scope: "instagram_business_manage_comments", target_ids: ["123"] }, { scope: 42 }],
         }, now)
-        expect(health.granularScopes).toEqual([{ scope: "pages_manage_posts", target_ids: ["123"] }])
+        expect(health.granularScopes).toEqual([{ scope: "instagram_business_manage_comments", target_ids: ["123"] }])
     })
 })
 
@@ -51,28 +50,5 @@ describe("isTokenCheckDue", () => {
 
     it("is not due within the interval", () => {
         expect(isTokenCheckDue("2026-07-03T02:00:00Z", now)).toBe(false)
-    })
-})
-
-describe("page session token expiry sanitization", () => {
-    const basePage = {
-        id: "123456789012345",
-        name: "Test Page",
-        category: "Brand",
-        access_token: "enc:v1:abc",
-        ig_account_id: null,
-        ig_username: null,
-        granted_scopes: [],
-        granted_granular_scopes: [],
-    }
-
-    it("passes through a valid ISO expiry and normalizes it", () => {
-        const [page] = sanitizeMetaPageSessionData([{ ...basePage, token_expires_at: "2026-09-01T00:00:00+00:00" }])
-        expect(page.token_expires_at).toBe("2026-09-01T00:00:00.000Z")
-    })
-
-    it("nulls out missing or malformed expiries (never-expiring tokens)", () => {
-        expect(sanitizeMetaPageSessionData([basePage])[0].token_expires_at).toBeNull()
-        expect(sanitizeMetaPageSessionData([{ ...basePage, token_expires_at: "not-a-date" }])[0].token_expires_at).toBeNull()
     })
 })

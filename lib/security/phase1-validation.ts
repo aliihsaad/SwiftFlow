@@ -1,5 +1,4 @@
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const META_ACCOUNT_ID_RE = /^[0-9]{3,32}$/
 const META_GRAPH_NODE_ID_RE = /^[0-9_]{3,128}$/
 const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i
 const ALLOWED_BRAND_LANGUAGES = ['en', 'es', 'fr', 'de', 'it', 'pt', 'nl', 'ar', 'zh', 'ja', 'ko', 'hi', 'ru', 'tr'] as const
@@ -7,20 +6,6 @@ const ALLOWED_AI_PROVIDERS = ['openrouter', 'gemini', 'openai'] as const
 
 type JsonObject = Record<string, unknown>
 type AssistantFunctionName = 'generate-reply' | 'generate-message-reply'
-type MetaGranularScope = { scope: string; target_ids?: string[] }
-type SanitizedMetaPageData = {
-    id: string
-    name: string
-    category: string
-    access_token: string
-    ig_account_id: string | null
-    ig_username: string | null
-    granted_scopes: string[]
-    granted_granular_scopes: MetaGranularScope[]
-    /** ISO expiry of the page token; null means the token does not expire. */
-    token_expires_at: string | null
-}
-
 const MAX_ATTACHMENT_HISTORY = 25
 const MAX_JSON_BODY_BYTES = 5 * 1024 * 1024
 function isPlainObject(value: unknown): value is JsonObject {
@@ -65,10 +50,6 @@ export function isUuid(value: unknown): value is string {
     return typeof value === 'string' && UUID_RE.test(value.trim())
 }
 
-export function isMetaAccountId(value: unknown): value is string {
-    return typeof value === 'string' && META_ACCOUNT_ID_RE.test(value.trim())
-}
-
 export function isMetaGraphNodeId(value: unknown): value is string {
     return typeof value === 'string' && META_GRAPH_NODE_ID_RE.test(value.trim())
 }
@@ -99,23 +80,6 @@ function sanitizeConversationHistory(
             is_from_page: item.is_from_page === true,
         }))
         .slice(0, MAX_ATTACHMENT_HISTORY)
-}
-
-function sanitizeGranularScopes(value: unknown): MetaGranularScope[] {
-    if (!Array.isArray(value)) return []
-
-    return value
-        .filter((item): item is JsonObject => isPlainObject(item))
-        .map((item) => ({
-            scope: clampString(item.scope, 120),
-            target_ids: Array.isArray(item.target_ids)
-                ? item.target_ids
-                    .filter((targetId): targetId is string => isMetaAccountId(targetId))
-                    .slice(0, 20)
-                : undefined,
-        }))
-        .filter((item) => item.scope.length > 0)
-        .slice(0, 50)
 }
 
 export class RequestBodyTooLargeError extends Error {
@@ -172,52 +136,6 @@ export function assertJsonBodySize(request: Request, maxBytes = MAX_JSON_BODY_BY
     if (bytes > maxBytes) {
         throw new Error('Request payload too large')
     }
-}
-
-export function sanitizeMetaPageSessionId(value: unknown): string {
-    return assertUuid(value, 'sessionId')
-}
-
-export function sanitizeMetaSelectPagePayload(body: unknown): { sessionId: string; selectedPageId: string } {
-    if (!isPlainObject(body)) {
-        throw new Error('Invalid page selection payload')
-    }
-
-    const sessionId = sanitizeMetaPageSessionId(body.sessionId)
-    if (!isMetaAccountId(body.selectedPageId)) {
-        throw new Error('Invalid selectedPageId')
-    }
-
-    return {
-        sessionId,
-        selectedPageId: body.selectedPageId.trim(),
-    }
-}
-
-function sanitizeNullableIsoDate(value: unknown): string | null {
-    if (typeof value !== 'string' || !value) return null
-    const parsed = new Date(value)
-    return Number.isFinite(parsed.getTime()) ? parsed.toISOString() : null
-}
-
-export function sanitizeMetaPageSessionData(value: unknown): SanitizedMetaPageData[] {
-    if (!Array.isArray(value)) return []
-
-    return value
-        .filter((item): item is JsonObject => isPlainObject(item))
-        .map((item) => ({
-            id: isMetaAccountId(item.id) ? item.id.trim() : '',
-            name: clampString(item.name, 200),
-            category: clampString(item.category, 160),
-            access_token: clampString(item.access_token, 4_000),
-            ig_account_id: isMetaAccountId(item.ig_account_id) ? item.ig_account_id.trim() : null,
-            ig_username: clampNullableString(item.ig_username, 120),
-            granted_scopes: sanitizeStringArray(item.granted_scopes, 100, 120),
-            granted_granular_scopes: sanitizeGranularScopes(item.granted_granular_scopes),
-            token_expires_at: sanitizeNullableIsoDate(item.token_expires_at),
-        }))
-        .filter((item) => item.id.length > 0 && item.name.length > 0)
-        .slice(0, 50)
 }
 
 export function sanitizeAssistantInvokePayload(
@@ -314,7 +232,6 @@ export function sanitizeBrandProfilePayload(body: unknown) {
             .filter((value): value is string => Boolean(value))
             .slice(0, 20),
         instagram_handle: clampString(body.instagram_handle, 120),
-        facebook_page: clampString(body.facebook_page, 160),
         content_themes: sanitizeStringArray(body.content_themes, 25, 120),
     }
 }
@@ -366,7 +283,6 @@ export function sanitizePartialBrandProfilePayload(body: unknown) {
             .slice(0, 20)
     }
     if ('instagram_handle' in body) payload.instagram_handle = clampString(body.instagram_handle, 120)
-    if ('facebook_page' in body) payload.facebook_page = clampString(body.facebook_page, 160)
     if ('content_themes' in body) payload.content_themes = sanitizeStringArray(body.content_themes, 25, 120)
 
     return payload

@@ -50,8 +50,7 @@ export function KPICards({
             change: followers.changePct,
             icon: Users,
             tone: "lime" as const,
-            helper: "Current combined audience",
-            breakdown: { facebook: followers.facebook || 0, instagram: followers.instagram || 0 },
+            helper: "Current Instagram audience",
         },
         {
             title: "Growth rate",
@@ -98,18 +97,6 @@ export function KPICards({
                             </div>
                             <p className="mt-2 text-[11px] leading-5 text-white/30">{kpi.helper}</p>
 
-                            {kpi.breakdown ? (
-                                <div className="mt-3 flex items-center gap-3 text-[10px] text-white/34">
-                                    <span className="inline-flex items-center gap-1.5">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />
-                                        FB {kpi.breakdown.facebook.toLocaleString()}
-                                    </span>
-                                    <span className="inline-flex items-center gap-1.5">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-pink-300" />
-                                        IG {kpi.breakdown.instagram.toLocaleString()}
-                                    </span>
-                                </div>
-                            ) : null}
                         </div>
                     </article>
                 )

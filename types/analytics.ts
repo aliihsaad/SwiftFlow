@@ -1,7 +1,7 @@
 export type DateRange = 'last_7_days' | 'last_30_days' | 'last_90_days'
 export type Granularity = 'daily' | 'weekly' | 'monthly'
-export type Platform = 'facebook' | 'instagram'
-export type AnalyticsPlatformView = 'all' | Platform
+export type Platform = 'instagram'
+export type AnalyticsPlatformView = 'instagram'
 export type AnalyticsMetricStatus = 'available' | 'partial' | 'unavailable'
 
 export interface AnalyticsPlatformStatus {
@@ -14,7 +14,6 @@ export interface AnalyticsPlatformStatus {
     missingPermissions: string[]
     warnings: string[]
 }
-
 
 export interface PostData {
     id: string
@@ -35,14 +34,12 @@ export interface KPIData {
 }
 
 export interface FollowersKPIData extends KPIData {
-    facebook: number
     instagram: number
 }
 
 export interface FollowerGrowthData {
     labels: string[]
     values: number[]
-    facebookValues: number[]
     instagramValues: number[]
     bestDay: string
     avgDaily: string
@@ -53,7 +50,6 @@ export interface AccountAnalytics {
     totalReach: number
     totalEngagement: number
     followers: number
-    facebookFollowers: number
     instagramFollowers: number
 }
 
@@ -74,18 +70,18 @@ export interface AnalyticsResponse {
         hasPublishedPosts?: boolean
         reason?: string | null
         selectedPlatform?: AnalyticsPlatformView
-        isCombinedView?: boolean
+        isCombinedView?: false
         warnings?: string[]
         suspectedMissingPermissions?: string[]
         platformStatuses?: AnalyticsPlatformStatus[]
         capabilities?: {
             accountMetrics: {
-                status: 'available' | 'partial' | 'unavailable'
+                status: AnalyticsMetricStatus
                 availablePlatforms: string[]
                 unavailablePlatforms: string[]
             }
             postMetrics: {
-                status: 'available' | 'partial' | 'unavailable'
+                status: AnalyticsMetricStatus
                 totalPublishedPosts: number
                 postsWithAnalyticsRows: number
                 platformsWithPublishedPosts: string[]
@@ -94,7 +90,7 @@ export interface AnalyticsResponse {
         }
         contentDiscovery?: {
             byPlatform: Array<{
-                platform: 'instagram' | 'facebook'
+                platform: Platform
                 totalSyncedPosts: number
                 appManagedPosts: number
                 discoveredNativePosts: number
@@ -114,17 +110,7 @@ export interface AnalyticsResponse {
     }
 }
 
-// Meta API Response Types
 export interface InstagramInsight {
-    name: string
-    period: string
-    values: Array<{
-        value: number
-        end_time: string
-    }>
-}
-
-export interface FacebookInsight {
     name: string
     period: string
     values: Array<{
@@ -141,21 +127,6 @@ export interface InstagramMedia {
     media_type: string
     media_url: string
     timestamp: string
-    insights?: {
-        data: Array<{
-            name: string
-            values: Array<{ value: number }>
-        }>
-    }
-}
-
-export interface FacebookPost {
-    id: string
-    message?: string
-    created_time: string
-    shares?: {
-        count: number
-    }
     insights?: {
         data: Array<{
             name: string

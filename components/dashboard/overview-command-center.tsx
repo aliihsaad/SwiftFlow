@@ -28,7 +28,6 @@ type OverviewCommandCenterProps = {
     }
     connections: {
         instagramName: string | null
-        facebookName: string | null
         automationReady: boolean
     }
     latestFailure: string | null
@@ -58,9 +57,6 @@ export function OverviewCommandCenter({
     activities,
     isReviewPhase1Release = false,
 }: OverviewCommandCenterProps) {
-    const connectedAccounts =
-        Number(Boolean(connections.instagramName)) + Number(Boolean(connections.facebookName))
-
     return (
         <section className="space-y-5" aria-labelledby="overview-heading">
             <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#10131e] shadow-[0_28px_90px_rgba(2,4,12,0.34)]">
@@ -117,7 +113,7 @@ export function OverviewCommandCenter({
                                     "h-full rounded-full transition-[width]",
                                     connections.automationReady
                                         ? "w-full bg-linear-to-r from-emerald-400 to-cyan-300"
-                                        : connectedAccounts > 0
+                                        : connections.instagramName
                                             ? "w-2/3 bg-linear-to-r from-amber-400 to-cyan-300"
                                             : "w-1/4 bg-rose-300/80",
                                 )}
@@ -126,7 +122,6 @@ export function OverviewCommandCenter({
 
                         <div className="mt-5 space-y-3">
                             <ReadinessRow icon={Instagram} label="Instagram" value={connections.instagramName || "Not connected"} ready={Boolean(connections.instagramName)} />
-                            <ReadinessRow icon={MessageCircleMore} label="Facebook" value={connections.facebookName || "Optional"} ready={Boolean(connections.facebookName)} optional />
                             <ReadinessRow icon={ShieldCheck} label="Event pipeline" value={connections.automationReady ? "Webhooks and actions available" : "Connect Instagram to continue"} ready={connections.automationReady} />
                         </div>
 
@@ -204,7 +199,7 @@ function SecondaryLink({ href, icon: Icon, children }: { href: string; icon: typ
     )
 }
 
-function ReadinessRow({ icon: Icon, label, value, ready, optional = false }: { icon: typeof Instagram; label: string; value: string; ready: boolean; optional?: boolean }) {
+function ReadinessRow({ icon: Icon, label, value, ready }: { icon: typeof Instagram; label: string; value: string; ready: boolean }) {
     return (
         <div className="flex items-center gap-3 rounded-xl border border-white/[0.055] bg-white/[0.025] p-3">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.045] text-white/48">
@@ -214,7 +209,7 @@ function ReadinessRow({ icon: Icon, label, value, ready, optional = false }: { i
                 <p className="text-xs font-semibold text-white/64">{label}</p>
                 <p className="mt-0.5 truncate text-[11px] text-white/32">{value}</p>
             </div>
-            <span className={cn("h-2 w-2 shrink-0 rounded-full", ready ? "bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.65)]" : optional ? "bg-white/18" : "bg-amber-300")} />
+            <span className={cn("h-2 w-2 shrink-0 rounded-full", ready ? "bg-emerald-300 shadow-[0_0_12px_rgba(110,231,183,0.65)]" : "bg-amber-300")} />
         </div>
     )
 }

@@ -420,7 +420,11 @@ function getGraphCapabilityIssues(
   account: { platform?: string; metadata?: Record<string, any> | null },
 ): string[] {
   const issues: string[] = [];
-  const platform = account?.platform === 'facebook' ? 'facebook' : 'instagram';
+  if (account?.platform !== 'instagram') {
+    issues.push('Only Instagram accounts are supported');
+    return issues;
+  }
+  const platform = 'instagram' as const;
   const nodeTypes = new Set((graph?.nodes || []).map((node) => node?.data?.type).filter(Boolean),
   );
   const triggerType = (graph?.nodes || []).find((node) => String(node?.data?.type || '').startsWith('trigger_'),
@@ -586,7 +590,7 @@ export async function executeWorkflowGraph(
   }
 
   // BFS execution starting from trigger's children
-  const pageId = account.metadata?.connected_page_id || account.account_id;
+  const instagramAccountId = account.account_id;
   const executionQueue: string[] = [];
 
   // Mutable context that accumulates outputs from previous nodes.
@@ -635,7 +639,7 @@ export async function executeWorkflowGraph(
         nodeOutputs: result.nodeResults,
       });
       const nodeResult = await executeNode(
-        supabase, automation, node, runtimeContext, account, pageId,
+        supabase, automation, node, runtimeContext, account, instagramAccountId,
         { approval },
       );
 
@@ -844,6 +848,10 @@ export async function resumeFromDelay(
     return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {},
     };
   }
+  if (account.platform !== 'instagram') {
+    console.error(`[GRAPH_RESUME] Automation ${automation_id} uses an unsupported legacy account`);
+    return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: {} };
+  }
   const graph: WorkflowGraph = automation.workflow_graph;
   const graphIssues = validateExecutableGraph(graph);
   if (graphIssues.length > 0) {
@@ -852,7 +860,7 @@ export async function resumeFromDelay(
     return { processed: 0, dmsSent: 0, errors: 1, pendingContinuations: 0, nodeResults: { },
     };
   }
-  const pageId = account.metadata?.connected_page_id || account.account_id;
+  const instagramAccountId = account.account_id;
 
   const result: ExecutionResult = {
     processed: 0,
@@ -907,7 +915,7 @@ export async function resumeFromDelay(
         },
       });
       const nodeResult = await executeNode(
-        supabase, automation, node, runtimeContext, account, pageId,
+        supabase, automation, node, runtimeContext, account, instagramAccountId,
         { approval },
       );
       result.nodeResults[nodeId] = nodeResult;
@@ -1051,12 +1059,12 @@ async function executeNode(
   node: WorkflowNode,
   triggerContext: TriggerContext,
   account: any,
-  pageId: string,
+  instagramAccountId: string,
   executionMetadata: Record<string, unknown> = {},
 ): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
   const resourceKind = GUARDED_RESOURCE_BY_NODE_TYPE[node.data.type];
   if (!resourceKind) {
-    return executeNodeUnchecked(supabase, automation, node, triggerContext, account, pageId,
+    return executeNodeUnchecked(supabase, automation, node, triggerContext, account, instagramAccountId,
       executionMetadata,
     );
   }
@@ -1097,7 +1105,7 @@ async function executeNode(
       node,
       triggerContext,
       account,
-      pageId,
+      instagramAccountId,
       executionMetadata,
     );
   } catch (error) {
@@ -1123,7 +1131,7 @@ async function executeNodeUnchecked(
   node: WorkflowNode,
   triggerContext: TriggerContext,
   account: any,
-  pageId: string,
+  instagramAccountId: string,
   executionMetadata: Record<string, unknown> = {},
 ): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
   const config = node.data.config;
@@ -1162,7 +1170,7 @@ async function executeNodeUnchecked(
         context: enrichedContext,
         ...executionMetadata,
         access_token: account?.access_token,
-        page_id: pageId,
+        page_id: instagramAccountId,
         platform: account?.platform,
         connection_method: account?.metadata?.connection_method,
       });
@@ -1223,11 +1231,11 @@ async function executeNodeUnchecked(
       );
 
     case 'action_send_dm':
-      return await executeSendDM(config, triggerContext, account.access_token, pageId, account?.metadata?.connection_method,
+      return await executeSendDM(config, triggerContext, account.access_token, instagramAccountId, account?.metadata?.connection_method,
       );
 
     case 'action_private_reply':
-      return await executePrivateReply(config, triggerContext, account.access_token, pageId, account?.metadata?.connection_method,
+      return await executePrivateReply(config, triggerContext, account.access_token, instagramAccountId, account?.metadata?.connection_method,
       );
 
     case 'action_condition':
@@ -1337,7 +1345,7 @@ async function executeReplyComment(
 
   message = normalizeCommentReply(message);
 
-  const replyPath = String(platform || '').toLowerCase() === 'facebook' ? 'comments' : 'replies';
+  const replyPath = 'replies';
   const url = `${getMetaGraphApiBaseUrl(connectionMethod)}/${ctx.comment_id}/${replyPath}`;
   const response = await fetch(url, {
     method: 'POST',
@@ -1359,7 +1367,7 @@ async function executeSendDM(
   config: any,
   ctx: TriggerContext,
   accessToken: string,
-  pageId: string,
+  instagramAccountId: string,
   connectionMethod?: string,
 ): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
   const recipientId = ctx.commenter_id || ctx.sender_id || ctx.follower_id;
@@ -1401,7 +1409,7 @@ async function executeSendDM(
     };
   }
 
-  const sendUrl = `${getMetaGraphApiBaseUrl(connectionMethod)}/${pageId}/messages`;
+  const sendUrl = `${getMetaGraphApiBaseUrl(connectionMethod)}/${instagramAccountId}/messages`;
 
   // Try normal DM
   const openingResponse = await fetch(sendUrl, {
@@ -1447,7 +1455,7 @@ async function executeSendDM(
       { message: privateReplyMessage },
       ctx,
       accessToken,
-      pageId,
+      instagramAccountId,
       connectionMethod,
     );
 
@@ -1525,7 +1533,7 @@ async function executePrivateReply(
   config: any,
   ctx: TriggerContext & { ai_response?: string },
   accessToken: string,
-  pageId: string,
+  instagramAccountId: string,
   connectionMethod?: string,
 ): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
   if (!ctx.comment_id) {
@@ -1548,7 +1556,7 @@ async function executePrivateReply(
     };
   }
 
-  const sendUrl = `${getMetaGraphApiBaseUrl(connectionMethod)}/${pageId}/messages`;
+  const sendUrl = `${getMetaGraphApiBaseUrl(connectionMethod)}/${instagramAccountId}/messages`;
   const response = await fetch(sendUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { buildContentIntelligenceSignals } from "@/lib/content-intelligence/internal-signals"
 
 describe("buildContentIntelligenceSignals", () => {
-  it("keeps top post samples for each platform even when one platform dominates globally", () => {
+  it("ignores legacy Facebook rows and builds signals only from Instagram posts", () => {
     const instagramPosts = Array.from({ length: 12 }, (_, index) => ({
       id: `ig-${index}`,
       platform: "instagram",
@@ -39,6 +39,8 @@ describe("buildContentIntelligenceSignals", () => {
       socialAccounts: [],
     })
 
-    expect(signals.history.topPosts.some((post) => post.platform === "facebook")).toBe(true)
+    expect(signals.history.totalPublishedPosts).toBe(instagramPosts.length)
+    expect(signals.history.topPosts).toHaveLength(instagramPosts.length)
+    expect(signals.history.topPosts.every((post) => post.platform === "instagram")).toBe(true)
   })
 })

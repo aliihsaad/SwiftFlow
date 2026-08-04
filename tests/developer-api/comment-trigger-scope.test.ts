@@ -80,7 +80,7 @@ describe("commentTriggerScopeMatches", () => {
         expect(commentTriggerScopeMatches({ post_scope: "any_reel" }, postComment)).toBe(false)
     })
 
-    it("never matches Reel-only triggers on unidentified media (e.g. Facebook)", () => {
+    it("never matches Reel-only triggers on unidentified media", () => {
         expect(commentTriggerScopeMatches({ post_scope: "any_reel" }, unknownComment)).toBe(false)
         expect(commentTriggerScopeMatches({ post_scope: "any_post" }, unknownComment)).toBe(true)
     })
@@ -142,7 +142,7 @@ describe("enrichCommentPostContext", () => {
         const enriched = await enrichCommentPostContext(
             { post_id: "media-1", comment_text: "price?" },
             automationWithConfig({ post_id: "media-1", post_caption: "Summer drop is live" }),
-            { access_token: "token", platform: "instagram" },
+            { access_token: "token" },
         )
 
         expect(enriched.post_caption).toBe("Summer drop is live")
@@ -158,7 +158,7 @@ describe("enrichCommentPostContext", () => {
         const enriched = await enrichCommentPostContext(
             { post_id: "media-7" },
             automationWithConfig({ post_scope: "any_reel" }),
-            { access_token: "token", platform: "instagram" },
+            { access_token: "token" },
         )
 
         expect(enriched.post_caption).toBe("New Reel about pricing")
@@ -172,7 +172,7 @@ describe("enrichCommentPostContext", () => {
         const enriched = await enrichCommentPostContext(
             { post_id: "media-7", comment_text: "hello" },
             automationWithConfig({ post_scope: "any" }),
-            { access_token: "token", platform: "instagram" },
+            { access_token: "token" },
         )
 
         expect(enriched.post_caption).toBeUndefined()
@@ -186,7 +186,7 @@ describe("enrichCommentPostContext", () => {
         const enriched = await enrichCommentPostContext(
             { message_text: "dm" },
             automationWithConfig({}),
-            { access_token: "token", platform: "instagram" },
+            { access_token: "token" },
         )
 
         expect(enriched.post_caption).toBeUndefined()

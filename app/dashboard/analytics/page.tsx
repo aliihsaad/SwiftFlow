@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import useSWR from "swr"
-import { AnalyticsPlatformView, DateRange, Granularity, AnalyticsResponse } from "@/types/analytics"
+import { DateRange, Granularity, AnalyticsResponse } from "@/types/analytics"
 import { AnalyticsHeader } from "@/components/analytics/analytics-header"
 import { KPICards } from "@/components/analytics/kpi-cards"
 import { FollowerGrowthChart } from "@/components/analytics/engagement-chart"
@@ -19,7 +19,6 @@ import { AnalyticsLoadingSkeleton } from "@/components/analytics/analytics-loadi
 import { useToast } from "@/components/ui/use-toast"
 import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
-import { Eye, Heart, Link2, MessageCircle, Share2 } from "lucide-react"
 import type { AnalyticsInsightsResult } from "@/lib/content-intelligence/types"
 
 const fetcher = async (url: string) => {
@@ -107,12 +106,6 @@ function toSyncFeedback(responseOk: boolean, result: SyncAnalyticsResponse): Ana
     }
 }
 
-function formatPlatformLabel(platform: AnalyticsPlatformView): string {
-    if (platform === 'instagram') return 'instagram'
-    if (platform === 'facebook') return 'facebook'
-    return 'all'
-}
-
 function formatRangeLabel(range: DateRange): string {
     if (range === 'last_7_days') return 'last_7_days'
     if (range === 'last_30_days') return 'last_30_days'
@@ -141,7 +134,6 @@ function downloadCsv(filename: string, rows: Array<Array<string | number | boole
 }
 
 export default function AnalyticsPage() {
-    const [platformView, setPlatformView] = useState<AnalyticsPlatformView>('all')
     const [dateRange, setDateRange] = useState<DateRange>('last_7_days')
     const [granularity, setGranularity] = useState<Granularity>('daily')
     const [isSyncing, setIsSyncing] = useState(false)
@@ -153,7 +145,7 @@ export default function AnalyticsPage() {
 
     // Fetch analytics data
     const { data, error, isLoading, isValidating, mutate } = useSWR<AnalyticsResponse>(
-        analyticsFetchReady ? `/api/analytics?range=${dateRange}&granularity=${granularity}&platform=${platformView}` : null,
+        analyticsFetchReady ? `/api/analytics?range=${dateRange}&granularity=${granularity}&platform=instagram` : null,
         fetcher,
         {
             revalidateOnFocus: false,
@@ -167,7 +159,7 @@ export default function AnalyticsPage() {
         isLoading: isIntelligenceLoading,
         mutate: mutateIntelligence,
     } = useSWR<AnalyticsInsightsResult>(
-        analyticsFetchReady ? `/api/content-intelligence/analytics-insights?range=${dateRange}&platform=${platformView}` : null,
+        analyticsFetchReady ? `/api/content-intelligence/analytics-insights?range=${dateRange}&platform=instagram` : null,
         fetcher,
         {
             revalidateOnFocus: false,
@@ -267,7 +259,7 @@ export default function AnalyticsPage() {
         }
 
         const generatedAt = new Date().toISOString()
-        const platformLabel = formatPlatformLabel(platformView)
+        const platformLabel = 'instagram'
         const rangeLabel = formatRangeLabel(dateRange)
         const filename = `analytics-${platformLabel}-${rangeLabel}-${granularity}-${generatedAt.slice(0, 10)}.csv`
 
@@ -282,7 +274,6 @@ export default function AnalyticsPage() {
             ['kpi', 'views_change_pct', data.kpis.views.changePct, platformLabel, rangeLabel, granularity, generatedAt],
             ['kpi', 'followers', data.kpis.followers.value, platformLabel, rangeLabel, granularity, generatedAt],
             ['kpi', 'followers_change_pct', data.kpis.followers.changePct, platformLabel, rangeLabel, granularity, generatedAt],
-            ['kpi', 'facebook_followers', data.kpis.followers.facebook, platformLabel, rangeLabel, granularity, generatedAt],
             ['kpi', 'instagram_followers', data.kpis.followers.instagram, platformLabel, rangeLabel, granularity, generatedAt],
             ['kpi', 'growth_rate', data.kpis.growthRate.value, platformLabel, rangeLabel, granularity, generatedAt],
             ['kpi', 'growth_rate_change_pct', data.kpis.growthRate.changePct, platformLabel, rangeLabel, granularity, generatedAt],
@@ -339,9 +330,6 @@ export default function AnalyticsPage() {
     const analyticsWarnings = data?._meta?.warnings || []
     const analyticsSuspectedMissingPermissions = data?._meta?.suspectedMissingPermissions || []
     const analyticsPlatformStatuses = data?._meta?.platformStatuses || []
-    const contentDiscovery = data?._meta?.contentDiscovery?.byPlatform || []
-    const selectedAnalyticsPlatform = data?._meta?.selectedPlatform || platformView
-    const facebookDiscovery = contentDiscovery.find((entry) => entry.platform === 'facebook') || null
     const analyticsError = error as (Error & {
         errorCode?: string
         missingPermissions?: string[]
@@ -360,10 +348,8 @@ export default function AnalyticsPage() {
         <section className="space-y-5 pb-8" aria-label="Performance intelligence">
             {/* Page header */}
             <AnalyticsHeader
-                platformView={platformView}
                 dateRange={dateRange}
                 granularity={granularity}
-                onPlatformViewChange={setPlatformView}
                 onDateRangeChange={setDateRange}
                 onGranularityChange={setGranularity}
                 onExport={handleExport}
@@ -425,7 +411,6 @@ export default function AnalyticsPage() {
             {data && analyticsFetchReady && !showInitialAnalyticsLoading && (
                 <>
                     <AnalyticsHealthPanel
-                        platformView={selectedAnalyticsPlatform}
                         platformStatuses={analyticsPlatformStatuses}
                         warnings={analyticsWarnings}
                         suspectedMissingPermissions={analyticsSuspectedMissingPermissions}
@@ -435,116 +420,6 @@ export default function AnalyticsPage() {
                         canSync={canSyncAnalytics}
                         onSync={handleSync}
                     />
-                    {!!facebookDiscovery && (selectedAnalyticsPlatform === 'all' || selectedAnalyticsPlatform === 'facebook') && (
-                        <div
-                            className="rounded-[24px] p-5 sm:p-6"
-                            style={{
-                                background: 'rgba(34,211,238,0.06)',
-                                border: '1px solid rgba(34,211,238,0.16)',
-                            }}
-                        >
-                            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                                <div className="space-y-2 max-w-2xl">
-                                    <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-400/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100">
-                                        Facebook Page Intelligence
-                                    </div>
-                                    <h3 className="text-lg font-semibold text-white/90">
-                                        Existing Page content is being synced into your analytics layer.
-                                    </h3>
-                                    <p className="text-sm leading-relaxed text-white/60">
-                                        This is powered by the already approved <span className="font-semibold text-white/78">pages_read_engagement</span> permission. SwiftFlow can discover native Facebook Page posts in addition to app-managed posts, then fold them into analytics and content intelligence.
-                                    </p>
-                                </div>
-
-                                <div className="grid min-w-[280px] gap-3 sm:grid-cols-3">
-                                    {[
-                                        { label: 'Synced Posts', value: facebookDiscovery.totalSyncedPosts },
-                                        { label: 'Native Page Posts', value: facebookDiscovery.discoveredNativePosts },
-                                        { label: 'App-Managed Posts', value: facebookDiscovery.appManagedPosts },
-                                    ].map((item) => (
-                                        <div
-                                            key={item.label}
-                                            className="rounded-xl border p-3"
-                                            style={{
-                                                background: 'rgba(8,15,28,0.55)',
-                                                borderColor: 'rgba(255,255,255,0.08)',
-                                            }}
-                                        >
-                                            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-white/45">{item.label}</div>
-                                            <div className="mt-2 text-xl font-semibold text-white/90">{item.value.toLocaleString()}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {facebookDiscovery.topPost && (
-                                <div
-                                    className="mt-5 rounded-xl border p-4"
-                                    style={{
-                                        background: 'rgba(8,15,28,0.52)',
-                                        borderColor: 'rgba(255,255,255,0.08)',
-                                    }}
-                                >
-                                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                        <div className="space-y-2 max-w-2xl">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-cyan-100">
-                                                    Top Facebook Post
-                                                </span>
-                                                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-white/55">
-                                                    {facebookDiscovery.topPost.source === 'native_discovered' ? 'Native Page Content' : 'App-Managed'}
-                                                </span>
-                                            </div>
-                                            <p className="text-sm leading-relaxed text-white/72">
-                                                {facebookDiscovery.topPost.caption}
-                                            </p>
-                                            <div className="flex flex-wrap items-center gap-4 text-xs text-white/55">
-                                                <span className="inline-flex items-center gap-1.5">
-                                                    <Heart className="h-3.5 w-3.5 text-pink-400" />
-                                                    {facebookDiscovery.topPost.likes.toLocaleString()}
-                                                </span>
-                                                <span className="inline-flex items-center gap-1.5">
-                                                    <MessageCircle className="h-3.5 w-3.5 text-cyan-300" />
-                                                    {facebookDiscovery.topPost.comments.toLocaleString()}
-                                                </span>
-                                                <span className="inline-flex items-center gap-1.5">
-                                                    <Share2 className="h-3.5 w-3.5 text-lime-300" />
-                                                    {facebookDiscovery.topPost.shares.toLocaleString()}
-                                                </span>
-                                                <span className="inline-flex items-center gap-1.5">
-                                                    <Eye className="h-3.5 w-3.5 text-amber-300" />
-                                                    {facebookDiscovery.topPost.views.toLocaleString()}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-3 lg:min-w-[220px]">
-                                            <div className="text-xs text-white/45">
-                                                Latest synced Facebook post:{' '}
-                                                <span className="text-white/72">
-                                                    {facebookDiscovery.latestPublishedAt
-                                                        ? new Date(facebookDiscovery.latestPublishedAt).toLocaleString()
-                                                        : 'Not available'}
-                                                </span>
-                                            </div>
-                                            {facebookDiscovery.topPost.permalink && (
-                                                <a
-                                                    href={facebookDiscovery.topPost.permalink}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/75 transition hover:bg-white/10"
-                                                >
-                                                    <Link2 className="h-3.5 w-3.5" />
-                                                    Open Facebook Post
-                                                </a>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
 
                     {/* KPI Cards */}
                     <KPICards
@@ -556,13 +431,13 @@ export default function AnalyticsPage() {
                     />
 
                     {/* Follower Growth Chart */}
-                    <FollowerGrowthChart data={data.followerGrowth} platformView={platformView} />
+                    <FollowerGrowthChart data={data.followerGrowth} />
 
                     <ContentIntelligenceInsights
                         data={intelligenceData}
                         isLoading={isIntelligenceLoading}
                         error={intelligenceError as Error | undefined}
-                        platform={platformView}
+                        platform="instagram"
                     />
 
                     {/* Three column grid */}

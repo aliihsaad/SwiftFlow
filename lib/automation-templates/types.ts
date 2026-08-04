@@ -2,7 +2,7 @@
 import type { LucideIcon } from 'lucide-react'
 import type { WorkflowGraph } from '@/types/automation-graph'
 
-export type AutomationTemplatePlatform = 'instagram' | 'facebook'
+export type AutomationTemplatePlatform = 'instagram'
 
 export interface AutomationTemplateDefinition {
   id: string

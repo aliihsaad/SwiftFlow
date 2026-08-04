@@ -45,9 +45,8 @@ function clampConfidence(sampleSize: number): "high" | "medium" | "low" {
 }
 
 function formatPlatform(platform: ContentPlatform | "all"): string {
-  if (platform === "instagram") return "Instagram"
-  if (platform === "facebook") return "Facebook"
-  return "all platforms"
+  void platform
+  return "Instagram"
 }
 
 function platformMatches(post: HistoricalPostSignal, platform: ContentPlatform | "all"): boolean {
@@ -311,11 +310,11 @@ export function generateAnalyticsInsights(params: {
   const growthInsights: AnalyticsInsightCard[] = [
     {
       id: "growth-evidence-coverage",
-      kind: params.signals.capabilities.hasMetaInsights || params.signals.capabilities.hasFacebookEngagement ? "growth" : "risk",
-      title: params.signals.capabilities.hasMetaInsights || params.signals.capabilities.hasFacebookEngagement
+      kind: params.signals.capabilities.hasMetaInsights ? "growth" : "risk",
+      title: params.signals.capabilities.hasMetaInsights
         ? "Approved analytics signals are feeding recommendations"
         : "Recommendations are limited by available analytics signals",
-      summary: params.signals.capabilities.hasMetaInsights || params.signals.capabilities.hasFacebookEngagement
+      summary: params.signals.capabilities.hasMetaInsights
         ? "SwiftFlow is using synced Meta-derived analytics before falling back to broad benchmarks."
         : "Reconnect or expand analytics permissions before treating these recommendations as fully personalized.",
       confidence,

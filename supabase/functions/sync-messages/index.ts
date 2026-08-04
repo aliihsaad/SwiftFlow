@@ -85,27 +85,23 @@ async function syncMessages(supabase: any, workspaceId: string) {
 
         if (!canManageMessagesWithMetaAccount(
             account.metadata,
-            account.platform === 'facebook' ? 'facebook' : 'instagram',
+            'instagram',
         )) {
             console.log(`[MessageSync] Account ${account.id} lacks messaging capability, skipping`);
             continue;
         }
 
         try {
-            // Get conversations for this Instagram account
-            // Note: Requires instagram_manage_messages + pages_messaging permissions
-            // The conversations endpoint must use the Page ID, not the IG user ID
+            // Direct Instagram Login uses the professional account ID.
             const igUserId = account.account_id;
-            const pageId = account.metadata?.connected_page_id;
-
-            if (!pageId) {
-                console.log(`[MessageSync] Account ${account.id} has no connected_page_id in metadata, skipping`);
+            if (!igUserId) {
+                console.log(`[MessageSync] Account ${account.id} has no Instagram account ID, skipping`);
                 continue;
             }
 
-            const conversationsUrl = `${META_GRAPH_URL}/${pageId}/conversations?fields=id,participants,messages{id,message,from,created_time,attachments},updated_time&platform=instagram&access_token=${account.access_token}`;
+            const conversationsUrl = `${META_GRAPH_URL}/${igUserId}/conversations?fields=id,participants,messages{id,message,from,created_time,attachments},updated_time&platform=instagram&access_token=${account.access_token}`;
 
-            console.log(`[MessageSync] Fetching conversations for page ${pageId} (IG: ${igUserId})`);
+            console.log(`[MessageSync] Fetching Instagram conversations for ${igUserId}`);
 
             const response = await metaGraphFetch(conversationsUrl);
             const data = await response.json();
@@ -124,7 +120,7 @@ async function syncMessages(supabase: any, workspaceId: string) {
 
             for (const conv of conversations) {
                 // Find the other participant (not the page/account)
-                const participant = conv.participants?.data?.find(p => p.id !== pageId && p.id !== igUserId);
+                const participant = conv.participants?.data?.find(p => p.id !== igUserId);
 
                 if (!participant) {
                     console.log(`[MessageSync] No participant found for conversation ${conv.id}`);
@@ -132,7 +128,7 @@ async function syncMessages(supabase: any, workspaceId: string) {
                 }
 
                 // Count unread messages (we'll track this based on is_read flag later)
-                const unreadCount = conv.messages?.data?.filter(m => m.from?.id !== pageId && m.from?.id !== igUserId).length || 0;
+                const unreadCount = conv.messages?.data?.filter(m => m.from?.id !== igUserId).length || 0;
 
                 // Upsert conversation
                 const conversationRecord = {
@@ -165,7 +161,7 @@ async function syncMessages(supabase: any, workspaceId: string) {
                 const messages = conv.messages?.data || [];
 
                 for (const msg of messages) {
-                    const isFromPage = msg.from?.id === pageId || msg.from?.id === igUserId;
+                    const isFromPage = msg.from?.id === igUserId;
 
                     // Process attachments
                     const attachments = msg.attachments?.data?.map(att => ({
@@ -179,7 +175,7 @@ async function syncMessages(supabase: any, workspaceId: string) {
                         conversation_id: upsertedConv.id,
                         platform_message_id: msg.id,
                         sender_id: msg.from?.id || '',
-                        is_from_page: isFromPage,
+                        is_from_page: isFromPage, // Legacy column name; true means sent by the connected Instagram account.
                         message: msg.message || null,
                         attachments: JSON.stringify(attachments),
                         is_read: isFromPage, // Messages we sent are considered "read"

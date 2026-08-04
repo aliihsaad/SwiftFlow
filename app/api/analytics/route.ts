@@ -1,999 +1,567 @@
+import { format, formatDistanceToNow, startOfMonth, startOfWeek, subDays } from 'date-fns'
 import { NextRequest, NextResponse } from 'next/server'
-import { DateRange, Granularity, AnalyticsResponse, PostData, Platform, AnalyticsPlatformView } from '@/types/analytics'
-import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
+import { createClient } from '@/utils/supabase/server'
 import { getActiveWorkspace } from '@/lib/workspace-utils'
-import { format, subDays, formatDistanceToNow } from 'date-fns'
+import type {
+    AnalyticsMetricStatus,
+    AnalyticsResponse,
+    DateRange,
+    FollowerGrowthData,
+    Granularity,
+    PostData,
+} from '@/types/analytics'
 
 export const runtime = 'edge'
 
-type MetricStatus = 'available' | 'partial' | 'unavailable'
-type PlatformKey = 'instagram' | 'facebook'
-const ANALYTICS_SCOPE_ALIASES = {
-    instagram: ['instagram_business_manage_insights', 'instagram_manage_insights'],
-    facebook: ['pages_read_engagement'],
-} as const
+const PLATFORM = 'instagram' as const
+const ANALYTICS_SCOPES = [
+    'instagram_business_manage_insights',
+    'instagram_manage_insights',
+] as const
 
-
-type PlatformAnalyticsMeta = {
-    platform: PlatformKey
-    connected: boolean
-    status: MetricStatus
-    accountMetricsStatus: MetricStatus
-    postMetricsStatus: MetricStatus
-    exactScopesKnown: boolean
-    missingPermissions: string[]
-    warnings: string[]
+type SocialAccountRow = {
+    id: string
+    platform: string
+    metadata?: Record<string, unknown> | null
 }
 
-type AnalyticsMeta = {
-    hasAnalytics: boolean
-    needsSync: boolean
-    hasPublishedPosts?: boolean
-    reason?: string | null
-    selectedPlatform?: AnalyticsPlatformView
-    isCombinedView?: boolean
-    warnings?: string[]
-    suspectedMissingPermissions?: string[]
-    platformStatuses?: PlatformAnalyticsMeta[]
-    capabilities?: {
-        accountMetrics: {
-            status: MetricStatus
-            availablePlatforms: string[]
-            unavailablePlatforms: string[]
-        }
-        postMetrics: {
-            status: MetricStatus
-            totalPublishedPosts: number
-            postsWithAnalyticsRows: number
-            platformsWithPublishedPosts: string[]
-            platformsWithAnalyticsRows: string[]
-        }
-    }
-    contentDiscovery?: {
-        byPlatform: Array<{
-            platform: PlatformKey
-            totalSyncedPosts: number
-            appManagedPosts: number
-            discoveredNativePosts: number
-            latestPublishedAt: string | null
-            topPost: {
-                id: string
-                caption: string
-                permalink: string | null
-                likes: number
-                comments: number
-                shares: number
-                views: number
-                source: 'app_managed' | 'native_discovered'
-            } | null
-        }>
-    }
+type PublishedPostRow = {
+    id: string
+    post_id?: string | null
+    platform: string
+    platform_caption?: string | null
+    permalink?: string | null
+    published_at?: string | null
+    created_at?: string | null
 }
 
-function buildContentDiscoveryMeta(params: {
-    publishedPosts: any[]
-    postAnalytics: any[]
-}): AnalyticsMeta['contentDiscovery'] {
-    const { publishedPosts, postAnalytics } = params
-    const analyticsByPublishedPostId = new Map<string, any>()
-    ;(postAnalytics || []).forEach((row) => {
-        if (row?.published_post_id && !analyticsByPublishedPostId.has(row.published_post_id)) {
-            analyticsByPublishedPostId.set(row.published_post_id, row)
-        }
-    })
-
-    const byPlatform = (['instagram', 'facebook'] as PlatformKey[]).map((platform) => {
-        const platformPosts = (publishedPosts || []).filter((row) => row?.platform === platform)
-        const sortedByDate = [...platformPosts].sort((a, b) =>
-            new Date(b?.published_at || 0).getTime() - new Date(a?.published_at || 0).getTime(),
-        )
-        const topPostCandidate = [...platformPosts]
-            .map((row) => {
-                const analytics = analyticsByPublishedPostId.get(row.id) || {}
-                return {
-                    row,
-                    analytics,
-                    score:
-                        Number(analytics?.likes || 0) +
-                        Number(analytics?.comments || 0) +
-                        Number(analytics?.shares || 0),
-                }
-            })
-            .sort((a, b) => b.score - a.score || new Date(b.row?.published_at || 0).getTime() - new Date(a.row?.published_at || 0).getTime())[0]
-
-        return {
-            platform,
-            totalSyncedPosts: platformPosts.length,
-            appManagedPosts: platformPosts.filter((row) => Boolean(row?.post_id)).length,
-            discoveredNativePosts: platformPosts.filter((row) => !row?.post_id).length,
-            latestPublishedAt: sortedByDate[0]?.published_at || null,
-            topPost: topPostCandidate
-                ? {
-                    id: topPostCandidate.row.id,
-                    caption: topPostCandidate.row.platform_caption || `Direct ${platform.toUpperCase()} post`,
-                    permalink: topPostCandidate.row.permalink || null,
-                    likes: Number(topPostCandidate.analytics?.likes || 0),
-                    comments: Number(topPostCandidate.analytics?.comments || 0),
-                    shares: Number(topPostCandidate.analytics?.shares || 0),
-                    views: Number(topPostCandidate.analytics?.views || 0),
-                    source: (topPostCandidate.row?.post_id ? 'app_managed' : 'native_discovered') as 'app_managed' | 'native_discovered',
-                }
-                : null,
-        }
-    })
-
-    return { byPlatform }
+type PostAnalyticsRow = {
+    published_post_id: string
+    likes?: number | null
+    comments?: number | null
+    shares?: number | null
+    views?: number | null
+    date?: string | null
+    created_at?: string | null
 }
 
-function buildAnalyticsMeta(params: {
-    socialAccounts: any[]
-    accountAnalytics: any[]
-    publishedPosts: any[]
-    postAnalytics: any[]
-    hasAnalytics: boolean
-    hasPublishedPosts: boolean
-    needsSync: boolean
-    reason?: string | null
-    selectedPlatform?: AnalyticsPlatformView
-}): AnalyticsMeta {
-    const {
-        socialAccounts,
-        accountAnalytics,
-        publishedPosts,
-        postAnalytics,
-        hasAnalytics,
-        hasPublishedPosts,
-        needsSync,
-        reason = null,
-        selectedPlatform = 'all',
-    } = params
-
-    const warnings: string[] = []
-    const suspectedMissingPermissions = new Set<string>()
-    const platformStatuses: PlatformAnalyticsMeta[] = []
-
-    const connectedPlatforms = Array.from(new Set((socialAccounts || []).map((a) => a.platform).filter(Boolean)))
-    const accountIdToPlatform = new Map<string, string>()
-    const accountIdToGrantedScopes = new Map<string, Set<string>>()
-    const platformGrantedScopes = new Map<string, Set<string>>()
-    const platformExactScopesKnown = new Map<string, boolean>()
-    ;(socialAccounts || []).forEach((a) => {
-        if (a?.id) accountIdToPlatform.set(a.id, a.platform)
-        const grantedScopes = Array.isArray(a?.metadata?.granted_scopes)
-            ? a.metadata.granted_scopes.filter((s: unknown) => typeof s === 'string')
-            : []
-        const granularScopes = Array.isArray(a?.metadata?.granted_granular_scopes)
-            ? a.metadata.granted_granular_scopes
-                .map((entry: any) => entry?.scope)
-                .filter((scope: unknown) => typeof scope === 'string')
-            : []
-        const rawScopes = Array.from(new Set([...grantedScopes, ...granularScopes]))
-        const scopeSet = new Set<string>(rawScopes)
-        if (a?.id) accountIdToGrantedScopes.set(a.id, scopeSet)
-        if (a?.platform) {
-            const existing = platformGrantedScopes.get(a.platform) || new Set<string>()
-            rawScopes.forEach((s: string) => existing.add(s))
-            platformGrantedScopes.set(a.platform, existing)
-            if (Array.isArray(a?.metadata?.granted_scopes)
-                || Array.isArray(a?.metadata?.granted_granular_scopes)) {
-                platformExactScopesKnown.set(a.platform, true)
-            } else if (!platformExactScopesKnown.has(a.platform)) {
-                platformExactScopesKnown.set(a.platform, false)
-            }
-        }
-    })
-
-    const getPlatformScopeState = (platform: PlatformKey, acceptedScopes: readonly string[]): 'granted' | 'missing' | 'unknown' => {
-        const exactKnown = platformExactScopesKnown.get(platform)
-        if (!exactKnown) return 'unknown'
-        return acceptedScopes.some((scope) => platformGrantedScopes.get(platform)?.has(scope))
-            ? 'granted'
-            : 'missing'
-    }
-
-    const noteRequiredPermission = (platform: PlatformKey, acceptedScopes: readonly string[], preferredScope: string) => {
-        const state = getPlatformScopeState(platform, acceptedScopes)
-        if (state === 'missing' || state === 'unknown') {
-            suspectedMissingPermissions.add(preferredScope)
-        }
-    }
-
-    const accountMetricPlatforms = new Set<string>()
-    ;(accountAnalytics || []).forEach((row) => {
-        const platform = accountIdToPlatform.get(row.social_account_id)
-        if (platform) accountMetricPlatforms.add(platform)
-    })
-
-    const publishedPostIdToPlatform = new Map<string, string>()
-    const platformsWithPublishedPosts = new Set<string>()
-    ;(publishedPosts || []).forEach((pp) => {
-        if (pp?.id && pp?.platform) {
-            publishedPostIdToPlatform.set(pp.id, pp.platform)
-            platformsWithPublishedPosts.add(pp.platform)
-        }
-    })
-
-    const platformsWithAnalyticsRows = new Set<string>()
-    ;(postAnalytics || []).forEach((row) => {
-        const platform = publishedPostIdToPlatform.get(row.published_post_id)
-        if (platform) platformsWithAnalyticsRows.add(platform)
-    })
-
-    const accountUnavailablePlatforms = connectedPlatforms.filter((p) => !accountMetricPlatforms.has(p))
-    const accountStatus: MetricStatus =
-        connectedPlatforms.length === 0
-            ? 'unavailable'
-            : accountMetricPlatforms.size === 0
-                ? 'unavailable'
-                : accountMetricPlatforms.size < connectedPlatforms.length
-                    ? 'partial'
-                    : 'available'
-
-    if (accountStatus !== 'available' && connectedPlatforms.length > 0) {
-        warnings.push('Account-level analytics is partially available. Follower metrics may be missing for some connected platforms.')
-        if (connectedPlatforms.includes('instagram')) noteRequiredPermission('instagram', ANALYTICS_SCOPE_ALIASES.instagram, ANALYTICS_SCOPE_ALIASES.instagram[0])
-        if (connectedPlatforms.includes('facebook')) noteRequiredPermission('facebook', ANALYTICS_SCOPE_ALIASES.facebook, ANALYTICS_SCOPE_ALIASES.facebook[0])
-    }
-
-    const totalPublishedPosts = (publishedPosts || []).length
-    const postsWithAnalyticsRows = new Set((postAnalytics || []).map((row) => row.published_post_id)).size
-    const postStatus: MetricStatus =
-        totalPublishedPosts === 0
-            ? 'unavailable'
-            : postsWithAnalyticsRows === 0
-                ? 'unavailable'
-                : postsWithAnalyticsRows < totalPublishedPosts
-                    ? 'partial'
-                    : 'available'
-
-    if (hasPublishedPosts && postStatus !== 'available') {
-        warnings.push('Post analytics is partial. Some posts were found without synced metrics.')
-        if (platformsWithPublishedPosts.has('instagram')) noteRequiredPermission('instagram', ANALYTICS_SCOPE_ALIASES.instagram, ANALYTICS_SCOPE_ALIASES.instagram[0])
-        if (platformsWithPublishedPosts.has('facebook')) noteRequiredPermission('facebook', ANALYTICS_SCOPE_ALIASES.facebook, ANALYTICS_SCOPE_ALIASES.facebook[0])
-    }
-
-    if (reason === 'no_published_posts') {
-        warnings.push('No published posts were found for the selected workspace. Account analytics may still be available.')
-    } else if (reason === 'no_published_posts_in_range') {
-        warnings.push('No published posts were found for the selected date range. Account analytics may still be available.')
-    }
-
-    const analyticsRowsByPlatform = new Map<string, any[]>()
-    ;(postAnalytics || []).forEach((row) => {
-        const platform = publishedPostIdToPlatform.get(row.published_post_id)
-        if (!platform) return
-        const list = analyticsRowsByPlatform.get(platform) || []
-        list.push(row)
-        analyticsRowsByPlatform.set(platform, list)
-    })
-
-    ;(['instagram', 'facebook'] as PlatformKey[]).forEach((platform: PlatformKey) => {
-        const connected = connectedPlatforms.includes(platform)
-        if (!connected) return
-
-        const platformPublishedRows = (publishedPosts || []).filter((pp) => pp?.platform === platform)
-        const platformAnalyticsRows = analyticsRowsByPlatform.get(platform) || []
-        const platformAccountMetricsRows = (accountAnalytics || []).filter((row) => accountIdToPlatform.get(row.social_account_id) === platform)
-
-        const accountMetricsStatus: MetricStatus =
-            platformAccountMetricsRows.length === 0 ? 'unavailable' : 'available'
-
-        const postMetricsStatus: MetricStatus =
-            platformPublishedRows.length === 0
-                ? 'unavailable'
-                : platformAnalyticsRows.length === 0
-                    ? 'unavailable'
-                    : platformAnalyticsRows.length < platformPublishedRows.length
-                        ? 'partial'
-                        : 'available'
-
-        const platformWarnings: string[] = []
-        const missingPermissions: string[] = []
-        const exactScopesKnown = !!platformExactScopesKnown.get(platform)
-
-        if (platform === 'instagram') {
-            const scopeState = getPlatformScopeState('instagram', ANALYTICS_SCOPE_ALIASES.instagram)
-            if (scopeState === 'missing') missingPermissions.push(ANALYTICS_SCOPE_ALIASES.instagram[0])
-
-            if (accountMetricsStatus === 'unavailable') {
-                platformWarnings.push(
-                    scopeState === 'granted'
-                        ? 'Instagram follower/account metrics are not yet available.'
-                        : 'Instagram follower/account metrics may require Instagram insights permission.'
-                )
-            }
-        } else if (platform === 'facebook') {
-            const scopeState = getPlatformScopeState('facebook', ANALYTICS_SCOPE_ALIASES.facebook)
-            if (scopeState === 'missing') missingPermissions.push('pages_read_engagement')
-
-            if (accountMetricsStatus === 'unavailable') {
-                platformWarnings.push(
-                    scopeState === 'granted'
-                        ? 'Facebook follower/page metrics are not yet available.'
-                        : 'Facebook page metrics may require pages_read_engagement.'
-                )
-            }
-        }
-
-        const status: MetricStatus =
-            accountMetricsStatus === 'available' && (postMetricsStatus === 'available' || postMetricsStatus === 'unavailable' && platformPublishedRows.length === 0)
-                ? 'available'
-                : (accountMetricsStatus === 'unavailable' && postMetricsStatus === 'unavailable')
-                    ? 'unavailable'
-                    : 'partial'
-
-        platformStatuses.push({
-            platform,
-            connected,
-            status,
-            accountMetricsStatus,
-            postMetricsStatus,
-            exactScopesKnown,
-            missingPermissions: Array.from(new Set(missingPermissions)),
-            warnings: Array.from(new Set(platformWarnings)),
-        })
-    })
-
-    return {
-        hasAnalytics,
-        needsSync,
-        hasPublishedPosts,
-        reason,
-        selectedPlatform,
-        isCombinedView: selectedPlatform === 'all',
-        warnings: Array.from(new Set(warnings)),
-        suspectedMissingPermissions: Array.from(suspectedMissingPermissions),
-        platformStatuses,
-        capabilities: {
-            accountMetrics: {
-                status: accountStatus,
-                availablePlatforms: Array.from(accountMetricPlatforms),
-                unavailablePlatforms: accountUnavailablePlatforms,
-            },
-            postMetrics: {
-                status: postStatus,
-                totalPublishedPosts,
-                postsWithAnalyticsRows,
-                platformsWithPublishedPosts: Array.from(platformsWithPublishedPosts),
-                platformsWithAnalyticsRows: Array.from(platformsWithAnalyticsRows),
-            }
-        }
-    }
+type AccountAnalyticsRow = {
+    social_account_id: string
+    followers?: number | null
+    date: string
 }
 
-function roundPct(value: number): number {
+function daysForRange(range: DateRange): number {
+    return range === 'last_7_days' ? 7 : range === 'last_30_days' ? 30 : 90
+}
+
+function roundPercent(value: number): number {
     const rounded = Number((Number.isFinite(value) ? value : 0).toFixed(1))
     return Object.is(rounded, -0) ? 0 : rounded
 }
 
-function calculatePeriodChangePct(current: number, previous: number): number {
-    const curr = Number.isFinite(current) ? current : 0
-    const prev = Number.isFinite(previous) ? previous : 0
-    if (prev === 0) {
-        // No reliable prior baseline -> avoid fake percentages.
-        return 0
+function periodChange(current: number, previous: number): number {
+    return previous === 0 ? 0 : roundPercent(((current - previous) / Math.abs(previous)) * 100)
+}
+
+function numberValue(value: unknown): number {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+}
+
+function statusForCoverage(total: number, covered: number): AnalyticsMetricStatus {
+    if (total === 0 || covered === 0) return 'unavailable'
+    return covered < total ? 'partial' : 'available'
+}
+
+function grantedScopes(metadata: Record<string, unknown> | null | undefined): {
+    exactKnown: boolean
+    scopes: Set<string>
+} {
+    const direct = Array.isArray(metadata?.granted_scopes)
+        ? metadata.granted_scopes.filter((scope): scope is string => typeof scope === 'string')
+        : []
+    const granular = Array.isArray(metadata?.granted_granular_scopes)
+        ? metadata.granted_granular_scopes
+            .map((entry) => (
+                entry && typeof entry === 'object' && typeof (entry as { scope?: unknown }).scope === 'string'
+                    ? (entry as { scope: string }).scope
+                    : null
+            ))
+            .filter((scope): scope is string => Boolean(scope))
+        : []
+
+    return {
+        exactKnown: Array.isArray(metadata?.granted_scopes)
+            || Array.isArray(metadata?.granted_granular_scopes),
+        scopes: new Set([...direct, ...granular]),
     }
-    return roundPct(((curr - prev) / Math.abs(prev)) * 100)
 }
 
-function getRangeStartDate(range: DateRange): Date {
-    const daysCount = range === 'last_7_days' ? 7 : range === 'last_30_days' ? 30 : 90
-    return subDays(new Date(), daysCount)
-}
-
-function filterPublishedPostsForRange(publishedPosts: any[], range: DateRange): any[] {
-    const startDate = getRangeStartDate(range)
-    const startTime = startDate.getTime()
-
-    return (publishedPosts || []).filter((publishedPost) => {
-        const rawDate = publishedPost?.published_at || publishedPost?.created_at
-        if (!rawDate) return false
-
-        const publishedTime = new Date(rawDate).getTime()
-        return Number.isFinite(publishedTime) && publishedTime >= startTime
-    })
-}
-
-function filterPostAnalyticsForPublishedPosts(postAnalytics: any[], publishedPosts: any[]): any[] {
-    const publishedPostIds = new Set((publishedPosts || []).map((post) => post?.id).filter(Boolean))
-    return (postAnalytics || []).filter((row) => publishedPostIds.has(row?.published_post_id))
-}
-
-// Transform database data into analytics response format
-function transformRealDataToAnalytics(
-    publishedPosts: any[],
-    accountAnalytics: any[],
-    socialAccounts: any[],
-    range: DateRange,
-    granularity: Granularity
-): AnalyticsResponse {
-    const daysCount = range === 'last_7_days' ? 7 : range === 'last_30_days' ? 30 : 90
-    const now = new Date()
-    const startDate = subDays(now, daysCount)
-
-    // Transform posts with analytics into PostData format (all available posts)
-    const allPosts: PostData[] = publishedPosts
-        .filter(post => post.published_posts?.length > 0)
-        .flatMap(post => {
-            // Each post can have multiple published_posts (one per platform)
-            return post.published_posts.map((publishedPost: any) => {
-                const analytics = publishedPost.post_analytics?.[0] || {}
-                const platform = (publishedPost.platform?.toLowerCase() || 'instagram') as Platform
-                const timestamp = publishedPost.published_at || post.published_at || post.created_at
-                const postCaption = typeof post.content === 'string' && post.content.trim().length > 0
-                    ? post.content
-                    : (publishedPost.platform_caption || `Direct ${platform.toUpperCase()} post`)
-
-                return {
-                    id: publishedPost.id,
-                    platform: platform,
-                    timeAgo: timestamp ? formatDistanceToNow(new Date(timestamp), { addSuffix: true }) : 'just now',
-                    caption: postCaption,
-                    likes: analytics.likes || 0,
-                    comments: analytics.comments || 0,
-                    shares: analytics.shares || 0,
-                    views: analytics.views || 0,
-                    timestamp,
-                }
-            })
-        })
-        .filter(post => !!post.timestamp)
-        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-
-    // KPIs are range-based
-    const postsInRange = allPosts.filter((post) => new Date(post.timestamp).getTime() >= startDate.getTime())
-    const previousPeriodStart = subDays(startDate, daysCount)
-    const postsInPreviousRange = allPosts.filter((post) => {
-        const ts = new Date(post.timestamp).getTime()
-        return ts >= previousPeriodStart.getTime() && ts < startDate.getTime()
-    })
-
-    // Cards show latest available posts regardless of selected range
-    const latestPost = allPosts.length > 0 ? allPosts[0] : null
-    const otherPosts = allPosts.slice(1, 5) // Get up to 4 other posts
-
-    // Calculate KPIs from posts
-    const totalLikes = postsInRange.reduce((sum, post) => sum + post.likes, 0)
-    const totalComments = postsInRange.reduce((sum, post) => sum + post.comments, 0)
-    const totalShares = postsInRange.reduce((sum, post) => sum + post.shares, 0)
-    const totalEngagement = totalLikes + totalComments + totalShares
-    const totalViews = postsInRange.reduce((sum, post) => sum + post.views, 0)
-    const previousEngagement = postsInPreviousRange.reduce((sum, post) => sum + post.likes + post.comments + post.shares, 0)
-    const previousViews = postsInPreviousRange.reduce((sum, post) => sum + post.views, 0)
-    const engagementChangePct = calculatePeriodChangePct(totalEngagement, previousEngagement)
-    const viewsChangePct = calculatePeriodChangePct(totalViews, previousViews)
-
-    // Get follower data from account analytics
-    const sortedAccountAnalytics = accountAnalytics
-        .filter(a => {
-            const date = new Date(a.date)
-            return date >= startDate
-        })
-        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-
-    // Generate follower growth data
-    const followerGrowthData = generateFollowerGrowthData(
-        sortedAccountAnalytics,
-        socialAccounts,
-        daysCount,
-        granularity
+function latestPostAnalytics(rows: PostAnalyticsRow[]): Map<string, PostAnalyticsRow> {
+    const sorted = [...rows].sort((a, b) =>
+        new Date(b.date || b.created_at || 0).getTime()
+        - new Date(a.date || a.created_at || 0).getTime(),
     )
-
-    // Build a map of social_account_id -> platform for per-platform breakdown
-    const accountPlatformMap = new Map<string, string>()
-    socialAccounts.forEach(acc => {
-        accountPlatformMap.set(acc.id, acc.platform)
-    })
-
-    // Calculate current followers — sum the most recent entry per social account
-    const latestByAccount = new Map<string, number>()
-    accountAnalytics
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .forEach(a => {
-            if (!latestByAccount.has(a.social_account_id)) {
-                latestByAccount.set(a.social_account_id, a.followers || 0)
-            }
-        })
-    const currentFollowers = Array.from(latestByAccount.values()).reduce((sum, f) => sum + f, 0)
-
-    // Per-platform follower counts
-    let facebookFollowers = 0
-    let instagramFollowers = 0
-    latestByAccount.forEach((followers, accountId) => {
-        const platform = accountPlatformMap.get(accountId)
-        if (platform === 'facebook') facebookFollowers += followers
-        else if (platform === 'instagram') instagramFollowers += followers
-    })
-
-    // Calculate previous period followers — sum the most recent entry per account within previous period
-    const previousByAccount = new Map<string, number>()
-    accountAnalytics
-        .filter(a => {
-            const date = new Date(a.date)
-            return date >= previousPeriodStart && date < startDate
-        })
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .forEach(a => {
-            if (!previousByAccount.has(a.social_account_id)) {
-                previousByAccount.set(a.social_account_id, a.followers || 0)
-            }
-        })
-    const previousFollowers = previousByAccount.size > 0
-        ? Array.from(previousByAccount.values()).reduce((sum, f) => sum + f, 0)
-        : currentFollowers
-    const followersChange = previousFollowers > 0
-        ? ((currentFollowers - previousFollowers) / previousFollowers) * 100
-        : 0
-    const followersChangeRounded = roundPct(followersChange)
-
-    // Compare growth rate (current period growth %) vs previous period growth %
-    const prePreviousPeriodStart = subDays(previousPeriodStart, daysCount)
-    const prePreviousByAccount = new Map<string, number>()
-    accountAnalytics
-        .filter(a => {
-            const date = new Date(a.date)
-            return date >= prePreviousPeriodStart && date < previousPeriodStart
-        })
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .forEach(a => {
-            if (!prePreviousByAccount.has(a.social_account_id)) {
-                prePreviousByAccount.set(a.social_account_id, a.followers || 0)
-            }
-        })
-    const prePreviousFollowers = prePreviousByAccount.size > 0
-        ? Array.from(prePreviousByAccount.values()).reduce((sum, f) => sum + f, 0)
-        : previousFollowers
-    const previousGrowthRate = prePreviousFollowers > 0
-        ? ((previousFollowers - prePreviousFollowers) / prePreviousFollowers) * 100
-        : 0
-    const growthRateChangePct = calculatePeriodChangePct(followersChangeRounded, roundPct(previousGrowthRate))
-
-    // Calculate total reach (sum of all post views)
-    const totalReach = totalViews
-
-    return {
-        kpis: {
-            engagement: {
-                value: totalEngagement,
-                changePct: engagementChangePct,
-            },
-            views: {
-                value: totalViews,
-                display: totalViews > 1000 ? `${(totalViews / 1000).toFixed(1)}K` : String(totalViews),
-                changePct: viewsChangePct,
-            },
-            followers: {
-                value: currentFollowers,
-                changePct: followersChangeRounded,
-                facebook: facebookFollowers,
-                instagram: instagramFollowers,
-            },
-            growthRate: {
-                value: followersChangeRounded,
-                changePct: growthRateChangePct,
-            },
-        },
-        followerGrowth: followerGrowthData,
-        latestPost,
-        accountAnalytics: {
-            totalReach,
-            totalEngagement,
-            followers: currentFollowers,
-            facebookFollowers,
-            instagramFollowers,
-        },
-        otherPosts,
+    const byPost = new Map<string, PostAnalyticsRow>()
+    for (const row of sorted) {
+        if (row.published_post_id && !byPost.has(row.published_post_id)) {
+            byPost.set(row.published_post_id, row)
+        }
     }
+    return byPost
 }
 
-function buildEmptyAnalyticsResponse(range: DateRange, granularity: Granularity, socialAccounts: any[] = []): AnalyticsResponse {
-    const daysCount = range === 'last_7_days' ? 7 : range === 'last_30_days' ? 30 : 90
-
-    return {
-        kpis: {
-            engagement: { value: 0, changePct: 0 },
-            views: { value: 0, display: '0', changePct: 0 },
-            followers: { value: 0, changePct: 0, facebook: 0, instagram: 0 },
-            growthRate: { value: 0, changePct: 0 },
-        },
-        followerGrowth: generateFollowerGrowthData([], socialAccounts, daysCount, granularity),
-        latestPost: null,
-        accountAnalytics: {
-            totalReach: 0,
-            totalEngagement: 0,
-            followers: 0,
-            facebookFollowers: 0,
-            instagramFollowers: 0,
-        },
-        otherPosts: [],
+function latestFollowersByAccount(
+    rows: AccountAnalyticsRow[],
+    predicate: (timestamp: number) => boolean,
+): Map<string, number> {
+    const sorted = [...rows].sort((a, b) =>
+        new Date(b.date).getTime() - new Date(a.date).getTime(),
+    )
+    const latest = new Map<string, number>()
+    for (const row of sorted) {
+        const timestamp = new Date(row.date).getTime()
+        if (!Number.isFinite(timestamp) || !predicate(timestamp) || latest.has(row.social_account_id)) {
+            continue
+        }
+        latest.set(row.social_account_id, numberValue(row.followers))
     }
+    return latest
 }
 
-// Generate follower growth chart data with per-platform breakdown
-function generateFollowerGrowthData(
-    accountAnalytics: any[],
-    socialAccounts: any[],
+function sumMap(values: Map<string, number>): number {
+    return Array.from(values.values()).reduce((sum, value) => sum + value, 0)
+}
+
+function generateFollowerGrowth(
+    rows: AccountAnalyticsRow[],
     daysCount: number,
-    granularity: Granularity
-) {
-    const labels: string[] = []
-    const values: number[] = []
-    const facebookValues: number[] = []
-    const instagramValues: number[] = []
-
-    // Build account ID -> platform map
-    const accountPlatformMap = new Map<string, string>()
-    socialAccounts.forEach(acc => {
-        accountPlatformMap.set(acc.id, acc.platform)
-    })
-
-    // If we have account analytics data, use it
-    if (accountAnalytics.length > 0) {
-        // Group by date, per platform and total
-        const totalByDate = new Map<string, number>()
-        const fbByDate = new Map<string, number>()
-        const igByDate = new Map<string, number>()
-
-        accountAnalytics.forEach(analytics => {
-            const date = format(new Date(analytics.date), 'yyyy-MM-dd')
-            const followers = analytics.followers || 0
-            const platform = accountPlatformMap.get(analytics.social_account_id)
-
-            totalByDate.set(date, (totalByDate.get(date) || 0) + followers)
-            if (platform === 'facebook') {
-                fbByDate.set(date, (fbByDate.get(date) || 0) + followers)
-            } else if (platform === 'instagram') {
-                igByDate.set(date, (igByDate.get(date) || 0) + followers)
-            }
-        })
-
-        // Sort dates and create labels/values
-        const sortedDates = Array.from(totalByDate.keys()).sort()
-        sortedDates.forEach(date => {
-            const dateObj = new Date(date)
-            let include = false
-            let label = ''
-
-            if (granularity === 'daily') {
-                include = true
-                label = format(dateObj, 'MMM d')
-            } else if (granularity === 'weekly' && dateObj.getDay() === 0) {
-                include = true
-                label = format(dateObj, 'MMM d')
-            } else if (granularity === 'monthly' && dateObj.getDate() === 1) {
-                include = true
-                label = format(dateObj, 'MMM yyyy')
-            }
-
-            if (include) {
-                labels.push(label)
-                values.push(totalByDate.get(date) || 0)
-                facebookValues.push(fbByDate.get(date) || 0)
-                instagramValues.push(igByDate.get(date) || 0)
-            }
-        })
+    granularity: Granularity,
+): FollowerGrowthData {
+    const totalsByDate = new Map<string, number>()
+    for (const row of rows) {
+        const date = new Date(row.date)
+        if (!Number.isFinite(date.getTime())) continue
+        const key = format(date, 'yyyy-MM-dd')
+        totalsByDate.set(key, (totalsByDate.get(key) || 0) + numberValue(row.followers))
     }
 
-    // If we don't have enough data points, fill with zeros
-    if (labels.length === 0) {
-        for (let i = daysCount - 1; i >= 0; i--) {
-            const date = subDays(new Date(), i)
-            if (granularity === 'daily') {
-                labels.push(format(date, 'MMM d'))
-                values.push(0)
-                facebookValues.push(0)
-                instagramValues.push(0)
+    const bucketLatest = new Map<string, { timestamp: number; label: string; value: number }>()
+    for (const [dateKey, value] of totalsByDate) {
+        const date = new Date(dateKey + 'T00:00:00Z')
+        const bucketDate = granularity === 'weekly'
+            ? startOfWeek(date, { weekStartsOn: 1 })
+            : granularity === 'monthly'
+                ? startOfMonth(date)
+                : date
+        const bucketKey = format(bucketDate, 'yyyy-MM-dd')
+        const label = granularity === 'monthly'
+            ? format(bucketDate, 'MMM yyyy')
+            : format(bucketDate, 'MMM d')
+        const current = bucketLatest.get(bucketKey)
+        if (!current || date.getTime() > current.timestamp) {
+            bucketLatest.set(bucketKey, { timestamp: date.getTime(), label, value })
+        }
+    }
+
+    if (bucketLatest.size === 0) {
+        for (let offset = daysCount - 1; offset >= 0; offset -= 1) {
+            const date = subDays(new Date(), offset)
+            const bucketDate = granularity === 'weekly'
+                ? startOfWeek(date, { weekStartsOn: 1 })
+                : granularity === 'monthly'
+                    ? startOfMonth(date)
+                    : date
+            const bucketKey = format(bucketDate, 'yyyy-MM-dd')
+            if (!bucketLatest.has(bucketKey)) {
+                bucketLatest.set(bucketKey, {
+                    timestamp: bucketDate.getTime(),
+                    label: granularity === 'monthly'
+                        ? format(bucketDate, 'MMM yyyy')
+                        : format(bucketDate, 'MMM d'),
+                    value: 0,
+                })
             }
         }
     }
 
-    // Calculate stats
-    const totalGain = values.length >= 2 ? values[values.length - 1] - values[0] : 0
-    const avgDaily = values.length > 0 ? Math.floor(totalGain / daysCount) : 0
+    const points = Array.from(bucketLatest.values()).sort((a, b) => a.timestamp - b.timestamp)
+    const labels = points.map((point) => point.label)
+    const values = points.map((point) => point.value)
+    const totalGain = values.length > 1 ? values[values.length - 1] - values[0] : 0
+    const avgDaily = Math.trunc(totalGain / Math.max(daysCount, 1))
+    let bestDay = labels[0] || ''
 
-    // Find best day
-    let maxGain = 0
-    let bestDayLabel = labels[0] || ''
-    for (let i = 1; i < values.length; i++) {
-        const gain = values[i] - values[i - 1]
-        if (gain > maxGain) {
-            maxGain = gain
-            bestDayLabel = labels[i]
-        }
+    for (let index = 1; index < values.length; index += 1) {
+        const currentGain = values[index] - values[index - 1]
+        const bestIndex = Math.max(labels.indexOf(bestDay), 1)
+        const bestGain = values[bestIndex] - values[bestIndex - 1]
+        if (currentGain > bestGain) bestDay = labels[index]
     }
 
     return {
         labels,
         values,
-        facebookValues,
-        instagramValues,
-        bestDay: bestDayLabel,
-        avgDaily: avgDaily >= 0 ? `+${avgDaily}` : `${avgDaily}`,
-        totalGain: totalGain >= 0 ? `+${totalGain}` : `${totalGain}`,
+        instagramValues: [...values],
+        bestDay,
+        avgDaily: avgDaily >= 0 ? '+' + avgDaily : String(avgDaily),
+        totalGain: totalGain >= 0 ? '+' + totalGain : String(totalGain),
+    }
+}
+
+function emptyAnalytics(
+    range: DateRange,
+    granularity: Granularity,
+    reason: string,
+    connected: boolean,
+): AnalyticsResponse {
+    return {
+        kpis: {
+            engagement: { value: 0, changePct: 0 },
+            views: { value: 0, display: '0', changePct: 0 },
+            followers: { value: 0, changePct: 0, instagram: 0 },
+            growthRate: { value: 0, changePct: 0 },
+        },
+        followerGrowth: generateFollowerGrowth([], daysForRange(range), granularity),
+        latestPost: null,
+        accountAnalytics: {
+            totalReach: 0,
+            totalEngagement: 0,
+            followers: 0,
+            instagramFollowers: 0,
+        },
+        otherPosts: [],
+        _meta: {
+            hasAnalytics: false,
+            needsSync: false,
+            hasPublishedPosts: false,
+            reason,
+            selectedPlatform: PLATFORM,
+            isCombinedView: false,
+            warnings: connected
+                ? ['No Instagram analytics have been synced yet.']
+                : ['No Instagram professional account is connected to this workspace.'],
+            suspectedMissingPermissions: connected ? [ANALYTICS_SCOPES[0]] : [],
+            platformStatuses: connected ? [{
+                platform: PLATFORM,
+                connected: true,
+                status: 'unavailable',
+                accountMetricsStatus: 'unavailable',
+                postMetricsStatus: 'unavailable',
+                exactScopesKnown: false,
+                missingPermissions: [],
+                warnings: ['Instagram analytics are waiting for the first successful sync.'],
+            }] : [],
+            capabilities: {
+                accountMetrics: {
+                    status: 'unavailable',
+                    availablePlatforms: [],
+                    unavailablePlatforms: connected ? [PLATFORM] : [],
+                },
+                postMetrics: {
+                    status: 'unavailable',
+                    totalPublishedPosts: 0,
+                    postsWithAnalyticsRows: 0,
+                    platformsWithPublishedPosts: [],
+                    platformsWithAnalyticsRows: [],
+                },
+            },
+            contentDiscovery: {
+                byPlatform: [{
+                    platform: PLATFORM,
+                    totalSyncedPosts: 0,
+                    appManagedPosts: 0,
+                    discoveredNativePosts: 0,
+                    latestPublishedAt: null,
+                    topPost: null,
+                }],
+            },
+        },
     }
 }
 
 export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient()
-        const supabaseAdmin = createAdminClient()
-
-        // 1. Auth Check
+        const admin = createAdminClient()
         const { data: { user } } = await supabase.auth.getUser()
+
         if (!user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
-        // 2. Workspace Check
         const activeWorkspace = await getActiveWorkspace()
         if (!activeWorkspace) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 })
         }
 
-        const searchParams = request.nextUrl.searchParams
-        const range = (searchParams.get('range') as DateRange) || 'last_7_days'
-        const granularity = (searchParams.get('granularity') as Granularity) || 'daily'
-        const platformFilter = (searchParams.get('platform') as AnalyticsPlatformView) || 'all'
-
-        // Validate parameters
+        const range = (request.nextUrl.searchParams.get('range') || 'last_7_days') as DateRange
+        const granularity = (request.nextUrl.searchParams.get('granularity') || 'daily') as Granularity
         const validRanges: DateRange[] = ['last_7_days', 'last_30_days', 'last_90_days']
         const validGranularities: Granularity[] = ['daily', 'weekly', 'monthly']
-        const validPlatformFilters: AnalyticsPlatformView[] = ['all', 'instagram', 'facebook']
 
         if (!validRanges.includes(range)) {
-            return NextResponse.json(
-                { error: 'Invalid range parameter' },
-                { status: 400 }
-            )
+            return NextResponse.json({ error: 'Invalid range parameter' }, { status: 400 })
         }
-
         if (!validGranularities.includes(granularity)) {
-            return NextResponse.json(
-                { error: 'Invalid granularity parameter' },
-                { status: 400 }
-            )
+            return NextResponse.json({ error: 'Invalid granularity parameter' }, { status: 400 })
         }
 
-        if (!validPlatformFilters.includes(platformFilter)) {
-            return NextResponse.json(
-                { error: 'Invalid platform parameter' },
-                { status: 400 }
-            )
-        }
-
-        // Fetch social accounts for this workspace
-        const { data: socialAccounts } = await supabaseAdmin
+        const { data: accountData, error: accountError } = await admin
             .from('social_accounts')
             .select('id, platform, metadata')
             .eq('workspace_id', activeWorkspace.id)
-        const socialAccountsList = socialAccounts || []
-        const selectedSocialAccounts = platformFilter === 'all'
-            ? socialAccountsList
-            : socialAccountsList.filter((a) => a.platform === platformFilter)
+            .eq('platform', PLATFORM)
 
-        // For read API, we only need connected accounts.
-        // Token validity affects sync, not displaying already-synced analytics rows.
-        const hasConnectedAccounts = selectedSocialAccounts.length > 0
+        if (accountError) throw accountError
 
-        if (!hasConnectedAccounts) {
-            // No connected accounts: return real empty response (not demo data).
-            console.log('[Analytics] No connected accounts found, returning empty analytics')
-            return NextResponse.json({
-                ...buildEmptyAnalyticsResponse(range, granularity, selectedSocialAccounts),
-                _meta: {
-                    hasAnalytics: false,
-                    needsSync: false,
-                    reason: platformFilter === 'all' ? 'no_connected_accounts' : 'no_connected_accounts_for_platform',
-                    selectedPlatform: platformFilter,
-                    isCombinedView: platformFilter === 'all',
-                    warnings: [
-                        platformFilter === 'all'
-                            ? 'No connected social accounts found. Connect Facebook/Instagram accounts in Settings to sync analytics.'
-                            : `No connected ${platformFilter === 'instagram' ? 'Instagram' : 'Facebook'} account found for this workspace.`
-                    ],
-                    suspectedMissingPermissions: [],
-                    platformStatuses: [],
-                    capabilities: {
-                        accountMetrics: {
-                            status: 'unavailable',
-                            availablePlatforms: [],
-                            unavailablePlatforms: [],
-                        },
-                        postMetrics: {
-                            status: 'unavailable',
-                            totalPublishedPosts: 0,
-                            postsWithAnalyticsRows: 0,
-                            platformsWithPublishedPosts: [],
-                            platformsWithAnalyticsRows: [],
-                        }
-                    }
-                }
-            })
+        const accounts = (accountData || []) as SocialAccountRow[]
+        if (accounts.length === 0) {
+            return NextResponse.json(emptyAnalytics(range, granularity, 'no_instagram_account', false))
         }
 
-        // Fetch real analytics from database
-        console.log('[Analytics] Fetching real analytics data...')
-        console.log('[Analytics] Workspace ID:', activeWorkspace.id)
+        const accountIds = accounts.map((account) => account.id)
+        const { data: publishedData, error: publishedError } = await admin
+            .from('published_posts')
+            .select('id, post_id, platform, platform_caption, permalink, published_at, created_at')
+            .in('social_account_id', accountIds)
+            .eq('platform', PLATFORM)
+            .order('published_at', { ascending: false })
+            .limit(500)
 
-        // Fetch posts separately (avoiding nested query issues with PostgREST)
-        const { data: posts, error: postsError } = await supabaseAdmin
-            .from('posts')
-            .select('*')
-            .eq('workspace_id', activeWorkspace.id)
-            .order('created_at', { ascending: false })
-            .limit(50)
+        if (publishedError) throw publishedError
 
-        if (postsError) {
-            console.error('[Analytics] Error fetching posts:', postsError)
-        }
-
-        console.log('[Analytics] Posts found:', posts?.length || 0)
-
-        const accountIds = selectedSocialAccounts.map(a => a.id)
-
-        // Fetch published_posts linked to app posts
-        const postIds = posts?.map(p => p.id) || []
-        let appLinkedPublishedPosts: any[] = []
-        let directPublishedPosts: any[] = []
-
-        if (postIds.length > 0) {
-            const { data: pubPosts, error: pubError } = await supabaseAdmin
-                .from('published_posts')
-                .select('*')
-                .in('post_id', postIds)
-
-            if (pubError) {
-                console.error('[Analytics] Error fetching published_posts:', pubError)
-            }
-            appLinkedPublishedPosts = pubPosts || []
-        }
-
-        // Fetch direct/native platform posts discovered by sync-analytics.
-        // These rows may have post_id = null but social_account_id set.
-        if (accountIds.length > 0) {
-            try {
-                const { data: externalPosts, error: externalError } = await supabaseAdmin
-                    .from('published_posts')
-                    .select('*')
-                    .in('social_account_id', accountIds)
-
-                if (externalError) {
-                    console.error('[Analytics] Error fetching direct published_posts:', externalError)
-                } else {
-                    directPublishedPosts = externalPosts || []
-                }
-            } catch (externalFetchError) {
-                console.error('[Analytics] Direct published_posts query failed:', externalFetchError)
-            }
-        }
-
-        // Merge and dedupe by published_posts.id
-        const publishedPostsMap = new Map<string, any>()
-        ;[...appLinkedPublishedPosts, ...directPublishedPosts].forEach((pp) => {
-            publishedPostsMap.set(pp.id, pp)
-        })
-        let publishedPostsData = Array.from(publishedPostsMap.values())
-        if (platformFilter !== 'all') {
-            publishedPostsData = publishedPostsData.filter((pp) => pp?.platform === platformFilter)
-        }
-
-        console.log('[Analytics] Published posts records:', publishedPostsData.length)
-
-        // Fetch post_analytics for these published posts
-        const publishedPostIds = publishedPostsData.map(pp => pp.id)
-        let postAnalyticsData: any[] = []
+        const publishedPosts = (publishedData || []) as PublishedPostRow[]
+        const publishedPostIds = publishedPosts.map((post) => post.id)
+        let postAnalytics: PostAnalyticsRow[] = []
 
         if (publishedPostIds.length > 0) {
-            const { data: analytics, error: analyticsError } = await supabaseAdmin
+            const { data, error } = await admin
                 .from('post_analytics')
-                .select('*')
+                .select('published_post_id, likes, comments, shares, views, date, created_at')
                 .in('published_post_id', publishedPostIds)
 
-            if (analyticsError) {
-                console.error('[Analytics] Error fetching post_analytics:', analyticsError)
-            }
-            postAnalyticsData = analytics || []
+            if (error) throw error
+            postAnalytics = (data || []) as PostAnalyticsRow[]
         }
 
-        console.log('[Analytics] Post analytics records:', postAnalyticsData.length)
-
-        // Get account analytics
-        const { data: accountAnalytics } = await supabaseAdmin
+        const { data: accountAnalyticsData, error: accountAnalyticsError } = await admin
             .from('account_analytics')
-            .select('*')
+            .select('social_account_id, followers, date')
             .in('social_account_id', accountIds)
-            .order('date', { ascending: false })
-            .limit(90)
+            .order('date', { ascending: true })
+            .limit(1000)
 
-        console.log('[Analytics] Account analytics:', accountAnalytics?.length || 0)
+        if (accountAnalyticsError) throw accountAnalyticsError
 
-        const analyticsByPublishedPostId = new Map<string, any[]>()
-        postAnalyticsData.forEach((pa) => {
-            const key = pa.published_post_id
-            const list = analyticsByPublishedPostId.get(key) || []
-            list.push(pa)
-            analyticsByPublishedPostId.set(key, list)
+        const accountAnalytics = (accountAnalyticsData || []) as AccountAnalyticsRow[]
+        const analyticsByPost = latestPostAnalytics(postAnalytics)
+        const allPosts: PostData[] = publishedPosts
+            .map((post) => {
+                const analytics = analyticsByPost.get(post.id)
+                const timestamp = post.published_at || post.created_at
+                if (!timestamp) return null
+                return {
+                    id: post.id,
+                    platform: PLATFORM,
+                    timeAgo: formatDistanceToNow(new Date(timestamp), { addSuffix: true }),
+                    caption: post.platform_caption || 'Instagram post',
+                    likes: numberValue(analytics?.likes),
+                    comments: numberValue(analytics?.comments),
+                    shares: numberValue(analytics?.shares),
+                    views: numberValue(analytics?.views),
+                    timestamp,
+                } satisfies PostData
+            })
+            .filter((post): post is PostData => post !== null)
+            .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+
+        const now = Date.now()
+        const daysCount = daysForRange(range)
+        const currentStart = subDays(new Date(now), daysCount).getTime()
+        const previousStart = subDays(new Date(currentStart), daysCount).getTime()
+        const prePreviousStart = subDays(new Date(previousStart), daysCount).getTime()
+        const currentPosts = allPosts.filter((post) => new Date(post.timestamp).getTime() >= currentStart)
+        const previousPosts = allPosts.filter((post) => {
+            const timestamp = new Date(post.timestamp).getTime()
+            return timestamp >= previousStart && timestamp < currentStart
         })
+        const sumPostMetric = (posts: PostData[], metric: 'likes' | 'comments' | 'shares' | 'views') =>
+            posts.reduce((sum, post) => sum + post[metric], 0)
+        const currentEngagement =
+            sumPostMetric(currentPosts, 'likes')
+            + sumPostMetric(currentPosts, 'comments')
+            + sumPostMetric(currentPosts, 'shares')
+        const previousEngagement =
+            sumPostMetric(previousPosts, 'likes')
+            + sumPostMetric(previousPosts, 'comments')
+            + sumPostMetric(previousPosts, 'shares')
+        const currentViews = sumPostMetric(currentPosts, 'views')
+        const previousViews = sumPostMetric(previousPosts, 'views')
 
-        // Build a unified post collection:
-        // - app-managed posts (linked via post_id)
-        // - direct/native posts (no post_id, linked via social_account_id)
-        const postsById = new Map<string, any>()
-        ;(posts || []).forEach((post) => {
-            postsById.set(post.id, { ...post, published_posts: [] as any[] })
-        })
-
-        publishedPostsData.forEach((pp) => {
-            const analyticsForPost = analyticsByPublishedPostId.get(pp.id) || []
-
-            if (pp.post_id && postsById.has(pp.post_id)) {
-                const existing = postsById.get(pp.post_id)
-                existing.published_posts.push({ ...pp, post_analytics: analyticsForPost })
-                postsById.set(pp.post_id, existing)
-                return
-            }
-
-            const syntheticId = `external:${pp.id}`
-            const existingExternal = postsById.get(syntheticId) || {
-                id: syntheticId,
-                workspace_id: activeWorkspace.id,
-                content: pp.platform_caption || `Direct ${(pp.platform || 'social').toUpperCase()} post`,
-                published_at: pp.published_at,
-                created_at: pp.published_at,
-                published_posts: [] as any[],
-            }
-            existingExternal.published_posts.push({ ...pp, post_analytics: analyticsForPost })
-            postsById.set(syntheticId, existingExternal)
-        })
-
-        const publishedPosts = Array.from(postsById.values())
-
-        // Track post presence for metadata only.
-        const hasPublishedPosts = publishedPosts.some(p => p.published_posts?.length > 0)
-
-        // Transform real data into analytics format
-        // Note: This keeps follower/account metrics from account_analytics even when posts are absent.
-        const analyticsData = transformRealDataToAnalytics(
-            publishedPosts,
-            accountAnalytics || [],
-            selectedSocialAccounts,
-            range,
-            granularity
+        const currentFollowers = sumMap(latestFollowersByAccount(accountAnalytics, () => true))
+        const previousFollowersMap = latestFollowersByAccount(
+            accountAnalytics,
+            (timestamp) => timestamp < currentStart,
         )
+        const previousFollowers = previousFollowersMap.size > 0
+            ? sumMap(previousFollowersMap)
+            : currentFollowers
+        const prePreviousFollowersMap = latestFollowersByAccount(
+            accountAnalytics,
+            (timestamp) => timestamp < previousStart && timestamp >= prePreviousStart,
+        )
+        const prePreviousFollowers = prePreviousFollowersMap.size > 0
+            ? sumMap(prePreviousFollowersMap)
+            : previousFollowers
+        const followerGrowth = previousFollowers > 0
+            ? roundPercent(((currentFollowers - previousFollowers) / previousFollowers) * 100)
+            : 0
+        const previousGrowth = prePreviousFollowers > 0
+            ? roundPercent(((previousFollowers - prePreviousFollowers) / prePreviousFollowers) * 100)
+            : 0
 
-        const metaPublishedPostsData = filterPublishedPostsForRange(publishedPostsData, range)
-        const metaPostAnalyticsData = filterPostAnalyticsForPublishedPosts(postAnalyticsData, metaPublishedPostsData)
+        const currentAccountRows = accountAnalytics.filter(
+            (row) => new Date(row.date).getTime() >= currentStart,
+        )
+        const chart = generateFollowerGrowth(currentAccountRows, daysCount, granularity)
+        const postsWithAnalyticsRows = new Set(postAnalytics.map((row) => row.published_post_id)).size
+        const accountMetricsStatus: AnalyticsMetricStatus =
+            accountAnalytics.length > 0 ? 'available' : 'unavailable'
+        const postMetricsStatus = statusForCoverage(publishedPosts.length, postsWithAnalyticsRows)
+        const combinedStatus: AnalyticsMetricStatus =
+            accountMetricsStatus === 'available'
+                && (postMetricsStatus === 'available' || publishedPosts.length === 0)
+                ? 'available'
+                : accountMetricsStatus === 'unavailable' && postMetricsStatus === 'unavailable'
+                    ? 'unavailable'
+                    : 'partial'
 
-        const hasRangePublishedPosts = metaPublishedPostsData.length > 0
-        const hasRangeAnalytics = metaPostAnalyticsData.length > 0
+        const scopeState = grantedScopes(accounts[0]?.metadata)
+        const hasInsightsScope = ANALYTICS_SCOPES.some((scope) => scopeState.scopes.has(scope))
+        const warnings: string[] = []
+        if (accountMetricsStatus === 'unavailable') {
+            warnings.push('Instagram follower analytics have not synced yet.')
+        }
+        if (publishedPosts.length === 0) {
+            warnings.push('No Instagram posts are available for the selected workspace.')
+        } else if (postMetricsStatus !== 'available') {
+            warnings.push('Some Instagram posts do not have synced metrics yet.')
+        }
+        if (scopeState.exactKnown && !hasInsightsScope) {
+            warnings.push('Reconnect Instagram to approve insights access.')
+        }
 
-        const analyticsMeta = buildAnalyticsMeta({
-            socialAccounts: selectedSocialAccounts,
-            accountAnalytics: accountAnalytics || [],
-            publishedPosts: metaPublishedPostsData,
-            postAnalytics: metaPostAnalyticsData,
-            hasAnalytics: hasRangeAnalytics,
-            hasPublishedPosts: hasRangePublishedPosts,
-            needsSync: hasRangePublishedPosts && !hasRangeAnalytics,
-            reason: hasRangePublishedPosts ? null : (hasPublishedPosts ? 'no_published_posts_in_range' : 'no_published_posts'),
-            selectedPlatform: platformFilter,
-        })
-        analyticsMeta.contentDiscovery = buildContentDiscoveryMeta({
-            publishedPosts: publishedPostsData,
-            postAnalytics: postAnalyticsData,
-        })
+        const topPost = [...publishedPosts]
+            .map((post) => {
+                const analytics = analyticsByPost.get(post.id)
+                return {
+                    post,
+                    analytics,
+                    score: numberValue(analytics?.likes)
+                        + numberValue(analytics?.comments)
+                        + numberValue(analytics?.shares),
+                }
+            })
+            .sort((a, b) => b.score - a.score)[0]
 
-        return NextResponse.json({
-            ...analyticsData,
-            _meta: analyticsMeta
-        })
+        const response: AnalyticsResponse = {
+            kpis: {
+                engagement: {
+                    value: currentEngagement,
+                    changePct: periodChange(currentEngagement, previousEngagement),
+                },
+                views: {
+                    value: currentViews,
+                    display: currentViews > 1000 ? (currentViews / 1000).toFixed(1) + 'K' : String(currentViews),
+                    changePct: periodChange(currentViews, previousViews),
+                },
+                followers: {
+                    value: currentFollowers,
+                    changePct: followerGrowth,
+                    instagram: currentFollowers,
+                },
+                growthRate: {
+                    value: followerGrowth,
+                    changePct: periodChange(followerGrowth, previousGrowth),
+                },
+            },
+            followerGrowth: chart,
+            latestPost: allPosts[0] || null,
+            accountAnalytics: {
+                totalReach: currentViews,
+                totalEngagement: currentEngagement,
+                followers: currentFollowers,
+                instagramFollowers: currentFollowers,
+            },
+            otherPosts: allPosts.slice(1, 5),
+            _meta: {
+                hasAnalytics: accountAnalytics.length > 0 || postAnalytics.length > 0,
+                needsSync: publishedPosts.length > postsWithAnalyticsRows,
+                hasPublishedPosts: publishedPosts.length > 0,
+                reason: publishedPosts.length > 0 ? null : 'no_published_posts',
+                selectedPlatform: PLATFORM,
+                isCombinedView: false,
+                warnings,
+                suspectedMissingPermissions: scopeState.exactKnown && !hasInsightsScope
+                    ? [ANALYTICS_SCOPES[0]]
+                    : [],
+                platformStatuses: [{
+                    platform: PLATFORM,
+                    connected: true,
+                    status: combinedStatus,
+                    accountMetricsStatus,
+                    postMetricsStatus,
+                    exactScopesKnown: scopeState.exactKnown,
+                    missingPermissions: scopeState.exactKnown && !hasInsightsScope
+                        ? [ANALYTICS_SCOPES[0]]
+                        : [],
+                    warnings,
+                }],
+                capabilities: {
+                    accountMetrics: {
+                        status: accountMetricsStatus,
+                        availablePlatforms: accountMetricsStatus === 'available' ? [PLATFORM] : [],
+                        unavailablePlatforms: accountMetricsStatus === 'available' ? [] : [PLATFORM],
+                    },
+                    postMetrics: {
+                        status: postMetricsStatus,
+                        totalPublishedPosts: publishedPosts.length,
+                        postsWithAnalyticsRows,
+                        platformsWithPublishedPosts: publishedPosts.length > 0 ? [PLATFORM] : [],
+                        platformsWithAnalyticsRows: postsWithAnalyticsRows > 0 ? [PLATFORM] : [],
+                    },
+                },
+                contentDiscovery: {
+                    byPlatform: [{
+                        platform: PLATFORM,
+                        totalSyncedPosts: publishedPosts.length,
+                        appManagedPosts: publishedPosts.filter((post) => Boolean(post.post_id)).length,
+                        discoveredNativePosts: publishedPosts.filter((post) => !post.post_id).length,
+                        latestPublishedAt: publishedPosts[0]?.published_at || null,
+                        topPost: topPost ? {
+                            id: topPost.post.id,
+                            caption: topPost.post.platform_caption || 'Instagram post',
+                            permalink: topPost.post.permalink || null,
+                            likes: numberValue(topPost.analytics?.likes),
+                            comments: numberValue(topPost.analytics?.comments),
+                            shares: numberValue(topPost.analytics?.shares),
+                            views: numberValue(topPost.analytics?.views),
+                            source: topPost.post.post_id ? 'app_managed' : 'native_discovered',
+                        } : null,
+                    }],
+                },
+            },
+        }
 
+        return NextResponse.json(response)
     } catch (error) {
-        console.error('Analytics API error:', error)
+        console.error('Instagram analytics API error:', error)
         return NextResponse.json(
-            { error: 'Failed to fetch analytics data' },
-            { status: 500 }
+            { error: 'Failed to fetch Instagram analytics data' },
+            { status: 500 },
         )
     }
 }

@@ -276,6 +276,7 @@ export async function POST(request: NextRequest) {
                 .select('id, access_token, platform, metadata')
                 .eq('id', resolvedAccountId)
                 .eq('workspace_id', activeWorkspace.id)
+                .eq('platform', 'instagram')
                 .single();
 
             if (accountError || !acc) {
@@ -293,16 +294,14 @@ export async function POST(request: NextRequest) {
         }
 
         if (account && !isCanvasMode) {
-            const accountPlatform = account.platform === 'facebook' ? 'facebook' : 'instagram';
+            const accountPlatform = 'instagram' as const;
 
             if (!canReadCommentsWithMetaAccount(account.metadata, accountPlatform)) {
                 return NextResponse.json(
                     {
                         error: 'Comment-trigger automation is not available for this connected account',
                         errorCode: 'meta_missing_permission',
-                        missingPermissions: accountPlatform === 'facebook'
-                            ? ['pages_read_engagement']
-                            : ['instagram_manage_comments'],
+                        missingPermissions: ['instagram_business_manage_comments'],
                         requiresReconnect: false,
                     },
                     { status: 403 },
@@ -314,9 +313,7 @@ export async function POST(request: NextRequest) {
                     {
                         error: 'DM automation is not available for this connected account',
                         errorCode: 'meta_missing_permission',
-                        missingPermissions: accountPlatform === 'facebook'
-                            ? ['pages_messaging']
-                            : ['instagram_manage_messages'],
+                        missingPermissions: ['instagram_business_manage_messages'],
                         requiresReconnect: false,
                     },
                     { status: 403 },

@@ -10,7 +10,7 @@ export interface MetaGraphErrorShape {
 
 export interface MetaErrorContext {
     feature?: 'messages' | 'comments' | 'analytics' | 'posts' | 'generic';
-    platform?: 'instagram' | 'facebook' | string;
+    platform?: 'instagram';
     operation?: string;
 }
 
@@ -30,108 +30,56 @@ export interface NormalizedMetaGraphError {
 }
 
 function inferMissingPermissions(ctx?: MetaErrorContext): string[] {
-    if (ctx?.feature === 'messages') {
-        if (ctx.platform === 'instagram') {
-            // IG messaging is routed via Page messaging endpoints in this app.
-            return ['instagram_manage_messages', 'pages_messaging'];
-        }
-        if (ctx.platform === 'facebook') {
-            return ['pages_messaging'];
-        }
-        return ['pages_messaging'];
-    }
-
-    if (ctx?.feature === 'comments') {
-        if (ctx.platform === 'instagram') {
-            return ['instagram_manage_comments'];
-        }
-        if (ctx.platform === 'facebook') {
-            if (ctx.operation === 'fetch_comments') {
-                return ['pages_read_engagement'];
-            }
-            if (ctx.operation === 'reply_comment' || ctx.operation === 'hide_comment' || ctx.operation === 'unhide_comment') {
-                return ['pages_manage_engagement'];
-            }
-            return ['pages_read_engagement', 'pages_manage_engagement'];
-        }
-        return ['instagram_manage_comments'];
-    }
-
-    if (ctx?.feature === 'analytics') {
-        if (ctx.platform === 'instagram') {
+    switch (ctx?.feature) {
+        case 'messages':
+            return ['instagram_business_manage_messages'];
+        case 'comments':
+            return ['instagram_business_manage_comments'];
+        case 'analytics':
             return ['instagram_business_manage_insights'];
-        }
-        if (ctx.platform === 'facebook') {
-            return ['pages_read_engagement'];
-        }
-        return ['instagram_business_manage_insights', 'pages_read_engagement'];
+        case 'posts':
+            return ['instagram_business_basic'];
+        default:
+            return [];
     }
-
-    if (ctx?.feature === 'posts') {
-        if (ctx.platform === 'facebook') {
-            if (ctx.operation === 'fetch_posts') {
-                return ['pages_read_engagement'];
-            }
-            if (ctx.operation === 'update_post' || ctx.operation === 'delete_post') {
-                return ['pages_manage_posts'];
-            }
-            return ['pages_read_engagement', 'pages_manage_posts'];
-        }
-        return ['instagram_basic'];
-    }
-
-    return [];
 }
 
 function buildPermissionMessage(ctx?: MetaErrorContext, missingPermissions: string[] = []): string {
-    const permissionList = missingPermissions.length > 0 ? missingPermissions.join(', ') : 'additional Meta permissions';
+    const permissionList = missingPermissions.length > 0
+        ? missingPermissions.join(', ')
+        : 'additional Instagram permissions';
+
     if (ctx?.feature === 'messages') {
-        if (ctx.platform === 'facebook') {
-            const base = ctx.operation === 'send_message'
-                ? `Facebook message sending is not enabled for this account. Reconnect with ${permissionList}.`
-                : `Facebook messaging is not enabled for this account. Reconnect with ${permissionList}.`;
-            return `${base} If Access Token Debugger already shows pages_messaging, check App Review/Advanced Access, app mode (Development vs Live), app role/tester access, and Page webhook/subscribed apps setup.`;
-        }
-        if (ctx.operation === 'send_message') {
-            return `Messaging send is not enabled for this account. Reconnect with ${permissionList}.`;
-        }
-        return `Messaging is not enabled for this account. Reconnect with ${permissionList}.`;
+        return ctx.operation === 'send_message'
+            ? `Instagram message sending is not enabled. Reconnect with ${permissionList}.`
+            : `Instagram messaging is not enabled. Reconnect with ${permissionList}.`;
     }
     if (ctx?.feature === 'comments') {
         if (ctx.operation === 'reply_comment') {
-            return `Comment replies are not enabled for this account. Reconnect with ${permissionList}.`;
+            return `Instagram comment replies are not enabled. Reconnect with ${permissionList}.`;
         }
         if (ctx.operation === 'hide_comment' || ctx.operation === 'unhide_comment') {
-            return `Comment moderation is not enabled for this account. Reconnect with ${permissionList}.`;
+            return `Instagram comment moderation is not enabled. Reconnect with ${permissionList}.`;
         }
-        return `Comment access is not enabled for this account. Reconnect with ${permissionList}.`;
+        return `Instagram comment access is not enabled. Reconnect with ${permissionList}.`;
     }
     if (ctx?.feature === 'analytics') {
-        return `Analytics sync is limited or unavailable. Reconnect with ${permissionList}.`;
+        return `Instagram analytics sync is limited or unavailable. Reconnect with ${permissionList}.`;
     }
     if (ctx?.feature === 'posts') {
-        if (ctx.operation === 'fetch_posts') {
-            return `Facebook Page posts are not available for this connected account. Reconnect with ${permissionList}.`;
-        }
-        if (ctx.operation === 'update_post') {
-            return `Facebook post editing is not available for this connected account. Reconnect with ${permissionList}.`;
-        }
-        if (ctx.operation === 'delete_post') {
-            return `Facebook post deletion is not available for this connected account. Reconnect with ${permissionList}.`;
-        }
-        return `Post access is not available for this connected account. Reconnect with ${permissionList}.`;
+        return `Instagram media access is not available. Reconnect with ${permissionList}.`;
     }
-    return `This action requires additional Meta permissions: ${permissionList}.`;
+    return `This action requires additional Instagram permissions: ${permissionList}.`;
 }
 
 export function normalizeMetaGraphError(
     graphError: MetaGraphErrorShape | null | undefined,
-    ctx?: MetaErrorContext
+    ctx?: MetaErrorContext,
 ): NormalizedMetaGraphError {
     const message = String(
         graphError?.error_user_msg ||
         graphError?.message ||
-        'Meta Graph API request failed'
+        'Instagram Graph API request failed',
     );
     const lower = message.toLowerCase();
     const code = Number(graphError?.code || 0);
@@ -147,7 +95,7 @@ export function normalizeMetaGraphError(
     const isPermissionError =
         code === 10 ||
         code === 200 ||
-        /permission|requires permission|not authorized|appropriate role|pages_messaging|instagram_manage_messages|pages_manage_posts|instagram_business_manage_insights/.test(lower);
+        /permission|requires permission|not authorized|appropriate role|instagram_business_(basic|manage_comments|manage_messages|manage_insights)/.test(lower);
 
     if (isPermissionError) {
         const missingPermissions = inferMissingPermissions(ctx);
@@ -170,7 +118,7 @@ export function normalizeMetaGraphError(
         return {
             code: 'meta_auth_invalid_token',
             httpStatus: 401,
-            message: 'Meta access token is invalid or expired. Reconnect your account in Settings.',
+            message: 'Instagram access token is invalid or expired. Reconnect Instagram in Settings.',
             category: 'auth',
             missingPermissions: [],
             requiresReconnect: true,
@@ -183,7 +131,7 @@ export function normalizeMetaGraphError(
         return {
             code: 'meta_rate_limited',
             httpStatus: 429,
-            message: 'Meta API rate limit reached. Please try again shortly.',
+            message: 'Instagram API rate limit reached. Please try again shortly.',
             category: 'rate_limit',
             missingPermissions: [],
             requiresReconnect: false,

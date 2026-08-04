@@ -125,13 +125,10 @@ export async function GET(request: NextRequest) {
  * 4. Return 200 on success, 500 on failure (Meta retries non-2xx)
  */
 export async function POST(request: NextRequest) {
-    const candidateSecrets = [
-        process.env.INSTAGRAM_APP_SECRET?.trim(),
-        process.env.META_APP_SECRET?.trim(),
-    ].filter((v, i, arr): v is string => !!v && arr.indexOf(v) === i);
+    const appSecret = process.env.INSTAGRAM_APP_SECRET?.trim();
 
-    if (candidateSecrets.length === 0) {
-        console.error('[WEBHOOK] Missing INSTAGRAM_APP_SECRET and META_APP_SECRET');
+    if (!appSecret) {
+        console.error('[WEBHOOK] Missing INSTAGRAM_APP_SECRET');
         return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
     }
 
@@ -155,31 +152,23 @@ export async function POST(request: NextRequest) {
     }
     const rawBody = rawBuffer.toString('utf8');
 
-    const expectedSignatures = candidateSecrets.map((secret) => ({
-        source:
-            secret === process.env.INSTAGRAM_APP_SECRET?.trim()
-                ? 'INSTAGRAM_APP_SECRET'
-                : 'META_APP_SECRET',
-        value:
-            'sha256=' +
-            crypto.createHmac('sha256', secret).update(rawBuffer).digest('hex'),
-    }));
-
-    const matchedSignature = expectedSignatures.find((sig) => {
-        const sigBuffer = Buffer.from(signature);
-        const expectedBuffer = Buffer.from(sig.value);
-        return sigBuffer.length === expectedBuffer.length && crypto.timingSafeEqual(sigBuffer, expectedBuffer);
-    });
+    const expectedSignature =
+        'sha256=' +
+        crypto.createHmac('sha256', appSecret).update(rawBuffer).digest('hex');
+    const signatureBuffer = Buffer.from(signature);
+    const expectedBuffer = Buffer.from(expectedSignature);
+    const signatureMatches =
+        signatureBuffer.length === expectedBuffer.length &&
+        crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
 
     console.log('[WEBHOOK] Signature debug:', {
         receivedPrefix: signature.substring(0, 20),
-        expectedPrefixes: expectedSignatures.map((s) => `${s.source}:${s.value.substring(0, 20)}`),
-        match: !!matchedSignature,
-        matchedSource: matchedSignature?.source || null,
+        expectedPrefix: expectedSignature.substring(0, 20),
+        match: signatureMatches,
         bodyLen: rawBuffer.length,
     });
 
-    if (!matchedSignature) {
+    if (!signatureMatches) {
         console.warn('[WEBHOOK] Signature verification failed');
         return new NextResponse('Invalid signature', { status: 401 });
     }
@@ -246,14 +235,14 @@ export async function POST(request: NextRequest) {
 // ============================================
 
 async function processWebhookEvents(body: Record<string, unknown>) {
-    if (body.object !== 'instagram' && body.object !== 'page') {
+    if (body.object !== 'instagram') {
         console.log(`[WEBHOOK] Ignoring object type: ${body.object}`);
         return;
     }
 
     const entries = (body.entry || []) as Record<string, unknown>[];
     for (const entry of entries) {
-        const entryId = entry.id as string; // Page ID or IG Business Account ID
+        const entryId = entry.id as string; // Instagram professional account ID
 
         // Resolve which workspace/account this event belongs to
         const account = await resolveAccount(entryId);
@@ -280,9 +269,6 @@ async function processWebhookEvents(body: Record<string, unknown>) {
                 case 'comments':
                 case 'live_comments':
                     await handleCommentEvent(change.value as Record<string, unknown>, account);
-                    break;
-                case 'feed':
-                    await handlePageFeedEvent(change.value as Record<string, unknown>, account);
                     break;
                 case 'messages':
                     await handleMessageEvent(change.value as Record<string, unknown>, account);
@@ -327,7 +313,7 @@ interface ResolvedAccount {
     workspace_id: string;
     social_account_id: string;
     account_id: string;
-    platform: string;
+    platform: 'instagram';
     access_token: string;
     metadata: Record<string, unknown> | null;
 }
@@ -338,6 +324,7 @@ async function resolveAccount(entryId: string): Promise<ResolvedAccount | null> 
         .from('social_accounts')
         .select('id, workspace_id, account_id, platform, access_token, metadata')
         .eq('account_id', entryId)
+        .eq('platform', 'instagram')
         .maybeSingle();
 
     if (account) {
@@ -346,32 +333,10 @@ async function resolveAccount(entryId: string): Promise<ResolvedAccount | null> 
             workspace_id: decryptedAccount.workspace_id,
             social_account_id: decryptedAccount.id,
             account_id: decryptedAccount.account_id,
-            platform: decryptedAccount.platform,
+            platform: 'instagram',
             access_token: decryptedAccount.access_token || '',
             metadata: decryptedAccount.metadata,
         };
-    }
-
-    // Strategy 2: Match by connected_page_id in metadata (for page-scoped events)
-    const { data: accounts } = await supabaseAdmin
-        .from('social_accounts')
-        .select('id, workspace_id, account_id, platform, access_token, metadata')
-        .not('metadata', 'is', null);
-
-    if (accounts) {
-        for (const acc of accounts) {
-            if (acc.metadata?.connected_page_id === entryId) {
-                const decryptedAccount = decryptMetaAccountRow(acc);
-                return {
-                    workspace_id: decryptedAccount.workspace_id,
-                    social_account_id: decryptedAccount.id,
-                    account_id: decryptedAccount.account_id,
-                    platform: decryptedAccount.platform,
-                    access_token: decryptedAccount.access_token || '',
-                    metadata: decryptedAccount.metadata,
-                };
-            }
-        }
     }
 
     return null;
@@ -419,85 +384,12 @@ async function invokeAutomationOrchestrator(payload: Record<string, unknown>) {
 // Comment Handler
 // ============================================
 
-function normalizeFacebookFeedCommentValue(value: Record<string, unknown>): Record<string, unknown> | null {
-    const item = String(value?.item || '').toLowerCase();
-    const verb = String(value?.verb || '').toLowerCase();
-
-    // Page feed includes many event types; only route new comments into comment automations.
-    if (item !== 'comment') return null;
-    if (verb && verb !== 'add') return null;
-
-    const from = (value?.from as Record<string, unknown> | undefined) || {};
-    const commentId = (value?.comment_id || value?.id) as string | undefined;
-    const postId =
-        (value?.post_id as string | undefined) ||
-        ((value?.post as Record<string, unknown> | undefined)?.id as string | undefined) ||
-        (value?.parent_id as string | undefined);
-
-    // Meta may use `message` for page feed comments, unlike Instagram `comments` field events (which use `text`)
-    const text =
-        (value?.message as string | undefined) ??
-        (value?.text as string | undefined) ??
-        (value?.comment as string | undefined) ??
-        '';
-
-    if (!commentId || !postId) {
-        console.log('[WEBHOOK] Ignoring page feed comment event with missing IDs', {
-            item,
-            verb,
-            commentId,
-            postId,
-            keys: Object.keys(value || {}),
-        });
-        return null;
-    }
-
-    return {
-        id: commentId,
-        media: { id: postId },
-        from: {
-            id: (from?.id || value?.sender_id || value?.from_id) as string | undefined,
-            username: (from?.username || from?.name || value?.sender_name || value?.from_name) as string | undefined,
-        },
-        text,
-        created_time: (value?.created_time || value?.time || new Date().toISOString()) as string | number,
-    };
-}
-
-async function handlePageFeedEvent(value: Record<string, unknown>, account: ResolvedAccount) {
-    const normalizedComment = normalizeFacebookFeedCommentValue(value);
-    if (!normalizedComment) {
-        console.log('[WEBHOOK] Ignored page feed event (non-comment or unsupported)', {
-            item: value?.item,
-            verb: value?.verb,
-        });
-        return;
-    }
-
-    console.log('[WEBHOOK] Page feed comment event:', {
-        item: value?.item,
-        verb: value?.verb,
-        commentId: normalizedComment?.id,
-        postId: (normalizedComment?.media as Record<string, unknown> | undefined)?.id,
-    });
-
-    await handleCommentEvent(normalizedComment, account);
-}
-
 async function handleCommentEvent(value: Record<string, unknown>, account: ResolvedAccount) {
     const media = value?.media as Record<string, unknown> | undefined;
     const from = value?.from as Record<string, unknown> | undefined;
     const commenterId = (from?.id as string | undefined) || '';
-    const selfActorIds = new Set(
-        [
-            account.account_id,
-            account.metadata?.connected_page_id as string | undefined,
-            account.metadata?.page_id as string | undefined,
-        ].filter(Boolean) as string[]
-    );
-
-    // Prevent automation loops when our own page/account reply comment is received back as a webhook event.
-    if (commenterId && selfActorIds.has(commenterId)) {
+    // Prevent automation loops when our own Instagram reply returns as a webhook event.
+    if (commenterId && commenterId === account.account_id) {
         console.log('[WEBHOOK] Ignoring self-authored comment event', {
             commentId: value?.id,
             postId: media?.id,
@@ -518,7 +410,7 @@ async function handleCommentEvent(value: Record<string, unknown>, account: Resol
         comment_id: value?.id,
         post_id: media?.id,
         // Instagram sends media_product_type (FEED | REELS | ...) on comment
-        // webhooks; Facebook feed comments have none. Used by post/Reel
+        // webhooks. Used by post/Reel
         // trigger scoping in the orchestrator.
         media_type: media?.media_product_type || undefined,
         commenter_id: commenterId || undefined,
@@ -644,14 +536,14 @@ async function handleMessageEvent(value: Record<string, unknown>, account: Resol
     const recipient = value?.recipient as Record<string, unknown> | undefined;
     const from = value?.from as Record<string, unknown> | undefined;
     const message = value?.message as Record<string, unknown> | undefined;
-    const pageId = (account.metadata?.connected_page_id as string | undefined) || account.account_id;
+    const accountId = account.account_id;
     const senderId = (sender?.id || from?.id) as string | undefined;
     const recipientId = recipient?.id as string | undefined;
-    const isFromPage = !!senderId && (senderId === pageId || senderId === account.account_id);
+    const isFromAccount = !!senderId && senderId === accountId;
     const participantId =
-        senderId && senderId !== pageId && senderId !== account.account_id
+        senderId && senderId !== accountId
             ? senderId
-            : (recipientId && recipientId !== pageId && recipientId !== account.account_id ? recipientId : undefined);
+            : (recipientId && recipientId !== accountId ? recipientId : undefined);
     const messageId = (message?.mid || value?.id) as string | undefined;
     const messageText = (message?.text || value?.text) as string | undefined;
     const timestampMs = Number(value?.timestamp || 0);
@@ -713,7 +605,7 @@ async function handleMessageEvent(value: Record<string, unknown>, account: Resol
                     ((message?.conversation as Record<string, unknown> | undefined)?.id as string | undefined);
 
                 if (platformConversationId) {
-                    const participantUsername = !isFromPage
+                    const participantUsername = !isFromAccount
                         ? ((sender?.username || from?.username || from?.name) as string | undefined)
                         : undefined;
 
@@ -747,10 +639,10 @@ async function handleMessageEvent(value: Record<string, unknown>, account: Resol
                         conversation_id: conversation.id,
                         platform_message_id: messageId,
                         sender_id: senderId || '',
-                        is_from_page: isFromPage,
+                        is_from_page: isFromAccount,
                         message: messageText || null,
                         attachments: persistedPayload,
-                        is_read: isFromPage,
+                        is_read: isFromAccount,
                         platform_created_at: platformCreatedAt,
                     }, { onConflict: 'workspace_id,platform_message_id' });
 

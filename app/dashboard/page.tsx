@@ -74,7 +74,6 @@ export default async function DashboardPage() {
 
     const socialAccounts = (socialAccountsResult.data || []) as SocialAccountSummary[]
     const instagramAccount = socialAccounts.find((account) => account.platform === "instagram") || null
-    const facebookAccount = socialAccounts.find((account) => account.platform === "facebook") || null
     const recentRuns = (recentRunsResult.data || []) as AutomationRunSummary[]
     const recentActivities = recentRuns.map(buildRecentActivity)
     const latestFailure = recentRuns.find((run) => run.status === "failed")?.error_message || null
@@ -91,7 +90,6 @@ export default async function DashboardPage() {
                 }}
                 connections={{
                     instagramName: instagramAccount?.account_name || null,
-                    facebookName: facebookAccount?.account_name || null,
                     automationReady: Boolean(instagramAccount),
                 }}
                 latestFailure={latestFailure}

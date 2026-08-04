@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
         .select("id, platform")
         .eq("id", socialAccountId)
         .eq("workspace_id", context.workspaceId)
+        .eq("platform", "instagram")
         .maybeSingle()
 
       if (accountError) return NextResponse.json({ error: accountError.message }, { status: 500 })
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
       if (!workflowGraph && text(body?.template_id, "", 120)) {
         const templateResult = buildDeveloperAutomationGraphFromTemplate(bodyRecord(body), {
           socialAccountId,
-          platform: account.platform === "facebook" ? "facebook" : "instagram",
+          platform: "instagram",
         })
         if (templateResult.error) return NextResponse.json({ error: templateResult.error }, { status: 400 })
         workflowGraph = templateResult.graph

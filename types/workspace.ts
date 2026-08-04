@@ -19,7 +19,7 @@ export interface WorkspaceMember {
 export interface SocialConnection {
     id: string
     workspace_id: string
-    platform: 'facebook' | 'instagram'
+    platform: 'instagram'
     account_name: string
     account_id: string
     created_at: string

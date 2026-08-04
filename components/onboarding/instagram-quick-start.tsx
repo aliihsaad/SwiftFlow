@@ -39,7 +39,7 @@ type Health = {
 type SocialStatus = {
     instagram: boolean
     tokenHealth: "valid" | "expiring_soon" | "invalid" | null
-    instagramConnectionMethod: "instagram_login" | "facebook_login" | null
+    instagramConnectionMethod: "instagram_login" | null
     instagramWebhookStatus: "active" | "missing" | "error" | "unknown" | null
     instagramAutomationHealth: Health
     accounts: Array<{
@@ -180,7 +180,7 @@ export function InstagramQuickStart({
                 description: "Authorize a Business or Creator account through direct Instagram Login.",
                 complete: health.checks.connected && health.checks.professionalAccount,
                 icon: Instagram,
-                checks: ["No Facebook Page required", "Encrypted long-lived token", "Business or Creator account"],
+                checks: ["Direct Instagram Login", "Encrypted long-lived token", "Business or Creator account"],
             },
             {
                 id: 2,
@@ -269,7 +269,7 @@ export function InstagramQuickStart({
                             confirm live webhook delivery for {workspaceName}.
                         </p>
                         <div className="mt-5 flex flex-wrap gap-2">
-                            {["Workspace ready", "No Facebook Page required", "About 3 minutes"].map((item) => (
+                            {["Workspace ready", "Direct Instagram Login", "About 3 minutes"].map((item) => (
                                 <span key={item} className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-xs font-medium text-white/48">
                                     {item}
                                 </span>

@@ -24,7 +24,7 @@ describe("generateAnalyticsInsights", () => {
           },
           {
             id: "post-2",
-            platform: "facebook",
+            platform: "instagram",
             caption: "Behind the scenes from our customer workflow #ContentStrategy",
             publishedAt: "2026-05-08T18:00:00.000Z",
             likes: 28,
@@ -42,12 +42,11 @@ describe("generateAnalyticsInsights", () => {
         ],
         hourlyPerformance: [
           { platform: "instagram", dayOfWeek: 4, hour: 9, posts: 5, averageScore: 32 },
-          { platform: "facebook", dayOfWeek: 5, hour: 18, posts: 3, averageScore: 21 },
+          { platform: "instagram", dayOfWeek: 5, hour: 18, posts: 3, averageScore: 21 },
         ],
       },
       capabilities: {
         hasMetaInsights: true,
-        hasFacebookEngagement: true,
       },
     }
 
@@ -73,7 +72,6 @@ describe("generateAnalyticsInsights", () => {
       },
       capabilities: {
         hasMetaInsights: false,
-        hasFacebookEngagement: false,
       },
     }
 

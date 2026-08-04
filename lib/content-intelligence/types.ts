@@ -1,4 +1,4 @@
-export type ContentPlatform = "instagram" | "facebook"
+export type ContentPlatform = "instagram"
 export type IntelligenceConfidence = "high" | "medium" | "low"
 export type EvidenceFreshness = "live" | "last_24h" | "last_7d" | "last_30d" | "historical" | "unknown"
 
@@ -90,7 +90,6 @@ export interface ContentIntelligenceSignals {
   }
   capabilities: {
     hasMetaInsights: boolean
-    hasFacebookEngagement: boolean
   }
 }
 

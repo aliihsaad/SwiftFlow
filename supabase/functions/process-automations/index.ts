@@ -177,14 +177,14 @@ interface DmResult {
  * Private reply:  recipient: { comment_id: commentId }
  */
 async function sendDM(
-    pageId: string,
+    instagramAccountId: string,
     recipientId: string,
     commentId: string,
     dmConfig: AutomationRow['dm_config'],
     accessToken: string,
     connectionMethod?: string
 ): Promise<DmResult> {
-    const sendUrl = `${getMetaGraphApiBaseUrl(connectionMethod)}/${pageId}/messages`;
+    const sendUrl = `${getMetaGraphApiBaseUrl(connectionMethod)}/${instagramAccountId}/messages`;
 
     // ── Attempt 1: Normal DM with recipient.id ──────────────────────
     try {
@@ -342,9 +342,13 @@ async function processAutomation(
         return stats;
     }
 
+    if (account.platform !== 'instagram') {
+        console.error(`Automation ${automation.id}: Only Instagram accounts are supported`);
+        return stats;
+    }
     if (!canReadCommentsWithMetaAccount(
         account.metadata,
-        account.platform === 'facebook' ? 'facebook' : 'instagram',
+        'instagram',
     )) {
         console.error(`Automation ${automation.id}: Missing comment-read capability`);
         return stats;
@@ -352,7 +356,7 @@ async function processAutomation(
 
     if (!canManageMessagesWithMetaAccount(
         account.metadata,
-        account.platform === 'facebook' ? 'facebook' : 'instagram',
+        'instagram',
     )) {
         console.error(`Automation ${automation.id}: Missing messaging capability`);
         return stats;
@@ -388,16 +392,16 @@ async function processAutomation(
 
     console.log(`Automation ${automation.id}: Processing ${newComments.length} new comments (polling)`);
 
-    // 4. Determine the page ID for DM sending
-    const pageId = account.metadata?.connected_page_id || account.account_id;
+    // 4. Use the connected Instagram professional account ID for DM sending
+    const instagramAccountId = account.account_id;
 
-    // 5. Process each new comment (skip self-comments from the page/bot)
+    // 5. Process each new comment (skip self-comments from the connected account)
     for (const comment of newComments) {
-        if (comment.from.id === account.account_id || comment.from.id === pageId) {
+        if (comment.from.id === account.account_id || comment.from.id === instagramAccountId) {
             continue;
         }
         const result = await processSingleComment(
-            supabase, automation, comment, pageId, account.access_token, account.metadata?.connection_method
+            supabase, automation, comment, instagramAccountId, account.access_token, account.metadata?.connection_method
         );
         stats.processed += result.processed;
         stats.dmsSent += result.dmsSent;
@@ -475,7 +479,7 @@ async function processSingleComment(
     supabase: any,
     automation: AutomationRow,
     comment: CommentData,
-    pageId: string,
+    instagramAccountId: string,
     accessToken: string,
     connectionMethod?: string
 ): Promise<{ processed: number; dmsSent: number; errors: number }> {
@@ -574,7 +578,7 @@ async function processSingleComment(
                 : automation.dm_config;
 
             const dmResult = await sendDM(
-                pageId,
+                instagramAccountId,
                 comment.from.id,
                 comment.id,
                 dmConfigForSend,
@@ -696,9 +700,14 @@ async function processWebhookComment(
             continue;
         }
 
+        if (account.platform !== 'instagram') {
+            console.error(`[WEBHOOK_FAST] Automation ${auto.id}: Legacy non-Instagram account rejected`);
+            totalStats.errors++;
+            continue;
+        }
         if (!canReadCommentsWithMetaAccount(
             account.metadata,
-            account.platform === 'facebook' ? 'facebook' : 'instagram',
+            'instagram',
         )) {
             console.error(`[WEBHOOK_FAST] Automation ${auto.id}: Missing comment-read capability`);
             totalStats.errors++;
@@ -707,16 +716,16 @@ async function processWebhookComment(
 
         if (!canManageMessagesWithMetaAccount(
             account.metadata,
-            account.platform === 'facebook' ? 'facebook' : 'instagram',
+            'instagram',
         )) {
             console.error(`[WEBHOOK_FAST] Automation ${auto.id}: Missing messaging capability`);
             totalStats.errors++;
             continue;
         }
 
-        // Skip comments from the page/account itself (bot's own replies)
-        const pageId = account.metadata?.connected_page_id || account.account_id;
-        if (webhookCtx.commenter_id === account.account_id || webhookCtx.commenter_id === pageId) {
+        // Skip comments from the connected account itself (bot's own replies)
+        const instagramAccountId = account.account_id;
+        if (webhookCtx.commenter_id === account.account_id || webhookCtx.commenter_id === instagramAccountId) {
             console.log(`[WEBHOOK_FAST] Skipping self-comment from account ${webhookCtx.commenter_id}`);
             continue;
         }
@@ -768,7 +777,7 @@ async function processWebhookComment(
 
         // Legacy wizard mode: use existing linear processing
         const result = await processSingleComment(
-            supabase, auto, comment, pageId, account.access_token, account.metadata?.connection_method
+            supabase, auto, comment, instagramAccountId, account.access_token, account.metadata?.connection_method
         );
 
         totalStats.processed += result.processed;

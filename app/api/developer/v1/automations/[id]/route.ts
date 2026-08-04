@@ -37,7 +37,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         .select("*")
         .eq("id", automationId)
         .eq("workspace_id", context.workspaceId)
-        .maybeSingle()
+          .maybeSingle()
 
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
       if (!data) return NextResponse.json({ error: "Automation not found" }, { status: 404 })
@@ -81,7 +81,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         .select("id, social_account_id")
         .eq("id", automationId)
         .eq("workspace_id", context.workspaceId)
-        .maybeSingle()
+          .maybeSingle()
 
       if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 })
       if (!existing) return NextResponse.json({ error: "Automation not found" }, { status: 404 })
@@ -101,7 +101,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
         const templateResult = buildDeveloperAutomationGraphFromTemplate(bodyRecord(body), {
           socialAccountId,
-          platform: account.platform === "facebook" ? "facebook" : "instagram",
+          platform: "instagram",
         })
         if (templateResult.error) return NextResponse.json({ error: templateResult.error }, { status: 400 })
         workflowGraph = templateResult.graph

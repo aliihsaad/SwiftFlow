@@ -12,10 +12,10 @@ describe("Next.js Meta Graph provider routing", () => {
       .toBe(INSTAGRAM_GRAPH_API_BASE_URL)
   })
 
-  it("keeps Facebook Login and legacy accounts on the Facebook Graph host", () => {
-    expect(getMetaGraphApiBaseUrl("facebook_login"))
-      .toBe(META_GRAPH_API_BASE_URL)
+  it("uses the Instagram Graph host for the generic compatibility alias", () => {
     expect(getMetaGraphApiBaseUrl())
-      .toBe(META_GRAPH_API_BASE_URL)
+      .toBe(INSTAGRAM_GRAPH_API_BASE_URL)
+    expect(META_GRAPH_API_BASE_URL)
+      .toBe(INSTAGRAM_GRAPH_API_BASE_URL)
   })
 })

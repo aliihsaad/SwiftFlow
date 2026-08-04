@@ -69,6 +69,12 @@ serve(async (req) => {
     const connectionMethod = body?.connection_method as string | undefined;
     const metaGraphUrl = getMetaGraphApiBaseUrl(connectionMethod);
 
+    if (platform !== 'instagram') {
+      return new Response(JSON.stringify({ success: false, error: 'Only Instagram comment replies are supported' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     if (!accessToken) {
       return new Response(JSON.stringify({ success: false, error: 'Missing access_token' }), {
         status: 400,
@@ -110,7 +116,7 @@ serve(async (req) => {
       });
     }
 
-    const replyPath = platform === 'facebook' ? 'comments' : 'replies';
+    const replyPath = 'replies';
     const url = `${metaGraphUrl}/${context.comment_id}/${replyPath}`;
     const response = await fetch(url, {
       method: 'POST',

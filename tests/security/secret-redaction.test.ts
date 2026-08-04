@@ -13,7 +13,7 @@ function source(...segments: string[]) {
 describe("secret log redaction", () => {
   it("redacts tokens, bearer headers, API keys, OAuth codes, and sensitive query params", () => {
     const raw = [
-      "https://graph.facebook.com/me?access_token=EAAB_REAL_TOKEN&code=oauth-code-123",
+      "https://graph.instagram.com/me?access_token=EAAB_REAL_TOKEN&code=oauth-code-123",
       "Authorization: Bearer sf_live_abcdefghijklmnop_secretsecretsecretsecretsecret",
       "refresh_token=sf_oauth_refresh.iv.tag.payload",
       "api_key=sk-real-openai-key-value",
@@ -54,7 +54,7 @@ describe("secret log redaction", () => {
 
   it("keeps the Deno Edge Function redactor behavior aligned with the app redactor", () => {
     const redacted = redactEdgeSensitiveString(
-      "https://graph.facebook.com/me?access_token=raw&code=raw-code Authorization: Bearer raw",
+      "https://graph.instagram.com/me?access_token=raw&code=raw-code Authorization: Bearer raw",
     )
 
     expect(redacted).toContain("access_token=[REDACTED]")
@@ -63,11 +63,11 @@ describe("secret log redaction", () => {
     expect(redacted).not.toContain("raw-code")
   })
 
-  it("uses redaction on high-risk Developer API, Meta OAuth, and Edge Function logs", () => {
-    const metaCallback = source("app", "api", "auth", "meta", "callback", "route.ts")
-    expect(metaCallback).toContain("redactSensitiveString")
-    expect(metaCallback).toContain("redactSensitiveLogValue(error)")
-    expect(metaCallback).toContain("encodeURIComponent(redactSensitiveString(pagesErrorText)")
+  it("uses safe diagnostics on high-risk Developer API, Instagram OAuth, and Edge Function logs", () => {
+    const instagramCallback = source("app", "api", "auth", "instagram", "callback", "route.ts")
+    expect(instagramCallback).toContain("sanitizeInstagramDiagnosticValue")
+    expect(instagramCallback).toContain("Instagram connection callback failed")
+    expect(instagramCallback).not.toContain("error.message")
 
     expect(source("lib", "developer-api", "http.ts")).toContain("redactSensitiveLogValue(error)")
     expect(source("lib", "developer-api", "audit.ts")).toContain("redactSensitiveLogValue(error)")

@@ -79,13 +79,11 @@ describe("isolated webhook comparison staging stack", () => {
     )
   })
 
-  it("passes both Instagram Login and general Meta secrets to the ingress", () => {
+  it("passes the Instagram app secret to the ingress", () => {
     expect(compose).toContain(
       "INSTAGRAM_APP_SECRET: ${INSTAGRAM_APP_SECRET:?",
     )
-    expect(compose).toContain("META_APP_SECRET: ${META_APP_SECRET:?")
     expect(stagingEnvironmentExample).toContain("INSTAGRAM_APP_SECRET=")
-    expect(stagingEnvironmentExample).toContain("META_APP_SECRET=")
     expect(deploymentScript).toContain(
       "ensure_generated_secret INSTAGRAM_APP_SECRET",
     )

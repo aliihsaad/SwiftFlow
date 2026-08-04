@@ -82,8 +82,9 @@ export async function GET(request: NextRequest) {
             // Fetch all conversations
             const { data: conversations, error, count } = await supabase
                 .from('conversations')
-                .select('*, social_accounts(platform, account_name)', { count: 'exact' })
+                .select('*, social_accounts!inner(platform, account_name)', { count: 'exact' })
                 .eq('workspace_id', activeWorkspace.id)
+                .eq('social_accounts.platform', 'instagram')
                 .order('last_message_at', { ascending: false })
                 .range(offset, offset + limit - 1);
 
@@ -199,7 +200,10 @@ export async function POST(request: NextRequest) {
         }
 
         const account = conversation.social_accounts ? decryptMetaAccountRow(conversation.social_accounts) : null;
-        if (!account?.access_token) {
+        if (account?.platform !== 'instagram') {
+            return NextResponse.json({ error: 'Conversation is not connected to Instagram' }, { status: 400 });
+        }
+        if (!account.access_token) {
             return NextResponse.json(
                 { error: 'No access token available for this account' },
                 { status: 400 }
@@ -208,28 +212,26 @@ export async function POST(request: NextRequest) {
 
         if (!canManageMessagesWithMetaAccount(
             account.metadata,
-            account.platform === 'facebook' ? 'facebook' : 'instagram',
+            'instagram',
         )) {
             return NextResponse.json(
                 {
                     error: 'Messaging is not available for this connected account',
                     errorCode: 'meta_missing_permission',
-                    missingPermissions: requiredMessagingPermissions(account.platform || 'instagram'),
+                    missingPermissions: requiredMessagingPermissions(),
                     requiresReconnect: false,
                 },
                 { status: 403 }
             );
         }
 
-        // Send message via Meta API
-        // Instagram messaging requires the Page ID, not the IG user ID
-        const pageId = account.metadata?.connected_page_id || account.account_id;
+        // Send through the connected Instagram professional account.
+        const accountId = account.account_id;
         const result = await sendMetaTextMessage({
-            pageId,
+            pageId: accountId,
             recipientId: conversation.participant_id,
             text: message,
             accessToken: account.access_token,
-            platform: account.platform || 'instagram',
         });
 
         if (!result.ok) {
@@ -241,7 +243,7 @@ export async function POST(request: NextRequest) {
             workspace_id: activeWorkspace.id,
             conversation_id: conversation.id,
             platform_message_id: result.messageId || `local_${Date.now()}`,
-            sender_id: pageId,
+            sender_id: accountId,
             is_from_page: true,
             message,
             is_read: true,

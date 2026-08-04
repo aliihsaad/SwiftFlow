@@ -47,7 +47,7 @@ interface ActiveAutomationsListProps {
     readOnly?: boolean
 }
 
-type PlatformLabel = 'Instagram' | 'Facebook' | 'Meta'
+type PlatformLabel = 'Instagram'
 
 function isGraphBackedWizard(automation: Automation): boolean {
     return automation.editor_version === 'wizard' && !!automation.workflow_graph
@@ -75,24 +75,12 @@ function getGraphActionNodes(automation: Automation): WorkflowNode[] {
     })
 }
 
-function getAutomationPlatformLabel(automation: Automation): PlatformLabel {
-    if (isGraphAutomation(automation)) {
-        const triggerNode = getGraphTriggerNode(automation)
-        const config = (triggerNode?.data as WorkflowNodeData | undefined)?.config as unknown as Record<string, unknown> | undefined
-        const platform = typeof config?.platform === 'string' ? config.platform : null
-        if (platform === 'facebook') return 'Facebook'
-        if (platform === 'instagram') return 'Instagram'
-        return 'Meta'
-    }
-
-    // Legacy wizard automations are currently Instagram-only in this app.
+function getAutomationPlatformLabel(_automation: Automation): PlatformLabel {
     return 'Instagram'
 }
 
-function getPlatformChipClass(platform: PlatformLabel): string {
-    if (platform === 'Facebook') return 'border-cyan-300/15 bg-cyan-300/[0.07] text-cyan-100'
-    if (platform === 'Instagram') return 'border-pink-300/15 bg-pink-300/[0.07] text-pink-100'
-    return 'border-white/10 bg-white/[0.05] text-white/55'
+function getPlatformChipClass(_platform: PlatformLabel): string {
+    return 'border-pink-300/15 bg-pink-300/[0.07] text-pink-100'
 }
 function getWizardTriggerSummary(automation: Automation): string {
     if (automation.trigger_config?.trigger_type === 'keywords') {

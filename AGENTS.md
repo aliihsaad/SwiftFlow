@@ -11,17 +11,17 @@ npm run start    # Start production server
 npm run lint     # Run ESLint
 ```
 
-No test suite is configured. There is no test command.
+The regression suite runs with npm run test:ci.
 
 ## Architecture Overview
 
-This is a **Next.js 16 App Router** application for managing social media (Instagram/Facebook via Meta Graph API) focused on engagement automation, inbox workflows, and analytics.
+This is a **Next.js 16 App Router** application for managing Instagram engagement through the Instagram Graph API focused on engagement automation, inbox workflows, and analytics.
 
 ### Core Stack
 - **Next.js 16** (App Router, server + client components)
 - **Supabase** (PostgreSQL + Auth + Storage + Edge Functions + Realtime)
 - **OpenRouter / Gemini / OpenAI** for automation reply generation
-- **Meta Graph API v25.0** for Instagram/Facebook integration
+- **Instagram Graph API v25.0** for account connection, engagement, inbox, and analytics
 - **Tailwind CSS v4** + **shadcn/ui** (new-york style) + **Radix UI**
 - **SWR** for client-side data fetching/polling
 - **@xyflow/react** for the automation workflow canvas
@@ -51,7 +51,6 @@ All AI calls (Gemini/OpenAI) go through a centralized config resolver:
 - **Key resolution order**: workspace_settings (decrypted) → env fallback → clear error.
 
 ### Key Libraries
-- `lib/meta-api-client.ts` — Typed Meta Graph API client
 - `lib/ai-models.ts` — AI provider/model constants and defaults
 - `supabase/functions/_shared/ai-config.ts` — Centralized AI config for all edge functions
 - `utils/supabase/server.ts` — Server-side Supabase client
@@ -72,14 +71,14 @@ The automation builder uses `@xyflow/react` for a node-based workflow editor. Ca
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 SUPABASE_SERVICE_KEY
-GEMINI_API_KEY
-NEXT_PUBLIC_META_APP_ID
-META_APP_SECRET
+APP_SECRETS_ENCRYPTION_KEY
+INSTAGRAM_APP_ID
+INSTAGRAM_APP_SECRET
 META_WEBHOOK_VERIFY_TOKEN
 NEXT_PUBLIC_APP_URL
 
-# Optional
-INSTAGRAM_APP_SECRET
+# Optional global AI fallback
+GEMINI_API_KEY
 ```
 
 Per-workspace Gemini API keys can be stored in `workspace_settings` and override the global `GEMINI_API_KEY`.

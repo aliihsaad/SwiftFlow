@@ -6,7 +6,6 @@ import useSWR from "swr"
 import {
     AlertCircle,
     ArrowRight,
-    Facebook,
     Grid3X3,
     Instagram,
     RefreshCw,
@@ -21,8 +20,6 @@ import { InlineLoadingHint } from "@/components/ui/inline-loading-hint"
 import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 
-type Platform = "instagram" | "facebook"
-type FacebookSource = "all" | "native_discovered" | "app_managed"
 type SortMode = "newest" | "engagement" | "comments"
 
 interface MediaResponse {
@@ -74,8 +71,6 @@ const fetcher = async (url: string): Promise<MediaResponse> => {
 }
 
 export default function PostsPage({ workspaceId, workspaceName }: PostsPageProps) {
-    const [activePlatform, setActivePlatform] = useState<Platform>("instagram")
-    const [facebookSourceFilter, setFacebookSourceFilter] = useState<FacebookSource>("all")
     const [selectedPost, setSelectedPost] = useState<PostCardData | null>(null)
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [searchQuery, setSearchQuery] = useState("")
@@ -84,7 +79,7 @@ export default function PostsPage({ workspaceId, workspaceName }: PostsPageProps
     const { toast } = useToast()
 
     const { data, error, isLoading, isValidating, mutate } = useSWR<MediaResponse, MediaFetchError>(
-        `/api/posts-media?platform=${activePlatform}&limit=25`,
+        `/api/posts-media?platform=instagram&limit=25`,
         fetcher,
         {
             revalidateOnFocus: false,
@@ -98,15 +93,10 @@ export default function PostsPage({ workspaceId, workspaceName }: PostsPageProps
         [data?.media, error],
     )
     const account = error ? null : data?.account
-    const contentDiscoveryUnavailable = error ? null : data?.contentDiscoveryUnavailable
     const noAccount = Boolean(data?.error && !data?.media?.length)
     const showInitialLoading = isLoading && !data && !error
     const showRefreshingHint = (isRefreshing || isValidating) && Boolean(data)
 
-    const sourceCounts = useMemo(() => ({
-        native: media.filter((post) => post.source === "native_discovered").length,
-        managed: media.filter((post) => post.source === "app_managed").length,
-    }), [media])
 
     const totals = useMemo(() => media.reduce(
         (summary, post) => ({
@@ -118,12 +108,9 @@ export default function PostsPage({ workspaceId, workspaceName }: PostsPageProps
 
     const visibleMedia = useMemo(() => {
         const normalizedQuery = searchQuery.trim().toLocaleLowerCase()
-        const sourceFiltered = activePlatform === "facebook" && facebookSourceFilter !== "all"
-            ? media.filter((post) => post.source === facebookSourceFilter)
-            : media
         const searched = normalizedQuery
-            ? sourceFiltered.filter((post) => post.caption?.toLocaleLowerCase().includes(normalizedQuery))
-            : sourceFiltered
+            ? media.filter((post) => post.caption?.toLocaleLowerCase().includes(normalizedQuery))
+            : media
 
         return [...searched].sort((a, b) => {
             if (sortMode === "engagement") {
@@ -134,7 +121,7 @@ export default function PostsPage({ workspaceId, workspaceName }: PostsPageProps
             }
             return Date.parse(b.timestamp) - Date.parse(a.timestamp)
         })
-    }, [activePlatform, facebookSourceFilter, media, searchQuery, sortMode])
+    }, [media, searchQuery, sortMode])
 
     const handlePostClick = (post: PostCardData) => {
         setSelectedPost(post)
@@ -158,28 +145,6 @@ export default function PostsPage({ workspaceId, workspaceName }: PostsPageProps
         } finally {
             setIsRefreshing(false)
         }
-    }
-
-    const handlePostUpdated = (updatedPost: PostCardData) => {
-        setSelectedPost(updatedPost)
-        mutate((current) => current?.media
-            ? {
-                ...current,
-                media: current.media.map((post) => post.id === updatedPost.id ? updatedPost : post),
-            }
-            : current,
-        { revalidate: false })
-    }
-
-    const handlePostDeleted = (postId: string) => {
-        setSelectedPost(null)
-        mutate((current) => current?.media
-            ? {
-                ...current,
-                media: current.media.filter((post) => post.id !== postId),
-            }
-            : current,
-        { revalidate: false })
     }
 
     const reconnectRequired = Boolean(error?.requiresReconnect)
@@ -235,7 +200,7 @@ export default function PostsPage({ workspaceId, workspaceName }: PostsPageProps
                                     {account ? account.account_name : "Awaiting connection"}
                                 </p>
                                 <p className="mt-1 text-xs text-white/35">
-                                    {account ? `${activePlatform === "instagram" ? "Instagram" : "Facebook"} is connected` : "Connect an account to load content"}
+                                    {account ? "Instagram is connected" : "Connect Instagram to load content"}
                                 </p>
                             </div>
                             <span className={cn(
@@ -255,21 +220,9 @@ export default function PostsPage({ workspaceId, workspaceName }: PostsPageProps
 
             <div className="rounded-[24px] border border-white/[0.07] bg-[#10131c] p-4 sm:p-5">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                    <div className="inline-flex w-full rounded-2xl border border-white/[0.07] bg-black/20 p-1 xl:w-auto" aria-label="Content platform">
-                        <PlatformButton
-                            active={activePlatform === "instagram"}
-                            icon={Instagram}
-                            label="Instagram"
-                            onClick={() => setActivePlatform("instagram")}
-                            tone="pink"
-                        />
-                        <PlatformButton
-                            active={activePlatform === "facebook"}
-                            icon={Facebook}
-                            label="Facebook"
-                            onClick={() => setActivePlatform("facebook")}
-                            tone="cyan"
-                        />
+                    <div className="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-pink-200/15 bg-pink-300/[0.08] px-4 text-sm font-semibold text-pink-100" aria-label="Content platform">
+                        <Instagram className="h-4 w-4" aria-hidden="true" />
+                        Instagram
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row">
@@ -300,29 +253,8 @@ export default function PostsPage({ workspaceId, workspaceName }: PostsPageProps
                     </div>
                 </div>
 
-                {activePlatform === "facebook" ? (
-                    <div className="mt-4 flex flex-col gap-3 border-t border-white/[0.06] pt-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div>
-                            <p className="text-xs font-semibold text-white/62">Facebook content source</p>
-                            <p className="mt-1 text-[11px] leading-5 text-white/30">Separate Page-native discovery from posts created inside the app.</p>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            <SourceButton active={facebookSourceFilter === "all"} label={`All ${media.length}`} onClick={() => setFacebookSourceFilter("all")} />
-                            <SourceButton active={facebookSourceFilter === "native_discovered"} label={`Native ${sourceCounts.native}`} onClick={() => setFacebookSourceFilter("native_discovered")} />
-                            <SourceButton active={facebookSourceFilter === "app_managed"} label={`Managed ${sourceCounts.managed}`} onClick={() => setFacebookSourceFilter("app_managed")} />
-                        </div>
-                    </div>
-                ) : null}
             </div>
 
-            {activePlatform === "facebook" && contentDiscoveryUnavailable ? (
-                <ConnectionNotice
-                    title="Native Page discovery needs attention"
-                    message={contentDiscoveryUnavailable.error}
-                    missingPermissions={contentDiscoveryUnavailable.missingPermissions}
-                    reconnect={Boolean(contentDiscoveryUnavailable.requiresReconnect)}
-                />
-            ) : null}
 
             {showRefreshingHint ? <InlineLoadingHint label="Updating content library…" className="w-fit" /> : null}
 
@@ -346,7 +278,7 @@ export default function PostsPage({ workspaceId, workspaceName }: PostsPageProps
 
             {noAccount && !showInitialLoading ? (
                 <EmptyLibrary
-                    title={`Connect ${activePlatform === "instagram" ? "Instagram" : "Facebook"} to start`}
+                    title="Connect Instagram to start"
                     description="Once connected, your real posts and engagement will appear here automatically."
                     actionHref="/dashboard/settings/brand"
                     actionLabel="Open connection settings"
@@ -377,7 +309,7 @@ export default function PostsPage({ workspaceId, workspaceName }: PostsPageProps
                     title={searchQuery ? "No captions match your search" : "No content in this view"}
                     description={searchQuery
                         ? "Try a broader phrase or clear the search to see the full library."
-                        : "Change the source filter, refresh the provider, or create your next post."}
+                        : "Refresh the provider connection to load the latest Instagram posts."}
                 />
             ) : null}
 
@@ -385,10 +317,7 @@ export default function PostsPage({ workspaceId, workspaceName }: PostsPageProps
                 open={drawerOpen}
                 onOpenChange={setDrawerOpen}
                 post={selectedPost}
-                platform={activePlatform}
                 workspaceId={workspaceId}
-                onPostUpdated={handlePostUpdated}
-                onPostDeleted={handlePostDeleted}
             />
         </section>
     )
@@ -399,85 +328,6 @@ function SnapshotMetric({ label, value }: { label: string; value: number }) {
         <div className="rounded-xl border border-white/[0.055] bg-white/[0.025] p-3">
             <p className="text-xl font-semibold tracking-[-0.035em] text-white tabular-nums">{formatMetric(value)}</p>
             <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/28">{label}</p>
-        </div>
-    )
-}
-
-function PlatformButton({
-    active,
-    icon: Icon,
-    label,
-    onClick,
-    tone,
-}: {
-    active: boolean
-    icon: typeof Instagram
-    label: string
-    onClick: () => void
-    tone: "pink" | "cyan"
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={cn(
-                "flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition xl:flex-none",
-                active
-                    ? tone === "pink"
-                        ? "border border-pink-200/15 bg-pink-300/[0.1] text-pink-100 shadow-[0_10px_28px_rgba(244,114,182,0.08)]"
-                        : "border border-cyan-200/15 bg-cyan-300/[0.1] text-cyan-100 shadow-[0_10px_28px_rgba(34,211,238,0.08)]"
-                    : "border border-transparent text-white/38 hover:bg-white/[0.04] hover:text-white/65",
-            )}
-        >
-            <Icon className="h-4 w-4" aria-hidden="true" />
-            {label}
-        </button>
-    )
-}
-
-function SourceButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={cn(
-                "rounded-xl border px-3 py-2 text-xs font-semibold transition",
-                active
-                    ? "border-cyan-200/20 bg-cyan-300/[0.09] text-cyan-100"
-                    : "border-white/[0.07] bg-white/[0.025] text-white/38 hover:bg-white/[0.05] hover:text-white/62",
-            )}
-        >
-            {label}
-        </button>
-    )
-}
-
-function ConnectionNotice({
-    title,
-    message,
-    missingPermissions,
-    reconnect,
-}: {
-    title: string
-    message: string
-    missingPermissions?: string[]
-    reconnect: boolean
-}) {
-    return (
-        <div className="flex flex-col gap-4 rounded-[22px] border border-amber-200/15 bg-amber-200/[0.055] p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-amber-200/15 bg-amber-200/[0.08] text-amber-200">
-                    <AlertCircle className="h-4 w-4" aria-hidden="true" />
-                </span>
-                <div>
-                    <p className="text-sm font-semibold text-amber-100">{title}</p>
-                    <p className="mt-1 text-xs leading-5 text-amber-100/50">{message}</p>
-                    {missingPermissions?.length ? <p className="mt-1 text-[11px] text-white/34">Missing: {missingPermissions.join(", ")}</p> : null}
-                </div>
-            </div>
-            <Link href="/dashboard/settings/brand" className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-xl border border-amber-200/15 bg-amber-200/[0.08] px-4 text-xs font-semibold text-amber-100 transition hover:bg-amber-200/[0.12]">
-                {reconnect ? "Reconnect account" : "Review connection"}
-            </Link>
         </div>
     )
 }

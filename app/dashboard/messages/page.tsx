@@ -7,7 +7,6 @@ import {
     AlertCircle,
     ArrowLeft,
     ArrowRight,
-    Facebook,
     Inbox,
     Instagram,
     Lock,
@@ -22,8 +21,6 @@ import { useToast } from "@/components/ui/use-toast"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 import { cn } from "@/lib/utils"
 import { createClient } from "@/utils/supabase/client"
-
-type Platform = "instagram" | "facebook"
 
 interface Message {
     id: string
@@ -97,13 +94,11 @@ function isPermissionError(error: Error | null): boolean {
     if (!error) return false
     const message = error.message?.toLowerCase() || ""
     return message.includes("requires permission") ||
-        message.includes("pages_messaging") ||
         message.includes("#200") ||
         message.includes("appropriate role")
 }
 
 export default function MessagesPage() {
-    const [activePlatform, setActivePlatform] = useState<Platform>("instagram")
     const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null)
     const [showThread, setShowThread] = useState(false)
     const [isRefreshing, setIsRefreshing] = useState(false)
@@ -117,7 +112,7 @@ export default function MessagesPage() {
         isValidating: conversationsValidating,
         mutate: mutateConversations,
     } = useSWR<ConversationsResponse>(
-        `/api/live-messages?platform=${activePlatform}`,
+        "/api/live-messages?platform=instagram",
         fetcher,
         { revalidateOnFocus: false, dedupingInterval: 30_000 },
     )
@@ -129,7 +124,7 @@ export default function MessagesPage() {
         mutate: mutateMessages,
     } = useSWR<MessagesResponse>(
         selectedConversation
-            ? `/api/live-messages?conversationId=${selectedConversation.platform_conversation_id}&platform=${activePlatform}`
+            ? `/api/live-messages?conversationId=${selectedConversation.platform_conversation_id}&platform=instagram`
             : null,
         fetcher,
         { revalidateOnFocus: false, refreshInterval: 30_000 },
@@ -202,7 +197,7 @@ export default function MessagesPage() {
                 body: JSON.stringify({
                     recipientId: selectedConversation.participant_id,
                     message,
-                    platform: activePlatform,
+                    platform: "instagram",
                 }),
             })
             if (!response.ok) {
@@ -227,11 +222,6 @@ export default function MessagesPage() {
         setShowThread(true)
     }
 
-    const handlePlatformSwitch = (platform: Platform) => {
-        setActivePlatform(platform)
-        setSelectedConversation(null)
-        setShowThread(false)
-    }
 
     const handleRefresh = async () => {
         setIsRefreshing(true)
@@ -282,26 +272,14 @@ export default function MessagesPage() {
                             <p className="mt-0.5 truncate text-xs text-white/36">
                                 {accountConnected
                                     ? `${conversationsData?.account?.account_name} · ${conversations.length} conversations · ${unreadCount} unread`
-                                    : `Connect ${activePlatform === "instagram" ? "Instagram" : "Facebook"} to start messaging`}
+                                    : "Connect Instagram to start messaging"}
                             </p>
                         </div>
                     </div>
 
-                    <div className="inline-flex w-full rounded-xl border border-white/[0.07] bg-black/20 p-1 sm:w-auto" aria-label="Inbox platform">
-                        <PlatformButton
-                            active={activePlatform === "instagram"}
-                            icon={Instagram}
-                            label="Instagram"
-                            onClick={() => handlePlatformSwitch("instagram")}
-                            tone="pink"
-                        />
-                        <PlatformButton
-                            active={activePlatform === "facebook"}
-                            icon={Facebook}
-                            label="Facebook"
-                            onClick={() => handlePlatformSwitch("facebook")}
-                            tone="cyan"
-                        />
+                    <div className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-pink-200/15 bg-pink-300/[0.09] px-4 text-xs font-semibold text-pink-100" aria-label="Inbox platform">
+                        <Instagram className="h-4 w-4" aria-hidden="true" />
+                        Instagram
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <div className="hidden items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.025] px-3 py-2 text-xs text-white/38 lg:flex">
@@ -309,7 +287,7 @@ export default function MessagesPage() {
                             <span className="max-w-48 truncate">
                                 {accountConnected
                                     ? `Connected as ${conversationsData?.account?.account_name}`
-                                    : `No ${activePlatform === "instagram" ? "Instagram" : "Facebook"} inbox connected`}
+                                    : "No Instagram inbox connected"}
                             </span>
                         </div>
                         {showRefreshingHint ? <InlineLoadingHint label="Updating…" className="px-2.5 py-1 text-[10px]" /> : null}
@@ -340,7 +318,7 @@ export default function MessagesPage() {
             {permissionDenied && !showInitialLoading ? (
                 <InboxNotice
                     icon={Lock}
-                    title={`${activePlatform === "instagram" ? "Instagram" : "Facebook"} message access is limited`}
+                    title="Instagram message access is limited"
                     message={conversationsData?.error || "Messaging permissions are not enabled for this account."}
                     detail={conversationsData?.missingPermissions?.length
                         ? `Missing permissions: ${conversationsData.missingPermissions.join(", ")}`
@@ -352,7 +330,7 @@ export default function MessagesPage() {
             {responseTokenInvalid && !showInitialLoading ? (
                 <InboxNotice
                     icon={Lock}
-                    title={`${activePlatform === "instagram" ? "Instagram" : "Facebook"} needs to be reconnected`}
+                    title="Instagram needs to be reconnected"
                     message={conversationsData?.error || "The provider token is expired or invalid."}
                     detail="Reconnect this account in Settings before loading or sending messages."
                     tone="amber"
@@ -371,7 +349,7 @@ export default function MessagesPage() {
             {noAccount && !showInitialLoading ? (
                 <InboxNotice
                     icon={Inbox}
-                    title={`Connect ${activePlatform === "instagram" ? "Instagram" : "Facebook"} to activate this inbox`}
+                    title="Connect Instagram to activate this inbox"
                     message="The conversation desk only displays provider data for the active workspace."
                     detail="Open Settings, connect the account, and return here to load conversations."
                     tone="neutral"
@@ -391,7 +369,6 @@ export default function MessagesPage() {
                             conversations={conversations}
                             selectedId={selectedConversation?.id}
                             onSelect={handleSelectConversation}
-                            platform={activePlatform}
                         />
                     </div>
 
@@ -422,7 +399,6 @@ export default function MessagesPage() {
                             isLoading={messagesLoading}
                             onSendMessage={handleSendMessage}
                             workspaceId={workspaceId || null}
-                            platform={activePlatform}
                             composerDisabled={sendDisabled}
                             composerDisabledReason={sendDisabledReason}
                         />
@@ -434,45 +410,12 @@ export default function MessagesPage() {
                 <InboxNotice
                     icon={Inbox}
                     title="Your conversation queue is clear"
-                    message={`${activePlatform === "instagram" ? "Instagram" : "Facebook"} messages will appear here as soon as the provider delivers them.`}
+                    message="Instagram messages will appear here as soon as the provider delivers them."
                     detail="Use Refresh inbox after testing a new provider conversation."
                     tone="neutral"
                 />
             ) : null}
         </section>
-    )
-}
-
-function PlatformButton({
-    active,
-    icon: Icon,
-    label,
-    onClick,
-    tone,
-}: {
-    active: boolean
-    icon: typeof Instagram
-    label: string
-    onClick: () => void
-    tone: "pink" | "cyan"
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            aria-pressed={active}
-            className={cn(
-                "flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold transition sm:min-w-36",
-                active
-                    ? tone === "pink"
-                        ? "border border-pink-200/15 bg-pink-300/[0.09] text-pink-100"
-                        : "border border-cyan-200/15 bg-cyan-300/[0.09] text-cyan-100"
-                    : "border border-transparent text-white/38 hover:bg-white/[0.04] hover:text-white/66",
-            )}
-        >
-            <Icon className="h-4 w-4" aria-hidden="true" />
-            {label}
-        </button>
     )
 }
 

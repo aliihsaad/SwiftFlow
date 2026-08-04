@@ -245,7 +245,7 @@ function LoginPageContent() {
                         SwiftFlow
                     </h1>
                     <p className="text-sm mt-1 text-center" style={{ color: AUTH_THEME.textMuted }}>
-                        AI-assisted social ops for Instagram + Facebook
+                        AI-assisted engagement operations for Instagram
                     </p>
                     <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                         {["Inbox", "Messages", "Analytics", "Automations"].map((pill, i) => (

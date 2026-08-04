@@ -74,14 +74,14 @@ function messagingCapabilitiesFromError(errorCode: string | null, missingPermiss
     };
 }
 
-function requiredMessagingPermissions(platform: string): string[] {
-    return platform === 'facebook' ? ['pages_messaging'] : ['instagram_manage_messages'];
+function requiredMessagingPermissions(): string[] {
+    return ['instagram_business_manage_messages'];
 }
 
-function messagingCapabilitiesFromAccount(platform: string, canManageMessages: boolean) {
+function messagingCapabilitiesFromAccount(canManageMessages: boolean) {
     return canManageMessages
         ? messagingCapabilitiesFromError(null)
-        : messagingCapabilitiesFromError('meta_missing_permission', requiredMessagingPermissions(platform));
+        : messagingCapabilitiesFromError('meta_missing_permission', requiredMessagingPermissions());
 }
 
 // GET - List conversations or fetch messages for a specific conversation, live from Meta API
@@ -100,19 +100,17 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const platform = searchParams.get('platform') || 'instagram';
+        const platform = 'instagram' as const;
         const conversationId = searchParams.get('conversationId');
 
         // Determine which account to use
         // For Instagram DMs, we need the IG account but use the Page ID for the API
-        // For Facebook messages, we use the Facebook page directly
-        const accountPlatform = platform;
 
         const { data: account, error: accountError } = await supabase
             .from('social_accounts')
             .select('*')
             .eq('workspace_id', activeWorkspace.id)
-            .eq('platform', accountPlatform)
+            .eq('platform', platform)
             .single();
 
         if (accountError || !account) {
@@ -137,7 +135,7 @@ export async function GET(request: NextRequest) {
         );
         const canManageMessages = canManageMessagesWithMetaAccount(
             decryptedAccount.metadata,
-            platform === 'facebook' ? 'facebook' : 'instagram',
+            'instagram',
         );
 
         if (!decryptedAccount.access_token) {
@@ -148,14 +146,12 @@ export async function GET(request: NextRequest) {
         }
 
         if (!canManageMessages) {
-            const messagingCapabilities = messagingCapabilitiesFromAccount(platform, false);
+            const messagingCapabilities = messagingCapabilitiesFromAccount(false);
 
             if (conversationId) {
                 return NextResponse.json({
                     messages: [],
-                    pageId: platform === 'instagram'
-                        ? (decryptedAccount.metadata?.connected_page_id || decryptedAccount.account_id)
-                        : decryptedAccount.account_id,
+                    pageId: decryptedAccount.account_id,
                     error: 'Messaging is not available for this connected account',
                     errorCode: 'meta_missing_permission',
                     missingPermissions: messagingCapabilities.missingPermissions,
@@ -172,17 +168,13 @@ export async function GET(request: NextRequest) {
                 requiresReconnect: false,
                 account: { id: decryptedAccount.id, account_name: decryptedAccount.account_name, platform },
                 workspaceId: activeWorkspace.id,
-                pageId: platform === 'instagram'
-                    ? (decryptedAccount.metadata?.connected_page_id || decryptedAccount.account_id)
-                    : decryptedAccount.account_id,
+                pageId: decryptedAccount.account_id,
                 messagingCapabilities,
             });
         }
 
         // For Instagram, we need the connected Page ID (messaging goes through Pages API)
-        const pageId = platform === 'instagram'
-            ? (decryptedAccount.metadata?.connected_page_id || decryptedAccount.account_id)
-            : decryptedAccount.account_id;
+        const pageId = decryptedAccount.account_id;
 
         if (conversationId) {
             // ──────────────────────────────────────────────
@@ -272,7 +264,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({
                 messages,
                 pageId,
-                messagingCapabilities: messagingCapabilitiesFromAccount(platform, canManageMessages),
+                messagingCapabilities: messagingCapabilitiesFromAccount(canManageMessages),
             });
 
         } else {
@@ -280,11 +272,7 @@ export async function GET(request: NextRequest) {
             // MODE: List all conversations
             // ──────────────────────────────────────────────
             let conversationsUrl = `${graphBaseUrl}/${pageId}/conversations?fields=id,participants,messages.limit(1){id,message,from,created_time,attachments{mime_type,size,name,image_data,file_url,video_data,audio_data,payload,url}},updated_time&limit=25&access_token=${decryptedAccount.access_token}`;
-
-            // For Instagram, add platform filter
-            if (platform === 'instagram') {
-                conversationsUrl += '&platform=instagram';
-            }
+            conversationsUrl += '&platform=instagram';
 
             console.log(`[LiveMessages] Fetching ${platform} conversations for page ${pageId}`);
             const response = await fetch(conversationsUrl);
@@ -320,7 +308,7 @@ export async function GET(request: NextRequest) {
                         account: { id: decryptedAccount.id, account_name: decryptedAccount.account_name, platform },
                         workspaceId: activeWorkspace.id,
                         pageId,
-                        messagingCapabilities: messagingCapabilitiesFromAccount(platform, canManageMessages),
+                        messagingCapabilities: messagingCapabilitiesFromAccount(canManageMessages),
                         metaError: normalized.meta,
                     },
                     { status: normalized.httpStatus }
@@ -466,7 +454,7 @@ export async function GET(request: NextRequest) {
                 },
                 workspaceId: activeWorkspace.id,
                 pageId,
-                messagingCapabilities: messagingCapabilitiesFromAccount(platform, canManageMessages),
+                messagingCapabilities: messagingCapabilitiesFromAccount(canManageMessages),
             });
         }
 

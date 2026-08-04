@@ -33,7 +33,6 @@ function emptyBrandProfile(workspaceId: string) {
     },
     reference_image_urls: [],
     instagram_handle: "",
-    facebook_page: "",
     content_themes: [],
   }
 }

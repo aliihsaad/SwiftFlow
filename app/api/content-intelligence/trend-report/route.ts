@@ -34,7 +34,7 @@ const PROVIDERS = new Set<ResearchProviderId>([
 ])
 
 function normalizePlatform(value: unknown): ContentPlatform | "all" {
-  return value === "instagram" || value === "facebook" ? value : "all"
+  return value === "instagram" ? value : "all"
 }
 
 function normalizeDepth(value: unknown): "standard" | "deep" {

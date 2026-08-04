@@ -31,7 +31,7 @@ interface Comment {
 }
 
 /**
- * Sync comments from Instagram and Facebook for all posts in a workspace
+ * Sync comments from Instagram for all posts in a workspace
  * Note: Automation processing is handled by n8n workflow
  */
 async function syncComments(supabase: any, workspaceId: string) {
@@ -41,7 +41,8 @@ async function syncComments(supabase: any, workspaceId: string) {
     const { data: accounts, error: accountsError } = await supabase
         .from('social_accounts')
         .select('*')
-        .eq('workspace_id', workspaceId);
+        .eq('workspace_id', workspaceId)
+        .eq('platform', 'instagram');
 
     if (accountsError) {
         console.error(`[CommentSync] Error fetching accounts:`, redactSensitiveLogValue(accountsError));
@@ -86,7 +87,8 @@ async function syncComments(supabase: any, workspaceId: string) {
             .from('published_posts')
             .select('*')
             .in('post_id', postIds)
-            .gte('published_at', thirtyDaysAgo.toISOString());
+            .gte('published_at', thirtyDaysAgo.toISOString())
+            .eq('platform', 'instagram');
 
         publishedPosts = result.data || [];
         postsError = result.error;
@@ -118,7 +120,7 @@ async function syncComments(supabase: any, workspaceId: string) {
 
         if (!canReadCommentsWithMetaAccount(
             account.metadata,
-            account.platform === 'facebook' ? 'facebook' : 'instagram',
+            'instagram',
         )) {
             console.log(`[CommentSync] Account ${account.id} lacks comment-read capability, skipping`);
             continue;
@@ -150,21 +152,6 @@ async function syncComments(supabase: any, workspaceId: string) {
                         console.log(`[CommentSync] Found ${comments.length} comments`);
                     } else if (data.error) {
                         console.error(`[CommentSync] Instagram API error:`, redactSensitiveLogValue(data.error));
-                    }
-                } else if (account.platform === 'facebook') {
-                    // Facebook: GET /{post-id}/comments?fields=id,message,created_time,from
-                    const url = `${META_GRAPH_URL}/${publishedPost.platform_post_id}/comments?fields=id,message,created_time,from{id,name},comments{id,message,created_time,from{id,name}}&access_token=${account.access_token}`;
-
-                    console.log(`[CommentSync] Fetching Facebook comments for ${publishedPost.platform_post_id}`);
-
-                    const response = await metaGraphFetch(url);
-                    const data = await response.json();
-
-                    if (response.ok && data.data) {
-                        comments = data.data;
-                        console.log(`[CommentSync] Found ${comments.length} Facebook comments`);
-                    } else if (data.error) {
-                        console.error(`[CommentSync] Facebook API error:`, redactSensitiveLogValue(data.error));
                     }
                 }
 
@@ -253,7 +240,7 @@ async function syncComments(supabase: any, workspaceId: string) {
 
             if (!canReadCommentsWithMetaAccount(
                 account.metadata,
-                account.platform === 'facebook' ? 'facebook' : 'instagram',
+                'instagram',
             )) {
                 console.log(`[CommentSync] Account ${account.id} lacks comment-read capability for automation post ${automation.platform_post_id}`);
                 continue;

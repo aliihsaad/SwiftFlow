@@ -26,13 +26,11 @@ afterEach(() => {
 })
 
 describe("Meta provider credential routing", () => {
-  it("uses the Instagram Graph host for direct Instagram Login accounts", () => {
+  it("uses the Instagram Graph host for every supported account", () => {
     expect(getMetaGraphApiBaseUrl("instagram_login"))
       .toBe("https://graph.instagram.com/v25.0")
-    expect(getMetaGraphApiBaseUrl("facebook_login"))
-      .toBe("https://graph.facebook.com/v25.0")
     expect(getMetaGraphApiBaseUrl())
-      .toBe("https://graph.facebook.com/v25.0")
+      .toBe("https://graph.instagram.com/v25.0")
   })
 
   it("routes Direct Instagram analytics through the connection-specific Graph host", () => {
@@ -50,29 +48,19 @@ describe("Meta provider credential routing", () => {
     expect(source).toContain("const url = `${instagramGraphUrl}/")
   })
 
-  it("signs each token with the secret belonging to its connection method", async () => {
+  it("signs tokens only with the Instagram app secret", async () => {
     const accessToken = "test-access-token"
-    const metaSecret = "meta-app-secret"
     const instagramSecret = "instagram-app-secret"
     stubDenoEnv({
-      META_APP_SECRET: metaSecret,
       INSTAGRAM_APP_SECRET: instagramSecret,
     })
 
-    const facebookBody = await toMetaGraphFormBody(
-      { access_token: accessToken },
-      accessToken,
-      { connectionMethod: "facebook_login" },
-    )
     const instagramBody = await toMetaGraphFormBody(
       { access_token: accessToken },
       accessToken,
       { connectionMethod: "instagram_login" },
     )
 
-    expect(facebookBody.get("appsecret_proof")).toBe(
-      createHmac("sha256", metaSecret).update(accessToken).digest("hex"),
-    )
     expect(instagramBody.get("appsecret_proof")).toBe(
       createHmac("sha256", instagramSecret).update(accessToken).digest("hex"),
     )

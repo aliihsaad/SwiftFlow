@@ -1,6 +1,6 @@
 "use client"
 
-import { Sparkles, MessageCircle, Mail, Users, Instagram, Facebook, Plus } from "lucide-react"
+import { Sparkles, MessageCircle, Mail, Users, Instagram, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -51,6 +51,7 @@ export function AutomationTemplatePicker({
 }: AutomationTemplatePickerProps) {
   const supportedTriggers = new Set<string>(SUPPORTED_CANVAS_TRIGGER_TYPES)
   const templates = AUTOMATION_TEMPLATES.filter((template) => {
+    if (!template.supportedPlatforms.includes("instagram")) return false
     const trigger = template.buildGraph().nodes.find((node) => String(node.data?.type || "").startsWith("trigger_"))
     return trigger ? supportedTriggers.has(String(trigger.data.type)) : false
   })
@@ -106,24 +107,10 @@ export function AutomationTemplatePicker({
                           <Badge variant="outline" className="text-[10px] border-white/10 text-white/60">
                             {getCategoryLabel(template.category)}
                           </Badge>
-                          {template.supportedPlatforms.map((platform) => (
-                            <Badge
-                              key={`${template.id}-${platform}`}
-                              variant="outline"
-                              className={
-                                platform === "instagram"
-                                  ? "text-[10px] border-rose-300/25 text-rose-200"
-                                  : "text-[10px] border-cyan-300/25 text-cyan-100"
-                              }
-                            >
-                              {platform === "instagram" ? (
-                                <Instagram className="h-2.5 w-2.5" />
-                              ) : (
-                                <Facebook className="h-2.5 w-2.5" />
-                              )}
-                              {platform}
-                            </Badge>
-                          ))}
+                          <Badge variant="outline" className="border-rose-300/25 text-[10px] text-rose-200">
+                            <Instagram className="h-2.5 w-2.5" />
+                            Instagram
+                          </Badge>
                         </div>
                       </div>
                     </div>

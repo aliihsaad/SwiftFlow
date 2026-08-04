@@ -57,20 +57,8 @@ function normalizeBrand(row: UnknownRow | null): BrandSignal | null {
   }
 }
 
-function selectTopPostsWithPlatformCoverage(posts: HistoricalPostSignal[]): HistoricalPostSignal[] {
-  const selected = new Map<string, HistoricalPostSignal>()
-
-  for (const post of posts.slice(0, 10)) {
-    selected.set(post.id, post)
-  }
-
-  for (const platform of ["instagram", "facebook"] as const) {
-    for (const post of posts.filter((item) => item.platform === platform).slice(0, 5)) {
-      selected.set(post.id, post)
-    }
-  }
-
-  return Array.from(selected.values()).sort((a, b) => b.score - a.score).slice(0, 20)
+function selectTopPosts(posts: HistoricalPostSignal[]): HistoricalPostSignal[] {
+  return posts.slice(0, 20)
 }
 
 export function buildContentIntelligenceSignals(params: {
@@ -86,6 +74,7 @@ export function buildContentIntelligenceSignals(params: {
   }
 
   const historicalPosts: HistoricalPostSignal[] = (params.publishedPosts || [])
+    .filter((row) => row.platform === "instagram")
     .map((row) => {
       const id = readString(row.id) || ""
       const analytics = analyticsByPublishedPost.get(id) || {}
@@ -94,7 +83,7 @@ export function buildContentIntelligenceSignals(params: {
 
       return {
         id,
-        platform: (row.platform === "facebook" ? "facebook" : "instagram") as ContentPlatform,
+        platform: "instagram" as const,
         caption,
         publishedAt: readString(row.published_at),
         likes: readNumber(analytics.likes),
@@ -165,14 +154,13 @@ export function buildContentIntelligenceSignals(params: {
     brand: normalizeBrand(params.brandProfile),
     history: {
       totalPublishedPosts: historicalPosts.length,
-      topPosts: selectTopPostsWithPlatformCoverage(historicalPosts),
+      topPosts: selectTopPosts(historicalPosts),
       hashtagPerformance,
       hourlyPerformance,
     },
     capabilities: {
       hasMetaInsights: grantedScopes.has("instagram_manage_insights")
         || grantedScopes.has("instagram_business_manage_insights"),
-      hasFacebookEngagement: grantedScopes.has("pages_read_engagement"),
     },
   }
 }

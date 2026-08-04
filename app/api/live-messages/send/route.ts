@@ -30,11 +30,11 @@ export async function POST(request: NextRequest) {
 
         assertJsonBodySize(request, MAX_SEND_BODY_BYTES);
         const body = await request.json();
-        const { recipientId, message, platform } = body;
+        const { recipientId, message } = body;
 
-        if (!recipientId || typeof message !== 'string' || !message.trim() || !platform) {
+        if (!recipientId || typeof message !== 'string' || !message.trim()) {
             return NextResponse.json(
-                { error: 'recipientId, message, and platform are required' },
+                { error: 'recipientId and message are required' },
                 { status: 400 }
             );
         }
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
             .from('social_accounts')
             .select('*')
             .eq('workspace_id', activeWorkspace.id)
-            .eq('platform', platform)
+            .eq('platform', 'instagram')
             .single();
         const decryptedAccount = account ? decryptMetaAccountRow(account) : null;
 
@@ -72,36 +72,32 @@ export async function POST(request: NextRequest) {
 
         if (!canManageMessagesWithMetaAccount(
             decryptedAccount.metadata,
-            platform === 'facebook' ? 'facebook' : 'instagram',
+            'instagram',
         )) {
             return NextResponse.json(
                 {
                     error: 'Messaging is not available for this connected account',
                     errorCode: 'meta_missing_permission',
-                    missingPermissions: requiredMessagingPermissions(platform),
+                    missingPermissions: requiredMessagingPermissions(),
                     requiresReconnect: false,
                 },
                 { status: 403 }
             );
         }
 
-        // For Instagram, use the Page ID for sending messages
-        const pageId = platform === 'instagram'
-            ? (decryptedAccount.metadata?.connected_page_id || decryptedAccount.account_id)
-            : decryptedAccount.account_id;
+        const accountId = decryptedAccount.account_id;
 
         const result = await sendMetaTextMessage({
-            pageId,
+            pageId: accountId,
             recipientId,
             text: message,
             accessToken: decryptedAccount.access_token,
-            platform,
         });
 
         if (!result.ok) {
             const normalized = normalizeMetaGraphError(result.error, {
                 feature: 'messages',
-                platform,
+                platform: 'instagram',
                 operation: 'send_message',
             });
             return NextResponse.json(

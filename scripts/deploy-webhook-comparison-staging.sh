@@ -51,10 +51,8 @@ ensure_generated_secret SWIFTFLOW_STAGING_POSTGRES_ADMIN_PASSWORD
 ensure_generated_secret WEBHOOK_COMPARISON_DB_PASSWORD
 ensure_generated_secret WEBHOOK_INGRESS_DB_PASSWORD
 ensure_generated_secret ACTION_EXECUTOR_DB_PASSWORD
-# Staging-only Meta values. Instagram Login has its own product secret, while
-# the general Meta secret remains useful during a dual-secret migration.
+# Staging-only Instagram Login product secret.
 ensure_generated_secret INSTAGRAM_APP_SECRET
-ensure_generated_secret META_APP_SECRET
 ensure_generated_secret META_WEBHOOK_VERIFY_TOKEN
 ensure_literal_value SWIFTFLOW_WEBHOOK_COMPARISON_IMAGE \
   swiftflow/webhook-comparison:staging

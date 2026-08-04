@@ -77,7 +77,7 @@ export interface UpdateAutomationPayload {
 export interface InstagramMedia {
     id: string
     media_type: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM'
-    /** Instagram surface (FEED | REELS | STORY | AD); absent for Facebook posts. */
+    /** Instagram surface (FEED | REELS | STORY | AD). */
     media_product_type?: string
     media_url?: string
     thumbnail_url?: string

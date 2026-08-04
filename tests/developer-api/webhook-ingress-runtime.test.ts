@@ -87,7 +87,7 @@ describe("resolveWebhookIngressConfig", () => {
   it("applies safe defaults", () => {
     const resolved = resolveWebhookIngressConfig({
       META_WEBHOOK_VERIFY_TOKEN: VERIFY_TOKEN,
-      META_APP_SECRET: APP_SECRET,
+      INSTAGRAM_APP_SECRET: APP_SECRET,
     })
 
     expect(resolved).toMatchObject({
@@ -101,32 +101,24 @@ describe("resolveWebhookIngressConfig", () => {
   })
 
   it("fails closed without a verify token or app secret", () => {
-    expect(() => resolveWebhookIngressConfig({ META_APP_SECRET: APP_SECRET }))
+    expect(() => resolveWebhookIngressConfig({ INSTAGRAM_APP_SECRET: APP_SECRET }))
       .toThrow(/META_WEBHOOK_VERIFY_TOKEN is required/)
     expect(() => resolveWebhookIngressConfig({ META_WEBHOOK_VERIFY_TOKEN: VERIFY_TOKEN }))
-      .toThrow(/INSTAGRAM_APP_SECRET or META_APP_SECRET is required/)
+      .toThrow(/INSTAGRAM_APP_SECRET is required/)
   })
 
-  it("accepts both Meta secrets without duplicating an identical value", () => {
-    const both = resolveWebhookIngressConfig({
+  it("configures the single Instagram signature secret", () => {
+    const resolved = resolveWebhookIngressConfig({
       META_WEBHOOK_VERIFY_TOKEN: VERIFY_TOKEN,
-      META_APP_SECRET: APP_SECRET,
-      INSTAGRAM_APP_SECRET: "instagram-secret",
-    })
-    const identical = resolveWebhookIngressConfig({
-      META_WEBHOOK_VERIFY_TOKEN: VERIFY_TOKEN,
-      META_APP_SECRET: APP_SECRET,
       INSTAGRAM_APP_SECRET: APP_SECRET,
     })
 
-    expect(both.appSecrets).toEqual(["instagram-secret", APP_SECRET])
-    expect(identical.appSecrets).toEqual([APP_SECRET])
+    expect(resolved.appSecrets).toEqual([APP_SECRET])
   })
-
   it("normalizes paths and rejects a collision", () => {
     const resolved = resolveWebhookIngressConfig({
       META_WEBHOOK_VERIFY_TOKEN: VERIFY_TOKEN,
-      META_APP_SECRET: APP_SECRET,
+      INSTAGRAM_APP_SECRET: APP_SECRET,
       WEBHOOK_INGRESS_PATH: "ingress/meta/",
       WEBHOOK_INGRESS_HEALTH_PATH: "/health",
     })
@@ -135,7 +127,7 @@ describe("resolveWebhookIngressConfig", () => {
     expect(resolved.healthPath).toBe("/health")
     expect(() => resolveWebhookIngressConfig({
       META_WEBHOOK_VERIFY_TOKEN: VERIFY_TOKEN,
-      META_APP_SECRET: APP_SECRET,
+      INSTAGRAM_APP_SECRET: APP_SECRET,
       WEBHOOK_INGRESS_PATH: "/healthz",
     })).toThrow(/must differ/)
   })
@@ -143,7 +135,7 @@ describe("resolveWebhookIngressConfig", () => {
   it("clamps the port and body cap to supported ranges", () => {
     const resolved = resolveWebhookIngressConfig({
       META_WEBHOOK_VERIFY_TOKEN: VERIFY_TOKEN,
-      META_APP_SECRET: APP_SECRET,
+      INSTAGRAM_APP_SECRET: APP_SECRET,
       WEBHOOK_INGRESS_PORT: "999999",
       WEBHOOK_INGRESS_MAX_BODY_BYTES: "999999999",
     })

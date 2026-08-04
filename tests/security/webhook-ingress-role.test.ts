@@ -183,7 +183,7 @@ describe("staging ingress deployment", () => {
       "SWIFTFLOW_STAGING_POSTGRES_ADMIN_PASSWORD",
       "WEBHOOK_COMPARISON_DB_PASSWORD",
       "WEBHOOK_INGRESS_DB_PASSWORD",
-      "META_APP_SECRET",
+      "INSTAGRAM_APP_SECRET",
       "META_WEBHOOK_VERIFY_TOKEN",
     ]) {
       expect(deploymentScript).toContain(`ensure_generated_secret ${variable}`)
@@ -255,8 +255,8 @@ describe("staging ingress deployment", () => {
     expect(ingressService).toContain("workers/webhook-ingress-healthcheck.ts")
   })
 
-  it("requires explicit Meta ingress secrets", () => {
-    expect(compose).toContain("META_APP_SECRET:?")
+  it("requires explicit Instagram ingress secrets", () => {
+    expect(compose).toContain("INSTAGRAM_APP_SECRET:?")
     expect(compose).toContain("META_WEBHOOK_VERIFY_TOKEN:?")
     expect(deploymentScript).toContain("openssl rand -hex 32")
     expect(deploymentScript).not.toMatch(

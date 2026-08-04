@@ -17,7 +17,7 @@ export type TriggerNodeType =
 export type CommentPostScope = 'any' | 'any_post' | 'any_reel' | 'specific'
 
 export interface TriggerNewCommentConfig {
-  platform?: 'instagram' | 'facebook'
+  platform?: 'instagram'
   trigger_type: 'any' | 'keywords'
   keywords: string[]
   post_scope?: CommentPostScope
@@ -28,7 +28,7 @@ export interface TriggerNewCommentConfig {
 }
 
 export interface TriggerNewMessageConfig {
-  platform?: 'instagram' | 'facebook'
+  platform?: 'instagram'
   trigger_type: 'any' | 'keywords'
   keywords: string[]
   social_account_id: string

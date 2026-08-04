@@ -4,7 +4,7 @@ import { assessResearchSourceQuality, buildTrendReport, researchContentTopic } f
 describe("content intelligence research", () => {
   it("scores primary recent sources higher than low-quality social-only sources", () => {
     const primary = assessResearchSourceQuality({
-      url: "https://developers.facebook.com/docs/instagram-platform",
+      url: "https://business.instagram.com/",
       title: "Instagram Platform documentation",
       publishedAt: "2026-05-12T00:00:00.000Z",
     })

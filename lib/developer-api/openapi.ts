@@ -49,7 +49,7 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
       "/social-accounts": {
         get: {
           summary: "List connected social accounts",
-          description: "Required scope: automations:read. Returns connected Instagram/Facebook ids for automation social_account_id and trigger node config.",
+          description: "Required scope: automations:read. Returns connected Instagram account ids for automation social_account_id and trigger node config.",
           "x-required-scopes": ["automations:read"],
           responses: { "200": { description: "Connected social account list" } },
         },
@@ -73,7 +73,7 @@ export function buildDeveloperApiOpenApiDocument(origin: string) {
       "/automation-media": {
         get: {
           summary: "List selectable automation media",
-          description: "Required scope: automations:read. Returns recent Instagram media or Facebook Page posts for a connected social account. Use returned media.id as trigger_new_comment config.post_id.",
+          description: "Required scope: automations:read. Returns recent Instagram media for a connected social account. Use returned media.id as trigger_new_comment config.post_id.",
           "x-required-scopes": ["automations:read"],
           parameters: [
             { name: "account_id", in: "query", required: true, schema: { type: "string", format: "uuid" } },

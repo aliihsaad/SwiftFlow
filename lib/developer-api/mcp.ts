@@ -137,11 +137,10 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
   secureTool({
     name: "swiftflow_list_social_accounts",
     title: "List connected social accounts",
-    description: "List connected Instagram and Facebook account ids that can be used in automation trigger nodes and social_account_id fields.",
+    description: "List connected Instagram account ids that can be used in automation trigger nodes and social_account_id fields.",
     inputSchema: {
       type: "object",
       properties: {
-        platform: { type: "string", enum: ["instagram", "facebook"], description: "Optional platform filter." },
       },
       additionalProperties: false,
     },
@@ -150,7 +149,7 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
   secureTool({
     name: "swiftflow_list_automation_media",
     title: "List automation media",
-    description: "List recent Instagram media or Facebook Page posts for a connected social account. Use returned media.id as trigger_new_comment config.post_id when creating comment automations.",
+    description: "List recent Instagram media for a connected social account. Use returned media.id as trigger_new_comment config.post_id when creating comment automations.",
     inputSchema: {
       type: "object",
       properties: {
@@ -194,7 +193,7 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
         social_account_id: { type: "string", description: "Connected social account UUID." },
         name: { type: "string" },
         is_active: { type: "boolean" },
-        post_id: { type: "string", description: "Meta Instagram media or Facebook page post id for comment templates." },
+        post_id: { type: "string", description: "Instagram media id for comment templates." },
         post_thumbnail_url: { type: "string" },
         post_caption: { type: "string" },
         delay_seconds: { type: "number", description: "Optional delay inserted after the trigger before actions run." },
@@ -249,7 +248,7 @@ export const DEVELOPER_MCP_TOOLS: DeveloperMcpTool[] = [
         social_account_id: { type: "string", description: "Optional connected social account UUID. Defaults to the automation's existing account for template updates." },
         name: { type: "string" },
         is_active: { type: "boolean" },
-        post_id: { type: "string", description: "Meta Instagram media or Facebook page post id for comment templates." },
+        post_id: { type: "string", description: "Instagram media id for comment templates." },
         platform_post_id: { type: "string" },
         post_thumbnail_url: { type: "string" },
         post_caption: { type: "string" },
@@ -348,12 +347,8 @@ function mapToolCall(name: string, rawArgs: unknown): DeveloperMcpApiRequest {
       return { method: "PATCH", path: "/api/developer/v1/brand-profile", body: args }
     case "swiftflow_list_automations":
       return { method: "GET", path: "/api/developer/v1/automations" }
-    case "swiftflow_list_social_accounts": {
-      const platform = typeof args.platform === "string" && ["instagram", "facebook"].includes(args.platform)
-        ? `?platform=${encodeURIComponent(args.platform)}`
-        : ""
-      return { method: "GET", path: `/api/developer/v1/social-accounts${platform}` }
-    }
+    case "swiftflow_list_social_accounts":
+      return { method: "GET", path: "/api/developer/v1/social-accounts" }
     case "swiftflow_list_automation_media": {
       const accountId = encodeURIComponent(requiredString(args, "social_account_id"))
       const limit = typeof args.limit === "number" && Number.isFinite(args.limit)

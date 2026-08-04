@@ -46,7 +46,6 @@ type BrandProfileState = {
     brand_colors?: Partial<typeof DEFAULT_BRAND_COLORS>
     reference_image_urls?: string[]
     instagram_handle?: string
-    facebook_page?: string
     content_themes?: string[]
 }
 
@@ -313,7 +312,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                     <CardDescription>Basic information about your business</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4">
                         <div className="space-y-2">
                             <Label className={labelClass}>Business Name</Label>
                             <Input
@@ -334,7 +333,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4">
                         <div className="space-y-2">
                             <Label className={labelClass}>Email</Label>
                             <Input
@@ -407,7 +406,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                         />
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4">
                         <div className="space-y-2">
                             <Label className={labelClass}>Brand Voice</Label>
                             <Select
@@ -698,10 +697,10 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
             <Card className={panelClass}>
                 <CardHeader>
                     <CardTitle>Social Media</CardTitle>
-                    <CardDescription>Your social media presence</CardDescription>
+                    <CardDescription>Your Instagram presence</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4">
                         <div className="space-y-2">
                             <Label className={labelClass}>Instagram Handle</Label>
                             <Input
@@ -709,15 +708,6 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                                 value={profile?.instagram_handle || ''}
                                 onChange={(e) => updateField('instagram_handle', e.target.value)}
                                 placeholder="@yourbrand"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label className={labelClass}>Facebook Page</Label>
-                            <Input
-                                className={inputClass}
-                                value={profile?.facebook_page || ''}
-                                onChange={(e) => updateField('facebook_page', e.target.value)}
-                                placeholder="facebook.com/yourbrand"
                             />
                         </div>
                     </div>

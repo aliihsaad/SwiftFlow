@@ -4,10 +4,8 @@ import {
     BarChart3,
     CalendarRange,
     Download,
-    Facebook,
     Gauge,
     Instagram,
-    Layers3,
     RefreshCw,
     Sparkles,
 } from "lucide-react"
@@ -20,13 +18,11 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import type { AnalyticsPlatformView, DateRange, Granularity } from "@/types/analytics"
+import type { DateRange, Granularity } from "@/types/analytics"
 
 interface AnalyticsHeaderProps {
-    platformView: AnalyticsPlatformView
     dateRange: DateRange
     granularity: Granularity
-    onPlatformViewChange: (platform: AnalyticsPlatformView) => void
     onDateRangeChange: (range: DateRange) => void
     onGranularityChange: (granularity: Granularity) => void
     onExport: () => void
@@ -35,17 +31,6 @@ interface AnalyticsHeaderProps {
     syncDisabled?: boolean
     syncDisabledReason?: string
 }
-
-const platformOptions: Array<{
-    value: AnalyticsPlatformView
-    label: string
-    icon: typeof Layers3
-    tone: "violet" | "pink" | "cyan"
-}> = [
-    { value: "all", label: "Combined", icon: Layers3, tone: "violet" },
-    { value: "instagram", label: "Instagram", icon: Instagram, tone: "pink" },
-    { value: "facebook", label: "Facebook", icon: Facebook, tone: "cyan" },
-]
 
 const granularityOptions: Array<{ value: Granularity; label: string }> = [
     { value: "daily", label: "Daily" },
@@ -60,10 +45,8 @@ const rangeLabels: Record<DateRange, string> = {
 }
 
 export function AnalyticsHeader({
-    platformView,
     dateRange,
     granularity,
-    onPlatformViewChange,
     onDateRangeChange,
     onGranularityChange,
     onExport,
@@ -72,8 +55,6 @@ export function AnalyticsHeader({
     syncDisabled = false,
     syncDisabledReason,
 }: AnalyticsHeaderProps) {
-    const platformLabel = platformOptions.find((option) => option.value === platformView)?.label || "Combined"
-
     return (
         <div className="relative overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#10131e] shadow-[0_28px_90px_rgba(2,4,12,0.34)]">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(139,92,246,0.19),transparent_36%),radial-gradient(circle_at_92%_8%,rgba(34,211,238,0.14),transparent_34%)]" />
@@ -125,7 +106,7 @@ export function AnalyticsHeader({
                     <div className="flex items-start justify-between gap-4">
                         <div>
                             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">Analysis lens</p>
-                            <p className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-white">{platformLabel}</p>
+                            <p className="mt-2 text-2xl font-semibold tracking-[-0.035em] text-white">Instagram</p>
                             <p className="mt-1 text-xs text-white/35">{rangeLabels[dateRange]} · {granularity} resolution</p>
                         </div>
                         <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-violet-200/12 bg-violet-300/[0.07] text-violet-100/65">
@@ -134,7 +115,7 @@ export function AnalyticsHeader({
                     </div>
 
                     <div className="mt-6 grid grid-cols-3 gap-2">
-                        <LensMetric icon={Layers3} label="Source" value={platformView === "all" ? "All" : platformView === "instagram" ? "IG" : "FB"} />
+                        <LensMetric icon={Instagram} label="Source" value="IG" />
                         <LensMetric icon={CalendarRange} label="Window" value={dateRange === "last_7_days" ? "7d" : dateRange === "last_30_days" ? "30d" : "90d"} />
                         <LensMetric icon={BarChart3} label="Grain" value={granularity.slice(0, 1).toUpperCase()} />
                     </div>
@@ -143,32 +124,9 @@ export function AnalyticsHeader({
 
             <div className="relative border-t border-white/[0.06] bg-black/10 p-4 sm:px-6 sm:py-5">
                 <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                    <div className="inline-flex w-full rounded-2xl border border-white/[0.07] bg-black/20 p-1 xl:w-auto" aria-label="Analytics platform">
-                        {platformOptions.map((option) => {
-                            const Icon = option.icon
-                            const active = platformView === option.value
-                            return (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    onClick={() => onPlatformViewChange(option.value)}
-                                    aria-pressed={active}
-                                    className={cn(
-                                        "flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl border px-3.5 text-xs font-semibold transition sm:min-w-32",
-                                        active
-                                            ? option.tone === "pink"
-                                                ? "border-pink-200/15 bg-pink-300/[0.09] text-pink-100"
-                                                : option.tone === "cyan"
-                                                    ? "border-cyan-200/15 bg-cyan-300/[0.09] text-cyan-100"
-                                                    : "border-violet-200/15 bg-violet-300/[0.09] text-violet-100"
-                                            : "border-transparent text-white/36 hover:bg-white/[0.04] hover:text-white/65",
-                                    )}
-                                >
-                                    <Icon className="h-4 w-4" aria-hidden="true" />
-                                    {option.label}
-                                </button>
-                            )
-                        })}
+                    <div className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-pink-200/15 bg-pink-300/[0.09] px-4 text-xs font-semibold text-pink-100">
+                        <Instagram className="h-4 w-4" aria-hidden="true" />
+                        Instagram
                     </div>
 
                     <div className="flex flex-col gap-3 sm:flex-row">
@@ -208,7 +166,7 @@ export function AnalyticsHeader({
     )
 }
 
-function LensMetric({ icon: Icon, label, value }: { icon: typeof Layers3; label: string; value: string }) {
+function LensMetric({ icon: Icon, label, value }: { icon: typeof Instagram; label: string; value: string }) {
     return (
         <div className="rounded-xl border border-white/[0.055] bg-white/[0.026] px-2 py-3 text-center">
             <Icon className="mx-auto h-3.5 w-3.5 text-white/28" aria-hidden="true" />

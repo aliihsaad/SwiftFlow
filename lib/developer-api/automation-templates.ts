@@ -4,7 +4,7 @@ import { isActionNode, isTriggerNode } from "@/types/automation-graph"
 
 type TemplateBuildContext = {
   socialAccountId: string
-  platform: "instagram" | "facebook"
+  platform: "instagram"
 }
 
 type TemplateBuildResult =
@@ -171,7 +171,7 @@ function requiredInputsForTemplate(templateId: string) {
   if (templateId === "tpl-reply-comments-ai" || templateId === "tpl-dm-commenters-link" || templateId === "tpl-private-reply-commenters") {
     return [
       ...common,
-      { name: "post_id", type: "string", description: "Instagram media id or Facebook page post id from swiftflow_list_automation_media." },
+      { name: "post_id", type: "string", description: "Instagram media id from swiftflow_list_automation_media." },
     ]
   }
   return common

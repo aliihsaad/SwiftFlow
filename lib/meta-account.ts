@@ -1,6 +1,6 @@
 import { decryptSecretIfNeeded, encryptSecretIfNeeded } from "@/lib/secret-crypto"
 
-export type MetaPlatform = "facebook" | "instagram"
+export type MetaPlatform = "instagram"
 
 export interface MetaGrantedGranularScope {
   scope: string
@@ -8,19 +8,11 @@ export interface MetaGrantedGranularScope {
 }
 
 export interface MetaCapabilityMap {
-  facebook_page_selection: boolean
-  facebook_page_metadata_manage: boolean
-  facebook_publish: boolean
-  facebook_user_content_read: boolean
-  business_management: boolean
   instagram_basic: boolean
   instagram_publish: boolean
   analytics_read: boolean
-  facebook_comments_read: boolean
-  facebook_comments_manage: boolean
   comments_manage: boolean
   messages_manage: boolean
-  pages_messaging: boolean
 }
 
 export interface MetaAccountMetadata extends Record<string, unknown> {
@@ -30,14 +22,11 @@ export interface MetaAccountMetadata extends Record<string, unknown> {
   last_scope_sync_at?: string
   scopes_checked_at?: string
   token_status?: "available" | "missing"
-  /** Written by the token-health-sweep edge function (~daily). */
   token_health?: "valid" | "expiring_soon" | "invalid"
   token_checked_at?: string
-  user_access_token?: string | null
   instagram_business_account_id?: string | null
-  connected_page_id?: string | null
   ig_username?: string | null
-  connection_method?: "instagram_login" | "facebook_login"
+  connection_method?: "instagram_login"
   account_type?: string | null
   scope_source?: "oauth_response" | "oauth_request"
   webhook_subscription_status?: "active" | "missing" | "error" | "unknown"
@@ -69,10 +58,7 @@ function sanitizeGranularScopes(scopes: unknown): MetaGrantedGranularScope[] {
     }))
 }
 
-function getEffectiveGrantedScopes(
-  scopes: unknown,
-  granularScopes: unknown,
-): string[] {
+function getEffectiveGrantedScopes(scopes: unknown, granularScopes: unknown): string[] {
   return Array.from(new Set([
     ...sanitizeScopes(scopes),
     ...sanitizeGranularScopes(granularScopes).map((scope) => scope.scope),
@@ -83,21 +69,11 @@ export function deriveMetaCapabilities(scopes: readonly string[]): MetaCapabilit
   const granted = new Set(scopes)
 
   return {
-    facebook_page_selection: granted.has("pages_show_list"),
-    facebook_page_metadata_manage: granted.has("pages_manage_metadata"),
-    facebook_publish: granted.has("pages_manage_posts"),
-    facebook_user_content_read: granted.has("pages_read_user_content"),
-    business_management: granted.has("business_management"),
     instagram_basic: granted.has("instagram_basic") || granted.has("instagram_business_basic"),
     instagram_publish: granted.has("instagram_content_publish") || granted.has("instagram_business_content_publish"),
-    analytics_read: granted.has("pages_read_engagement")
-      || granted.has("instagram_manage_insights")
-      || granted.has("instagram_business_manage_insights"),
-    facebook_comments_read: granted.has("pages_read_user_content") || granted.has("pages_read_engagement") || granted.has("pages_manage_engagement"),
-    facebook_comments_manage: granted.has("pages_manage_engagement"),
+    analytics_read: granted.has("instagram_manage_insights") || granted.has("instagram_business_manage_insights"),
     comments_manage: granted.has("instagram_manage_comments") || granted.has("instagram_business_manage_comments"),
     messages_manage: granted.has("instagram_manage_messages") || granted.has("instagram_business_manage_messages"),
-    pages_messaging: granted.has("pages_messaging"),
   }
 }
 
@@ -116,9 +92,7 @@ export function buildMetaAccountMetadata(input: {
   existingMetadata?: MetaAccountMetadata | null
   grantedScopes?: unknown
   grantedGranularScopes?: unknown
-  userAccessToken?: string | null
   instagramBusinessAccountId?: string | null
-  connectedPageId?: string | null
   igUsername?: string | null
   tokenStatus: "available" | "missing"
   syncedAt?: string
@@ -134,9 +108,7 @@ export function buildMetaAccountMetadata(input: {
   return {
     ...existingMetadata,
     instagram_business_account_id: input.instagramBusinessAccountId ?? existingMetadata.instagram_business_account_id ?? null,
-    connected_page_id: input.connectedPageId ?? existingMetadata.connected_page_id ?? null,
     ig_username: input.igUsername ?? existingMetadata.ig_username ?? null,
-    user_access_token: input.userAccessToken ?? (typeof existingMetadata.user_access_token === "string" ? existingMetadata.user_access_token : null),
     granted_scopes: grantedScopes,
     granted_granular_scopes: grantedGranularScopes,
     capabilities: deriveMetaCapabilities(effectiveGrantedScopes),
@@ -159,17 +131,11 @@ export function decryptMetaAccountRow<T extends MetaAccountRow>(row: T): T & {
   metadata: MetaAccountMetadata
 } {
   const metadata = row.metadata && typeof row.metadata === "object" ? { ...row.metadata } : {}
-  const decryptedUserAccessToken = typeof metadata.user_access_token === "string"
-    ? decryptMetaToken(metadata.user_access_token)
-    : null
 
   return {
     ...row,
     access_token: decryptMetaToken(row.access_token ?? null),
-    metadata: {
-      ...metadata,
-      user_access_token: decryptedUserAccessToken,
-    },
+    metadata,
   }
 }
 
@@ -180,7 +146,6 @@ export function sanitizeMetaAccountMetadataForClient(
 
   const sanitized: MetaAccountMetadata = {
     instagram_business_account_id: metadata.instagram_business_account_id ?? null,
-    connected_page_id: metadata.connected_page_id ?? null,
     ig_username: metadata.ig_username ?? null,
     granted_scopes: getEffectiveGrantedScopes(metadata.granted_scopes, metadata.granted_granular_scopes),
     granted_granular_scopes: sanitizeGranularScopes(metadata.granted_granular_scopes),
@@ -204,70 +169,37 @@ export function sanitizeMetaAccountMetadataForClient(
   ) as MetaAccountMetadata
 }
 
-export function canManageProviderPostsWithMetaAccount(
-  metadata: MetaAccountMetadata | null | undefined,
-  platform: MetaPlatform,
-): boolean {
-  const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return false
-
-  return platform === "facebook"
-    ? capabilities.facebook_publish
-    : capabilities.instagram_publish
-}
-
 export function canReadAnalyticsWithMetaAccount(
   metadata: MetaAccountMetadata | null | undefined,
 ): boolean {
-  const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return false
-  return capabilities.analytics_read
+  return getMetaCapabilities(metadata)?.analytics_read === true
 }
 
 export function canManageCommentsWithMetaAccount(
   metadata: MetaAccountMetadata | null | undefined,
-  platform: MetaPlatform,
+  _platform: MetaPlatform,
 ): boolean {
-  const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return false
-
-  return platform === "facebook"
-    ? capabilities.facebook_comments_manage
-    : capabilities.comments_manage
+  return getMetaCapabilities(metadata)?.comments_manage === true
 }
 
 export function canReadCommentsWithMetaAccount(
   metadata: MetaAccountMetadata | null | undefined,
-  platform: MetaPlatform,
+  _platform: MetaPlatform,
 ): boolean {
-  const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return false
-
-  return platform === "facebook"
-    ? capabilities.facebook_comments_read || capabilities.facebook_comments_manage
-    : capabilities.comments_manage
+  return getMetaCapabilities(metadata)?.comments_manage === true
 }
 
 export function canManageMessagesWithMetaAccount(
   metadata: MetaAccountMetadata | null | undefined,
-  platform: MetaPlatform,
+  _platform: MetaPlatform,
 ): boolean {
-  const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return false
-
-  return platform === "facebook"
-    ? capabilities.pages_messaging
-    : capabilities.messages_manage
+  return getMetaCapabilities(metadata)?.messages_manage === true
 }
 
 export function canReadConnectedMediaWithMetaAccount(
   metadata: MetaAccountMetadata | null | undefined,
-  platform: MetaPlatform,
+  _platform: MetaPlatform,
 ): boolean {
   const capabilities = getMetaCapabilities(metadata)
-  if (!capabilities) return false
-
-  return platform === "facebook"
-    ? capabilities.analytics_read
-    : capabilities.instagram_basic || capabilities.instagram_publish
+  return capabilities?.instagram_basic === true || capabilities?.instagram_publish === true
 }

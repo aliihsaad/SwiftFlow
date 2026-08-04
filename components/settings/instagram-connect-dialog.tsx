@@ -49,7 +49,7 @@ export function InstagramConnectDialog({ workspaceId, trigger, isConnecting = fa
                         Connect Instagram Business
                     </DialogTitle>
                     <DialogDescription className="pt-2 text-white/50">
-                        Connect directly with Instagram. A linked Facebook Page is not required.
+                        Connect a Business or Creator account through Instagram Login.
                     </DialogDescription>
                 </DialogHeader>
 

@@ -108,7 +108,7 @@ describe("developer API MCP bridge", () => {
     }, context)
 
     expect(calls).toEqual([
-      { method: "GET", path: "/api/developer/v1/social-accounts?platform=instagram" },
+      { method: "GET", path: "/api/developer/v1/social-accounts" },
       { method: "GET", path: "/api/developer/v1/analytics/summary" },
     ])
   })

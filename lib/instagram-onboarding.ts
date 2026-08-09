@@ -15,7 +15,6 @@ export const INSTAGRAM_DEFAULT_SCOPES = [
 
 
 const INSTAGRAM_OPTIONAL_SCOPES = new Set([
-  "instagram_business_content_publish",
   "instagram_business_manage_messages",
 ])
 

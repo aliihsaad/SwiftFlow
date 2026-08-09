@@ -46,14 +46,6 @@ export async function GET() {
                 language: 'en',
                 services: [],
                 unique_selling_points: [],
-                logo_url: '',
-                brand_colors: {
-                    enabled: true,
-                    primary: '#000000',
-                    secondary: '#666666',
-                    accent: '#0066CC',
-                },
-                reference_image_urls: [],
                 instagram_handle: '',
                 content_themes: []
             })

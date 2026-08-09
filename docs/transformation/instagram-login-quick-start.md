@@ -34,7 +34,7 @@ The default automation setup requests only:
 Optional publishing or messaging permissions can be enabled with:
 
 ```env
-INSTAGRAM_OAUTH_EXTRA_SCOPES=instagram_business_content_publish,instagram_business_manage_messages
+INSTAGRAM_OAUTH_EXTRA_SCOPES=instagram_business_manage_messages
 ```
 
 Only the two documented optional values are accepted. Unknown or legacy permission names are ignored.

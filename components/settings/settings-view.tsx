@@ -8,8 +8,9 @@ import {
     Building2,
     ChevronRight,
     Fingerprint,
-  MessageCircleMore,
-  ShieldCheck,
+    Instagram,
+    MessageCircleMore,
+    ShieldCheck,
     Sparkles,
     UserRoundCog,
     UsersRound,
@@ -24,6 +25,7 @@ import { AccountSettingsSection } from "@/components/settings/account-settings-s
 import { TeamMemberRow, WorkspaceInviteRow } from "@/types/team"
 import { DeveloperApiView } from "@/components/settings/developer-api-view"
 import { TelegramSettingsForm } from "@/components/settings/telegram-settings-form"
+import { ConnectedAccounts } from "@/components/settings/connected-accounts"
 
 interface SettingsViewProps {
     workspaces: (Workspace & { role: WorkspaceRole })[]
@@ -38,7 +40,7 @@ interface SettingsViewProps {
     userEmail: string
 }
 
-type SettingsTabValue = "workspaces" | "api" | "telegram" | "developer-api" | "members" | "account"
+type SettingsTabValue = "workspaces" | "instagram" | "api" | "telegram" | "developer-api" | "members" | "account"
 
 type SettingsTabMeta = {
     value: SettingsTabValue
@@ -61,6 +63,16 @@ const settingsTabs: SettingsTabMeta[] = [
         icon: Building2,
         iconClass: "text-cyan-100",
         iconSurfaceClass: "border-cyan-300/20 bg-cyan-300/10",
+    },
+    {
+        value: "instagram",
+        label: "Instagram",
+        eyebrow: "Provider connection",
+        title: "Connect the Instagram account SwiftFlow works with.",
+        description: "Manage the professional account used by inbox, analytics, and engagement automations.",
+        icon: Instagram,
+        iconClass: "text-rose-100",
+        iconSurfaceClass: "border-rose-300/20 bg-rose-300/10",
     },
     {
         value: "api",
@@ -174,8 +186,8 @@ export function SettingsView({
               Configure SwiftFlow around your team.
             </h1>
                         <p className="mt-3 max-w-2xl text-sm leading-6 text-white/55 sm:text-base">
-              One secure place for workspace structure, automation intelligence,
-              API access, collaboration, and account protection.
+              One secure place for Instagram, automation intelligence, API access,
+              collaboration, and account protection.
             </p>
                     </div>
 
@@ -253,6 +265,15 @@ export function SettingsView({
                         <div className="p-4 sm:p-6">
                             <TabsContent value="workspaces" className="m-0 focus-visible:outline-none">
                                 <ManageWorkspacesList workspaces={workspaces} />
+                            </TabsContent>
+                            <TabsContent value="instagram" className="m-0 focus-visible:outline-none">
+                                {activeWorkspace ? (
+                                    <ConnectedAccounts workspaceId={activeWorkspace.id} />
+                                ) : (
+                                    <div className="rounded-[22px] border border-white/9 bg-white/[0.025] p-6 text-sm text-white/50">
+                                        Select a workspace before connecting Instagram.
+                                    </div>
+                                )}
                             </TabsContent>
                             <TabsContent value="api" className="m-0 focus-visible:outline-none">
                                 <ApiSettingsForm settings={settings} />

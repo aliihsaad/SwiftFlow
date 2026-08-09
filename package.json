@@ -17,6 +17,10 @@
     "test:postgres:down": "docker compose -p swiftflow-webhook-test -f compose.postgres-test.yaml down --volumes --remove-orphans",
     "test:ci": "vitest run",
     "validate:env": "node scripts/validate-env.mjs",
+    "setup:secrets": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/configure-managed-deployment.ps1",
+    "setup:supabase": "node scripts/deploy-managed-supabase.mjs",
+    "setup:supabase:dry-run": "node scripts/deploy-managed-supabase.mjs --dry-run",
+    "setup:check": "node scripts/setup-check.mjs",
     "automation:simulate": "tsx workers/automation-simulation.ts"
   },
   "dependencies": {

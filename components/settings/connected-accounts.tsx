@@ -315,7 +315,7 @@ export function ConnectedAccounts({ workspaceId }: ConnectedAccountsProps) {
                             Disconnect Instagram?
                         </AlertDialogTitle>
                         <AlertDialogDescription style={{ color: "rgba(255,255,255,0.58)" }}>
-                            This removes the Instagram account from the workspace. You can reconnect it later from Brand Settings.
+                            This removes the Instagram account from the workspace. You can reconnect it later from Settings → Instagram.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

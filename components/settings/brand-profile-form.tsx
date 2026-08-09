@@ -12,13 +12,6 @@ import { useToast } from "@/components/ui/use-toast"
 import { X, Plus, Loader2, Info } from "lucide-react"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 
-const DEFAULT_BRAND_COLORS = {
-    enabled: true,
-    primary: "#000000",
-    secondary: "#666666",
-    accent: "#0066CC",
-}
-
 interface BrandProfileFormProps {
     workspaceId: string
 }
@@ -42,16 +35,28 @@ type BrandProfileState = {
     language?: string
     services?: BrandService[]
     unique_selling_points?: string[]
-    logo_url?: string
-    brand_colors?: Partial<typeof DEFAULT_BRAND_COLORS>
-    reference_image_urls?: string[]
     instagram_handle?: string
     content_themes?: string[]
 }
 
-type BrandAssetUploadResponse = {
-    url?: string
-    error?: string
+function normalizeBrandProfile(value: BrandProfileState): BrandProfileState {
+    return {
+        workspace_id: value.workspace_id,
+        business_name: value.business_name,
+        owner_name: value.owner_name,
+        email: value.email,
+        phone: value.phone,
+        website: value.website,
+        industry: value.industry,
+        business_description: value.business_description,
+        target_audience: value.target_audience,
+        brand_voice: value.brand_voice,
+        language: value.language,
+        services: value.services,
+        unique_selling_points: value.unique_selling_points,
+        instagram_handle: value.instagram_handle,
+        content_themes: value.content_themes,
+    }
 }
 
 async function requestBrandProfile(): Promise<BrandProfileState> {
@@ -61,7 +66,7 @@ async function requestBrandProfile(): Promise<BrandProfileState> {
         console.error('API Error:', response.status, text)
         throw new Error(`API Error: ${response.status}`)
     }
-    return response.json()
+    return normalizeBrandProfile(await response.json() as BrandProfileState)
 }
 
 export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
@@ -168,96 +173,6 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
         updateField('content_themes', themes)
     }
 
-    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!canEditSettings) return
-        const file = e.target.files?.[0]
-        if (!file) return
-
-        try {
-            const formData = new FormData()
-            formData.append('kind', 'logo')
-            formData.append('file', file)
-
-            const response = await fetch('/api/brand-profile/assets', {
-                method: 'POST',
-                body: formData,
-            })
-
-            const payload = await response.json().catch(() => null) as BrandAssetUploadResponse | null
-            if (!response.ok || !payload?.url) {
-                throw new Error(payload?.error || 'Failed to upload logo')
-            }
-
-            updateField('logo_url', payload.url)
-        } catch (error) {
-            console.error('Upload error:', error)
-            toast({
-                title: "Upload failed",
-                description: error instanceof Error ? error.message : "Failed to upload logo.",
-                variant: "destructive",
-            })
-        } finally {
-            e.target.value = ''
-        }
-    }
-
-    const handleReferenceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (!canEditSettings) return
-        const files = e.target.files
-        if (!files) return
-
-        try {
-            const urls = []
-            for (const file of Array.from(files)) {
-                const formData = new FormData()
-                formData.append('kind', 'reference')
-                formData.append('file', file)
-
-                const response = await fetch('/api/brand-profile/assets', {
-                    method: 'POST',
-                    body: formData,
-                })
-
-                const payload = await response.json().catch(() => null) as BrandAssetUploadResponse | null
-                if (!response.ok || !payload?.url) {
-                    throw new Error(payload?.error || 'Failed to upload reference image')
-                }
-
-                urls.push(payload.url)
-            }
-
-            const existing = profile?.reference_image_urls || []
-            updateField('reference_image_urls', [...existing, ...urls])
-        } catch (error) {
-            console.error('Upload error:', error)
-            toast({
-                title: "Upload failed",
-                description: error instanceof Error ? error.message : "Failed to upload images.",
-                variant: "destructive",
-            })
-        } finally {
-            e.target.value = ''
-        }
-    }
-
-    const removeReferenceImage = (index: number) => {
-        const images = [...(profile?.reference_image_urls || [])]
-        images.splice(index, 1)
-        updateField('reference_image_urls', images)
-    }
-
-    const getBrandColors = () => ({
-        ...DEFAULT_BRAND_COLORS,
-        ...(profile?.brand_colors || {}),
-    })
-
-    const updateBrandColors = (next: Partial<typeof DEFAULT_BRAND_COLORS>) => {
-        updateField('brand_colors', {
-            ...getBrandColors(),
-            ...next,
-        })
-    }
-
     const panelClass = "border-white/10 bg-[#151620] text-white/85 shadow-[0_1px_0_rgba(255,255,255,0.04)_inset,0_18px_48px_rgba(0,0,0,0.24)]"
     const inputClass = "border-white/10 bg-[#1b1d28] text-white/85 placeholder:text-white/25 focus-visible:ring-cyan-400/30 focus-visible:border-cyan-300/20"
     const textareaClass = "border-white/10 bg-[#1b1d28] text-white/85 placeholder:text-white/25 focus-visible:ring-cyan-400/30 focus-visible:border-cyan-300/20"
@@ -309,7 +224,7 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
             <Card className={panelClass}>
                 <CardHeader>
                     <CardTitle>Business Identity</CardTitle>
-                    <CardDescription>Basic information about your business</CardDescription>
+                    <CardDescription>Structured facts AI can reference when responding on your behalf</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 gap-4">
@@ -526,178 +441,11 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                 </CardContent>
             </Card>
 
-            {/* Brand Assets */}
+            {/* Instagram context */}
             <Card className={panelClass}>
                 <CardHeader>
-                    <CardTitle>Brand Assets</CardTitle>
-                    <CardDescription>Logo and reference images</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                        <Label className={labelClass}>Logo</Label>
-                        <div className="flex items-center gap-4">
-                            {profile?.logo_url && (
-                                <>
-                                {/* User-configured image hosts intentionally bypass the Next image proxy. */}
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={profile.logo_url} alt="Logo" className="h-16 w-16 object-contain rounded border border-white/10 bg-[#1b1d28] p-2" />
-                                </>
-                            )}
-                            <Input
-                                className={inputClass}
-                                type="file"
-                                accept="image/*"
-                                onChange={handleLogoUpload}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="space-y-2">
-                        <Label className={labelClass}>Reference Images</Label>
-                        <Input
-                            className={inputClass}
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            onChange={handleReferenceUpload}
-                        />
-                        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                            {profile?.reference_image_urls?.map((url: string, i: number) => (
-                                <div key={i} className="relative group">
-                                    {/* User-configured image hosts intentionally bypass the Next image proxy. */}
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={url} alt={`Reference ${i + 1}`} className="w-full aspect-square object-cover rounded border border-white/10" />
-                                    <button
-                                        onClick={() => removeReferenceImage(i)}
-                                        className="absolute top-1 right-1 rounded-full border border-red-400/25 bg-red-500/80 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
-                                    >
-                                        <X className="h-3 w-3" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Brand Colors */}
-            <Card className={panelClass}>
-                <CardHeader>
-                    <CardTitle>Brand Colors</CardTitle>
-                    <CardDescription>Define your palette and control whether AI image generation should use it as prompt context</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-start justify-between gap-4 rounded-xl border border-white/10 bg-[#1b1d28] p-4">
-                        <div className="space-y-1">
-                            <Label className={labelClass}>Use colors in AI context</Label>
-                            <p className="text-sm text-white/45">
-                                When enabled, AI image generation will include these colors in the prompt context.
-                            </p>
-                        </div>
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked={getBrandColors().enabled}
-                            onClick={() => updateBrandColors({ enabled: !getBrandColors().enabled })}
-                            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border transition-colors ${
-                                getBrandColors().enabled
-                                    ? "border-cyan-300/30 bg-cyan-400/20"
-                                    : "border-white/10 bg-white/10"
-                            }`}
-                        >
-                            <span
-                                className={`inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
-                                    getBrandColors().enabled ? "translate-x-6" : "translate-x-1"
-                                }`}
-                            />
-                        </button>
-                    </div>
-
-                    <div className="space-y-3">
-                        {/* Primary Color */}
-                        <div className="flex items-center gap-4">
-                            <Label className={`w-24 ${labelClass}`}>Primary</Label>
-                            <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                    type="color"
-                                    value={getBrandColors().primary}
-                                    onChange={(e) => updateBrandColors({ primary: e.target.value })}
-                                    className="h-10 w-14 shrink-0 cursor-pointer rounded border border-white/10 bg-[#1b1d28] p-1"
-                                />
-                                <Input
-                                    value={getBrandColors().primary}
-                                    onChange={(e) => updateBrandColors({ primary: e.target.value })}
-                                    placeholder="#000000"
-                                    className={`${inputClass} w-32 font-mono text-sm`}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Secondary Color */}
-                        <div className="flex items-center gap-4">
-                            <Label className={`w-24 ${labelClass}`}>Secondary</Label>
-                            <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                    type="color"
-                                    value={getBrandColors().secondary}
-                                    onChange={(e) => updateBrandColors({ secondary: e.target.value })}
-                                    className="h-10 w-14 shrink-0 cursor-pointer rounded border border-white/10 bg-[#1b1d28] p-1"
-                                />
-                                <Input
-                                    value={getBrandColors().secondary}
-                                    onChange={(e) => updateBrandColors({ secondary: e.target.value })}
-                                    placeholder="#666666"
-                                    className={`${inputClass} w-32 font-mono text-sm`}
-                                />
-                            </div>
-                        </div>
-
-                        {/* Accent Color */}
-                        <div className="flex items-center gap-4">
-                            <Label className={`w-24 ${labelClass}`}>Accent</Label>
-                            <div className="flex items-center gap-2 flex-1">
-                                <Input
-                                    type="color"
-                                    value={getBrandColors().accent}
-                                    onChange={(e) => updateBrandColors({ accent: e.target.value })}
-                                    className="h-10 w-14 shrink-0 cursor-pointer rounded border border-white/10 bg-[#1b1d28] p-1"
-                                />
-                                <Input
-                                    value={getBrandColors().accent}
-                                    onChange={(e) => updateBrandColors({ accent: e.target.value })}
-                                    placeholder="#0066CC"
-                                    className={`${inputClass} w-32 font-mono text-sm`}
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Color Palette Preview */}
-                    <div className="pt-4 border-t border-white/10">
-                        <Label className={`mb-2 block ${labelClass}`}>Color Palette Preview</Label>
-                        <div className="flex gap-2">
-                            <div
-                                className="h-16 flex-1 rounded-lg border-2 border-white/15 shadow-sm"
-                                style={{ backgroundColor: getBrandColors().primary }}
-                            />
-                            <div
-                                className="h-16 flex-1 rounded-lg border-2 border-white/15 shadow-sm"
-                                style={{ backgroundColor: getBrandColors().secondary }}
-                            />
-                            <div
-                                className="h-16 flex-1 rounded-lg border-2 border-white/15 shadow-sm"
-                                style={{ backgroundColor: getBrandColors().accent }}
-                            />
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Social Media */}
-            <Card className={panelClass}>
-                <CardHeader>
-                    <CardTitle>Social Media</CardTitle>
-                    <CardDescription>Your Instagram presence</CardDescription>
+                    <CardTitle>Instagram Context</CardTitle>
+                    <CardDescription>Account details and recurring topics that help AI understand incoming conversations</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 gap-4">
@@ -713,13 +461,13 @@ export function BrandProfileForm({ workspaceId }: BrandProfileFormProps) {
                     </div>
 
                     <div className="space-y-2">
-                        <Label className={labelClass}>Content Themes</Label>
+                        <Label className={labelClass}>Key Topics</Label>
                         <div className="flex gap-2">
                             <Input
                                 className={inputClass}
                                 value={newTheme}
                                 onChange={(e) => setNewTheme(e.target.value)}
-                                placeholder="Add a theme..."
+                                placeholder="Add a topic..."
                                 onKeyDown={(e) => e.key === 'Enter' && addTheme()}
                             />
                             <Button onClick={addTheme} size="icon" className={addIconBtnClass}>

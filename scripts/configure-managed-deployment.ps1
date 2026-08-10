@@ -98,6 +98,8 @@ $required = @(
     'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     $serviceKeyName,
     'NEXT_PUBLIC_APP_URL',
+    'RESEND_API_KEY',
+    'INVITE_EMAIL_FROM',
     'APP_SECRETS_ENCRYPTION_KEY',
     'INSTAGRAM_APP_ID',
     'INSTAGRAM_APP_SECRET',
@@ -130,6 +132,8 @@ $vercelVariables = [ordered]@{
     NEXT_PUBLIC_SUPABASE_ANON_KEY = $environment['NEXT_PUBLIC_SUPABASE_ANON_KEY']
     SUPABASE_SERVICE_KEY = $environment[$serviceKeyName]
     NEXT_PUBLIC_APP_URL = $environment['NEXT_PUBLIC_APP_URL']
+    RESEND_API_KEY = $environment['RESEND_API_KEY']
+    INVITE_EMAIL_FROM = $environment['INVITE_EMAIL_FROM']
     APP_SECRETS_ENCRYPTION_KEY = $environment['APP_SECRETS_ENCRYPTION_KEY']
     APP_SECRETS_ENCRYPTION_VERSION = $environment['APP_SECRETS_ENCRYPTION_VERSION']
     INSTAGRAM_APP_ID = $environment['INSTAGRAM_APP_ID']
@@ -143,6 +147,7 @@ foreach ($optionalName in @(
     'APP_SECRETS_ENCRYPTION_KEY_PREVIOUS',
     'DEVELOPER_API_KEY_PEPPER',
     'DEVELOPER_API_KEY_PEPPER_PREVIOUS',
+    'INVITE_EMAIL_REPLY_TO',
     'GEMINI_API_KEY'
 )) {
     if ($environment.ContainsKey($optionalName) -and [string]$environment[$optionalName]) {
@@ -158,6 +163,7 @@ $sensitiveNames = @(
     'DEVELOPER_API_KEY_PEPPER_PREVIOUS',
     'INSTAGRAM_APP_SECRET',
     'META_WEBHOOK_VERIFY_TOKEN',
+    'RESEND_API_KEY',
     'GEMINI_API_KEY'
 )
 

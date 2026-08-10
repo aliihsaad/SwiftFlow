@@ -19,6 +19,8 @@ describe("managed setup preflight helpers", () => {
       NEXT_PUBLIC_SUPABASE_URL: "https://abcdefghijklmnopqrst.supabase.co",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "configured-anon-key",
       NEXT_PUBLIC_APP_URL: "https://swiftflow.example.com",
+      RESEND_API_KEY: "re_configured-key",
+      INVITE_EMAIL_FROM: "SwiftFlow <invites@swiftflow.example.com>",
       APP_SECRETS_ENCRYPTION_KEY: "configured-encryption-key",
       INSTAGRAM_APP_ID: "123456789",
       INSTAGRAM_APP_SECRET: "configured-instagram-secret",
@@ -28,12 +30,15 @@ describe("managed setup preflight helpers", () => {
     expect(findMissingEnv({ ...base, SUPABASE_SERVICE_KEY: "configured-service-key" })).toEqual([])
     expect(findMissingEnv({ ...base, SUPABASE_SERVICE_ROLE_KEY: "configured-service-key" })).toEqual([])
     expect(findMissingEnv(base)).toContain("one of SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_KEY")
+    expect(findMissingEnv({ ...base, SUPABASE_SERVICE_KEY: "configured-service-key", RESEND_API_KEY: "" })).toContain("RESEND_API_KEY")
   })
 
   it("rejects empty and obvious placeholder values", () => {
     expect(isConfiguredValue("replace-with-a-secret")).toBe(false)
     expect(isConfiguredValue("your-key")).toBe(false)
     expect(isConfiguredValue("xxxxx")).toBe(false)
+    expect(isConfiguredValue("SwiftFlow <invites@your-domain.example>")).toBe(false)
+    expect(isConfiguredValue("SwiftFlow <invites@swiftflow.example.com>")).toBe(true)
     expect(isConfiguredValue("a-real-looking-value")).toBe(true)
   })
 

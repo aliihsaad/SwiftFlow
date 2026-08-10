@@ -9,6 +9,8 @@ export const REQUIRED_APP_ENV = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "NEXT_PUBLIC_APP_URL",
+  "RESEND_API_KEY",
+  "INVITE_EMAIL_FROM",
   "APP_SECRETS_ENCRYPTION_KEY",
   "INSTAGRAM_APP_ID",
   "INSTAGRAM_APP_SECRET",
@@ -50,7 +52,7 @@ export const REQUIRED_SUPABASE_SECRETS = [
   "META_WEBHOOK_VERIFY_TOKEN",
 ]
 
-const PLACEHOLDER_PATTERN = /(^|[-_.])(change|replace|todo|your|xxxxx)([-_.]|$)|\.\.\.|<[^>]+>/i
+const PLACEHOLDER_PATTERN = /(^|[-_.@])(change|replace|todo|your|xxxxx)([-_.]|$)|\.\.\.|<(?![^>]*@)[^>]+>/i
 
 export function isConfiguredValue(value) {
   const normalized = String(value || "").trim()
@@ -249,6 +251,7 @@ export async function main() {
     localEnv.APP_SECRETS_ENCRYPTION_KEY,
     localEnv.INSTAGRAM_APP_SECRET,
     localEnv.META_WEBHOOK_VERIFY_TOKEN,
+    localEnv.RESEND_API_KEY,
     process.env.SUPABASE_DB_PASSWORD,
     process.env.SUPABASE_DB_URL,
   ].filter(Boolean)

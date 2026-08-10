@@ -13,6 +13,7 @@ import {
 export interface PostCardData {
     id: string
     media_type: string
+    media_product_type?: string
     media_url: string
     thumbnail_url: string
     caption: string
@@ -30,10 +31,11 @@ interface PostCardProps {
 
 export function PostCard({ post, onClick }: PostCardProps) {
     const engagement = post.like_count + post.comments_count
+    const isVideo = post.media_type === "VIDEO" || post.media_product_type === "REELS"
     const mediaLabel = post.media_type === "CAROUSEL_ALBUM"
         ? "Carousel"
-        : post.media_type === "VIDEO"
-            ? "Video"
+        : isVideo
+            ? post.media_product_type === "REELS" ? "Reel" : "Video"
             : "Image"
 
     return (
@@ -60,9 +62,16 @@ export function PostCard({ post, onClick }: PostCardProps) {
 
                 <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-[#0a0c14] via-transparent to-black/10" />
 
+                {isVideo ? (
+                    <span className="pointer-events-none absolute left-1/2 top-1/2 flex h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-black/55 text-white shadow-[0_12px_35px_rgba(0,0,0,0.35)] backdrop-blur-md transition duration-200 group-hover:scale-110 group-hover:bg-black/70">
+                        <Play className="ml-0.5 h-5 w-5 fill-current" aria-hidden="true" />
+                        <span className="sr-only">Open video player</span>
+                    </span>
+                ) : null}
+
                 <div className="absolute inset-x-3 top-3 flex items-start justify-between gap-2">
                     <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/72 backdrop-blur-md">
-                        {post.media_type === "VIDEO" ? <Play className="h-3 w-3" aria-hidden="true" /> : null}
+                        {isVideo ? <Play className="h-3 w-3" aria-hidden="true" /> : null}
                         {post.media_type === "CAROUSEL_ALBUM" ? <LayoutGrid className="h-3 w-3" aria-hidden="true" /> : null}
                         {mediaLabel}
                     </span>

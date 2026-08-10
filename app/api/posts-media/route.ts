@@ -24,6 +24,7 @@ type PagingInfo = {
 type InstagramMediaApiItem = {
     id: string;
     media_type?: string;
+    media_product_type?: string;
     media_url?: string;
     thumbnail_url?: string;
     caption?: string;
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
         const accountId = assertMetaGraphNodeId(decryptedAccount.account_id, 'accountId');
         const graphBaseUrl = getMetaGraphApiBaseUrl(decryptedAccount.metadata?.connection_method);
         const graphParams = new URLSearchParams({
-            fields: 'id,media_type,media_url,thumbnail_url,caption,timestamp,permalink,comments_count,like_count',
+            fields: 'id,media_type,media_product_type,media_url,thumbnail_url,caption,timestamp,permalink,comments_count,like_count',
             limit: String(limit),
             access_token: decryptedAccount.access_token,
         });
@@ -133,6 +134,7 @@ export async function GET(request: NextRequest) {
         const media = (result.data || []).map((item) => ({
             id: item.id,
             media_type: item.media_type || 'IMAGE',
+            media_product_type: item.media_product_type || '',
             media_url: item.media_url || '',
             thumbnail_url: item.thumbnail_url || item.media_url || '',
             caption: item.caption || '',

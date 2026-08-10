@@ -105,6 +105,9 @@ NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_CLIENT_OR_ANON_KEY
 SUPABASE_SERVICE_KEY=YOUR_SERVER_SERVICE_ROLE_KEY
 NEXT_PUBLIC_APP_URL=https://YOUR_PROJECT.vercel.app
+RESEND_API_KEY=YOUR_RESEND_API_KEY
+INVITE_EMAIL_FROM=SwiftFlow <invites@YOUR_DOMAIN>
+INVITE_EMAIL_REPLY_TO=support@YOUR_DOMAIN
 APP_SECRETS_ENCRYPTION_KEY=AT_LEAST_32_RANDOM_CHARACTERS
 APP_SECRETS_ENCRYPTION_VERSION=v1
 INSTAGRAM_APP_ID=YOUR_INSTAGRAM_APP_ID
@@ -121,6 +124,8 @@ openssl rand -base64 48
 ```
 
 Do not reuse the Supabase service key, Instagram App Secret, encryption key, webhook token, or developer API pepper for one another. `.env.local` is ignored by Git.
+
+For automatic team invitation emails, create a Resend API key and verify the domain used by `INVITE_EMAIL_FROM`. `INVITE_EMAIL_REPLY_TO` is optional. These are Vercel-only values: do not add them to Supabase Function secrets. If Resend is intentionally omitted, workspace invites can still be created and accepted, but the owner must share the generated invite link manually.
 
 ### 5. Configure the Meta Instagram app
 
@@ -165,7 +170,7 @@ Recommended Windows command:
 npm run setup:secrets -- -SupabaseProjectRef YOUR_SUPABASE_PROJECT_REF
 ```
 
-This reads `.env.local`, validates required names, sends the application values to the linked Vercel environment, and sends only the required Edge Function secrets to Supabase. It does not print secret values. Its temporary Supabase secret file is deleted in a `finally` block.
+This reads `.env.local`, validates required names, sends the application values—including the Resend invitation-email settings—to the linked Vercel environment, and sends only the required Edge Function secrets to Supabase. It does not print secret values. Its temporary Supabase secret file is deleted in a `finally` block.
 
 To target a non-production Vercel environment:
 
@@ -175,7 +180,7 @@ npm run setup:secrets -- -SupabaseProjectRef YOUR_SUPABASE_PROJECT_REF -VercelEn
 
 Manual dashboard fallback:
 
-- Vercel → Project → Settings → Environment Variables: add every non-empty value from `.env.local` for Production.
+- Vercel → Project → Settings → Environment Variables: add every non-empty value from `.env.local` for Production. `RESEND_API_KEY` must be encrypted/sensitive; `INVITE_EMAIL_FROM` and the optional `INVITE_EMAIL_REPLY_TO` remain server-side variables.
 - Supabase → Project Settings → Edge Functions → Secrets: add `APP_SECRETS_ENCRYPTION_KEY`, `APP_SECRETS_ENCRYPTION_VERSION`, `INSTAGRAM_APP_ID`, `INSTAGRAM_APP_SECRET`, and `META_WEBHOOK_VERIFY_TOKEN`.
 
 Supabase automatically supplies `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` to its Edge Functions; do not duplicate those built-in values as custom Function secrets.
@@ -244,7 +249,7 @@ If Vercel assigns a different production URL than the one in `.env.local`, updat
 npm run setup:check
 ```
 
-The preflight is read-only. It verifies local project links, CLI access, environment-variable names, all 21 deployed functions, Function secret names, and local migration history without displaying secret values.
+The preflight is read-only. It verifies local project links, CLI access, environment-variable names (including Resend invitation delivery), all 21 deployed functions, Function secret names, and local migration history without displaying secret values.
 
 For remote migration and Cron verification, temporarily set the database password only in the current terminal:
 
@@ -272,7 +277,8 @@ A successful installation reports zero failures. A warning about localhost is ex
 5. Comment from a different Instagram account using the configured trigger keyword.
 6. Confirm the reply arrives and the SwiftFlow execution history shows a completed run.
 7. Test a DM/story-reply path if `instagram_business_manage_messages` is enabled.
-8. Check Supabase Cron history after two minutes for `scheduler-tick` HTTP 200/207 results.
+8. Invite a test team member and confirm the Resend invitation email opens the correct `/invite/{token}` URL.
+9. Check Supabase Cron history after two minutes for `scheduler-tick` HTTP 200/207 results.
 
 The deployment is ready only after this real provider test succeeds.
 

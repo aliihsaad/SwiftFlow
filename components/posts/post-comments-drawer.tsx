@@ -27,6 +27,7 @@ import { useWorkspacePermission } from "@/components/workspace/workspace-role-pr
 interface PostData {
     id: string
     media_type: string
+    media_product_type?: string
     media_url: string
     thumbnail_url: string
     caption: string
@@ -131,6 +132,7 @@ export function PostCommentsDrawer({
     const commentsReadBlocked = commentsErrorCode === 'meta_missing_permission' || commentsErrorCode === 'meta_auth_invalid_token'
     const commentActionsBlocked = !!actionsBlocked
     const roleActionsBlocked = !canWriteContent
+    const isVideoPost = post?.media_type === 'VIDEO' || post?.media_product_type === 'REELS'
 
     const handleDrawerOpenChange = (nextOpen: boolean) => {
         if (!nextOpen) {
@@ -335,25 +337,43 @@ export function PostCommentsDrawer({
                         </div>
                     </div>
 
-                    {/* Mini post preview */}
+                    {/* Post preview and native video playback */}
                     {post && (
                         <div className="space-y-3 rounded-2xl border border-white/[0.065] bg-black/20 p-3.5 backdrop-blur-sm">
-                            <div className="flex gap-3 items-start">
-                                {post.media_url && (
+                            <div className={isVideoPost ? "grid gap-3 sm:grid-cols-[10rem_minmax(0,1fr)]" : "flex items-start gap-3"}>
+                                {isVideoPost && post.media_url ? (
+                                    <video
+                                        key={post.id}
+                                        controls
+                                        playsInline
+                                        preload="metadata"
+                                        poster={post.thumbnail_url || undefined}
+                                        className="aspect-video max-h-64 w-full rounded-xl bg-black object-contain sm:aspect-[9/16]"
+                                        style={{ border: `1px solid ${COMMENTS_THEME.border}` }}
+                                    >
+                                        <source src={post.media_url} />
+                                        Your browser cannot play this Instagram video.
+                                    </video>
+                                ) : post.media_url ? (
                                     <NextImage
                                         src={post.thumbnail_url || post.media_url}
-                                        alt=""
+                                        alt={post.caption?.slice(0, 90) || 'Instagram post'}
                                         width={64}
                                         height={64}
                                         unoptimized
                                         className="h-16 w-16 flex-none rounded-xl object-cover"
                                         style={{ border: `1px solid ${COMMENTS_THEME.border}` }}
                                     />
-                                )}
+                                ) : null}
                                 <div className="min-w-0 flex-1">
                                     <p className="text-xs leading-relaxed line-clamp-3" style={{ color: 'rgba(255,255,255,0.42)' }}>
                                         {post.caption || 'No caption'}
                                     </p>
+                                    {isVideoPost ? (
+                                        <p className="mt-2 text-[10px] leading-4 text-white/28">
+                                            Use the player controls to watch here, or open Instagram if the provider URL has expired.
+                                        </p>
+                                    ) : null}
                                 </div>
                             </div>
 

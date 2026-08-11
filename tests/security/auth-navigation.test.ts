@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs"
+import { existsSync, readFileSync } from "node:fs"
 import path from "node:path"
 import { describe, expect, it } from "vitest"
 
@@ -12,12 +12,31 @@ const signInRoute = readFileSync(
   path.join(root, "app", "api", "auth", "sign-in", "route.ts"),
   "utf8",
 )
+const authActions = readFileSync(path.join(root, "app", "actions", "auth.ts"), "utf8")
+const logoutButton = readFileSync(
+  path.join(root, "components", "auth", "logout-button.tsx"),
+  "utf8",
+)
 
 describe("authenticated navigation", () => {
   it("uses a full document transition after a session is created", () => {
-    expect(loginPage.match(/window\.location\.replace\(nextPath\)/g)).toHaveLength(2)
+    expect(loginPage.match(/window\.location\.replace\(nextPath\)/g)).toHaveLength(1)
     expect(loginPage).not.toContain("router.push(nextPath)")
     expect(loginPage).not.toContain("useRouter")
+  })
+
+  it("keeps the public authentication page sign-in only", () => {
+    expect(loginPage).not.toContain('/api/auth/sign-up')
+    expect(loginPage).not.toContain('value="signup"')
+    expect(loginPage).toContain("Public registration is disabled")
+    expect(existsSync(path.join(root, "app", "api", "auth", "sign-up", "route.ts"))).toBe(false)
+    expect(existsSync(path.join(root, "app", "api", "auth", "resend-signup", "route.ts"))).toBe(false)
+  })
+
+  it("waits for server-side logout before replacing the document", () => {
+    expect(logoutButton).toMatch(/await signOut\(\)[\s\S]*window\.location\.replace\("\/login"\)/)
+    expect(authActions).toContain("cookieStore.delete(ACTIVE_WORKSPACE_COOKIE)")
+    expect(authActions).not.toContain("redirect('/')")
   })
 
   it("returns the exact response that received the Supabase session cookies", () => {

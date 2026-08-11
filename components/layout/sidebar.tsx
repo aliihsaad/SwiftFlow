@@ -4,8 +4,8 @@ import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { ChevronLeft, ChevronRight, LogOut } from "lucide-react"
-import { signOut } from "@/app/actions/auth"
+import { ChevronLeft, ChevronRight } from "lucide-react"
+import { LogoutButton } from "@/components/auth/logout-button"
 import {
     accountNavigation,
     engagementNavigation,
@@ -177,18 +177,13 @@ export function Sidebar({ workspaces, activeWorkspace, isReviewPhase1Release }: 
                 </div>
 
                 <div className="shrink-0 border-t border-white/[0.06] p-3">
-                    <button
-                        type="button"
-                        onClick={() => signOut()}
+                    <LogoutButton
+                        hideLabel={isCollapsed}
                         className={cn(
                             "flex min-h-10 items-center rounded-xl border border-transparent text-sm font-medium text-white/36 transition hover:border-rose-300/10 hover:bg-rose-400/[0.07] hover:text-rose-200",
                             isCollapsed ? "mx-auto w-11 justify-center" : "w-full gap-3 px-3",
                         )}
-                        aria-label="Log out"
-                    >
-                        <LogOut className="h-4 w-4" aria-hidden="true" />
-                        {isCollapsed ? null : <span>Log out</span>}
-                    </button>
+                    />
                 </div>
 
                 <button

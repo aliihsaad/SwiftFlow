@@ -193,9 +193,21 @@ In Supabase Dashboard → Authentication → URL Configuration:
 - Production redirect URL: `https://YOUR_PROJECT.vercel.app/auth/callback`
 - Local redirect URL: `http://localhost:3000/auth/callback`
 
-Use the exact production origin. This controls signup confirmation, sign-in, invitations, and password-reset redirects.
+Use the exact production origin. This controls account confirmation, sign-in, invitations, and password-reset redirects.
 
-### 8. Validate and deploy Supabase
+### 8. Provision the first owner account
+
+SwiftFlow does not expose public registration. Create the first account from the Supabase project before opening the app:
+
+1. Open Supabase Dashboard → Authentication → Users.
+2. Choose **Add user** → **Create new user**.
+3. Enter the owner email and a strong temporary password. Enable **Auto confirm user** if the dashboard offers it; otherwise complete the confirmation email before signing in.
+4. In Authentication → Providers → Email, keep public user sign-up disabled for a private SwiftFlow deployment.
+5. Open the production SwiftFlow URL and sign in. The app will guide this first user through workspace creation and Instagram connection.
+
+Provision future teammates in Supabase Auth with the same email address before sending their SwiftFlow workspace invitation. The public login page remains sign-in-only.
+
+### 9. Validate and deploy Supabase
 
 First validate the local environment:
 
@@ -212,7 +224,7 @@ npm run setup:supabase -- --project-ref YOUR_SUPABASE_PROJECT_REF
 
 The deployment helper stops immediately on the first failed migration or function deployment. It does not deploy the retired email worker or any publishing runtime.
 
-### 9. Create the required one-minute scheduler
+### 10. Create the required one-minute scheduler
 
 This is the one Supabase runtime step that remains manual because its authorization secret must not be committed.
 
@@ -232,7 +244,7 @@ Store the service-role key through the dashboard's secret/Vault input. Never put
 
 This single tick resumes Delay nodes every minute and dispatches retention cleanup, Instagram token refresh, and token-health checks at their internal offsets.
 
-### 10. Deploy Vercel
+### 11. Deploy Vercel
 
 Run the production build locally, then deploy:
 
@@ -243,7 +255,7 @@ vercel deploy --prod
 
 If Vercel assigns a different production URL than the one in `.env.local`, update `NEXT_PUBLIC_APP_URL` in `.env.local`, rerun `npm run setup:secrets`, update the two Meta callback URLs and Supabase Auth URLs, then deploy again.
 
-### 11. Run the deployment preflight
+### 12. Run the deployment preflight
 
 ```powershell
 npm run setup:check
@@ -268,9 +280,9 @@ finally {
 
 A successful installation reports zero failures. A warning about localhost is expected only when `NEXT_PUBLIC_APP_URL` intentionally points to local development.
 
-### 12. Perform the real acceptance test
+### 13. Perform the real acceptance test
 
-1. Open the production SwiftFlow URL and create/sign in to an account.
+1. Open the production SwiftFlow URL and sign in with the owner account created in Supabase Auth.
 2. Open Setup Guide and connect the accepted Instagram professional tester account.
 3. Confirm readiness reaches `4 / 4`.
 4. Create an active automation: New Comment → AI Response or fixed response → Reply to Comment or Private Reply.

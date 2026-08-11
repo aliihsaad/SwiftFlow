@@ -2,11 +2,11 @@
 
 import { createClient } from "@/utils/supabase/server"
 import { createAdminClient } from "@/utils/supabase/admin"
-import { redirect } from "next/navigation"
 import { sendPasswordChangedEmail } from "@/lib/email/send-password-changed-email"
 import { cookies } from "next/headers"
 
 const PASSWORD_RECOVERY_COOKIE = "password_recovery_authorized"
+const ACTIVE_WORKSPACE_COOKIE = "active_workspace_id"
 
 async function verifyUserPassword(password: string): Promise<{ ok: boolean; error?: string }> {
     const supabase = await createClient()
@@ -44,10 +44,19 @@ async function verifyUserPassword(password: string): Promise<{ ok: boolean; erro
     return { ok: true }
 }
 
-export async function signOut() {
+export async function signOut(): Promise<{ ok: true } | { ok: false; error: string }> {
     const supabase = await createClient()
-    await supabase.auth.signOut()
-    redirect('/')
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+        console.error("[auth/sign-out] failed:", error.message)
+        return { ok: false, error: "SwiftFlow could not sign you out. Please try again." }
+    }
+
+    const cookieStore = await cookies()
+    cookieStore.delete(ACTIVE_WORKSPACE_COOKIE)
+
+    return { ok: true }
 }
 
 export async function verifyCurrentPassword(password: string): Promise<{ ok: boolean; error?: string }> {

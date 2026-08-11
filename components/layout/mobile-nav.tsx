@@ -4,8 +4,8 @@ import { useEffect, useState } from "react"
 import { createPortal } from "react-dom"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LogOut, Menu, X, Zap } from "lucide-react"
-import { signOut } from "@/app/actions/auth"
+import { Menu, X, Zap } from "lucide-react"
+import { LogoutButton } from "@/components/auth/logout-button"
 import {
     accountNavigation,
     engagementNavigation,
@@ -174,14 +174,9 @@ export function MobileNav({ activeWorkspace, workspaces, isReviewPhase1Release }
                       </div>
 
                       <div className="border-t border-white/[0.06] p-3">
-                          <button
-                              type="button"
-                              onClick={() => signOut()}
-                              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-white/40 transition hover:bg-rose-400/[0.07] hover:text-rose-200"
-                          >
-                              <LogOut className="h-4 w-4" aria-hidden="true" />
-                              Log out
-                          </button>
+                           <LogoutButton
+                               className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-sm font-medium text-white/40 transition hover:bg-rose-400/[0.07] hover:text-rose-200"
+                           />
                       </div>
                   </aside>
               </div>,

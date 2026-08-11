@@ -64,7 +64,7 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
 
   return (
     <div
-      className="relative min-w-[230px] max-w-[250px] overflow-hidden rounded-2xl border bg-[#151722]/95 shadow-[0_18px_45px_rgba(0,0,0,.28)] backdrop-blur transition duration-150"
+      className="relative w-[184px] overflow-hidden rounded-xl border bg-[#151722]/95 shadow-[0_14px_34px_rgba(0,0,0,.26)] backdrop-blur transition duration-150 sm:w-[216px] sm:rounded-2xl sm:shadow-[0_18px_45px_rgba(0,0,0,.28)]"
       style={{
         borderColor: selected ? colors.selected : colors.border,
         boxShadow: selected ? "0 18px 48px " + colors.glow : undefined,
@@ -79,36 +79,36 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
 
       <div className="h-1" style={{ background: "linear-gradient(90deg, transparent, " + colors.accent + ", transparent)",
         }} />
-      <div className="p-3.5">
-        <div className="flex items-start gap-3">
+      <div className="p-2.5 sm:p-3">
+        <div className="flex items-start gap-2 sm:gap-2.5">
           <span
-            className="grid size-10 shrink-0 place-items-center rounded-xl border"
+            className="grid size-8 shrink-0 place-items-center rounded-lg border sm:size-9 sm:rounded-xl"
             style={{ color: colors.accent, borderColor: colors.border, backgroundColor: colors.glow,
             }}
           >
-            <Icon className="size-4.5" aria-hidden="true" />
+            <Icon className="size-4" aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
             <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/28">
               {isCondition ? "Decision" : nodeData.type === "action_ai_response" ? "Intelligence" : "Action"}
             </span>
-            <p className="mt-0.5 truncate text-sm font-semibold text-white/90">{nodeData.label}</p>
+            <p className="mt-0.5 truncate text-[13px] font-semibold text-white/90 sm:text-sm">{nodeData.label}</p>
           </div>
           <span
             title={getActionNodeHelp(nodeData)}
-            className="grid size-7 shrink-0 place-items-center rounded-lg border border-white/[0.07] bg-white/[0.03] text-white/30"
+            className="grid size-6 shrink-0 place-items-center rounded-lg border border-white/[0.07] bg-white/[0.03] text-white/30 sm:size-7"
             aria-label={nodeData.label + " help"}
           >
-            <Info className="size-3.5" aria-hidden="true" />
+            <Info className="size-3" aria-hidden="true" />
           </span>
         </div>
-        <p className="mt-3 line-clamp-2 rounded-xl border border-white/[0.065] bg-white/[0.025] p-2.5 text-[11px] leading-4 text-white/48">
+        <p className="mt-2 line-clamp-1 text-[10px] leading-4 text-white/45 sm:line-clamp-2 sm:text-[11px]">
           {description}
         </p>
       </div>
 
       {isCondition ? (
-        <div className="grid grid-cols-3 border-t border-white/[0.06] px-3 py-2 text-center text-[9px] font-semibold uppercase tracking-wider">
+        <div className="grid grid-cols-3 border-t border-white/[0.06] px-2 py-2 text-center text-[8px] font-semibold uppercase tracking-wider sm:px-3 sm:text-[9px]">
           <span className="text-emerald-200/60">True</span>
           <span className="text-amber-200/60">Alert</span>
           <span className="text-rose-200/60">False</span>
@@ -117,7 +117,7 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
           <Handle type="source" position={Position.Bottom} id="false" className="!size-3.5 !border-[3px] !border-[#151722] !bg-rose-300" style={{ left: "76%" }} />
         </div>
       ) : isTelegramApproval ? (
-        <div className="grid grid-cols-3 border-t border-white/[0.06] px-3 py-2 text-center text-[9px] font-semibold uppercase tracking-wider">
+        <div className="grid grid-cols-3 border-t border-white/[0.06] px-2 py-2 text-center text-[8px] font-semibold uppercase tracking-wider sm:px-3 sm:text-[9px]">
           <span className="text-emerald-200/60">Approved</span>
           <span className="text-amber-200/60">Alert</span>
           <span className="text-rose-200/60">Rejected</span>
@@ -144,7 +144,7 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
           />
         </div>
       ) : (
-        <div className="flex justify-around border-t border-white/[0.06] px-4 py-2 text-[9px] font-semibold uppercase tracking-wider">
+        <div className="flex justify-around border-t border-white/[0.06] px-3 py-2 text-[8px] font-semibold uppercase tracking-wider sm:px-4 sm:text-[9px]">
           <span className="text-white/38">Next</span>
           {supportsAlertOutput && (
             <span className="text-amber-200/60">Alert</span>

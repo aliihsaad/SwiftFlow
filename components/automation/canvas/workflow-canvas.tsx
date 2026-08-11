@@ -23,7 +23,7 @@ import '@xyflow/react/dist/style.css'
 
 import { TriggerNode } from './nodes/trigger-node'
 import { ActionNode } from './nodes/action-node'
-import { CustomEdge } from './edges/custom-edge'
+import { CustomEdge, EdgeActionsProvider } from './edges/custom-edge'
 import { WorkflowSidebar } from './workflow-sidebar'
 import { WorkflowToolbar } from './workflow-toolbar'
 import { NodeConfigPanel } from './nodes/node-config-panel'
@@ -354,6 +354,14 @@ export function WorkflowCanvas({
   }, [pushHistory, setEdges, toast],
   )
 
+  const handleSelectEdgeById = useCallback((edgeId: string) => {
+    setSelectedNode(null)
+    setEdges((currentEdges) => currentEdges.map((edge) => ({
+      ...edge,
+      selected: edge.id === edgeId,
+    })))
+  }, [setEdges])
+
   // Connection handler
   const onConnect = useCallback(
     (params: Connection) => {
@@ -491,13 +499,19 @@ export function WorkflowCanvas({
   // Node selection
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
+      setEdges((currentEdges) => currentEdges.map((edge) => (
+        edge.selected ? { ...edge, selected: false } : edge
+      )))
       setSelectedNode(node as WorkflowNode)
     },
-    [])
+    [setEdges])
 
   const onPaneClick = useCallback(() => {
+    setEdges((currentEdges) => currentEdges.map((edge) => (
+      edge.selected ? { ...edge, selected: false } : edge
+    )))
     setSelectedNode(null)
-  }, [])
+  }, [setEdges])
 
   // Node config update
   const handleNodeUpdate = useCallback(
@@ -668,8 +682,8 @@ export function WorkflowCanvas({
     }
 
     // Position nodes
-    const xGap = 250
-    const yGap = 150
+    const xGap = 230
+    const yGap = 130
     const updatedNodes = nodes.map((n) => {
       const level = levels.get(n.id)
       if (level === undefined) return n
@@ -716,35 +730,38 @@ export function WorkflowCanvas({
         />
 
         <div className="relative flex-1 overflow-hidden bg-[radial-gradient(circle_at_50%_-20%,rgba(103,232,249,.08),transparent_38%),linear-gradient(180deg,#0e1119,#0b0d14)]" ref={reactFlowWrapper}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={handleNodesChange}
-            onEdgesChange={handleEdgesChange}
-            onConnect={onConnect}
-            isValidConnection={isValidConnection}
-            onEdgeDoubleClick={handleEdgeDoubleClick}
-            onInit={setReactFlowInstance}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onNodeClick={onNodeClick}
-            onPaneClick={onPaneClick}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            defaultEdgeOptions={{ type: 'custom', animated: true }}
-            connectionMode={ConnectionMode.Strict}
-            fitView
-            deleteKeyCode={['Backspace', 'Delete']}
-            className=""
-            style={{ background: 'transparent' }}
+          <EdgeActionsProvider
+            onDeleteEdge={handleDeleteEdgeById}
+            onSelectEdge={handleSelectEdgeById}
           >
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={handleNodesChange}
+              onEdgesChange={handleEdgesChange}
+              onConnect={onConnect}
+              isValidConnection={isValidConnection}
+              onEdgeDoubleClick={handleEdgeDoubleClick}
+              onInit={setReactFlowInstance}
+              onDrop={onDrop}
+              onDragOver={onDragOver}
+              onNodeClick={onNodeClick}
+              onPaneClick={onPaneClick}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              defaultEdgeOptions={{ type: 'custom', animated: true }}
+              connectionMode={ConnectionMode.Strict}
+              fitView
+              deleteKeyCode={['Backspace', 'Delete']}
+              className=""
+              style={{ background: 'transparent' }}
+            >
             <div className="pointer-events-none absolute left-1/2 top-4 z-20 hidden -translate-x-1/2 items-center gap-2 rounded-full border border-white/[0.07] bg-[#151722]/80 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-white/35 shadow-[0_12px_30px_rgba(0,0,0,.22)] backdrop-blur-xl sm:flex">
               <span className="size-1.5 rounded-full bg-cyan-300/70 shadow-[0_0_10px_rgba(103,232,249,.7)]" />
               Drag from an output port to connect the next step
             </div>
             <div className="pointer-events-none absolute left-3 right-3 top-3 z-20 rounded-xl border border-white/[0.07] bg-[#151722]/90 px-3 py-2 text-[10px] leading-4 text-white/50 shadow-xl backdrop-blur-xl sm:hidden">
-              Tap a node to configure it. Use the library icons to add the next
-              step.
+              Tap a node to configure it. Use Add step to extend the journey.
             </div>
             <Controls className="automation-canvas-controls !overflow-hidden !rounded-xl !border !border-white/[0.08] !bg-[#151722]/90 !text-white/70 !shadow-[0_16px_40px_rgba(0,0,0,.3)] !backdrop-blur-xl" />
             <div className="hidden sm:block">
@@ -762,7 +779,8 @@ export function WorkflowCanvas({
               />
             </div>
             <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="rgba(255,255,255,0.065)" />
-          </ReactFlow>
+            </ReactFlow>
+          </EdgeActionsProvider>
         </div>
 
         {selectedNode && (
@@ -776,6 +794,12 @@ export function WorkflowCanvas({
               />
             </div>
             <div className="sm:hidden">
+              <button
+                type="button"
+                aria-label="Close step inspector"
+                className="absolute inset-0 z-20 bg-black/45 backdrop-blur-[2px]"
+                onClick={() => setSelectedNode(null)}
+              />
               <NodeConfigPanel
                 mobile
                 node={selectedNode}

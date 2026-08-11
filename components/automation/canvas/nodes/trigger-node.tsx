@@ -26,52 +26,52 @@ function TriggerNodeComponent({ data, selected }: NodeProps) {
   return (
     <div
       className={
-        "relative w-[184px] overflow-hidden rounded-xl border bg-[#151722]/95 shadow-[0_14px_34px_rgba(0,0,0,.26)] backdrop-blur transition duration-150 sm:w-[216px] sm:rounded-2xl sm:shadow-[0_18px_45px_rgba(0,0,0,.28)] "
+        "relative w-[152px] overflow-hidden rounded-[14px] border bg-[linear-gradient(145deg,rgba(103,232,249,.06),rgba(17,19,28,.97)_46%)] shadow-[0_12px_30px_rgba(0,0,0,.28)] backdrop-blur-xl transition duration-150 sm:w-[208px] sm:rounded-2xl sm:shadow-[0_18px_44px_rgba(0,0,0,.3)] "
         + (selected
-          ? "border-cyan-300/70 ring-4 ring-cyan-300/10"
+          ? "border-cyan-300/70 ring-[3px] ring-cyan-300/10"
           : "border-cyan-300/20 hover:border-cyan-300/35")
       }
     >
-      <div className="h-1 bg-gradient-to-r from-cyan-300 via-sky-400 to-violet-400" />
-      <div className="p-2.5 sm:p-3">
-        <div className="flex items-start gap-2 sm:gap-2.5">
-          <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-cyan-300/15 bg-cyan-300/[0.08] text-cyan-100 sm:size-9 sm:rounded-xl">
-            <Icon className="size-4" aria-hidden="true" />
+      <span className="absolute inset-y-3 left-0 w-0.5 rounded-r-full bg-cyan-300 shadow-[0_0_16px_rgba(103,232,249,.35)]" aria-hidden="true" />
+      <div className="p-2 pl-2.5 sm:p-3 sm:pl-3.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
+          <span className="grid size-7 shrink-0 place-items-center rounded-lg border border-cyan-300/15 bg-cyan-300/[0.08] text-cyan-100 sm:size-9 sm:rounded-xl">
+            <Icon className="size-3.5 sm:size-4" aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-cyan-100/40">Trigger</span>
-            <p className="mt-0.5 truncate text-[13px] font-semibold text-white/90 sm:text-sm">{nodeData.label}</p>
+            <span className="hidden text-[8px] font-bold uppercase tracking-[0.18em] text-cyan-100/38 sm:block">Trigger</span>
+            <p className="truncate text-[11px] font-semibold leading-4 text-white/90 sm:mt-0.5 sm:text-[13px]">{nodeData.label}</p>
           </div>
           <span
             title={getTriggerNodeHelp(nodeData)}
-            className="grid size-6 shrink-0 place-items-center rounded-lg border border-white/[0.07] bg-white/[0.03] text-white/30 sm:size-7"
+            className="grid size-5 shrink-0 place-items-center rounded-full border border-white/[0.07] bg-white/[0.025] text-white/28 sm:size-6"
             aria-label={nodeData.label + " help"}
           >
-            <Info className="size-3" aria-hidden="true" />
+            <Info className="size-2.5 sm:size-3" aria-hidden="true" />
           </span>
         </div>
 
-        <div className="mt-2">
+        <div className="mt-1.5 rounded-lg border border-cyan-200/[0.045] bg-black/10 px-2 py-1 sm:mt-2 sm:px-2.5 sm:py-1.5">
           {nodeData.type === "trigger_new_comment" && postThumbnailUrl ? (
-            <div className="flex items-center gap-2">
-              <span className="relative size-7 shrink-0 overflow-hidden rounded-md border border-white/10 sm:size-8 sm:rounded-lg">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="relative size-5 shrink-0 overflow-hidden rounded border border-white/10 sm:size-7 sm:rounded-lg">
                 <Image src={postThumbnailUrl} alt="" fill unoptimized sizes="32px" className="object-cover" />
               </span>
-              <p className="line-clamp-1 text-[10px] leading-4 text-white/45 sm:line-clamp-2 sm:text-[11px]">{description}</p>
+              <p className="line-clamp-1 text-[9px] leading-3.5 text-white/42 sm:line-clamp-2 sm:text-[10px] sm:leading-4">{description}</p>
             </div>
           ) : (
-            <p className="line-clamp-1 text-[10px] leading-4 text-white/45 sm:line-clamp-2 sm:text-[11px]">{description}</p>
+            <p className="line-clamp-1 text-[9px] leading-3.5 text-white/42 sm:line-clamp-2 sm:text-[10px] sm:leading-4">{description}</p>
           )}
         </div>
       </div>
 
-      <div className="flex items-center justify-center border-t border-white/[0.06] px-3 py-2 text-[8px] font-semibold uppercase tracking-[0.16em] text-cyan-100/35 sm:text-[9px]">
-        Start journey
+      <div className="flex items-center justify-center border-t border-cyan-100/[0.055] px-2 py-1.5 text-[7px] font-semibold uppercase tracking-[0.14em] text-cyan-100/34 sm:px-3 sm:py-2 sm:text-[8px]">
+        Start
       </div>
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!size-3.5 !border-[3px] !border-[#151722] !bg-cyan-300 shadow-[0_0_14px_rgba(103,232,249,.75)]"
+        className="!size-3 !border-2 !border-[#11131c] !bg-cyan-300 shadow-[0_0_12px_rgba(103,232,249,.65)] sm:!size-3.5 sm:!border-[3px]"
       />
     </div>
   )

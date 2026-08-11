@@ -195,10 +195,10 @@ export function WorkflowSidebar({
         <button
           type="button"
           onClick={() => setMobileOpen(true)}
-          className="absolute bottom-4 left-4 z-20 inline-flex h-11 items-center gap-2 rounded-full border border-cyan-200/20 bg-cyan-300 px-4 text-xs font-bold text-[#081018] shadow-[0_14px_34px_rgba(34,211,238,.25)] transition active:scale-[0.98]"
+          className="absolute bottom-[calc(0.75rem+env(safe-area-inset-bottom))] right-3 z-20 inline-flex h-10 items-center gap-1.5 rounded-full border border-cyan-100/25 bg-cyan-300 px-3.5 text-[11px] font-bold text-[#081018] shadow-[0_14px_34px_rgba(34,211,238,.25)] transition active:scale-[0.98]"
           aria-label="Add workflow step"
         >
-          <Plus className="size-4" aria-hidden="true" />
+          <Plus className="size-3.5" aria-hidden="true" />
           Add step
         </button>
 

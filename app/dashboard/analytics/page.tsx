@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import useSWR from "swr"
 import { DateRange, Granularity, AnalyticsResponse } from "@/types/analytics"
@@ -138,14 +138,12 @@ export default function AnalyticsPage() {
     const [granularity, setGranularity] = useState<Granularity>('daily')
     const [isSyncing, setIsSyncing] = useState(false)
     const [syncFeedback, setSyncFeedback] = useState<AnalyticsSyncFeedback | null>(null)
-    const [initialSyncDone, setInitialSyncDone] = useState(false)
     const { toast } = useToast()
     const canSyncAnalytics = useWorkspacePermission("analytics:sync")
-    const analyticsFetchReady = initialSyncDone || !canSyncAnalytics
 
     // Fetch analytics data
     const { data, error, isLoading, isValidating, mutate } = useSWR<AnalyticsResponse>(
-        analyticsFetchReady ? `/api/analytics?range=${dateRange}&granularity=${granularity}&platform=instagram` : null,
+        `/api/analytics?range=${dateRange}&granularity=${granularity}&platform=instagram`,
         fetcher,
         {
             revalidateOnFocus: false,
@@ -159,7 +157,9 @@ export default function AnalyticsPage() {
         isLoading: isIntelligenceLoading,
         mutate: mutateIntelligence,
     } = useSWR<AnalyticsInsightsResult>(
-        analyticsFetchReady ? `/api/content-intelligence/analytics-insights?range=${dateRange}&platform=instagram` : null,
+        data?._meta?.hasAnalytics
+            ? `/api/content-intelligence/analytics-insights?range=${dateRange}&platform=instagram`
+            : null,
         fetcher,
         {
             revalidateOnFocus: false,
@@ -167,38 +167,6 @@ export default function AnalyticsPage() {
             keepPreviousData: true,
         }
     )
-
-    // Auto-sync analytics on page load (since cron is not available)
-    const hasSynced = useRef(false)
-    useEffect(() => {
-        if (hasSynced.current) return
-        hasSynced.current = true
-        if (!canSyncAnalytics) {
-            return
-        }
-
-        const autoSync = async () => {
-            setIsSyncing(true)
-            try {
-                const response = await fetch('/api/sync-analytics', { method: 'POST' })
-                const result = await response.json().catch(() => ({})) as SyncAnalyticsResponse
-                setSyncFeedback(toSyncFeedback(response.ok, result))
-            } catch (error) {
-                console.error('Auto-sync failed:', error)
-                setSyncFeedback({
-                    tone: "error",
-                    title: "Sync unavailable",
-                    message: error instanceof Error
-                        ? error.message
-                        : "SwiftFlow could not reach the analytics sync service.",
-                })
-            } finally {
-                setInitialSyncDone(true)
-                setIsSyncing(false)
-            }
-        }
-        autoSync()
-    }, [canSyncAnalytics])
 
     const handleSync = async () => {
         if (!canSyncAnalytics) {
@@ -301,7 +269,9 @@ export default function AnalyticsPage() {
             ])
         })
 
-        const posts = [data.latestPost, ...data.otherPosts].filter(Boolean)
+        const posts = data.topPosts?.length
+            ? data.topPosts
+            : [data.latestPost, ...data.otherPosts].filter(Boolean)
         posts.forEach((post, index) => {
             if (!post) return
             rows.push([
@@ -341,8 +311,8 @@ export default function AnalyticsPage() {
             : dateRange === 'last_30_days'
                 ? 'vs previous 30 days'
                 : 'vs previous 90 days'
-    const showInitialAnalyticsLoading = (!analyticsFetchReady || (isLoading && !data))
-    const showAnalyticsRefreshingHint = analyticsFetchReady && !!data && (isValidating || isSyncing)
+    const showInitialAnalyticsLoading = isLoading && !data
+    const showAnalyticsRefreshingHint = !!data && (isValidating || isSyncing)
 
     return (
         <section className="space-y-5 pb-8" aria-label="Performance intelligence">
@@ -357,6 +327,9 @@ export default function AnalyticsPage() {
                 isSyncing={isSyncing}
                 syncDisabled={!canSyncAnalytics}
                 syncDisabledReason={!canSyncAnalytics ? "Admins/owners only" : undefined}
+                postsInRange={data?._meta?.postsInRange}
+                metricsCoveragePct={data?._meta?.metricsCoveragePct}
+                lastSyncedAt={data?._meta?.lastSyncedAt}
             />
 
             {showAnalyticsRefreshingHint && (
@@ -395,6 +368,16 @@ export default function AnalyticsPage() {
                         >
                             Retry view
                         </button>
+                        {canSyncAnalytics ? (
+                            <button
+                                type="button"
+                                onClick={handleSync}
+                                disabled={isSyncing}
+                                className="inline-flex h-10 items-center rounded-xl bg-linear-to-r from-cyan-400 to-violet-500 px-4 text-sm font-semibold text-slate-950 transition hover:brightness-110 disabled:opacity-45"
+                            >
+                                {isSyncing ? "Syncing data…" : "Sync data"}
+                            </button>
+                        ) : null}
                         {(analyticsError?.requiresReconnect || analyticsError?.errorCode === 'meta_missing_permission') ? (
                             <Link
                                 href="/dashboard/onboarding/instagram"
@@ -408,7 +391,7 @@ export default function AnalyticsPage() {
             )}
 
             {/* Data loaded */}
-            {data && analyticsFetchReady && !showInitialAnalyticsLoading && (
+            {data && !showInitialAnalyticsLoading && (
                 <>
                     <AnalyticsHealthPanel
                         platformStatuses={analyticsPlatformStatuses}
@@ -430,8 +413,15 @@ export default function AnalyticsPage() {
                         comparisonLabel={kpiComparisonLabel}
                     />
 
-                    {/* Follower Growth Chart */}
-                    <FollowerGrowthChart data={data.followerGrowth} />
+                    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.75fr)]">
+                        <FollowerGrowthChart data={data.followerGrowth} />
+                        <div className="grid content-start gap-4">
+                            <AccountAnalyticsCard data={data.accountAnalytics} />
+                            <LatestPostCard post={data.latestPost} />
+                        </div>
+                    </div>
+
+                    <OtherPostsList posts={data.topPosts || data.otherPosts} />
 
                     <ContentIntelligenceInsights
                         data={intelligenceData}
@@ -440,17 +430,6 @@ export default function AnalyticsPage() {
                         platform="instagram"
                     />
 
-                    {/* Three column grid */}
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        {/* Latest Post */}
-                        <LatestPostCard post={data.latestPost} />
-
-                        {/* Account Analytics */}
-                        <AccountAnalyticsCard data={data.accountAnalytics} />
-
-                        {/* Other Posts */}
-                        <OtherPostsList posts={data.otherPosts} />
-                    </div>
                 </>
             )}
         </section>

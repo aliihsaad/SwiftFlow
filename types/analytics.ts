@@ -62,12 +62,16 @@ export interface AnalyticsResponse {
     }
     followerGrowth: FollowerGrowthData
     latestPost: PostData | null
+    topPosts?: PostData[]
     accountAnalytics: AccountAnalytics
     otherPosts: PostData[]
     _meta?: {
         hasAnalytics: boolean
         needsSync: boolean
         hasPublishedPosts?: boolean
+        postsInRange?: number
+        lastSyncedAt?: string | null
+        metricsCoveragePct?: number
         reason?: string | null
         selectedPlatform?: AnalyticsPlatformView
         isCombinedView?: false

@@ -19,6 +19,7 @@ import {
   Sparkles,
   Timer,
   UserPlus,
+  X,
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -57,6 +58,7 @@ export function WorkflowSidebar({
 }: WorkflowSidebarProps) {
   const [isTouchDevice, setIsTouchDevice] = useState(false)
   const [query, setQuery] = useState("")
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") return
@@ -93,10 +95,16 @@ export function WorkflowSidebar({
       && matchesSearch(entry),
   )
 
+  const handleMobileAdd = (type: NodeCatalogEntry["type"], label: string) => {
+    onAddNode?.(type, label)
+    setMobileOpen(false)
+  }
+
   return (
+    <>
     <aside
       className={cn(
-        "automation-sidebar-scroll flex h-full shrink-0 flex-col overflow-y-auto border-r border-white/[0.07] bg-[#11131c]/95 transition-[width] duration-200",
+        "automation-sidebar-scroll hidden h-full shrink-0 flex-col overflow-y-auto border-r border-white/[0.07] bg-[#11131c]/95 transition-[width] duration-200 sm:flex",
         collapsed ? "w-14" : "w-[280px]",
       )}
       aria-label="Workflow node library"
@@ -182,6 +190,88 @@ export function WorkflowSidebar({
         </div>
       )}
     </aside>
+
+      <div className="sm:hidden">
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          className="absolute bottom-4 left-4 z-20 inline-flex h-11 items-center gap-2 rounded-full border border-cyan-200/20 bg-cyan-300 px-4 text-xs font-bold text-[#081018] shadow-[0_14px_34px_rgba(34,211,238,.25)] transition active:scale-[0.98]"
+          aria-label="Add workflow step"
+        >
+          <Plus className="size-4" aria-hidden="true" />
+          Add step
+        </button>
+
+        {mobileOpen && (
+          <div
+            className="absolute inset-0 z-40 flex items-end bg-black/55 backdrop-blur-sm"
+            role="presentation"
+            onClick={() => setMobileOpen(false)}
+          >
+            <section
+              className="automation-sidebar-scroll max-h-[82vh] w-full overflow-y-auto rounded-t-[28px] border border-b-0 border-white/[0.09] bg-[#11131c]/98 px-4 pb-6 pt-3 shadow-[0_-24px_70px_rgba(0,0,0,.45)]"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Add workflow step"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/15" />
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-100/40">Node library</p>
+                  <h2 className="mt-1 text-base font-semibold text-white/90">Add the next step</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileOpen(false)}
+                  className="grid size-9 place-items-center rounded-xl border border-white/[0.08] bg-white/[0.035] text-white/45"
+                  aria-label="Close node library"
+                >
+                  <X className="size-4" aria-hidden="true" />
+                </button>
+              </div>
+
+              <label className="relative mt-4 block">
+                <span className="sr-only">Search workflow nodes</span>
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-white/25" aria-hidden="true" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search steps"
+                  className="h-11 w-full rounded-xl border border-white/[0.08] bg-white/[0.035] pl-9 pr-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-cyan-300/25 focus:ring-2 focus:ring-cyan-300/10"
+                  autoFocus
+                />
+              </label>
+
+              <NodeSection
+                title="Start with"
+                accent="cyan"
+                entries={triggers}
+                touchMode
+                onAddNode={handleMobileAdd}
+              />
+              <NodeSection
+                title="Continue with"
+                accent="violet"
+                entries={actions}
+                touchMode
+                onAddNode={handleMobileAdd}
+              />
+
+              {triggers.length === 0 && actions.length === 0 && (
+                <div className="py-10 text-center">
+                  <Search className="mx-auto size-5 text-white/20" aria-hidden="true" />
+                  <p className="mt-3 text-xs font-medium text-white/45">No steps found</p>
+                  <button type="button" onClick={() => setQuery("")} className="mt-2 text-[11px] font-semibold text-cyan-200/70">
+                    Clear search
+                  </button>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+      </div>
+    </>
   )
 }
 

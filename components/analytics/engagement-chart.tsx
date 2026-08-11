@@ -66,28 +66,16 @@ export function FollowerGrowthChart({ data }: { data: FollowerGrowthData }) {
     }
 
     return (
-        <div
-            className="col-span-full overflow-hidden rounded-xl"
-            style={{
-                background: '#151620',
-                border: '1px solid rgba(255,255,255,0.08)',
-                boxShadow: '0 14px 34px rgba(0,0,0,0.16)',
-            }}
-        >
-            <div
-                className="flex items-center justify-between px-6 py-4"
-                style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
-            >
+        <section className="overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#10131c] shadow-[0_14px_34px_rgba(0,0,0,0.12)]" aria-labelledby="follower-growth-title">
+            <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4 sm:px-6">
                 <div>
-                    <h3 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-white/28">Audience trend</p>
+                    <h2 id="follower-growth-title" className="mt-1 text-sm font-semibold text-white/84">
                         Follower Growth
-                    </h3>
-                    <p className="mt-0.5 text-xs" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                        Track your Instagram audience growth
-                    </p>
+                    </h2>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
-                    <span className="h-2 w-2 rounded-full" style={{ background: '#fb7185' }} />
+                <div className="flex items-center gap-1.5 text-xs text-white/38">
+                    <span className="h-2 w-2 rounded-full bg-pink-300" />
                     Instagram
                 </div>
             </div>
@@ -103,7 +91,7 @@ export function FollowerGrowthChart({ data }: { data: FollowerGrowthData }) {
                     </div>
                 ) : null}
 
-                <div className="h-[300px] w-full">
+                <div className="h-[240px] w-full sm:h-[270px]">
                     <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                         <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -4, bottom: 0 }}>
                             <defs>
@@ -147,7 +135,7 @@ export function FollowerGrowthChart({ data }: { data: FollowerGrowthData }) {
                     </ResponsiveContainer>
                 </div>
 
-                <div className="mt-4 grid grid-cols-3 gap-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                <div className="mt-3 grid grid-cols-3 gap-3 border-t border-white/[0.055] pt-4">
                     {[
                         { icon: Calendar, label: 'Best Day', value: data.bestDay || '—', color: '#22d3ee' },
                         { icon: BarChart3, label: 'Avg. Daily', value: data.avgDaily, color: '#f59e0b' },
@@ -165,6 +153,6 @@ export function FollowerGrowthChart({ data }: { data: FollowerGrowthData }) {
                     ))}
                 </div>
             </div>
-        </div>
+        </section>
     )
 }

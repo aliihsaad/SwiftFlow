@@ -1,79 +1,34 @@
 "use client"
 
-import { AccountAnalytics } from "@/types/analytics"
-import { TrendingUp, Users, Activity } from "lucide-react"
+import { Activity, Eye, Users } from "lucide-react"
+import type { AccountAnalytics } from "@/types/analytics"
 
-interface AccountAnalyticsCardProps {
-    data: AccountAnalytics
-}
-
-export function AccountAnalyticsCard({ data }: AccountAnalyticsCardProps) {
+export function AccountAnalyticsCard({ data }: { data: AccountAnalytics }) {
     const stats = [
-        {
-            label: "Total Reach",
-            value: data.totalReach.toLocaleString(),
-            icon: TrendingUp,
-            color: '#22d3ee',
-        },
-        {
-            label: "Total Engagement",
-            value: data.totalEngagement.toLocaleString(),
-            icon: Activity,
-            color: '#fb7185',
-        },
-        {
-            label: "Followers",
-            value: data.followers.toLocaleString(),
-            icon: Users,
-            color: '#84cc16',
-        },
+        { label: "Views in range", value: data.totalReach, icon: Eye, tone: "text-cyan-200 bg-cyan-300/[0.08] border-cyan-200/15" },
+        { label: "Engagements", value: data.totalEngagement, icon: Activity, tone: "text-pink-200 bg-pink-300/[0.08] border-pink-200/15" },
+        { label: "Current followers", value: data.followers, icon: Users, tone: "text-lime-200 bg-lime-300/[0.08] border-lime-200/15" },
     ]
 
     return (
-        <div
-            className="rounded-xl overflow-hidden"
-            style={{
-                background: '#151620',
-                border: '1px solid rgba(255,255,255,0.08)',
-            }}
-        >
-            {/* Header */}
-            <div
-                className="px-5 py-4"
-                style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}
-            >
-                <h3 className="text-sm font-semibold" style={{ color: 'rgba(255,255,255,0.8)' }}>Account Analytics</h3>
-                <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>Last 30 days</p>
+        <section className="overflow-hidden rounded-[20px] border border-white/[0.08] bg-[#10131c]" aria-labelledby="account-summary-title">
+            <div className="border-b border-white/[0.06] px-5 py-4">
+                <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-white/28">Account snapshot</p>
+                <h2 id="account-summary-title" className="mt-1 text-sm font-semibold text-white/82">Instagram totals</h2>
             </div>
-
-            {/* Stats */}
-            <div className="p-5">
-                <div className="grid grid-cols-3 gap-4">
-                    {stats.map((stat) => {
-                        const Icon = stat.icon
-                        return (
-                            <div key={stat.label} className="text-center space-y-2">
-                                <div className="flex justify-center">
-                                    <div
-                                        className="flex h-9 w-9 items-center justify-center rounded-xl"
-                                        style={{ background: `${stat.color}14` }}
-                                    >
-                                        <Icon className="h-4 w-4" style={{ color: stat.color }} />
-                                    </div>
-                                </div>
-                                <div>
-                                    <p className="text-xl font-bold tabular-nums" style={{ color: 'rgba(255,255,255,0.85)' }}>
-                                        {stat.value}
-                                    </p>
-                                    <p className="text-[11px] mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                                        {stat.label}
-                                    </p>
-                                </div>
-                            </div>
-                        )
-                    })}
-                </div>
+            <div className="divide-y divide-white/[0.055] px-5">
+                {stats.map(({ label, value, icon: Icon, tone }) => (
+                    <div key={label} className="flex items-center gap-3 py-4">
+                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border ${tone}`}>
+                            <Icon className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-xs text-white/36">{label}</p>
+                            <p className="mt-0.5 text-xl font-semibold tabular-nums text-white/86">{value.toLocaleString()}</p>
+                        </div>
+                    </div>
+                ))}
             </div>
-        </div>
+        </section>
     )
 }

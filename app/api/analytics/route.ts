@@ -33,7 +33,6 @@ type PublishedPostRow = {
     platform_caption?: string | null
     permalink?: string | null
     published_at?: string | null
-    created_at?: string | null
 }
 
 type PostAnalyticsRow = {
@@ -42,8 +41,7 @@ type PostAnalyticsRow = {
     comments?: number | null
     shares?: number | null
     views?: number | null
-    date?: string | null
-    created_at?: string | null
+    synced_at?: string | null
 }
 
 type AccountAnalyticsRow = {
@@ -101,8 +99,8 @@ function grantedScopes(metadata: Record<string, unknown> | null | undefined): {
 
 function latestPostAnalytics(rows: PostAnalyticsRow[]): Map<string, PostAnalyticsRow> {
     const sorted = [...rows].sort((a, b) =>
-        new Date(b.date || b.created_at || 0).getTime()
-        - new Date(a.date || a.created_at || 0).getTime(),
+        new Date(b.synced_at || 0).getTime()
+        - new Date(a.synced_at || 0).getTime(),
     )
     const byPost = new Map<string, PostAnalyticsRow>()
     for (const row of sorted) {
@@ -226,6 +224,7 @@ function emptyAnalytics(
         },
         followerGrowth: generateFollowerGrowth([], daysForRange(range), granularity),
         latestPost: null,
+        topPosts: [],
         accountAnalytics: {
             totalReach: 0,
             totalEngagement: 0,
@@ -237,6 +236,9 @@ function emptyAnalytics(
             hasAnalytics: false,
             needsSync: false,
             hasPublishedPosts: false,
+            postsInRange: 0,
+            lastSyncedAt: null,
+            metricsCoveragePct: 0,
             reason,
             selectedPlatform: PLATFORM,
             isCombinedView: false,
@@ -325,7 +327,7 @@ export async function GET(request: NextRequest) {
         const accountIds = accounts.map((account) => account.id)
         const { data: publishedData, error: publishedError } = await admin
             .from('published_posts')
-            .select('id, post_id, platform, platform_caption, permalink, published_at, created_at')
+            .select('id, post_id, platform, platform_caption, permalink, published_at')
             .in('social_account_id', accountIds)
             .eq('platform', PLATFORM)
             .order('published_at', { ascending: false })
@@ -340,7 +342,7 @@ export async function GET(request: NextRequest) {
         if (publishedPostIds.length > 0) {
             const { data, error } = await admin
                 .from('post_analytics')
-                .select('published_post_id, likes, comments, shares, views, date, created_at')
+                .select('published_post_id, likes, comments, shares, views, synced_at')
                 .in('published_post_id', publishedPostIds)
 
             if (error) throw error
@@ -361,7 +363,7 @@ export async function GET(request: NextRequest) {
         const allPosts: PostData[] = publishedPosts
             .map((post) => {
                 const analytics = analyticsByPost.get(post.id)
-                const timestamp = post.published_at || post.created_at
+                const timestamp = post.published_at
                 if (!timestamp) return null
                 return {
                     id: post.id,
@@ -428,6 +430,19 @@ export async function GET(request: NextRequest) {
         )
         const chart = generateFollowerGrowth(currentAccountRows, daysCount, granularity)
         const postsWithAnalyticsRows = new Set(postAnalytics.map((row) => row.published_post_id)).size
+        const metricsCoveragePct = publishedPosts.length > 0
+            ? Math.round((postsWithAnalyticsRows / publishedPosts.length) * 100)
+            : 0
+        const lastPostSync = postAnalytics.reduce<string | null>((latest, row) => {
+            if (!row.synced_at) return latest
+            return !latest || new Date(row.synced_at).getTime() > new Date(latest).getTime()
+                ? row.synced_at
+                : latest
+        }, null)
+        const lastAccountSync = accountAnalytics.at(-1)?.date || null
+        const lastSyncedAt = [lastPostSync, lastAccountSync]
+            .filter((value): value is string => Boolean(value))
+            .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())[0] || null
         const accountMetricsStatus: AnalyticsMetricStatus =
             accountAnalytics.length > 0 ? 'available' : 'unavailable'
         const postMetricsStatus = statusForCoverage(publishedPosts.length, postsWithAnalyticsRows)
@@ -467,6 +482,14 @@ export async function GET(request: NextRequest) {
             })
             .sort((a, b) => b.score - a.score)[0]
 
+        const topPosts = [...currentPosts]
+            .sort((a, b) => {
+                const scoreA = a.likes + a.comments + a.shares
+                const scoreB = b.likes + b.comments + b.shares
+                return scoreB - scoreA || new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            })
+            .slice(0, 8)
+
         const response: AnalyticsResponse = {
             kpis: {
                 engagement: {
@@ -489,19 +512,27 @@ export async function GET(request: NextRequest) {
                 },
             },
             followerGrowth: chart,
-            latestPost: allPosts[0] || null,
+            latestPost: currentPosts[0] || null,
+            topPosts,
             accountAnalytics: {
                 totalReach: currentViews,
                 totalEngagement: currentEngagement,
                 followers: currentFollowers,
                 instagramFollowers: currentFollowers,
             },
-            otherPosts: allPosts.slice(1, 5),
+            otherPosts: topPosts.slice(1, 5),
             _meta: {
                 hasAnalytics: accountAnalytics.length > 0 || postAnalytics.length > 0,
                 needsSync: publishedPosts.length > postsWithAnalyticsRows,
                 hasPublishedPosts: publishedPosts.length > 0,
-                reason: publishedPosts.length > 0 ? null : 'no_published_posts',
+                postsInRange: currentPosts.length,
+                lastSyncedAt,
+                metricsCoveragePct,
+                reason: publishedPosts.length === 0
+                    ? 'no_published_posts'
+                    : currentPosts.length === 0
+                        ? 'no_published_posts_in_range'
+                        : null,
                 selectedPlatform: PLATFORM,
                 isCombinedView: false,
                 warnings,

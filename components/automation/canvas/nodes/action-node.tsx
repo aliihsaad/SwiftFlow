@@ -64,100 +64,106 @@ function ActionNodeComponent({ data, selected }: NodeProps) {
 
   return (
     <div
-      className="relative w-[184px] overflow-hidden rounded-xl border bg-[#151722]/95 shadow-[0_14px_34px_rgba(0,0,0,.26)] backdrop-blur transition duration-150 sm:w-[216px] sm:rounded-2xl sm:shadow-[0_18px_45px_rgba(0,0,0,.28)]"
+      className="relative w-[152px] overflow-hidden rounded-[14px] border shadow-[0_12px_30px_rgba(0,0,0,.28)] backdrop-blur-xl transition duration-150 sm:w-[208px] sm:rounded-2xl sm:shadow-[0_18px_44px_rgba(0,0,0,.3)]"
       style={{
+        background: "linear-gradient(145deg, rgba(255,255,255,.045), rgba(255,255,255,0) 48%), rgba(17,19,28,.97)",
         borderColor: selected ? colors.selected : colors.border,
-        boxShadow: selected ? "0 18px 48px " + colors.glow : undefined,
+        boxShadow: selected ? "0 18px 48px " + colors.glow + ", 0 0 0 3px " + colors.glow : undefined,
       }}
     >
+      <span
+        className="absolute inset-y-3 left-0 w-0.5 rounded-r-full"
+        style={{ backgroundColor: colors.accent, boxShadow: "0 0 16px " + colors.glow }}
+        aria-hidden="true"
+      />
       <Handle
         type="target"
         position={Position.Top}
-        className="!size-3.5 !border-[3px] !border-[#151722]"
+        className="!size-3 !border-2 !border-[#11131c] sm:!size-3.5 sm:!border-[3px]"
         style={{ background: colors.accent }}
       />
 
-      <div className="h-1" style={{ background: "linear-gradient(90deg, transparent, " + colors.accent + ", transparent)",
-        }} />
-      <div className="p-2.5 sm:p-3">
-        <div className="flex items-start gap-2 sm:gap-2.5">
+      <div className="p-2 pl-2.5 sm:p-3 sm:pl-3.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
           <span
-            className="grid size-8 shrink-0 place-items-center rounded-lg border sm:size-9 sm:rounded-xl"
+            className="grid size-7 shrink-0 place-items-center rounded-lg border sm:size-9 sm:rounded-xl"
             style={{ color: colors.accent, borderColor: colors.border, backgroundColor: colors.glow,
             }}
           >
-            <Icon className="size-4" aria-hidden="true" />
+            <Icon className="size-3.5 sm:size-4" aria-hidden="true" />
           </span>
           <div className="min-w-0 flex-1">
-            <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/28">
+            <span className="hidden text-[8px] font-bold uppercase tracking-[0.18em] text-white/28 sm:block">
               {isCondition ? "Decision" : nodeData.type === "action_ai_response" ? "Intelligence" : "Action"}
             </span>
-            <p className="mt-0.5 truncate text-[13px] font-semibold text-white/90 sm:text-sm">{nodeData.label}</p>
+            <p className="truncate text-[11px] font-semibold leading-4 text-white/90 sm:mt-0.5 sm:text-[13px]">{nodeData.label}</p>
           </div>
           <span
             title={getActionNodeHelp(nodeData)}
-            className="grid size-6 shrink-0 place-items-center rounded-lg border border-white/[0.07] bg-white/[0.03] text-white/30 sm:size-7"
+            className="grid size-5 shrink-0 place-items-center rounded-full border border-white/[0.07] bg-white/[0.025] text-white/28 sm:size-6"
             aria-label={nodeData.label + " help"}
           >
-            <Info className="size-3" aria-hidden="true" />
+            <Info className="size-2.5 sm:size-3" aria-hidden="true" />
           </span>
         </div>
-        <p className="mt-2 line-clamp-1 text-[10px] leading-4 text-white/45 sm:line-clamp-2 sm:text-[11px]">
-          {description}
-        </p>
+        <div className="mt-1.5 rounded-lg border border-white/[0.045] bg-black/10 px-2 py-1 sm:mt-2 sm:px-2.5 sm:py-1.5">
+          <p className="line-clamp-1 text-[9px] leading-3.5 text-white/42 sm:line-clamp-2 sm:text-[10px] sm:leading-4">
+            {description}
+          </p>
+        </div>
       </div>
 
       {isCondition ? (
-        <div className="grid grid-cols-3 border-t border-white/[0.06] px-2 py-2 text-center text-[8px] font-semibold uppercase tracking-wider sm:px-3 sm:text-[9px]">
-          <span className="text-emerald-200/60">True</span>
-          <span className="text-amber-200/60">Alert</span>
-          <span className="text-rose-200/60">False</span>
-          <Handle type="source" position={Position.Bottom} id="true" className="!size-3.5 !border-[3px] !border-[#151722] !bg-emerald-300" style={{ left: "24%" }} />
-          <Handle type="source" position={Position.Bottom} id="error" className="!size-3.5 !border-[3px] !border-[#151722] !bg-amber-300" style={{ left: "50%" }} />
-          <Handle type="source" position={Position.Bottom} id="false" className="!size-3.5 !border-[3px] !border-[#151722] !bg-rose-300" style={{ left: "76%" }} />
+        <div className="grid grid-cols-3 border-t border-white/[0.055] px-1.5 py-1.5 text-center text-[7px] font-semibold uppercase tracking-wider sm:px-3 sm:py-2 sm:text-[8px]">
+          <span className="text-emerald-200/60">Yes</span>
+          <span className="text-amber-200/60">Error</span>
+          <span className="text-rose-200/60">No</span>
+          <Handle type="source" position={Position.Bottom} id="true" className="!size-3 !border-2 !border-[#11131c] !bg-emerald-300 sm:!size-3.5 sm:!border-[3px]" style={{ left: "24%" }} />
+          <Handle type="source" position={Position.Bottom} id="error" className="!size-3 !border-2 !border-[#11131c] !bg-amber-300 sm:!size-3.5 sm:!border-[3px]" style={{ left: "50%" }} />
+          <Handle type="source" position={Position.Bottom} id="false" className="!size-3 !border-2 !border-[#11131c] !bg-rose-300 sm:!size-3.5 sm:!border-[3px]" style={{ left: "76%" }} />
         </div>
       ) : isTelegramApproval ? (
-        <div className="grid grid-cols-3 border-t border-white/[0.06] px-2 py-2 text-center text-[8px] font-semibold uppercase tracking-wider sm:px-3 sm:text-[9px]">
-          <span className="text-emerald-200/60">Approved</span>
-          <span className="text-amber-200/60">Alert</span>
-          <span className="text-rose-200/60">Rejected</span>
+        <div className="grid grid-cols-3 border-t border-white/[0.055] px-1.5 py-1.5 text-center text-[7px] font-semibold uppercase tracking-wider sm:px-3 sm:py-2 sm:text-[8px]">
+          <span className="text-emerald-200/60">Approve</span>
+          <span className="text-amber-200/60">Error</span>
+          <span className="text-rose-200/60">Reject</span>
           <Handle
             type="source"
             position={Position.Bottom}
             id="approved"
-            className="!size-3.5 !border-[3px] !border-[#151722] !bg-emerald-300"
+            className="!size-3 !border-2 !border-[#11131c] !bg-emerald-300 sm:!size-3.5 sm:!border-[3px]"
             style={{ left: "24%" }}
           />
           <Handle
             type="source"
             position={Position.Bottom}
             id="error"
-            className="!size-3.5 !border-[3px] !border-[#151722] !bg-amber-300"
+            className="!size-3 !border-2 !border-[#11131c] !bg-amber-300 sm:!size-3.5 sm:!border-[3px]"
             style={{ left: "50%" }}
           />
           <Handle
             type="source"
             position={Position.Bottom}
             id="rejected"
-            className="!size-3.5 !border-[3px] !border-[#151722] !bg-rose-300"
+            className="!size-3 !border-2 !border-[#11131c] !bg-rose-300 sm:!size-3.5 sm:!border-[3px]"
             style={{ left: "76%" }}
           />
         </div>
       ) : (
-        <div className="flex justify-around border-t border-white/[0.06] px-3 py-2 text-[8px] font-semibold uppercase tracking-wider sm:px-4 sm:text-[9px]">
-          <span className="text-white/38">Next</span>
+        <div className="flex justify-around border-t border-white/[0.055] px-2 py-1.5 text-[7px] font-semibold uppercase tracking-wider sm:px-4 sm:py-2 sm:text-[8px]">
+          <span className="text-white/34">Continue</span>
           {supportsAlertOutput && (
-            <span className="text-amber-200/60">Alert</span>
+            <span className="text-amber-200/60">Error</span>
           )}
           <Handle
             type="source"
             position={Position.Bottom}
-            className="!size-3.5 !border-[3px] !border-[#151722]"
+            className="!size-3 !border-2 !border-[#11131c] sm:!size-3.5 sm:!border-[3px]"
             style={{ left: supportsAlertOutput ? "35%" : "50%", background: colors.accent,
             }}
           />
           {supportsAlertOutput && (
-            <Handle type="source" position={Position.Bottom} id="error" className="!size-3.5 !border-[3px] !border-[#151722] !bg-amber-300" style={{ left: "65%" }} />
+            <Handle type="source" position={Position.Bottom} id="error" className="!size-3 !border-2 !border-[#11131c] !bg-amber-300 sm:!size-3.5 sm:!border-[3px]" style={{ left: "65%" }} />
           )}
         </div>
       )}

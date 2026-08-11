@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  ArrowLeft,
   Check,
   LayoutDashboard,
   Loader2,
@@ -11,6 +10,7 @@ import {
   Save,
   Undo,
   Workflow,
+  X,
 } from "lucide-react"
 
 interface WorkflowToolbarProps {
@@ -45,15 +45,6 @@ export function WorkflowToolbar({
   return (
     <header className="relative z-30 shrink-0 border-b border-white/[0.07] bg-[#10121a]/95 px-3 py-3 backdrop-blur-xl sm:px-4 lg:px-5">
       <div className="flex flex-wrap items-center gap-3 lg:flex-nowrap">
-        <button
-          type="button"
-          onClick={onBack}
-          className="grid size-10 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.03] text-white/45 transition hover:bg-white/[0.07] hover:text-white"
-          aria-label="Back to automation command center"
-        >
-          <ArrowLeft className="size-4" aria-hidden="true" />
-        </button>
-
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/28">
             <Workflow className="size-3 text-cyan-200/55" aria-hidden="true" />
@@ -103,6 +94,15 @@ export function WorkflowToolbar({
                 ? <Power className="size-3.5" aria-hidden="true" />
                 : <PowerOff className="size-3.5" aria-hidden="true" />}
               <span className="hidden sm:inline">{isActive ? "Live" : "Paused"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={onBack}
+              disabled={isSaving}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/[0.09] bg-white/[0.035] px-3 text-xs font-semibold text-white/60 transition hover:border-white/[0.14] hover:bg-white/[0.07] hover:text-white/85 disabled:cursor-wait disabled:opacity-50 sm:px-4"
+            >
+              <X className="size-3.5" aria-hidden="true" />
+              Cancel
             </button>
             <button
               type="button"

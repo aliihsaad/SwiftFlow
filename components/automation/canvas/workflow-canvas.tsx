@@ -827,9 +827,18 @@ export function WorkflowCanvas({
         }
 
         .automation-canvas-shell .react-flow__controls {
+          left: 12px !important;
+          bottom: calc(12px + env(safe-area-inset-bottom)) !important;
           overflow: hidden;
           border-radius: 14px;
           box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+        }
+
+        @media (min-width: 640px) {
+          .automation-canvas-shell .react-flow__controls {
+            left: 15px !important;
+            bottom: 15px !important;
+          }
         }
 
         .automation-canvas-shell .react-flow__controls-button {

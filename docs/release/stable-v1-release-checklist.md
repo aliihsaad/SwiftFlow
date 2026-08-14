@@ -16,6 +16,7 @@ evidence; intention is not evidence.
 - [x] README and roadmap describe Vercel + managed Supabase with no VPS path.
 - [x] Facebook and publishing/generation/scheduling are outside the product contract.
 - [x] New pull requests run automated tests, lint, and a production build.
+- [x] `npm ci` succeeds with the CI npm version and production dependencies have no known high-severity advisory.
 - [x] `npm run test:ci` passes on the release-lock branch.
 - [x] `npm run lint` exits without errors or warnings.
 - [x] `npm run build` passes with production-compatible configuration.
@@ -27,6 +28,8 @@ Repository evidence on 2026-08-14:
 - ESLint: zero errors and zero warnings.
 - Next.js 16.2.12 production build: passed, including TypeScript and all 66
   generated routes/pages.
+- Clean install: `npm ci` passed with local npm and npm 10 (the GitHub Actions
+  toolchain); `npm audit --omit=dev` reported zero vulnerabilities.
 - Managed preflight: 10 checks passed; completion is blocked only by the local
   Supabase CLI session lacking access to the linked project and a missing local
   `INVITE_EMAIL_FROM`. Production Vercel variable names were present. The

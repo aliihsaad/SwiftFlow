@@ -1,89 +1,89 @@
 # SwiftFlow Stable-v1 Feature Matrix
 
-**Status:** Active
-**Updated:** 2026-07-28
+**Status:** Feature locked
 
-This matrix prevents the infrastructure and UI transformations from silently
-removing active product behavior.
+**Locked:** 2026-08-14
 
-## Classification
+**Canonical project:** `Social-Media-Manager-AI-Tool`
+**Product:** SwiftFlow
 
-- **Default:** enabled in the standard Vercel + managed Supabase installation.
-- **Optional:** retained and supported, but disabled until configured.
-- **Guarded:** retained but unavailable until its correctness/security gate
-  passes.
-- **Decision pending:** retained for stable v1; packaging default is unresolved.
-- **Not supported baseline:** visible legacy or placeholder behavior that is not
-  considered a functioning capability.
+This file is the stable-v1 product contract. During the release-candidate soak,
+only release-blocking fixes may change this scope.
 
-## Matrix
+## Supported deployment
 
-| Capability | Stable-v1 classification | Current baseline | Transformation target |
+SwiftFlow stable v1 runs on:
+
+- Vercel for the Next.js application and public OAuth/webhook routes;
+- one operator-owned managed Supabase project for PostgreSQL, Auth, Storage,
+  Realtime, Edge Functions, and Cron;
+- one operator-owned Meta app configured for Instagram API with Instagram
+  Login.
+
+There is no supported VPS or Docker self-hosting path in stable v1.
+
+## Stable-v1 capabilities
+
+| Area | Capability | Availability | Stable-v1 contract |
 | --- | --- | --- | --- |
-| Password authentication and recovery | Default | Supabase Auth | Retain Supabase Auth and verify recovery/session flows |
-| Workspace isolation and memberships | Default | Workspace-scoped schema and policies | Retain Supabase PostgreSQL and enforce audited RLS |
-| Multi-workspace and team administration | Decision pending | Present | Retain; choose default or optional packaging |
-| Instagram Login | Default | Direct onboarding implemented locally | Verify and productize the lowest-friction Meta connection path |
-| Facebook Login and Page features | Optional | Existing advanced path | Preserve behind explicit advanced setup |
-| Meta webhook receipt | Default | Next.js callback plus current persistence/functions | Signed durable inbox in Supabase Postgres plus queued bounded processing |
-| Meta token and permission health | Default | Readiness checks and reconnect foundations implemented | Complete Account Health Center and operator recovery states |
-| Graph-backed automation engine | Default | Canvas graph is authoritative | Versioned deterministic runtime using durable Postgres inbox/outbox and bounded queue consumers |
-| Automation presets/templates | Default | Templates compile to graphs | Task-oriented safe starter flows |
-| Comment trigger | Default | Supported | Durable idempotent execution |
-| Message trigger | Default | Supported | Durable idempotent execution |
-| Story-reply trigger | Default | Supported | Durable idempotent execution |
-| Story-mention trigger | Not supported baseline | Temporarily disabled | Re-enable only after live contract tests |
-| New-follower trigger | Not supported baseline | Catalog/legacy references exceed live support | Defer until Meta delivery is proven |
-| Reply-to-comment action | Default | Supported | Idempotent provider side effect |
-| Private-reply action | Default | Supported | Enforce one-per-comment and timing policy |
-| Send-DM action | Default | Supported | Enforce messaging-window policy |
-| Delay action | Default | Supported | Durable queued continuation pinned to workflow version |
-| AI-response action | Optional | Provider settings required | Bring-your-own provider credentials |
-| Send-email action | Optional | Email provider required | Explicit provider configuration and delivery health |
-| Arbitrary HTTP action | Guarded | Hidden and activation-blocked | Egress policy, allowlist, limits, and abuse tests |
-| Keyword condition | Default | Supported | Deterministic pure evaluation |
-| Follower-count condition | Guarded | Removed from normal UI; activation and runtime fail closed | Implement verified metrics or keep deferred |
-| Comment-count condition | Guarded | Removed from normal UI; activation and runtime fail closed | Implement verified metrics or keep deferred |
-| Post creation and drafts | Default | Present | Retain Supabase persistence with workspace isolation |
-| Scheduling and calendar | Default | Present | Supabase Cron plus durable queued jobs |
-| AI publishing automations | Optional | Present | Worker-backed, approval-aware generation |
-| Media upload and generated assets | Default | Supabase Storage | Retain Supabase Storage with verified access policies |
-| Comments management | Default | Present | Supabase-backed durable sync and actions |
-| Messages and conversations | Default | Present | Retain Supabase-backed sync, Realtime, and SWR updates |
-| Analytics | Default | Present | Repository-backed sync and dashboards |
-| Content intelligence | Optional | AI/provider dependent | Retain behind configured provider |
-| Assistant | Optional | AI/provider dependent | Retain behind configured provider |
-| Brand profiles and assets | Default | Present | Retain workspace-scoped Supabase data and Storage |
-| Developer API | Decision pending | Present | Retain; decide default or optional module |
-| MCP endpoint | Decision pending | Present | Retain; decide default or optional module |
-| Audit logs and retention | Default | Present in parts | Versioned retention and operator controls |
-| Billing and hosted entitlements | Optional | Stripe scaffolding present | Off by default unless explicitly retained |
-| Premium responsive UI | Default | Existing mixed feature UI | Shared design system and verified journeys |
-| Docker/Compose full-backend self-hosting | Deferred | Partial staging and operations artifacts exist | Optional post-v1 advanced edition; not required for standard installation |
-| Managed Supabase backend | Default | Current runtime | Productize user-owned project setup, migrations, functions, secrets, Queue, Cron, and health checks |
+| Access | Email/password authentication, recovery, and session handling | Included | Supabase Auth; signup is part of the private setup flow, not a public landing page |
+| Workspaces | Workspace isolation, roles, members, and invitations | Included | Every tenant-owned query is workspace scoped; invitations require Resend configuration |
+| Instagram | Business/Creator account connection | Included | Direct Instagram Login; no Facebook Page link is required |
+| Instagram | Permission and connection readiness | Included | Setup guide reports the account, permissions, webhook subscription, and automation readiness |
+| Instagram | Automatic long-lived token renewal | Included | Scheduled refresh, locking, retry state, reconnect fallback, and optional Telegram warning |
+| Instagram | Signed webhook ingestion | Included | Comments, direct messages, and story replies enter the durable automation pipeline |
+| Engage | Posts, reels, and comments | Included | Provider media sync, reel playback, comment visibility, and supported moderation actions |
+| Engage | Inbox | Included | Instagram conversations and replies with workspace-scoped credentials |
+| Automations | Visual workflow canvas | Included | Versioned graphs, validation, templates, execution history, removable edges, and responsive editing |
+| Automations | Triggers | Included | New comment, new direct message, and story reply |
+| Automations | Instagram actions | Included | Send DM, private reply, and reply to comment |
+| Automations | Flow actions | Included | Delay and condition, including explicit error paths |
+| Automations | Telegram | Optional | Encrypted bot/chat configuration, notifications, and human approval/rejection gates |
+| Automations | AI response | Optional | Bring-your-own Gemini, OpenAI, or OpenRouter-compatible provider configuration |
+| Reliability | Durable execution | Included | Idempotent inbox/outbox processing, retries, delayed continuation, dead-letter state, safety gates, and redacted audit history |
+| Analytics | Instagram performance reporting | Included | Account and media synchronization with clear permission or provider failure states |
+| Brand | Brand profile | Included | Structured brand context for AI responses; no decorative asset library |
+| Operations | Managed deployment workflow | Included | Repeatable Supabase migrations/functions plus Vercel deployment and read-only `setup:check` preflight |
+| Advanced | Developer API and MCP bridge | Optional | Engagement-only API surface for owners/admins; no publishing scopes |
+| Experience | Premium responsive UI | Included | Auth, setup, overview, analytics, posts/comments, inbox, automations, brand profile, and settings |
 
-## Decisions already fixed
+## Optional integrations
 
-- Product direction is automation-first and deploy-your-own.
-- The standard installation is Vercel plus a user-owned managed Supabase project.
-- No VPS is required for the standard installation.
-- Supabase Auth, PostgreSQL, Storage, Realtime, Edge Functions, Queues, and Cron remain in stable v1.
-- Instagram Login is the default Meta path.
-- Facebook Login is an optional advanced path.
-- Webhooks remain a core boundary and must acknowledge only after durable
-  persistence.
-- The automation engine remains graph-backed and canvas-first.
-- Premium-grade UI is required for stable v1.
-- The engineering migration stays in the current repository on the neutral
-  `swiftflow-v2-transformation` branch.
-- npm is the authoritative transformation package manager.
+Optional integrations do not prevent the core Instagram engagement product from
+running:
 
-## Decisions still required
+- an AI provider key enables AI Response nodes;
+- Telegram credentials enable notifications and approval gates;
+- a Resend API key enables team invitation email delivery;
+- Developer API credentials enable external automation clients and MCP.
 
-1. OSS license.
-2. Whether multi-workspace/team features are enabled by default.
-3. Whether Developer API and MCP are enabled by default.
-4. Whether hosted billing remains as an optional module.
-5. Supported upgrade window and migration policy.
-6. Stable-v1 capacity and latency SLOs.
-7. Visual direction, theme scope, browser versions, and minimum viewport.
+## Explicitly outside stable v1
+
+The following are not stable-v1 product capabilities and must not be presented
+as available in the UI, setup guide, or release notes:
+
+- Facebook Login, Facebook Pages, or Messenger;
+- content creation, AI content generation, drafts, publishing, scheduling, or a
+  content calendar;
+- public marketing/landing pages, public signup, subscription, billing, or
+  hosted entitlements;
+- the legacy Send Email automation node (Telegram replaces it in the stable
+  canvas);
+- an arbitrary HTTP-request automation node;
+- story mentions, new-follower triggers, or metrics-based conditions that have
+  not passed live provider contract tests;
+- VPS, Docker Compose, or a fully self-hosted backend.
+
+Legacy compatibility code may remain temporarily where removing it would risk
+existing stored workflows. It is not part of the stable-v1 product contract and
+must not be exposed as a new-workflow option.
+
+## Change policy
+
+Until the stable-v1 tag is created:
+
+1. no new product features are accepted;
+2. P0/P1 correctness, security, data-loss, authentication, deployment, and live
+   Instagram failures may be fixed;
+3. each fix must add or update regression coverage;
+4. scope changes require an explicit post-v1 decision.

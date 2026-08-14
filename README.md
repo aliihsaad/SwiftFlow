@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/logo.png" alt="SwiftFlow logo" width="160" />
+</p>
+
 # SwiftFlow
 
 SwiftFlow is a Vercel + managed Supabase engagement command center for Instagram. It handles connected-account setup, comments and messages, engagement automations, provider content monitoring, and analytics.

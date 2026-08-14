@@ -293,7 +293,7 @@ export function DeveloperApiView() {
           </div>
           {preview && (
             <div className="rounded-md border border-cyan-300/15 bg-cyan-300/8 px-3 py-2 text-sm text-cyan-50/80">
-              Full API access is enabled now. The paid-plan entitlement hook is wired and can be enforced later when payments launch.
+              Developer API access is enabled. Create scoped keys below and revoke them whenever access is no longer needed.
             </div>
           )}
           {error && (

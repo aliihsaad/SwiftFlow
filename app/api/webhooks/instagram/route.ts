@@ -7,6 +7,7 @@ import { enqueueMetaWebhookDelivery } from '@/lib/webhooks/inbox-contract';
 import { buildInstagramMessagingAutomationEvents } from '@/lib/webhooks/instagram-automation-events';
 import { createSupabaseWebhookInboxStore } from '@/lib/webhooks/supabase-inbox-store';
 import { readRawBodyWithLimit, RequestBodyTooLargeError } from '@/lib/security/phase1-validation';
+import { requireSupabaseServiceRoleKey } from '@/lib/supabase/service-key';
 
 // Meta webhook payloads are small (batched entries stay well under this cap).
 const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
@@ -84,9 +85,10 @@ function logInstagramMessageWebhookDebug(value: Record<string, unknown>) {
 }
 
 // Initialize Supabase Admin Client
+const supabaseServiceKey = requireSupabaseServiceRoleKey();
 const supabaseAdmin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
+    supabaseServiceKey
 );
 
 /**
@@ -662,7 +664,7 @@ async function handleMessageEvent(value: Record<string, unknown>, account: Resol
 
     // Broadcast via Supabase Realtime (HTTP endpoint) to refresh the client's message list
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const supabaseKey = process.env.SUPABASE_SERVICE_KEY!;
+    const supabaseKey = supabaseServiceKey;
     await fetch(`${supabaseUrl}/realtime/v1/api/broadcast`, {
         method: 'POST',
         headers: {

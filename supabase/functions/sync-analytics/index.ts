@@ -2,15 +2,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { canReadAnalyticsWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
-import { getMetaGraphApiBaseUrl, META_GRAPH_API_BASE_URL, metaGraphFetch } from "../_shared/meta-graph.ts";
+import { getMetaGraphApiBaseUrl, metaGraphFetch } from "../_shared/meta-graph.ts";
 import { redactSensitiveLogValue, redactSensitiveString } from "../_shared/log-redaction.ts";
 import { assertWorkspaceAccess } from "../_shared/workspace-auth.ts";
 
 // Metric requests are best-effort per group: v22.0+ removed 'impressions' /
 // 'plays' / 'video_views' for Instagram media in favor of 'views', so each
 // name is tried separately and unavailable metrics degrade to 0.
-const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
-
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',

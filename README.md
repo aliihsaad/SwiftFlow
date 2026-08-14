@@ -4,12 +4,14 @@ SwiftFlow is a Vercel + managed Supabase engagement command center for Instagram
 
 SwiftFlow does not create, generate, schedule, or publish social content. A Facebook Page is not required.
 
+Stable v1 is feature-locked. The canonical product boundary is documented in the [stable-v1 feature matrix](docs/transformation/stable-v1-feature-matrix.md), release evidence is tracked in the [stable-v1 release checklist](docs/release/stable-v1-release-checklist.md), and recovery procedures are in the [stable-v1 operations runbook](docs/release/stable-v1-operations.md).
+
 ## Core capabilities
 
 - Direct connection through Instagram Login for Business and Creator accounts
 - Webhook ingestion for comments, messages, story replies, and supported engagement events
 - Unified inbox plus provider post and comment moderation
-- Visual automations with comment, message, story-reply, delay, condition, Telegram approval, HTTP, and AI-response nodes
+- Visual automations with comment, message, story-reply, Instagram action, delay, condition, Telegram, and AI-response nodes
 - Durable execution, retries, delayed continuations, and redacted execution history
 - Instagram analytics synchronization and reporting
 - Workspace-scoped encrypted credentials, roles, and developer API access

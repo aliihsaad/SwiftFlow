@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { interpolateTemplate } from "../_shared/automation-context.ts"
 import { getMetaGraphApiBaseUrl, toMetaGraphFormBody } from "../_shared/meta-graph.ts"
 import { assertInternalInvoke } from "../_shared/internal-auth.ts"
+import { buildInstagramPrivateReplyPlan } from "../_shared/instagram-private-reply.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -57,19 +58,43 @@ serve(async (req) => {
       });
     }
 
-    const sendUrl = `${metaGraphUrl}/${pageId}/messages`;
-    const response = await fetch(sendUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: await toMetaGraphFormBody({
-        recipient: { comment_id: context.comment_id },
-        message: { text: message },
-        access_token: accessToken,
-      }, accessToken, { connectionMethod }),
-    });
-    const result = await response.json();
+    const replyPlan = buildInstagramPrivateReplyPlan(config, message);
+    if (!replyPlan.ok) {
+      return new Response(JSON.stringify({ success: false, error: replyPlan.error }), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
-    if (!response.ok || result?.error) {
+    const sendUrl = `${metaGraphUrl}/${pageId}/messages`;
+    const sendReply = async (providerMessage: Record<string, unknown>) => {
+      const response = await fetch(sendUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: await toMetaGraphFormBody({
+          recipient: { comment_id: context.comment_id },
+          message: providerMessage,
+          access_token: accessToken,
+        }, accessToken, { connectionMethod }),
+      });
+      return { response, result: await response.json().catch(() => null) };
+    };
+
+    let delivery = await sendReply(replyPlan.message);
+    let deliveryMode = replyPlan.interactive ? 'buttons' : 'text';
+
+    if (
+      replyPlan.interactive &&
+      config.button_fallback_to_text !== false &&
+      (!delivery.response.ok || !delivery.result || delivery.result?.error)
+    ) {
+      delivery = await sendReply({ text: replyPlan.fallbackText });
+      deliveryMode = 'text_fallback';
+    }
+
+    const { response, result } = delivery;
+
+    if (!response.ok || !result || result?.error) {
       return new Response(JSON.stringify({
         success: false,
         error: result?.error?.message || 'Private reply failed',
@@ -82,7 +107,12 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       success: true,
       dmSent: true,
-      output: { channel: 'private_reply', messageId: result.message_id },
+      output: {
+        channel: 'private_reply',
+        messageId: result.message_id,
+        deliveryMode,
+        interactive: replyPlan.interactive,
+      },
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

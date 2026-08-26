@@ -6,6 +6,7 @@ import {
 } from "@/types/automation-graph"
 import { isMetaGraphNodeId } from "@/lib/security/phase1-validation"
 import { isCommentPostScope } from "@/supabase/functions/_shared/comment-scope"
+import { isInstagramProfileUrl } from "@/supabase/functions/_shared/instagram-private-reply"
 import {
   getAutomationConditionPolicyIssue,
   getAutomationConditionTriggerPolicyIssue,
@@ -301,6 +302,22 @@ export function validateDeveloperAutomationGraph(
         if (config.use_ai_response !== true && !hasMeaningfulMessage(config.message)) {
           errors.push({ code: "MISSING_FIELD", message: "Private Reply requires message or use_ai_response: true.", nodeId: node.id,
           })
+        }
+        if (config.follower_gate_enabled === true) {
+          if (!isInstagramProfileUrl(config.follow_profile_url)) {
+            errors.push({
+              code: "INVALID_INSTAGRAM_PROFILE_URL",
+              message: "Follower confirmation buttons require a valid HTTPS Instagram profile URL.",
+              nodeId: node.id,
+            })
+          }
+          if (!text(config.confirm_payload)) {
+            errors.push({
+              code: "MISSING_FIELD",
+              message: "Follower confirmation buttons require a confirmation payload.",
+              nodeId: node.id,
+            })
+          }
         }
         break
       case "action_reply_comment": {

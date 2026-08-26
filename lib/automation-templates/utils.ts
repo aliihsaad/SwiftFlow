@@ -32,6 +32,7 @@ export function templateEdge(
   source: string,
   target: string,
   label?: string,
+  sourceHandle?: string,
 ): WorkflowEdge {
   return {
     id,
@@ -39,6 +40,7 @@ export function templateEdge(
     target,
     type: 'custom',
     animated: true,
+    sourceHandle,
     data: label ? { label } : undefined,
   }
 }
@@ -51,7 +53,12 @@ export function buildGraphFromBlueprint(
     position: { x: number; y: number }
     config?: Record<string, unknown>
   }>,
-  edgesBlueprint: Array<{ source: string; target: string; label?: string }>,
+  edgesBlueprint: Array<{
+    source: string
+    target: string
+    label?: string
+    sourceHandle?: string
+  }>,
 ): WorkflowGraph {
   const prefix = `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   const keyToId = new Map<string, string>()
@@ -66,6 +73,7 @@ export function buildGraphFromBlueprint(
       keyToId.get(edge.source) || edge.source,
       keyToId.get(edge.target) || edge.target,
       edge.label,
+      edge.sourceHandle,
     ),
   )
   return { nodes, edges }

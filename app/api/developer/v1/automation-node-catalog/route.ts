@@ -54,7 +54,14 @@ export async function GET(request: NextRequest) {
         },
         action_private_reply: {
           required: ["message or use_ai_response"],
-          optional: [],
+          optional: [
+            "follower_gate_enabled",
+            "follow_button_text",
+            "follow_profile_url",
+            "confirm_button_text",
+            "confirm_payload",
+            "button_fallback_to_text",
+          ],
         },
       },
       supportedTriggers: SUPPORTED_CANVAS_TRIGGER_TYPES,

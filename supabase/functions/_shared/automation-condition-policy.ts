@@ -1,5 +1,11 @@
 export const SUPPORTED_AUTOMATION_CONDITION_TYPES = [
   'keyword_match',
+  'instagram_follower_status',
+] as const
+
+export const INSTAGRAM_FOLLOWER_STATUS_TRIGGER_TYPES = [
+  'trigger_new_message',
+  'trigger_story_reply',
 ] as const
 
 export const TEMP_DISABLED_AUTOMATION_CONDITION_TYPES = [
@@ -8,7 +14,11 @@ export const TEMP_DISABLED_AUTOMATION_CONDITION_TYPES = [
 ] as const
 
 export type AutomationConditionPolicyIssue = {
-  code: 'MISSING_FIELD' | 'CONDITION_TEMPORARILY_DISABLED' | 'UNSUPPORTED_CONDITION'
+  code:
+    | 'MISSING_FIELD'
+    | 'CONDITION_TEMPORARILY_DISABLED'
+    | 'UNSUPPORTED_CONDITION'
+    | 'FOLLOWER_STATUS_REQUIRES_MESSAGING_TRIGGER'
   message: string
 }
 
@@ -49,4 +59,30 @@ export function getAutomationConditionPolicyIssue(
   }
 
   return null
+}
+
+export function getAutomationConditionTriggerPolicyIssue(
+  conditionTypeValue: unknown,
+  triggerTypeValue: unknown,
+): AutomationConditionPolicyIssue | null {
+  const conditionType =
+    typeof conditionTypeValue === 'string' ? conditionTypeValue.trim() : ''
+  const triggerType =
+    typeof triggerTypeValue === 'string' ? triggerTypeValue.trim() : ''
+
+  if (conditionType !== 'instagram_follower_status') return null
+
+  if (
+    INSTAGRAM_FOLLOWER_STATUS_TRIGGER_TYPES.includes(
+      triggerType as (typeof INSTAGRAM_FOLLOWER_STATUS_TRIGGER_TYPES)[number],
+    )
+  ) {
+    return null
+  }
+
+  return {
+    code: 'FOLLOWER_STATUS_REQUIRES_MESSAGING_TRIGGER',
+    message:
+      'Instagram follower status requires a New Message or Story Reply trigger because Meta only exposes it after messaging consent.',
+  }
 }

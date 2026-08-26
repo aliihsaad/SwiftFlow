@@ -104,7 +104,11 @@ export interface ActionDelayConfig {
 export type ConditionOperator = 'contains' | 'not_contains' | 'equals' | 'greater_than' | 'less_than'
 
 export interface ActionConditionConfig {
-  condition_type: 'keyword_match' | 'follower_count' | 'comment_count'
+  condition_type:
+    | 'keyword_match'
+    | 'instagram_follower_status'
+    | 'follower_count'
+    | 'comment_count'
   keywords?: string[]
   operator: ConditionOperator
   threshold?: number

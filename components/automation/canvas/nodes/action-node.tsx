@@ -214,6 +214,9 @@ function getDescription(data: WorkflowNodeData): string {
         "Wait " + (config.duration_value || "?") + " " + (config.duration_unit || "minutes")
       )
     case "action_condition":
+      if (config.condition_type === "instagram_follower_status") {
+        return "Does this person follow the account?"
+      }
       return (
         String(config.condition_type || "condition") + ": " + String(config.operator || "check")
       )

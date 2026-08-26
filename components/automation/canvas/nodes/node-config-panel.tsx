@@ -962,32 +962,48 @@ function ActionConditionFields({ config, onUpdate,
           )}
           {SUPPORTED_AUTOMATION_CONDITION_TYPES.map((type) => (
             <option key={type} value={type}>
-              {type === 'keyword_match' ? 'Keyword Match' : type}
+              {type === 'keyword_match'
+                ? 'Keyword Match'
+                : 'Instagram Follower Status'}
             </option>
           ))}
         </select>
       </div>
-      <div>
-        <Label className="text-xs">Operator</Label>
-        <select
-          value={config.operator || 'contains'}
-          onChange={(e) => onUpdate({ operator: e.target.value })}
-          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-        >
-          <option value="contains">Contains</option>
-          <option value="not_contains">Does Not Contain</option>
-          <option value="equals">Equals</option>
-        </select>
-      </div>
       {conditionType === 'keyword_match' && (
-        <div>
-          <Label className="text-xs">Keywords (comma separated)</Label>
-          <Input
-            value={(config.keywords || []).join(', ')}
-            onChange={(e) => onUpdate({ keywords: e.target.value.split(',').map((k) => k.trim()).filter(Boolean),
-              })}
-            className="mt-1"
-          />
+        <>
+          <div>
+            <Label className="text-xs">Operator</Label>
+            <select
+              value={config.operator || 'contains'}
+              onChange={(e) => onUpdate({ operator: e.target.value })}
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="contains">Contains</option>
+              <option value="not_contains">Does Not Contain</option>
+              <option value="equals">Equals</option>
+            </select>
+          </div>
+          <div>
+            <Label className="text-xs">Keywords (comma separated)</Label>
+            <Input
+              value={(config.keywords || []).join(', ')}
+              onChange={(e) => onUpdate({ keywords: e.target.value.split(',').map((k) => k.trim()).filter(Boolean),
+                })}
+              className="mt-1"
+            />
+          </div>
+        </>
+      )}
+      {conditionType === 'instagram_follower_status' && (
+        <div className="rounded-xl border border-emerald-300/15 bg-emerald-300/[0.05] p-3">
+          <p className="text-xs font-medium text-emerald-100">
+            Yes if the person follows this Instagram account
+          </p>
+          <p className="mt-1 text-[10px] leading-relaxed text-emerald-100/60">
+            Use after New Message or Story Reply. Meta exposes follower status
+            only after the person has messaging consent; comment-only journeys
+            cannot perform this check. API or permission failures follow Alert.
+          </p>
         </div>
       )}
       {conditionIssue && (

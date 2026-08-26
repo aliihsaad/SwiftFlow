@@ -32,7 +32,10 @@ import {
 import { getMetaGraphApiBaseUrl, toMetaGraphFormBody,
 } from "../_shared/meta-graph.ts";
 import {
-  getAutomationConditionPolicyIssue } from "../_shared/automation-condition-policy.ts";
+  getAutomationConditionPolicyIssue,
+  getAutomationConditionTriggerPolicyIssue,
+} from "../_shared/automation-condition-policy.ts";
+import { checkInstagramFollowerStatus } from "../_shared/instagram-follower-status.ts";
 import { upsertAutomationNodeRuns } from "../_shared/automation-node-runs.ts";
 
 
@@ -150,6 +153,16 @@ function validateExecutableGraph(graph: WorkflowGraph): string[] {
   );
   if (triggerNodes.length !== 1) {
     issues.push('Workflow must contain exactly one trigger node.');
+  }
+
+  const triggerType = triggerNodes[0]?.data?.type;
+  for (const node of nodes) {
+    if (node?.data?.type !== 'action_condition') continue;
+    const triggerIssue = getAutomationConditionTriggerPolicyIssue(
+      node?.data?.config?.condition_type,
+      triggerType,
+    );
+    if (triggerIssue) issues.push(triggerIssue.message);
   }
 
   const incomingByTarget = new Map<string, number>();
@@ -1239,7 +1252,12 @@ async function executeNodeUnchecked(
       );
 
     case 'action_condition':
-      return executeCondition(config, triggerContext);
+      return await executeCondition(
+        config,
+        triggerContext,
+        account?.access_token,
+        account?.metadata?.connection_method,
+      );
 
     case 'action_delay':
       // Delay is handled in the main loop (scheduling)
@@ -1581,10 +1599,20 @@ async function executePrivateReply(
   };
 }
 
-function executeCondition(
+async function executeCondition(
   config: any,
   ctx: TriggerContext,
-): { success: boolean; output?: { conditionResult: boolean }; error?: string } {
+  accessToken?: string,
+  connectionMethod?: string,
+): Promise<{
+  success: boolean;
+  output?: {
+    conditionResult?: boolean;
+    followerStatus?: 'following' | 'not_following';
+    code?: string;
+  };
+  error?: string;
+}> {
   const conditionIssue = getAutomationConditionPolicyIssue(config.condition_type,
   );
   if (conditionIssue) {
@@ -1605,6 +1633,28 @@ function executeCondition(
         conditionResult = keywords.some((k) => text === k.toLowerCase());
       }
       break;
+    }
+    case 'instagram_follower_status': {
+      const followerStatus = await checkInstagramFollowerStatus({
+        instagramScopedUserId: ctx.sender_id,
+        accessToken,
+        connectionMethod,
+      });
+      if (!followerStatus.ok) {
+        return {
+          success: false,
+          error: followerStatus.error,
+          output: { code: followerStatus.code },
+        };
+      }
+      conditionResult = followerStatus.follows;
+      return {
+        success: true,
+        output: {
+          conditionResult,
+          followerStatus: conditionResult ? 'following' : 'not_following',
+        },
+      };
     }
     default:
       return { success: false, error: 'Unsupported automation condition.' };

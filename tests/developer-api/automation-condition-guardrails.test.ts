@@ -11,7 +11,10 @@ import {
 
 const accountId = '22222222-2222-4222-8222-222222222222'
 
-function conditionGraph(conditionType: string) {
+function conditionGraph(
+  conditionType: string,
+  triggerType = 'trigger_new_message',
+) {
   return {
     nodes: [
       {
@@ -19,7 +22,7 @@ function conditionGraph(conditionType: string) {
         type: 'trigger',
         position: { x: 100, y: 100 },
         data: {
-          type: 'trigger_new_message',
+          type: triggerType,
           label: 'New Message',
           config: {
             social_account_id: accountId,
@@ -53,9 +56,65 @@ function conditionGraph(conditionType: string) {
 }
 
 describe('automation condition guardrails', () => {
-  it('keeps keyword matching as the only supported condition baseline', () => {
-    expect(SUPPORTED_AUTOMATION_CONDITION_TYPES).toEqual(['keyword_match'])
+  it('supports keyword matching and consent-scoped Instagram follower status', () => {
+    expect(SUPPORTED_AUTOMATION_CONDITION_TYPES).toEqual([
+      'keyword_match',
+      'instagram_follower_status',
+    ])
     expect(getAutomationConditionPolicyIssue('keyword_match')).toBeNull()
+    expect(
+      getAutomationConditionPolicyIssue('instagram_follower_status'),
+    ).toBeNull()
+  })
+
+  it('accepts follower status for messaging triggers', async () => {
+    const graph = conditionGraph('instagram_follower_status')
+    expect(validateDeveloperAutomationGraph(graph).errors).toEqual([])
+
+    const response = await validateAutomation(
+      new NextRequest('http://localhost/api/automations/validate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ workflow_graph: graph }),
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toMatchObject({ valid: true })
+  })
+
+  it('rejects follower status for comment-only journeys', async () => {
+    const graph = conditionGraph(
+      'instagram_follower_status',
+      'trigger_new_comment',
+    )
+    const { errors } = validateDeveloperAutomationGraph(graph)
+
+    expect(errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'FOLLOWER_STATUS_REQUIRES_MESSAGING_TRIGGER',
+          nodeId: 'condition',
+        }),
+      ]),
+    )
+
+    const response = await validateAutomation(
+      new NextRequest('http://localhost/api/automations/validate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ workflow_graph: graph }),
+      }),
+    )
+    await expect(response.json()).resolves.toMatchObject({
+      valid: false,
+      errors: expect.arrayContaining([
+        expect.objectContaining({
+          code: 'FOLLOWER_STATUS_REQUIRES_MESSAGING_TRIGGER',
+          nodeId: 'condition',
+        }),
+      ]),
+    })
   })
 
   it.each(['follower_count', 'comment_count'])(
@@ -106,6 +165,7 @@ describe('automation condition guardrails', () => {
     )
 
     expect(source).toContain('getAutomationConditionPolicyIssue')
+    expect(source).toContain('checkInstagramFollowerStatus')
     expect(source).not.toContain('conditionResult = true')
   })
 })

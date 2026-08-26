@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 import { getAutomationConditionPolicyIssue } from "../_shared/automation-condition-policy.ts"
+import { checkInstagramFollowerStatus } from "../_shared/instagram-follower-status.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -47,6 +48,27 @@ serve(async (req) => {
         }
         break;
       }
+      case 'instagram_follower_status': {
+        const followerStatus = await checkInstagramFollowerStatus({
+          instagramScopedUserId: context.sender_id,
+          accessToken: body?.access_token,
+          connectionMethod: body?.connection_method,
+        });
+
+        if (!followerStatus.ok) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: followerStatus.error,
+            output: { code: followerStatus.code },
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        conditionResult = followerStatus.follows;
+        break;
+      }
       default:
         return new Response(JSON.stringify({
           success: false,
@@ -59,7 +81,14 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      output: { conditionResult },
+      output: {
+        conditionResult,
+        ...(config.condition_type === 'instagram_follower_status'
+          ? {
+              followerStatus: conditionResult ? 'following' : 'not_following',
+            }
+          : {}),
+      },
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

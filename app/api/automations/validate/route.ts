@@ -6,7 +6,10 @@ import { validateSendEmailNodeConfigs } from '@/lib/automation-send-email-valida
 import { validateTelegramNodeConfigs } from '@/lib/automation-telegram-validation'
 import { isMetaGraphNodeId } from '@/lib/security/phase1-validation'
 import { resolveCommentPostScope } from '@/supabase/functions/_shared/comment-scope'
-import { getAutomationConditionPolicyIssue } from '@/supabase/functions/_shared/automation-condition-policy'
+import {
+  getAutomationConditionPolicyIssue,
+  getAutomationConditionTriggerPolicyIssue,
+} from '@/supabase/functions/_shared/automation-condition-policy'
 
 interface ValidationError {
   code: string
@@ -390,6 +393,13 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
         )
         if (conditionIssue) {
           errors.push({ ...conditionIssue, nodeId: node.id })
+        }
+        const triggerIssue = getAutomationConditionTriggerPolicyIssue(
+          config.condition_type,
+          triggerNodes[0]?.data?.type,
+        )
+        if (triggerIssue) {
+          errors.push({ ...triggerIssue, nodeId: node.id })
         }
         break
       }

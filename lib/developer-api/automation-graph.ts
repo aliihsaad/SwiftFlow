@@ -6,7 +6,10 @@ import {
 } from "@/types/automation-graph"
 import { isMetaGraphNodeId } from "@/lib/security/phase1-validation"
 import { isCommentPostScope } from "@/supabase/functions/_shared/comment-scope"
-import { getAutomationConditionPolicyIssue } from "@/supabase/functions/_shared/automation-condition-policy"
+import {
+  getAutomationConditionPolicyIssue,
+  getAutomationConditionTriggerPolicyIssue,
+} from "@/supabase/functions/_shared/automation-condition-policy"
 import { validateTelegramNodeConfigs } from "@/lib/automation-telegram-validation"
 
 export type DeveloperAutomationGraphError = {
@@ -312,6 +315,11 @@ export function validateDeveloperAutomationGraph(
         const conditionIssue = getAutomationConditionPolicyIssue(config.condition_type,
         )
         if (conditionIssue) errors.push({ ...conditionIssue, nodeId: node.id })
+        const triggerIssue = getAutomationConditionTriggerPolicyIssue(
+          config.condition_type,
+          triggerNodes[0]?.data?.type,
+        )
+        if (triggerIssue) errors.push({ ...triggerIssue, nodeId: node.id })
         break
       }
       case "action_delay":

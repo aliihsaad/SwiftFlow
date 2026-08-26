@@ -36,6 +36,7 @@ import {
   getAutomationConditionTriggerPolicyIssue,
 } from "../_shared/automation-condition-policy.ts";
 import { checkInstagramFollowerStatus } from "../_shared/instagram-follower-status.ts";
+import { buildInstagramPrivateReplyPlan } from "../_shared/instagram-private-reply.ts";
 import { upsertAutomationNodeRuns } from "../_shared/automation-node-runs.ts";
 
 
@@ -1574,28 +1575,52 @@ async function executePrivateReply(
     };
   }
 
-  const sendUrl = `${getMetaGraphApiBaseUrl(connectionMethod)}/${instagramAccountId}/messages`;
-  const response = await fetch(sendUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: await toMetaGraphFormBody({
-      recipient: { comment_id: ctx.comment_id },
-      message: { text: message },
-      access_token: accessToken,
-    }, accessToken, { connectionMethod },
-    ),
-  });
+  const replyPlan = buildInstagramPrivateReplyPlan(config, message);
+  if (!replyPlan.ok) {
+    return { success: false, error: replyPlan.error };
+  }
 
-  const result = await response.json();
-  if (!response.ok || result.error) {
-    return { success: false, error: result.error?.message || 'Private reply failed',
+  const sendUrl = `${getMetaGraphApiBaseUrl(connectionMethod)}/${instagramAccountId}/messages`;
+  const sendReply = async (providerMessage: Record<string, unknown>) => {
+    const response = await fetch(sendUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: await toMetaGraphFormBody({
+        recipient: { comment_id: ctx.comment_id },
+        message: providerMessage,
+        access_token: accessToken,
+      }, accessToken, { connectionMethod }),
+    });
+    return { response, result: await response.json().catch(() => null) };
+  };
+
+  let delivery = await sendReply(replyPlan.message);
+  let deliveryMode = replyPlan.interactive ? 'buttons' : 'text';
+
+  if (
+    replyPlan.interactive &&
+    config.button_fallback_to_text !== false &&
+    (!delivery.response.ok || !delivery.result || delivery.result?.error)
+  ) {
+    delivery = await sendReply({ text: replyPlan.fallbackText });
+    deliveryMode = 'text_fallback';
+  }
+
+  const { response, result } = delivery;
+  if (!response.ok || !result || result?.error) {
+    return { success: false, error: result?.error?.message || 'Private reply failed',
     };
   }
 
   return {
     success: true,
     dmSent: true,
-    output: { channel: 'private_reply', messageId: result.message_id },
+    output: {
+      channel: 'private_reply',
+      messageId: result.message_id,
+      deliveryMode,
+      interactive: replyPlan.interactive,
+    },
   };
 }
 

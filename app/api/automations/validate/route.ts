@@ -6,6 +6,7 @@ import { validateSendEmailNodeConfigs } from '@/lib/automation-send-email-valida
 import { validateTelegramNodeConfigs } from '@/lib/automation-telegram-validation'
 import { isMetaGraphNodeId } from '@/lib/security/phase1-validation'
 import { resolveCommentPostScope } from '@/supabase/functions/_shared/comment-scope'
+import { isInstagramProfileUrl } from '@/supabase/functions/_shared/instagram-private-reply'
 import {
   getAutomationConditionPolicyIssue,
   getAutomationConditionTriggerPolicyIssue,
@@ -368,6 +369,22 @@ function validateGraph(graph: WorkflowGraph): { errors: ValidationError[]; warni
             message: 'Private Reply is set to use AI response with no fallback message.',
             nodeId: node.id,
           })
+        }
+        if (config.follower_gate_enabled === true) {
+          if (!isInstagramProfileUrl(config.follow_profile_url)) {
+            errors.push({
+              code: 'INVALID_INSTAGRAM_PROFILE_URL',
+              message: 'Follower confirmation buttons require a valid HTTPS Instagram profile URL.',
+              nodeId: node.id,
+            })
+          }
+          if (!String(config.confirm_payload || '').trim()) {
+            errors.push({
+              code: 'MISSING_FIELD',
+              message: 'Follower confirmation buttons require a confirmation payload.',
+              nodeId: node.id,
+            })
+          }
         }
         break
       case 'action_reply_comment': {

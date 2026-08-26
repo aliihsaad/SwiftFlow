@@ -204,6 +204,7 @@ function getDescription(data: WorkflowNodeData): string {
     case "action_send_dm":
       return config.opening_message ? String(config.opening_message).substring(0, 40) + "…" : "Configure DM message"
     case "action_private_reply":
+      if (config.follower_gate_enabled === true) return "Follow + confirmation buttons"
       return config.message ? String(config.message).substring(0, 40) + "…" : "Configure private reply"
     case "action_reply_comment": {
       const messages = config.messages as string[]

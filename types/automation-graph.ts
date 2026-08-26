@@ -89,6 +89,12 @@ export interface ActionSendDMConfig {
 export interface ActionPrivateReplyConfig {
   use_ai_response?: boolean
   message: string
+  follower_gate_enabled?: boolean
+  follow_button_text?: string
+  follow_profile_url?: string
+  confirm_button_text?: string
+  confirm_payload?: string
+  button_fallback_to_text?: boolean
 }
 
 export interface ActionReplyCommentConfig {
@@ -417,7 +423,15 @@ export function getDefaultConfig(type: WorkflowNodeType,
         fallback_message: '',
       } as ActionSendDMConfig
     case 'action_private_reply':
-      return { use_ai_response: false, message: '',
+      return {
+        use_ai_response: false,
+        message: '',
+        follower_gate_enabled: false,
+        follow_button_text: 'Follow account',
+        follow_profile_url: '',
+        confirm_button_text: 'I Followed',
+        confirm_payload: 'I FOLLOWED',
+        button_fallback_to_text: true,
       } as ActionPrivateReplyConfig
     case 'action_reply_comment':
       return { use_ai_response: false, messages: [''],

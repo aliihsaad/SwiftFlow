@@ -813,6 +813,7 @@ function TriggerStoryMentionFields({ config, onUpdate,
 function ActionPrivateReplyFields({ config, onUpdate,
 }: { config: ActionPrivateReplyConfig; onUpdate: (u: Record<string, unknown>) => void }) {
   const useAiResponse = config.use_ai_response === true
+  const followerGateEnabled = config.follower_gate_enabled === true
   return (
     <>
       <div className="rounded-md border border-border/60 p-3">
@@ -845,6 +846,85 @@ function ActionPrivateReplyFields({ config, onUpdate,
           This action requires comment context and will fail on non-comment
           triggers.
         </p>
+      </div>
+
+      <div className="rounded-md border border-border/60 p-3 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <Label className="text-xs">Add follower confirmation buttons</Label>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              Shows Follow and I Followed buttons in the private reply.
+            </p>
+          </div>
+          <Switch
+            checked={followerGateEnabled}
+            onCheckedChange={(checked) => onUpdate({ follower_gate_enabled: checked })}
+          />
+        </div>
+
+        {followerGateEnabled && (
+          <div className="space-y-3 border-t border-border/50 pt-3">
+            <div>
+              <Label className="text-xs">Instagram profile URL</Label>
+              <Input
+                value={config.follow_profile_url || ''}
+                onChange={(event) => onUpdate({ follow_profile_url: event.target.value })}
+                placeholder="https://www.instagram.com/youraccount/"
+                className="mt-1"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-xs">Follow button</Label>
+                <Input
+                  value={config.follow_button_text || ''}
+                  onChange={(event) => onUpdate({ follow_button_text: event.target.value })}
+                  placeholder="Follow account"
+                  maxLength={20}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Confirm button</Label>
+                <Input
+                  value={config.confirm_button_text || ''}
+                  onChange={(event) => onUpdate({ confirm_button_text: event.target.value })}
+                  placeholder="I Followed"
+                  maxLength={20}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-xs">Confirmation payload</Label>
+              <Input
+                value={config.confirm_payload || ''}
+                onChange={(event) => onUpdate({ confirm_payload: event.target.value })}
+                placeholder="I FOLLOWED"
+                maxLength={128}
+                className="mt-1 font-mono"
+              />
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Use this exact value as the keyword in the separate New Message verification journey.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <Label className="text-xs">Fallback to text</Label>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Sends the profile link and confirmation keyword if Meta rejects buttons.
+                </p>
+              </div>
+              <Switch
+                checked={config.button_fallback_to_text !== false}
+                onCheckedChange={(checked) => onUpdate({ button_fallback_to_text: checked })}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </>
   )

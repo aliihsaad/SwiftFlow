@@ -46,3 +46,14 @@ supabase/.temp/
 next-env.d.ts
 
 .vercel
+
+# Agent and tooling artifacts.
+# These stay on disk for local reference but are not part of the product.
+# Project instructions (CLAUDE.md, AGENTS.md) are intentionally NOT ignored —
+# they are shared conventions and belong in the repo.
+.claude/settings.local.json
+.codex-remote-attachments/
+tasks/
+workspace/
+docs/superpowers/
+docs/detailed-security-report/

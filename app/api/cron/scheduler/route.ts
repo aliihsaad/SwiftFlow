@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/utils/supabase/admin'
+import { timingSafeStringEqual } from '@/lib/developer-api/key-format'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -10,7 +11,7 @@ function isAuthorizedCronRequest(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET
 
   if (cronSecret) {
-    return request.headers.get('authorization') === `Bearer ${cronSecret}`
+    return timingSafeStringEqual(request.headers.get('authorization') || '', `Bearer ${cronSecret}`)
   }
 
   // Production must never run scheduler ticks without a configured shared secret.

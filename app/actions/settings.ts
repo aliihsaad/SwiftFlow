@@ -88,6 +88,16 @@ export async function togglePageSelection(platform: string, pageId: string, sele
  */
 export async function getWorkspaceSettings(workspaceId: string,
 ): Promise<WorkspaceSettings | null> {
+    // Every export in a 'use server' file is a POST-reachable endpoint, so the
+    // caller-supplied workspaceId has to be checked here rather than trusted.
+    // RLS on workspace_settings already limits the read, but this keeps the
+    // action safe if the reader is ever switched to the admin client.
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error("Unauthorized")
+
+    await requireWorkspacePermission(supabase, user.id, workspaceId, "workspace:read")
+
     const settings = await getWorkspaceSettingsWithSecrets(workspaceId)
     return settings ? sanitizeWorkspaceSettingsForClient(settings) : null
 }

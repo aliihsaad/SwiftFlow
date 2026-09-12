@@ -8,6 +8,7 @@ import { buildInstagramMessagingAutomationEvents } from '@/lib/webhooks/instagra
 import { createSupabaseWebhookInboxStore } from '@/lib/webhooks/supabase-inbox-store';
 import { readRawBodyWithLimit, RequestBodyTooLargeError } from '@/lib/security/phase1-validation';
 import { requireSupabaseServiceRoleKey } from '@/lib/supabase/service-key';
+import { timingSafeStringEqual } from '@/lib/developer-api/key-format';
 
 // Meta webhook payloads are small (batched entries stay well under this cap).
 const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
@@ -106,7 +107,9 @@ export async function GET(request: NextRequest) {
 
     console.log('[WEBHOOK] Verification request:', { mode, hasToken: !!token, hasChallenge: !!challenge });
 
-    if (mode === 'subscribe' && token === process.env.META_WEBHOOK_VERIFY_TOKEN) {
+    const verifyToken = process.env.META_WEBHOOK_VERIFY_TOKEN || '';
+
+    if (mode === 'subscribe' && verifyToken && timingSafeStringEqual(token || '', verifyToken)) {
         console.log('[WEBHOOK] Verification successful');
         // Must return the challenge as plain text, not JSON
         return new NextResponse(challenge, { status: 200 });

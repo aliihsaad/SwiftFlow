@@ -38,6 +38,7 @@ const internalFunctions = [
   "automation-worker-private-reply",
   "automation-worker-reply-comment",
   "automation-worker-send-dm",
+  "automation-worker-send-email",
   "automation-worker-telegram",
   "telegram-automation-webhook",
   "retention-cleanup",

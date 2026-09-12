@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createDeveloperOAuthCode, getDeveloperOAuthScope, normalizeDeveloperOAuthResource } from "@/lib/developer-api/oauth"
 import { getDeveloperApiKeyPepper } from "@/lib/developer-api/key-format"
+import {
+  getDeveloperOAuthClient,
+  isAcceptableRedirectUri,
+  isRegisteredRedirectUri,
+} from "@/lib/developer-api/oauth-clients"
 
 export const runtime = "nodejs"
 
@@ -44,7 +49,41 @@ function validateAuthorizeParams(searchParams: URLSearchParams) {
   if (searchParams.get("response_type") !== "code") return "response_type must be code"
   if (searchParams.get("code_challenge_method") !== "S256") return "code_challenge_method must be S256"
   const redirectUri = searchParams.get("redirect_uri") || ""
-  if (!redirectUri.startsWith("https://")) return "redirect_uri must be HTTPS"
+  if (!isAcceptableRedirectUri(redirectUri)) return "redirect_uri must be HTTPS and carry no fragment"
+  return null
+}
+
+/**
+ * Binds redirect_uri to the client that registered it.
+ *
+ * Without this the authorization code — which encrypts the operator's raw
+ * Developer API key — could be delivered to any HTTPS host an attacker chose,
+ * while the consent page rendered on the genuine SwiftFlow origin. PKCE does
+ * not help there: it binds the code to whoever made the request, which in that
+ * attack is the attacker. Exact matching against the registered set is the
+ * control that closes it.
+ *
+ * Failures render an error page and never redirect, so an unregistered URI
+ * cannot be used to bounce the user somewhere.
+ */
+async function resolveAuthorizeClient(params: URLSearchParams): Promise<string | null> {
+  const clientId = params.get("client_id") || ""
+  const redirectUri = params.get("redirect_uri") || ""
+
+  let client
+  try {
+    client = await getDeveloperOAuthClient(clientId)
+  } catch (error) {
+    console.error("[oauth/authorize] Client lookup failed:", error)
+    return "Could not verify the connector registration. Try again."
+  }
+
+  if (!client) {
+    return "Unknown client_id. Register the connector before authorizing."
+  }
+  if (!isRegisteredRedirectUri(client, redirectUri)) {
+    return "redirect_uri does not match a registered redirect URI for this client."
+  }
   return null
 }
 
@@ -59,6 +98,9 @@ async function verifyDeveloperApiKey(origin: string, apiKey: string) {
 export async function GET(request: NextRequest) {
   const error = validateAuthorizeParams(request.nextUrl.searchParams)
   if (error) return errorPage(error)
+
+  const clientError = await resolveAuthorizeClient(request.nextUrl.searchParams)
+  if (clientError) return errorPage(clientError)
 
   const hiddenFields = Array.from(request.nextUrl.searchParams.entries())
     .map(([key, value]) => `<input type="hidden" name="${escapeHtml(key)}" value="${escapeHtml(value)}">`)
@@ -97,6 +139,11 @@ export async function POST(request: NextRequest) {
 
   const error = validateAuthorizeParams(params)
   if (error) return errorPage(error)
+
+  // Re-checked on POST as well: the GET check guards the page render, but the
+  // form fields are attacker-controllable on the way back in.
+  const clientError = await resolveAuthorizeClient(params)
+  if (clientError) return errorPage(clientError)
 
   const apiKey = form.get("api_key")
   if (typeof apiKey !== "string" || !apiKey.startsWith("sf_live_")) {

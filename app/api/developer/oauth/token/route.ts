@@ -10,6 +10,7 @@ import {
   verifyPkceChallenge,
 } from "@/lib/developer-api/oauth"
 import { getDeveloperApiKeyPepper } from "@/lib/developer-api/key-format"
+import { claimDeveloperOAuthCode } from "@/lib/developer-api/oauth-clients"
 
 export const runtime = "nodejs"
 
@@ -155,6 +156,27 @@ export async function POST(request: NextRequest) {
   }
   if (!verifyPkceChallenge(codeVerifier, payload.codeChallenge)) {
     return tokenError("invalid_grant", "PKCE verification failed")
+  }
+
+  // Codes are single use. This runs only after every other check passes, so a
+  // failed exchange does not burn an otherwise valid code. Codes minted before
+  // the jti field existed carry none and skip the check; they expire within the
+  // 10 minute code TTL.
+  if (payload.jti) {
+    let claimed: boolean
+    try {
+      claimed = await claimDeveloperOAuthCode({
+        jti: payload.jti,
+        clientId: payload.clientId,
+        expiresAt: new Date(payload.exp * 1000),
+      })
+    } catch (error) {
+      console.error("[oauth/token] Failed to record code redemption:", error)
+      return tokenError("server_error", "Could not complete the token exchange", 500)
+    }
+    if (!claimed) {
+      return tokenError("invalid_grant", "Authorization code has already been redeemed")
+    }
   }
 
   return tokenResponse({

@@ -16,6 +16,12 @@ type DeveloperOAuthCodePayload = DeveloperOAuthPayload & {
   clientId: string
   redirectUri: string
   codeChallenge: string
+  /**
+   * Single-use identifier. Optional so codes minted before this field existed
+   * still verify during a deploy; those expire within the 10 minute code TTL.
+   * The token endpoint enforces single use whenever it is present.
+   */
+  jti?: string
 }
 
 type DeveloperOAuthRefreshPayload = DeveloperOAuthPayload & {
@@ -107,6 +113,10 @@ export function buildDeveloperMcpAuthChallenge(origin: string, error = "invalid_
   return `Bearer resource_metadata="${baseUrl}/.well-known/oauth-protected-resource", scope="${OAUTH_SCOPE}", error="${error}", error_description="${description}"`
 }
 
+export function getDeveloperOAuthCodeTtlSeconds() {
+  return CODE_TTL_SECONDS
+}
+
 export function createDeveloperOAuthCode(input: CreateOAuthCodeInput): string {
   return encryptPayload("sf_oauth_code", {
     apiKey: input.apiKey,
@@ -115,6 +125,7 @@ export function createDeveloperOAuthCode(input: CreateOAuthCodeInput): string {
     codeChallenge: input.codeChallenge,
     scope: input.scope,
     resource: normalizeDeveloperOAuthResource(input.resource),
+    jti: input.jti ?? crypto.randomUUID(),
     exp: (input.now ?? Math.floor(Date.now() / 1000)) + CODE_TTL_SECONDS,
   }, input.pepper)
 }

@@ -37,6 +37,7 @@ import {
 } from "../_shared/automation-condition-policy.ts";
 import { checkInstagramFollowerStatus } from "../_shared/instagram-follower-status.ts";
 import { buildInstagramPrivateReplyPlan } from "../_shared/instagram-private-reply.ts";
+import { deliverPrivateReply } from "../_shared/private-reply-delivery.ts";
 import { upsertAutomationNodeRuns } from "../_shared/automation-node-runs.ts";
 
 
@@ -1246,10 +1247,12 @@ async function executeNodeUnchecked(
 
     case 'action_send_dm':
       return await executeSendDM(config, triggerContext, account.access_token, instagramAccountId, account?.metadata?.connection_method,
+        { database: supabase, workspaceId: automation.workspace_id, socialAccountId: account.id },
       );
 
     case 'action_private_reply':
       return await executePrivateReply(config, triggerContext, account.access_token, instagramAccountId, account?.metadata?.connection_method,
+        { database: supabase, workspaceId: automation.workspace_id, socialAccountId: account.id },
       );
 
     case 'action_condition':
@@ -1388,6 +1391,7 @@ async function executeSendDM(
   accessToken: string,
   instagramAccountId: string,
   connectionMethod?: string,
+  deliveryScope?: { database: any; workspaceId: string; socialAccountId: string },
 ): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
   const recipientId = ctx.commenter_id || ctx.sender_id || ctx.follower_id;
   if (!recipientId) return { success: false, error: 'No recipient ID in trigger context' };
@@ -1476,6 +1480,7 @@ async function executeSendDM(
       accessToken,
       instagramAccountId,
       connectionMethod,
+      deliveryScope,
     );
 
     if (!privateReplyResult.success) {
@@ -1554,6 +1559,7 @@ async function executePrivateReply(
   accessToken: string,
   instagramAccountId: string,
   connectionMethod?: string,
+  deliveryScope?: { database: any; workspaceId: string; socialAccountId: string },
 ): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
   if (!ctx.comment_id) {
     return { success: false, error: 'Private Reply requires comment context' };
@@ -1580,9 +1586,10 @@ async function executePrivateReply(
     return { success: false, error: replyPlan.error };
   }
 
+  if (!deliveryScope) return { success: false, error: 'Private reply account scope is unavailable' };
   const sendUrl = `${getMetaGraphApiBaseUrl(connectionMethod)}/${instagramAccountId}/messages`;
   const sendReply = async (providerMessage: Record<string, unknown>) => {
-    const response = await fetch(sendUrl, {
+    return fetch(sendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: await toMetaGraphFormBody({
@@ -1590,38 +1597,15 @@ async function executePrivateReply(
         message: providerMessage,
         access_token: accessToken,
       }, accessToken, { connectionMethod }),
+      signal: AbortSignal.timeout(15_000),
+      redirect: 'error',
     });
-    return { response, result: await response.json().catch(() => null) };
   };
 
-  let delivery = await sendReply(replyPlan.message);
-  let deliveryMode = replyPlan.interactive ? 'buttons' : 'text';
-
-  if (
-    replyPlan.interactive &&
-    config.button_fallback_to_text !== false &&
-    (!delivery.response.ok || !delivery.result || delivery.result?.error)
-  ) {
-    delivery = await sendReply({ text: replyPlan.fallbackText });
-    deliveryMode = 'text_fallback';
-  }
-
-  const { response, result } = delivery;
-  if (!response.ok || !result || result?.error) {
-    return { success: false, error: result?.error?.message || 'Private reply failed',
-    };
-  }
-
-  return {
-    success: true,
-    dmSent: true,
-    output: {
-      channel: 'private_reply',
-      messageId: result.message_id,
-      deliveryMode,
-      interactive: replyPlan.interactive,
-    },
-  };
+  return deliverPrivateReply(deliveryScope.database, {
+    workspaceId: deliveryScope.workspaceId, socialAccountId: deliveryScope.socialAccountId,
+    commentId: ctx.comment_id, source: 'automation',
+  }, replyPlan, sendReply, config.button_fallback_to_text !== false);
 }
 
 async function executeCondition(

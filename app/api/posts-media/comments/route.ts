@@ -91,6 +91,11 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'No active workspace found' }, { status: 404 });
         }
 
+        const requestedWorkspace = new URL(request.url).searchParams.get('workspaceId');
+        if (requestedWorkspace && requestedWorkspace !== activeWorkspace.id) {
+            return NextResponse.json({ error: 'Your workspace changed. Refresh the posts page.' }, { status: 409 });
+        }
+
         const postId = assertMetaGraphNodeId(
             new URL(request.url).searchParams.get('postId'),
             'postId',
@@ -133,6 +138,14 @@ export async function GET(request: NextRequest) {
             return graphErrorResponse(data.error, 'fetch_comments');
         }
 
+        const commentIds = (data.data || []).flatMap((comment) => [comment.id, ...(comment.replies?.data || []).map((reply) => reply.id)]);
+        const { data: deliveries, error: deliveryError } = commentIds.length
+            ? await supabase.from('instagram_private_reply_deliveries')
+                .select('comment_id,status').eq('workspace_id', activeWorkspace.id)
+                .eq('social_account_id', decryptedAccount.id).in('comment_id', commentIds)
+            : { data: [], error: null };
+        const deliveryStatuses = new Map((deliveries || []).map((delivery) => [delivery.comment_id, delivery.status]));
+
         const toComment = (comment: InstagramCommentApiItem) => ({
             id: comment.id,
             platform_comment_id: comment.id,
@@ -140,6 +153,7 @@ export async function GET(request: NextRequest) {
             message: comment.text || '',
             timestamp: comment.timestamp || '',
             is_hidden: Boolean(comment.hidden),
+            private_reply_status: deliveryError ? 'unavailable' : deliveryStatuses.get(comment.id) || null,
             replies: (comment.replies?.data || []).map((reply) => ({
                 id: reply.id,
                 platform_comment_id: reply.id,
@@ -147,6 +161,7 @@ export async function GET(request: NextRequest) {
                 message: reply.text || '',
                 timestamp: reply.timestamp || '',
                 is_hidden: Boolean(reply.hidden),
+                private_reply_status: deliveryError ? 'unavailable' : deliveryStatuses.get(reply.id) || null,
                 replies: [],
             })),
         });

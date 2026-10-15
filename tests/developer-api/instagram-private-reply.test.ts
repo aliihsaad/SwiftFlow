@@ -6,6 +6,26 @@ import {
 } from '@/supabase/functions/_shared/instagram-private-reply'
 
 describe('Instagram follower-gate private replies', () => {
+  it('lets a custom button send an automation keyword independently of its label', () => {
+    const plan = buildInstagramPrivateReplyPlan({ custom_button_enabled: true, button_title: 'Get my guide', button_payload: 'SEND_GUIDE' }, 'Here is your guide.')
+    expect(plan.ok && plan.interactive && plan.message.attachment.payload.buttons).toEqual([
+      { type: 'postback', title: 'Get my guide', payload: 'SEND_GUIDE' },
+    ])
+  })
+
+  it.each([
+    { button_title: '', button_payload: 'GUIDE' },
+    { button_title: 'Guide', button_payload: '' },
+    { button_title: 'x'.repeat(21), button_payload: 'GUIDE' },
+    { button_title: 'Guide', button_payload: 'x'.repeat(129) },
+  ])('rejects invalid button fields without truncating keywords', (config) => {
+    expect(buildInstagramPrivateReplyPlan({ ...config, custom_button_enabled: true }, 'Hello').ok).toBe(false)
+  })
+
+  it('enforces the button template text limit', () => {
+    expect(buildInstagramPrivateReplyPlan({ custom_button_enabled: true, button_title: 'Guide', button_payload: 'GUIDE' }, 'x'.repeat(641)).ok).toBe(false)
+  })
+
   it('keeps ordinary private replies as plain text', () => {
     expect(buildInstagramPrivateReplyPlan({}, 'Thanks for commenting.')).toEqual({
       ok: true,

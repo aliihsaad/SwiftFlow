@@ -23,6 +23,8 @@ import {
 import { formatDistanceToNow } from "date-fns"
 import { useToast } from "@/components/ui/use-toast"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
+import { CommentPrivateMessageDialog, type CommentPrivateReplyStatus } from './comment-private-message-dialog'
+import { privateReplyWindowOpen } from '@/supabase/functions/_shared/private-reply-delivery'
 
 interface PostData {
     id: string
@@ -45,6 +47,7 @@ interface CommentData {
     message: string
     timestamp: string
     is_hidden?: boolean
+    private_reply_status?: CommentPrivateReplyStatus
     replies: CommentData[]
 }
 
@@ -103,6 +106,9 @@ export function PostCommentsDrawer({
     const [generatingAI, setGeneratingAI] = useState<string | null>(null)
     const [hidingComment, setHidingComment] = useState<string | null>(null)
     const [showHiddenComments, setShowHiddenComments] = useState(false)
+    const [privateMessageSelection, setPrivateMessageSelection] = useState<{
+        comment: CommentData; postId: string; workspaceId: string
+    } | null>(null)
     const [actionsBlocked, setActionsBlocked] = useState<{
         errorCode: string
         message: string
@@ -113,7 +119,7 @@ export function PostCommentsDrawer({
     const canWriteContent = useWorkspacePermission("content:write")
 
     const { data, error, isLoading, mutate } = useSWR(
-        open && post ? `/api/posts-media/comments?postId=${post.id}&platform=instagram` : null,
+        open && post ? `/api/posts-media/comments?postId=${post.id}&platform=instagram&workspaceId=${encodeURIComponent(workspaceId)}` : null,
         fetcher,
         { revalidateOnFocus: false }
     )
@@ -140,8 +146,37 @@ export function PostCommentsDrawer({
             setReplyingTo(null)
             setReplyText("")
             setShowHiddenComments(false)
+            setPrivateMessageSelection(null)
         }
         onOpenChange(nextOpen)
+    }
+
+    const updatePrivateReplyStatus = (commentId: string, status: CommentPrivateReplyStatus) => {
+        const update = (list: CommentData[]): CommentData[] => list.map((comment) => ({
+            ...comment,
+            private_reply_status: comment.platform_comment_id === commentId ? status : comment.private_reply_status,
+            replies: update(comment.replies || []),
+        }))
+        void mutate((current: CommentsResponseData | undefined) => current
+            ? { ...current, comments: update(current.comments || []) } : current, { revalidate: false })
+    }
+
+    const privateMessageAction = (comment: CommentData) => {
+        const status = comment.private_reply_status
+        const expired = !privateReplyWindowOpen(comment.timestamp)
+        const blocked = status === 'sent' || status === 'sending' || status === 'unknown' || status === 'unavailable'
+        const label = status === 'sent' ? 'Message sent' : status === 'sending' || status === 'unknown'
+            ? 'Check delivery' : status === 'unavailable' ? 'DM unavailable' : expired ? 'DM expired' : 'Private message'
+        const reason = status === 'sent' ? 'This comment has already received a private message.'
+            : status === 'sending' || status === 'unknown' ? 'A message is in progress or unconfirmed. Check Instagram before taking further action.'
+            : status === 'unavailable' ? 'Private messaging is temporarily unavailable.'
+            : expired ? 'Private messages must be sent within seven days of the comment.' : 'Send a private message about this comment'
+        return <button type="button" title={reason} aria-label={`${label}: ${reason}`}
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-sky-300/80 transition-colors hover:bg-sky-400/10 disabled:opacity-40"
+            disabled={roleActionsBlocked || commentActionsBlocked || blocked || expired}
+            onClick={() => { if (post) setPrivateMessageSelection({ comment, postId: post.id, workspaceId }) }}>
+            <Send className="h-3 w-3" />{label}
+        </button>
     }
 
     const handleAIReply = async (comment: CommentData) => {
@@ -529,7 +564,7 @@ export function PostCommentsDrawer({
                                 </div>
 
                                 {/* Action buttons */}
-                                <div className="flex items-center gap-1 mt-2.5 ml-9">
+                                <div className="flex flex-wrap items-center gap-1 mt-2.5 ml-9">
                                     <button
                                         className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all duration-150"
                                         style={{ color: 'rgba(255,255,255,0.35)' }}
@@ -555,6 +590,7 @@ export function PostCommentsDrawer({
                                         )}
                                         AI Reply
                                     </button>
+                                    {privateMessageAction(comment)}
                                     <button
                                         className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium transition-all duration-150"
                                         style={{ color: comment.is_hidden ? 'rgba(74,222,128,0.75)' : 'rgba(248,113,113,0.6)' }}
@@ -655,6 +691,7 @@ export function PostCommentsDrawer({
                                                     <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
                                                         {reply.message}
                                                     </p>
+                                                    <div className="mt-1.5">{privateMessageAction(reply)}</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -665,6 +702,12 @@ export function PostCommentsDrawer({
                     ))}
                 </div>
             </SheetContent>
+            {open && post && privateMessageSelection?.postId === post.id && privateMessageSelection.workspaceId === workspaceId && <CommentPrivateMessageDialog
+                key={`${workspaceId}:${post.id}:${privateMessageSelection.comment.platform_comment_id}`}
+                comment={privateMessageSelection.comment} postId={privateMessageSelection.postId} workspaceId={privateMessageSelection.workspaceId}
+                onClose={() => setPrivateMessageSelection(null)}
+                onDeliveryChange={(status) => updatePrivateReplyStatus(privateMessageSelection.comment.platform_comment_id, status)}
+            />}
         </Sheet>
     )
 }

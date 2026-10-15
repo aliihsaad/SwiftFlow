@@ -1,9 +1,11 @@
 // @ts-nocheck - Deno runtime
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import { interpolateTemplate } from "../_shared/automation-context.ts"
 import { getMetaGraphApiBaseUrl, toMetaGraphFormBody } from "../_shared/meta-graph.ts"
 import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 import { buildInstagramPrivateReplyPlan } from "../_shared/instagram-private-reply.ts"
+import { deliverPrivateReply } from "../_shared/private-reply-delivery.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -66,9 +68,20 @@ serve(async (req) => {
       });
     }
 
+    const database = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const workspaceId = body.workspace_id || context.workspace_id;
+    const { data: account, error: accountError } = await database.from('social_accounts')
+      .select('id').eq('workspace_id', workspaceId).eq('account_id', pageId).eq('platform', 'instagram').single();
+    if (!workspaceId || accountError || !account) {
+      return new Response(JSON.stringify({ success: false, error: 'Private reply account scope is unavailable' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const sendUrl = `${metaGraphUrl}/${pageId}/messages`;
     const sendReply = async (providerMessage: Record<string, unknown>) => {
-      const response = await fetch(sendUrl, {
+      return fetch(sendUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: await toMetaGraphFormBody({
@@ -76,44 +89,15 @@ serve(async (req) => {
           message: providerMessage,
           access_token: accessToken,
         }, accessToken, { connectionMethod }),
+        signal: AbortSignal.timeout(15_000),
+        redirect: 'error',
       });
-      return { response, result: await response.json().catch(() => null) };
     };
 
-    let delivery = await sendReply(replyPlan.message);
-    let deliveryMode = replyPlan.interactive ? 'buttons' : 'text';
-
-    if (
-      replyPlan.interactive &&
-      config.button_fallback_to_text !== false &&
-      (!delivery.response.ok || !delivery.result || delivery.result?.error)
-    ) {
-      delivery = await sendReply({ text: replyPlan.fallbackText });
-      deliveryMode = 'text_fallback';
-    }
-
-    const { response, result } = delivery;
-
-    if (!response.ok || !result || result?.error) {
-      return new Response(JSON.stringify({
-        success: false,
-        error: result?.error?.message || 'Private reply failed',
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    return new Response(JSON.stringify({
-      success: true,
-      dmSent: true,
-      output: {
-        channel: 'private_reply',
-        messageId: result.message_id,
-        deliveryMode,
-        interactive: replyPlan.interactive,
-      },
-    }), {
+    const delivery = await deliverPrivateReply(database, {
+      workspaceId, socialAccountId: account.id, commentId: context.comment_id, source: 'automation',
+    }, replyPlan, sendReply, config.button_fallback_to_text !== false);
+    return new Response(JSON.stringify(delivery), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

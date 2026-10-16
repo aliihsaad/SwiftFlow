@@ -77,6 +77,9 @@ function matchesAutomationTrigger(
     case 'trigger_new_message': {
       if (eventType !== 'message') return false;
       const mode = config.trigger_type === 'keywords' ? 'keywords' : 'any';
+      if (automation.workflow_graph.nodes.some(n => n.data?.config?.resource_campaign_id)) {
+        return mode === 'keywords' && (config.keywords || []).some(k => String(k).trim().toLowerCase() === String(webhookContext.message_text || '').trim().toLowerCase());
+      }
       return keywordMatch(String(webhookContext?.message_text || ''), config.keywords || [], mode);
     }
     case 'trigger_story_mention':
@@ -132,6 +135,22 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+
+    if (eventType === 'message' && sourceSocialAccountId && webhookContext.sender_id && webhookContext.message_id) {
+      const recovery = await supabase.rpc('consume_instagram_recovery', {
+        p_workspace_id: workspaceId, p_social_account_id: sourceSocialAccountId,
+        p_sender_id: String(webhookContext.sender_id), p_keyword: String(webhookContext.message_text || '').trim().toLowerCase(),
+        p_message_id: String(webhookContext.message_id),
+      });
+      if (recovery.error) throw new Error('Recovery routing unavailable; refusing uncorrelated campaign dispatch');
+      if (recovery.data?.handled) {
+        // The run and receipt are already committed atomically. The existing
+        // stalled-run scheduler dispatches it even if this request crashes.
+        return new Response(JSON.stringify({ success: true, recovery: recovery.data }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     const eventKey = body?.event_key
       ? String(body.event_key)

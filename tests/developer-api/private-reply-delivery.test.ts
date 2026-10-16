@@ -88,8 +88,23 @@ describe('private reply eligibility and shared delivery', () => {
 
   it('remembers replies already sent outside SwiftFlow', async () => {
     const db = database()
-    const send = vi.fn(async () => json({ error: { code: 100, error_subcode: 2534014 } }, 400))
+    const send = vi.fn(async () => json({ error: { message: 'Activity already replied to' } }, 400))
     expect((await deliverPrivateReply(db, scope, textPlan, send)).errorCode).toBe('private_reply_already_sent')
     expect(db.state()).toBe('sent')
+    await deliverPrivateReply(db, scope, textPlan, send)
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['Cannot find the requested user.', undefined])('does not record subcode 2534014 as delivered (%s)', async (message) => {
+    // Firsthand Instagram Login API payload, not a recipient-restriction fixture:
+    // https://stackoverflow.com/questions/78952684/instagram-send-message-api-returns-400-error
+    const db = database()
+    const send = vi.fn(async () => json({ error: { code: 100, error_subcode: 2534014, type: 'IGApiException', message } }, 400))
+    const result = await deliverPrivateReply(db, scope, textPlan, send)
+    expect(result.errorCode).toBe('private_reply_rejected')
+    expect(result.deliveryStatus).toBe('failed')
+    expect(result.output?.meta_error).toMatchObject({ code: 100, subcode: 2534014, outcome: 'unknown' })
+    expect(db.state()).toBe('failed')
+    expect(send).toHaveBeenCalledTimes(1)
   })
 })

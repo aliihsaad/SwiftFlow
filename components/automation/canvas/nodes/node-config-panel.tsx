@@ -1,5 +1,6 @@
 "use client"
 
+import { DmRecoveryFields, CampaignSelect } from './dm-recovery-fields'
 import { AutomationPostImage } from '../../automation-post-image'
 
 import { useEffect } from 'react'
@@ -612,6 +613,9 @@ function ActionDMFields({ config, onUpdate,
 
   return (
     <>
+      <DmRecoveryFields value={config.dm_restriction_recovery} onChange={dm_restriction_recovery => onUpdate({ dm_restriction_recovery })} />
+      <CampaignSelect label="Resource delivery for campaign (optional)" trigger="trigger_new_comment" value={config.resource_campaign_id || ''} onChange={resource_campaign_id => onUpdate({ resource_campaign_id })} />
+      <p className="text-xs text-muted-foreground">Selecting a campaign requires a successful follower check and prevents repeat resource delivery to the same recipient. The message and resource are sent together.</p>
       <div className="rounded-md border border-border/60 p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -813,6 +817,7 @@ function ActionPrivateReplyFields({ config, onUpdate,
   const followerGateEnabled = config.follower_gate_enabled === true
   return (
     <>
+      <DmRecoveryFields value={config.dm_restriction_recovery} onChange={dm_restriction_recovery => onUpdate({ dm_restriction_recovery })} />
       <div className="rounded-md border border-border/60 p-3">
         <div className="flex items-center justify-between gap-3">
           <div>

@@ -1,4 +1,5 @@
 // @ts-nocheck - Deno runtime
+import { normalizeMetaMessagingError } from '../_shared/meta-messaging-error.ts'
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { getRecipientId, interpolateTemplate } from "../_shared/automation-context.ts"
 import { assertInternalInvoke } from "../_shared/internal-auth.ts"
@@ -96,6 +97,24 @@ serve(async (req) => {
     }
 
     const sendUrl = `${metaGraphUrl}/${pageId}/messages`;
+    // Guarded campaign resources use one provider request. The ledger must not
+    // mark the resource delivered merely because a separate opening text sent.
+    if (config.atomic_resource_delivery === true) {
+      if (!effectiveLinkUrl) return new Response(JSON.stringify({ success: false, error: 'Resource link is missing' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const message = effectiveCtaMode === 'button'
+        ? { attachment: { type: 'template', payload: { template_type: 'button', text: openingMessage + (effectiveLinkMessage ? '\n\n' + effectiveLinkMessage : ''),
+            buttons: [{ type: 'web_url', url: effectiveLinkUrl, title: effectiveButtonText }] } } }
+        : { text: openingMessage + '\n\n' + (effectiveLinkMessage ? effectiveLinkMessage + '\n' : '') + effectiveLinkUrl };
+      const response = await fetch(sendUrl, { method: 'POST', signal: AbortSignal.timeout(15000), redirect: 'error',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: await toMetaGraphFormBody({ recipient: { id: recipientId }, message, access_token: accessToken }, accessToken, { connectionMethod }) });
+      const result = await response.json().catch(() => null);
+      const delivered = response.ok && !result?.error && typeof result?.message_id === 'string' && result.message_id;
+      return new Response(JSON.stringify(delivered
+        ? { success: true, dmSent: true, output: { channel: 'dm', messageId: result.message_id } }
+        : { success: false, error: 'Instagram did not confirm resource delivery', output: { meta_error: normalizeMetaMessagingError(result?.error, response.status) } }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     const dmResponse = await fetch(sendUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -113,14 +132,14 @@ serve(async (req) => {
       const fallbackEnabled = config.fallback_to_private_reply_on_failure === true;
 
       if (!fallbackEnabled) {
-        return new Response(JSON.stringify({ success: false, error: dmErrorMessage }), {
+        return new Response(JSON.stringify({ success: false, error: dmErrorMessage, output: { meta_error: normalizeMetaMessagingError(dmError, dmResponse.status) } }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
       if (!isDmFallbackError(dmError)) {
-        return new Response(JSON.stringify({ success: false, error: dmErrorMessage }), {
+        return new Response(JSON.stringify({ success: false, error: dmErrorMessage, output: { meta_error: normalizeMetaMessagingError(dmError, dmResponse.status) } }), {
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });

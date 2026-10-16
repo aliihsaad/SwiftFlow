@@ -190,6 +190,9 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
+    const expiry = await supabase.rpc('expire_instagram_recoveries');
+    if (expiry.error) console.error('[RECOVERY] Expiration sweep unavailable');
+
 
     // Reclaim webhook-triggered runs whose background dispatch was lost.
     const reclaim = await reclaimStalledAutomationRuns(supabase);

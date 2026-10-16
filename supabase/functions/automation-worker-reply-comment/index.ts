@@ -1,4 +1,5 @@
 // @ts-nocheck - Deno runtime
+import { normalizeMetaMessagingError } from '../_shared/meta-messaging-error.ts'
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { interpolateTemplate } from "../_shared/automation-context.ts"
 import { getMetaGraphApiBaseUrl, toMetaGraphFormBody } from "../_shared/meta-graph.ts"
@@ -119,17 +120,17 @@ serve(async (req) => {
     const replyPath = 'replies';
     const url = `${metaGraphUrl}/${context.comment_id}/${replyPath}`;
     const response = await fetch(url, {
-      method: 'POST',
+      method: 'POST', signal: AbortSignal.timeout(15000), redirect: 'error',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: await toMetaGraphFormBody({ message, access_token: accessToken }, accessToken, { connectionMethod }),
     });
     const result = await response.json();
 
-    if (!response.ok || result?.error) {
+    if (!response.ok || result?.error || typeof result?.id !== 'string' || !result.id) {
       return new Response(JSON.stringify({
         success: false,
         error: result?.error?.message || 'Reply failed',
-        output: { platform, replyPath, meta_error: result?.error || null },
+        output: { platform, replyPath, meta_error: normalizeMetaMessagingError(result?.error, response.status) },
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

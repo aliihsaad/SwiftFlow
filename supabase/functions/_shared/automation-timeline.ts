@@ -21,7 +21,7 @@ interface RecordNodeEventParams {
   automation: any
   node: TimelineNode
   context: AutomationTimelineContext
-  eventType: "started" | "succeeded" | "failed" | "retry_scheduled"
+  eventType: "started" | "succeeded" | "failed" | "retry_scheduled" | "recovery_completed" | "already_delivered_skipped"
   input?: unknown
   output?: unknown
   error?: unknown

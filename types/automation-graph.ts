@@ -1,3 +1,4 @@
+import type { DmRecoveryConfig } from '@/supabase/functions/_shared/dm-recovery-policy'
 import type { Node, Edge } from '@xyflow/react'
 
 // ─── Trigger Node Types ────────────────────────────────────────────
@@ -74,6 +75,8 @@ export type ActionNodeType =
   | 'action_ai_response'
 
 export interface ActionSendDMConfig {
+  dm_restriction_recovery?: DmRecoveryConfig
+  resource_campaign_id?: string
   use_ai_response?: boolean
   use_ai_cta?: boolean
   cta_mode?: 'button' | 'text'
@@ -87,6 +90,7 @@ export interface ActionSendDMConfig {
 }
 
 export interface ActionPrivateReplyConfig {
+  dm_restriction_recovery?: DmRecoveryConfig
   use_ai_response?: boolean
   message: string
   follower_gate_enabled?: boolean

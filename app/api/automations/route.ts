@@ -1,3 +1,4 @@
+import { validateDmRecoveryNodeConfigs } from '@/supabase/functions/_shared/dm-recovery-policy'
 import { NextRequest, NextResponse } from 'next/server';
 import { canManageMessagesWithMetaAccount, canReadCommentsWithMetaAccount, decryptMetaAccountRow,
 } from '@/lib/meta-account';
@@ -244,6 +245,7 @@ export async function POST(request: NextRequest) {
             const nodeConfigIssues = [
         ...validateSendEmailNodeConfigs(workflow_graph),
         ...validateTelegramNodeConfigs(workflow_graph),
+        ...validateDmRecoveryNodeConfigs(workflow_graph),
       ];
       if (nodeConfigIssues.length > 0) {
                 return NextResponse.json(

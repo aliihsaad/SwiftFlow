@@ -1,3 +1,4 @@
+import { normalizeMetaMessagingError, type MetaMessagingError } from './meta-messaging-error.ts'
 import type { InstagramPrivateReplyPlan } from './instagram-private-reply.ts'
 
 export interface PrivateReplyScope {
@@ -27,6 +28,7 @@ export interface PrivateReplyDeliveryResult {
   errorCode?: string
   deliveryStatus?: PrivateReplyDeliveryStatus
   output?: {
+    meta_error?: MetaMessagingError
     channel: 'private_reply'
     messageId?: string
     deliveryMode: string
@@ -79,7 +81,8 @@ export async function deliverPrivateReply(
     let body = await response.json().catch(() => null)
     // Only an explicit invalid-template rejection can safely fall back. Never
     // resend after a timeout, missing response, 5xx, or uncertain acceptance.
-    if (plan.interactive && allowTextFallback && response.status === 400 && body?.error?.code === 100) {
+    if (plan.interactive && allowTextFallback && response.status === 400 && body?.error?.code === 100
+      && normalizeMetaMessagingError(body.error, response.status).outcome !== 'recipient_restricted') {
       deliveryMode = 'text_fallback'
       response = await send({ text: plan.fallbackText })
       body = await response.json().catch(() => null)
@@ -93,13 +96,15 @@ export async function deliverPrivateReply(
     }
     const providerError = body?.error
     if (providerError && response.status >= 400 && response.status < 500) {
-      const alreadySent = Number(providerError.error_subcode) === 2534014
-        || /already.*(private|repl)|private.*already/i.test(String(providerError.message || ''))
+      // 2534014 has been observed with "Cannot find the requested user.";
+      // the subcode alone is not evidence that any message was delivered.
+      const alreadySent = /already.*(private|repl)|private.*already/i.test(String(providerError.message || ''))
       const status = alreadySent ? 'sent' : 'failed'
       const saved = await finish(status)
       if (!saved) throw new Error('Delivery state unavailable')
       return {
         success: false, deliveryStatus: status,
+        output: { channel: 'private_reply', deliveryMode, interactive: deliveryMode === 'buttons', meta_error: normalizeMetaMessagingError(providerError, response.status) },
         errorCode: alreadySent ? 'private_reply_already_sent' : 'private_reply_rejected',
         error: alreadySent ? 'This comment has already received a private message.'
           : Number(providerError.code) === 190

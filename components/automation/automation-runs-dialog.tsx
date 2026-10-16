@@ -37,6 +37,7 @@ import { useToast } from "@/components/ui/use-toast"
 import type { Automation } from "@/types/automation"
 
 interface AutomationRun {
+  recovery_outcome?: string | null
   id: string
   status: string
   trigger_type: string | null
@@ -90,6 +91,7 @@ interface ProviderAction {
 }
 
 interface RunsResponse {
+  recovery?: { restricted: number; fallback_sent: number; received: number; completed: number; expired: number } | null
   runs: AutomationRun[]
   events: TimelineEvent[]
   actions: ProviderAction[]
@@ -126,13 +128,13 @@ function formatTimestamp(value: string | null | undefined): string {
 }
 
 function statusTone(status: string) {
-  if (["succeeded", "completed"].includes(status)) {
+  if (["succeeded", "completed", "fallback_reply_sent", "recovery_completed", "already_delivered_skipped"].includes(status)) {
     return { color: "#34d399", background: "rgba(52,211,153,0.10)", icon: CheckCircle2 }
   }
-  if (["failed", "dead_lettered"].includes(status)) {
+  if (["failed", "dead_lettered", "fallback_reply_failed"].includes(status)) {
     return { color: "#fb7185", background: "rgba(251,113,133,0.10)", icon: XCircle }
   }
-  if (["retry_scheduled", "replay_requested", "started", "claimed", "pending", "waiting"].includes(status)) {
+  if (["retry_scheduled", "replay_requested", "started", "claimed", "pending", "waiting", "awaiting_recovery_dm", "dm_restricted", "recovery_dm_received", "fallback_reply_queued"].includes(status)) {
     return { color: "#fbbf24", background: "rgba(251,191,36,0.10)", icon: Clock3 }
   }
   if (status === "suppressed") {
@@ -298,7 +300,7 @@ export function AutomationRunsDialog({
                 <div className="rounded-2xl border border-amber-300/10 bg-amber-300/[0.035] p-4">
                   <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-amber-100/35">Needs attention</p>
                   <p className="mt-3 text-2xl font-semibold text-white">
-                    {data.runs.filter((run) => run.error_count > 0).length + data.actions.filter((action) => ["failed", "dead_lettered"].includes(action.status)).length}
+                    {data.runs.filter((run) => run.error_count > 0).length + data.actions.filter((action) => ["failed", "dead_lettered", "fallback_reply_failed"].includes(action.status)).length}
                   </p>
                   <p className="mt-1 text-[11px] text-white/30">Failures and dead letters</p>
                 </div>
@@ -381,6 +383,12 @@ export function AutomationRunsDialog({
                 )}
               </section>
 
+              {data.recovery && data.recovery.restricted > 0 && <section className="rounded-2xl border p-4 text-sm" aria-label="DM recovery conversion">
+                <p className="font-semibold">DM restriction recovery</p>
+                <p className="mt-2 text-xs text-muted-foreground">{data.recovery.restricted} restricted comments · {data.recovery.fallback_sent} public replies · {data.recovery.received} inbound recoveries · {data.recovery.completed} completed · {data.recovery.expired} expired</p>
+                <p className="mt-1 text-xs">Recovery conversion: {Math.round(100 * data.recovery.completed / data.recovery.restricted)}% of restricted comments reached delivery.</p>
+              </section>}
+
               <section className="rounded-[22px] border border-white/[0.07] bg-white/[0.018] p-4 sm:p-5">
                 <div className="mb-3 flex items-center justify-between">
                   <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.5)" }}>
@@ -399,7 +407,7 @@ export function AutomationRunsDialog({
                         <span className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.7)" }}>
                           Run {shortId(run.id)}
                         </span>
-                        <StatusBadge status={run.status} />
+                        <StatusBadge status={run.status === "completed" && run.recovery_outcome ? run.recovery_outcome : run.status} />
                       </div>
                       <p className="mt-2 text-[10px]" style={{ color: MUTED }}>{formatTimestamp(run.created_at)}</p>
                       <p className="mt-1 text-[10px]" style={{ color: MUTED }}>

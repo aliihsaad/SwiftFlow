@@ -1,4 +1,5 @@
 // @ts-nocheck - Deno runtime
+import { executeDmRecovery, performCampaignDelivery, validateResourceDelivery } from '../_shared/dm-recovery-runtime.ts'
 /**
  * Graph-based workflow executor for canvas-mode automations.
  *
@@ -660,7 +661,7 @@ export async function executeWorkflowGraph(
         ? { success: false, deferred: true, output: { reason: 'worker_time_slice', retry_after_seconds: 60 } }
         : await executeNode(
         supabase, automation, node, runtimeContext, account, instagramAccountId,
-        { approval },
+        { approval, runId: timelineContext.runId, nodeOutputs: result.nodeResults },
       );
 
       result.nodeResults[nodeId] = nodeResult;
@@ -702,6 +703,13 @@ export async function executeWorkflowGraph(
 
       if (nodeResult.dmSent) result.dmsSent++;
       if (!nodeResult.success) result.errors++;
+
+      if (['recovery_completed', 'already_delivered_skipped'].includes(nodeResult.output?.outcome)) {
+        await recordAutomationNodeEvent({ supabase, automation, node, context: timelineContext,
+          eventType: nodeResult.output.outcome, output: nodeResult.output });
+      }
+
+      if (nodeResult.output?.stop_branch) continue;
 
       // Handle condition branching
       if (node.data.type === 'action_condition') {
@@ -954,7 +962,7 @@ export async function resumeFromDelay(
         ? { success: false, deferred: true, output: { reason: 'worker_time_slice', retry_after_seconds: 60 } }
         : await executeNode(
         supabase, automation, node, runtimeContext, account, instagramAccountId,
-        { approval },
+        { approval, runId: timelineContext.runId, nodeOutputs: { ...(node_outputs || {}), ...result.nodeResults } },
       );
       result.nodeResults[nodeId] = nodeResult;
       if (nodeResult.deferred) {
@@ -973,6 +981,10 @@ export async function resumeFromDelay(
       if (nodeResult.dmSent) result.dmsSent++;
       if (!nodeResult.success) result.errors++;
       // The originating trigger was already counted by the initial worker.
+      if (['recovery_completed', 'already_delivered_skipped'].includes(nodeResult.output?.outcome)) {
+        await recordAutomationNodeEvent({ supabase, automation, node, context: timelineContext,
+          eventType: nodeResult.output.outcome, output: nodeResult.output });
+      }
       await recordAutomationNodeEvent({
         supabase,
         automation,
@@ -993,6 +1005,7 @@ export async function resumeFromDelay(
         runtimeContext.ai_cta_link_message = nodeResult.output?.cta_link_message;
       }
 
+      if (nodeResult.output?.stop_branch) continue;
       if (node.data.type === 'action_condition') {
         const outEdges = getOutgoingEdges(adjacency, nodeId);
 
@@ -1104,7 +1117,27 @@ const GUARDED_RESOURCE_BY_NODE_TYPE: Readonly<Record<string, AutomationRuntimeRe
   action_ai_response: 'ai_generation',
 };
 
-async function executeNode(
+async function executeNode(supabase, automation, node, triggerContext, account, instagramAccountId, executionMetadata = {}) {
+  const accountId = String(automation.social_account_id || account?.id || '');
+  const run = (action = node, metadata = executionMetadata) => executeBudgetedNode(
+    supabase, automation, action, triggerContext, account, instagramAccountId, metadata);
+  if (['action_private_reply', 'action_send_dm'].includes(node.data.type) && node.data.config.dm_restriction_recovery?.enabled) {
+    return executeDmRecovery({ db: supabase, automation, node, context: triggerContext, accountId,
+      runId: executionMetadata.runId, sendDm: () => run(),
+      sendFallback: (recovery, scope) => run({ ...node, data: { type: 'action_reply_comment', label: 'DM restriction recovery',
+        config: { messages: [recovery.reply_text] } } }, { ...executionMetadata, campaignDelivery: scope }) });
+  }
+  if (node.data.type === 'action_send_dm' && node.data.config.resource_campaign_id) {
+    const error = await validateResourceDelivery(supabase, automation, node, triggerContext, accountId, executionMetadata.nodeOutputs);
+    if (error) return { success: false, error };
+    return run(node, { ...executionMetadata, campaignDelivery: { workspaceId: automation.workspace_id, accountId,
+      campaignId: node.data.config.resource_campaign_id, kind: 'resource', recoveryId: triggerContext.recovery_id,
+      subjectId: triggerContext.sender_id || triggerContext.commenter_id } });
+  }
+  return run();
+}
+
+async function executeBudgetedNode(
   supabase: any,
   automation: any,
   node: WorkflowNode,
@@ -1213,6 +1246,7 @@ async function executeNodeUnchecked(
         node_label: node.data?.label,
         platform: account?.platform,
       };
+      const invoke = async () => {
       const workerResult = await invokeEdgeFunction(workerFunction, {
         workspace_id: automation.workspace_id,
         automation_id: automation.id,
@@ -1220,9 +1254,9 @@ async function executeNodeUnchecked(
         node_id: node.id,
         node_type: nodeType,
         node_label: node.data?.label,
-        config,
+        config: executionMetadata.campaignDelivery?.kind === 'resource' ? { ...config, atomic_resource_delivery: true } : config,
         context: enrichedContext,
-        ...executionMetadata,
+        approval: executionMetadata.approval,
         access_token: account?.access_token,
         page_id: instagramAccountId,
         platform: account?.platform,
@@ -1232,6 +1266,14 @@ async function executeNodeUnchecked(
       if (workerResult.ok && workerResult.data) {
         return workerResult.data;
       }
+
+      return { success: false, error: workerResult.error || 'The send result could not be confirmed', output: { delivery_unconfirmed: true, automatic_retry: false } };
+      };
+      if (executionMetadata.campaignDelivery) return performCampaignDelivery(supabase, executionMetadata.campaignDelivery, invoke);
+      const actionResult = await invoke();
+      if (actionResult.output?.meta_error?.outcome === 'rate_limited') return { success: false, deferred: true, output: { ...actionResult.output, reason: 'meta_rate_limited', retry_after_seconds: 300 } };
+      if (!actionResult.output?.delivery_unconfirmed) return actionResult;
+      const workerResult = { error: actionResult.error };
 
       // A timeout or lost response does not establish whether the provider
       // sent the message. Never repeat a side effect through local fallback.

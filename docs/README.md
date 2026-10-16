@@ -4,6 +4,8 @@ This folder is the active documentation home for the project.
 
 ## Active Docs
 
+- [instagram-dm-restriction-recovery.md](./instagram-dm-restriction-recovery.md)
+  - Recovery architecture, evidence gate, migration, WinDock opt-in and rollback
 - [project-analysis-report.md](./project-analysis-report.md)
   - Code-backed audit of the current repo
 - [meta-app-review-master-plan/README.md](./meta-app-review-master-plan/README.md)

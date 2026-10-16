@@ -54,7 +54,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     }
 
     const limit = parseLimit(request)
-    const [runsResult, eventsResult, actionsResult, legacyResult] = await Promise.all([
+    const [runsResult, eventsResult, actionsResult, legacyResult, recoveryStats] = await Promise.all([
       supabase
         .from("automation_runs")
         .select("id, workflow_version_id, status, trigger_type, processed_count, dms_sent_count, error_count, error_message, started_at, finished_at, created_at, node_results")
@@ -83,11 +83,18 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
         .eq("automation_id", automationId)
         .order("created_at", { ascending: false })
         .limit(200),
+      supabase.rpc('instagram_recovery_stats', { p_workspace_id: workspace.id, p_campaign_id: automationId }),
     ])
 
     for (const result of [runsResult, eventsResult, actionsResult, legacyResult]) {
       if (result.error) throw result.error
     }
+
+    const runIds = (runsResult.data || []).map(run => run.id)
+    const recoveryRows = runIds.length ? await supabase.from('instagram_dm_recoveries')
+      .select('origin_run_id,status,fallback_status').eq('workspace_id', workspace.id)
+      .eq('campaign_id', automationId).in('origin_run_id', runIds) : { data: [], error: null }
+    const recoveryByRun = new Map((recoveryRows.data || []).map(row => [row.origin_run_id, row]))
 
     const events = [...(eventsResult.data || [])]
     const eventRunNodes = new Set(
@@ -143,12 +150,16 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 
     return NextResponse.json({
       automation,
+      recovery: recoveryStats.error ? null : recoveryStats.data,
       runs: (runsResult.data || []).map(({ node_results, ...run }) => {
         const queued = Object.values(node_results || {}).find((value) =>
           value && typeof value === "object" && "deferred" in value && value.deferred === true,
         ) as { output?: { scheduled_for?: string } } | undefined
+        const recovery = recoveryByRun.get(run.id)
         return {
           ...run,
+          recovery_outcome: (recovery?.status === 'completed' ? 'recovery_completed' : recovery?.status === 'expired' ? 'recovery_expired' : null) || Object.values(node_results || {}).map(value => (value as { output?: { outcome?: string } })?.output?.outcome)
+            .find(outcome => ['awaiting_recovery_dm', 'recovery_completed', 'recovery_expired', 'already_delivered_skipped'].includes(outcome || '')) || null,
           error_message: safeAuditText(run.error_message),
           retry_at: run.status === "waiting" ? queued?.output?.scheduled_for || null : null,
         }

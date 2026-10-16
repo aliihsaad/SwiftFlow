@@ -839,7 +839,7 @@ export async function resumeFromDelay(
   // Fetch the automation
   const { data: automation, error } = await supabase
     .from('automations')
-    .select('*, social_accounts(id, account_id, access_token, platform, metadata)',
+    .select('*, social_accounts!automations_social_account_id_fkey(id, account_id, access_token, platform, metadata)',
     )
     .eq('id', automation_id)
     .single();

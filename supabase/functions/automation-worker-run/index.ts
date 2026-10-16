@@ -5,7 +5,7 @@ import { executeWorkflowGraph } from "../process-automations/graph-executor.ts"
 import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 import { decryptMetaAccountRow } from "../_shared/meta-account.ts"
 import { enrichCommentPostContext } from "../_shared/automation-context.ts"
-import { redactSensitiveLogValue } from "../_shared/log-redaction.ts"
+import { redactSensitiveLogValue, redactSensitiveString } from "../_shared/log-redaction.ts"
 import { upsertAutomationNodeRuns } from "../_shared/automation-node-runs.ts"
 import {
   getAutomationFailureAlertRecipients,
@@ -83,6 +83,9 @@ serve(async (req) => {
   const unauthorized = await assertInternalInvoke(req, corsHeaders);
   if (unauthorized) return unauthorized;
 
+  // Only the invocation that successfully claimed this run may fail it.
+  // Preserve existing action checkpoints; an exception never authorizes replay.
+  let claimedRun: { database: any; id: string; workspaceId: string; automationId: string } | null = null;
   try {
     const body = await req.json();
     const runId = body?.run_id as string | undefined;
@@ -156,12 +159,13 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    claimedRun = { database: supabase, id: effectiveRunId, workspaceId, automationId };
 
     const { data: automation, error: automationError } = await supabase
       .from('automations')
       .select(`
         *,
-        social_accounts (
+        social_accounts!automations_social_account_id_fkey (
           id,
           account_id,
           access_token,
@@ -309,7 +313,20 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('[RUN_WORKER] Error:', redactSensitiveLogValue(error));
-    return new Response(JSON.stringify({ success: false, error: error?.message || 'Run worker failed' }), {
+    const safeError = redactSensitiveString(String(error?.message || 'Run worker failed')).slice(0, 1000);
+    if (claimedRun) {
+      try {
+        const { error: persistenceError } = await claimedRun.database.from('automation_runs')
+          .update({ status: 'failed', error_count: 1, error_message: safeError,
+            finished_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq('id', claimedRun.id).eq('workspace_id', claimedRun.workspaceId)
+          .eq('automation_id', claimedRun.automationId).eq('status', 'running');
+        if (persistenceError) console.error('[RUN_WORKER] Failed to persist failure:', redactSensitiveLogValue(persistenceError));
+      } catch (persistenceError) {
+        console.error('[RUN_WORKER] Failed to persist failure:', redactSensitiveLogValue(persistenceError));
+      }
+    }
+    return new Response(JSON.stringify({ success: false, error: safeError }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

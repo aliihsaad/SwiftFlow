@@ -653,7 +653,7 @@ async function processWebhookComment(
         .from('automations')
         .select(`
             *,
-            social_accounts (
+            social_accounts!automations_social_account_id_fkey (
                 id, account_id, access_token, platform, metadata
             )
         `)
@@ -869,7 +869,7 @@ serve(async (req) => {
             .from('automations')
             .select(`
                 *,
-                social_accounts (
+                social_accounts!automations_social_account_id_fkey (
                     id,
                     account_id,
                     access_token,

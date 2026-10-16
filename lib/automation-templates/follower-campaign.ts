@@ -1,4 +1,5 @@
 import { buildGraphFromBlueprint } from './utils'
+import { FOLLOWER_CHECK_COOLDOWN_SECONDS } from '@/supabase/functions/_shared/message-trigger-policy'
 
 export interface FollowerCampaignInput {
   name: string
@@ -67,6 +68,7 @@ export function buildFollowerCampaign(raw: unknown, confirmationId: string) {
   const verificationGraph = buildGraphFromBlueprint([
     { key: 'confirm', type: 'trigger_new_message', label: 'I Followed', position: { x: 80, y: 150 }, config: {
       platform: 'instagram', social_account_id: accountId, trigger_type: 'keywords', keywords: [payload],
+      recipient_cooldown_seconds: FOLLOWER_CHECK_COOLDOWN_SECONDS,
     } },
     { key: 'wait', type: 'action_delay', label: 'Wait for Instagram', position: { x: 350, y: 150 }, config: { duration_value: 5, duration_unit: 'seconds' } },
     { key: 'check', type: 'action_condition', label: 'Check Follower', position: { x: 620, y: 150 }, config: { condition_type: 'instagram_follower_status', operator: 'equals' } },
@@ -75,7 +77,7 @@ export function buildFollowerCampaign(raw: unknown, confirmationId: string) {
       link_url: url.toString(), cta_button_fallback_to_text: true, fallback_to_private_reply_on_failure: false,
     } },
     { key: 'retry', type: 'action_send_dm', label: 'Ask to Follow', position: { x: 920, y: 260 }, config: {
-      use_ai_response: false, opening_message: 'I couldn’t confirm the follow yet. Follow the account below, wait a few seconds, then tap I Followed in the first message again.',
+      use_ai_response: false, opening_message: 'I couldn’t confirm the follow yet. Follow the account below, wait one minute, then tap I Followed in the first message again.',
       cta_mode: 'button', button_text: 'Follow account', link_url: profileUrl,
       cta_button_fallback_to_text: true, fallback_to_private_reply_on_failure: false,
     } },

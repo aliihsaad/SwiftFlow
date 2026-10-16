@@ -240,6 +240,7 @@ serve(async (req) => {
     // retry storms. Runs that lose their dispatcher stay 'queued' and are
     // reclaimed by process-scheduled-executions.
     let queuedFailures = 0;
+    let suppressedRuns = 0;
     const queuedRuns: Array<{
       automationId: string;
       runId: string;
@@ -262,12 +263,19 @@ serve(async (req) => {
           trigger_type: triggerType,
           trigger_context: webhookContext,
         })
-        .select('id, workflow_version_id')
+        .select('id, workflow_version_id, status')
         .single();
 
       if (runInsertError || !runRow) {
         console.error('[ORCHESTRATOR] Failed to create run row:', redactSensitiveLogValue(runInsertError));
         queuedFailures++;
+        continue;
+      }
+
+      // The database admits a single recipient run atomically. Suppressed
+      // repeats are durable skipped rows, never delayed provider sends.
+      if (runRow.status === 'skipped') {
+        suppressedRuns++;
         continue;
       }
 
@@ -343,6 +351,7 @@ serve(async (req) => {
       event_id: eventId,
       matched: matched.length,
       queued: queuedRuns.length,
+      suppressed: suppressedRuns,
       failed: queuedFailures,
     }), {
       status: 200,

@@ -571,6 +571,17 @@ function TriggerMessageFields({ config, onUpdate,
           />
         </div>
       )}
+      <div>
+        <Label htmlFor="recipient-cooldown" className="text-xs">Cooldown per person (seconds)</Label>
+        <Input id="recipient-cooldown" type="number" min={0} max={3600} step={1}
+          value={config.recipient_cooldown_seconds ?? ''} placeholder="Automatic"
+          onChange={e => onUpdate({ recipient_cooldown_seconds: e.target.value === '' ? undefined : Number(e.target.value) })}
+          className="mt-1" />
+        <p className="mt-1 text-[10px] text-muted-foreground">
+          Automatic: 60 seconds for follower-check flows, off for other flows. Set 0 to disable.
+          While enabled, repeated messages or button taps are skipped during the cooldown or while this person’s previous run is still active.
+        </p>
+      </div>
     </>
   )
 }

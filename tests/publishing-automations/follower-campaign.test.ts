@@ -77,6 +77,7 @@ describe('paired follower campaign', () => {
     expect(keywordMatch(button.confirm_payload ?? '', trigger.keywords, 'keywords')).toBe(true)
     expect(keywordMatch(button.confirm_payload ?? '', config(second.verification.workflow_graph, 'trigger_new_message').keywords, 'keywords')).toBe(false)
     expect(trigger.social_account_id).toBe(input.accountId)
+    expect(trigger.recipient_cooldown_seconds).toBe(60)
     expect(button.follow_profile_url).toBe('https://www.instagram.com/example/')
     expect(config(first.entry.workflow_graph, 'trigger_new_comment')).toMatchObject({ post_scope: 'specific', post_id: input.postId, keywords: ['GUIDE'] })
     const check = first.verification.workflow_graph.nodes.find(n => n.data.type === 'action_condition')!

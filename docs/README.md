@@ -4,6 +4,8 @@ This folder is the active documentation home for the project.
 
 ## Active Docs
 
+- [instagram-message-trigger-cooldown.md](./instagram-message-trigger-cooldown.md)
+  - Per-recipient follower-check throttling, configuration, concurrency tests and rollout
 - [instagram-dm-restriction-recovery.md](./instagram-dm-restriction-recovery.md)
   - Recovery architecture, evidence gate, migration, WinDock opt-in and rollback
 - [project-analysis-report.md](./project-analysis-report.md)

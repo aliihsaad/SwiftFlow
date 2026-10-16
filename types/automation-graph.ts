@@ -33,6 +33,8 @@ export interface TriggerNewMessageConfig {
   trigger_type: 'any' | 'keywords'
   keywords: string[]
   social_account_id: string
+  /** Omitted: 60s for follower-check flows, otherwise off. Zero explicitly disables. */
+  recipient_cooldown_seconds?: number
 }
 
 export interface TriggerNewFollowerConfig {

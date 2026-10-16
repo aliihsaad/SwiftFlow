@@ -1,4 +1,5 @@
 import { validateDmRecoveryNodeConfigs } from '@/supabase/functions/_shared/dm-recovery-policy'
+import { validateMessageTriggerCooldowns } from '@/supabase/functions/_shared/message-trigger-policy'
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { getActiveWorkspace, getExplicitActiveWorkspace,
@@ -181,6 +182,7 @@ export async function PUT(
         ...validateSendEmailNodeConfigs(workflow_graph),
         ...validateTelegramNodeConfigs(workflow_graph),
         ...validateDmRecoveryNodeConfigs(workflow_graph),
+        ...validateMessageTriggerCooldowns(workflow_graph),
       ];
       if (nodeConfigIssues.length > 0) {
                 return NextResponse.json(

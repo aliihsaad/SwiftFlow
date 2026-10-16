@@ -37,6 +37,7 @@ import { useToast } from "@/components/ui/use-toast"
 import type { Automation } from "@/types/automation"
 
 interface AutomationRun {
+  trigger_suppression?: { reason?: string; retry_after_seconds?: number } | null
   recovery_outcome?: string | null
   id: string
   status: string
@@ -407,12 +408,20 @@ export function AutomationRunsDialog({
                         <span className="text-xs font-semibold" style={{ color: "rgba(255,255,255,0.7)" }}>
                           Run {shortId(run.id)}
                         </span>
-                        <StatusBadge status={run.status === "completed" && run.recovery_outcome ? run.recovery_outcome : run.status} />
+                        <StatusBadge status={run.trigger_suppression ? "suppressed" : run.status === "completed" && run.recovery_outcome ? run.recovery_outcome : run.status} />
                       </div>
                       <p className="mt-2 text-[10px]" style={{ color: MUTED }}>{formatTimestamp(run.created_at)}</p>
                       <p className="mt-1 text-[10px]" style={{ color: MUTED }}>
                         {run.processed_count} processed · {run.error_count} error(s) · {run.dms_sent_count} DM(s)
                       </p>
+                      {run.trigger_suppression && <p className="mt-2 text-xs" style={{ color: MUTED }}>
+                        {run.trigger_suppression.reason === 'recipient_in_flight'
+                          ? 'Repeated trigger skipped: this person already has an active run.'
+                          : run.trigger_suppression.reason === 'duplicate_message'
+                            ? 'Duplicate message skipped.'
+                            : 'Repeated trigger skipped during this person’s cooldown.'}
+                        {' '}No extra reply was queued.
+                      </p>}
                       {run.status === "waiting" && run.retry_at && (
                         <p className="mt-2 text-xs text-amber-200/80">
                           Queued safely · next attempt after {formatTimestamp(run.retry_at)}

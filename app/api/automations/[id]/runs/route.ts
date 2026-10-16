@@ -158,6 +158,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
         const recovery = recoveryByRun.get(run.id)
         return {
           ...run,
+          trigger_suppression: (node_results?._message_trigger_guard as { output?: { reason?: string; retry_after_seconds?: number } } | undefined)?.output || null,
           recovery_outcome: (recovery?.status === 'completed' ? 'recovery_completed' : recovery?.status === 'expired' ? 'recovery_expired' : null) || Object.values(node_results || {}).map(value => (value as { output?: { outcome?: string } })?.output?.outcome)
             .find(outcome => ['awaiting_recovery_dm', 'recovery_completed', 'recovery_expired', 'already_delivered_skipped'].includes(outcome || '')) || null,
           error_message: safeAuditText(run.error_message),

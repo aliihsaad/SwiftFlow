@@ -1,4 +1,5 @@
 import { validateDmRecoveryNodeConfigs } from '@/supabase/functions/_shared/dm-recovery-policy'
+import { validateMessageTriggerCooldowns } from '@/supabase/functions/_shared/message-trigger-policy'
 import type { WorkflowGraph } from "@/types/automation-graph"
 import {
   isActionNode,
@@ -224,6 +225,7 @@ export function validateDeveloperAutomationGraph(
   }
   const workflowGraph = normalizeDeveloperAutomationGraph(rawGraph)
   for (const issue of validateDmRecoveryNodeConfigs(workflowGraph)) errors.push({ code: 'INVALID_CONFIG', ...issue })
+  for (const issue of validateMessageTriggerCooldowns(workflowGraph)) errors.push({ code: 'INVALID_CONFIG', ...issue })
 
   const triggerNodes = workflowGraph.nodes.filter((node) => isTriggerNode(String(node.data?.type || "")),
   )

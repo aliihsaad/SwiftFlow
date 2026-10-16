@@ -182,7 +182,8 @@ describe("timeline runtime wiring", () => {
     expect(nodeRunHelper).toContain("output: redactSensitiveLogValue(nodeResult.output || {})")
     expect(replayRoute).toContain('requireWorkspacePermission(supabase, user.id, workspace.id, "automation:write")')
     expect(replayRoute).toContain("evaluateActionReplay")
-    expect(directWorker).toContain("{ executionKey: `comment:${webhookCtx.comment_id}` }")
+    expect(directWorker).toContain("invokeEdgeFunction('automation-worker-run'")
+    expect(directWorker).toContain('workflow_version_id: auto.current_workflow_version_id')
     expect(providerOutbox).toContain("JSON.stringify(request.payload ?? {})")
     expect(providerOutbox).toContain(
       "JSON.stringify(redactAutomationTimelineRecord(request.payload))",

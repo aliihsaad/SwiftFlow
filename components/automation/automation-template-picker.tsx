@@ -20,6 +20,7 @@ interface AutomationTemplatePickerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSelectTemplate: (template: AutomationTemplateDefinition) => void
+  onCreateFollowerCampaign: () => void
 }
 
 function getCategoryIcon(category: AutomationTemplateDefinition["category"]) {
@@ -48,6 +49,7 @@ export function AutomationTemplatePicker({
   open,
   onOpenChange,
   onSelectTemplate,
+  onCreateFollowerCampaign,
 }: AutomationTemplatePickerProps) {
   const supportedTriggers = new Set<string>(SUPPORTED_CANVAS_TRIGGER_TYPES)
   const templates = AUTOMATION_TEMPLATES.filter((template) => {
@@ -78,6 +80,11 @@ export function AutomationTemplatePicker({
         </DialogHeader>
 
         <div className="grid min-h-0 gap-3 overflow-y-auto p-4 sm:gap-4 sm:p-6 md:grid-cols-2">
+          <div className="rounded-xl border border-cyan-300/20 bg-cyan-300/5 p-4 md:col-span-2">
+            <h3 className="font-semibold text-white">Comment → DM → Follower check</h3>
+            <p className="mt-2 text-sm text-white/55">Pick a post, write your messages, and add your link. Create the comment flow and its connected follower check together.</p>
+            <Button className="mt-4 w-full sm:w-auto" onClick={onCreateFollowerCampaign}><Plus className="mr-2 h-4 w-4" />Set up a campaign</Button>
+          </div>
           {templates.map((template) => {
             const CategoryIcon = getCategoryIcon(template.category)
             return (

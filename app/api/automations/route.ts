@@ -15,8 +15,10 @@ import { resolveCommentPostScope } from '@/supabase/functions/_shared/comment-sc
 import { gateWorkspaceLimit } from '@/lib/billing/gate';
 import { createAdminClient } from '@/utils/supabase/admin';
 import type { WorkflowGraph } from '@/types/automation-graph';
+import { buildFollowerCampaign } from '@/lib/automation-templates/follower-campaign';
 
 interface CreateAutomationBody {
+    follower_campaign?: unknown;
     social_account_id?: string;
     name?: string;
     platform_post_id?: string;
@@ -191,7 +193,10 @@ export async function POST(request: NextRequest) {
         if (quotaGate) return quotaGate;
 
         assertJsonBodySize(request, 256 * 1024);
-        const body = (await request.json()) as CreateAutomationBody;
+        const requestedBody = (await request.json()) as CreateAutomationBody;
+        const campaign = requestedBody.follower_campaign
+            ? buildFollowerCampaign(requestedBody.follower_campaign, crypto.randomUUID()) : null;
+        const body: CreateAutomationBody = campaign ? campaign.entry : requestedBody;
         const {
             social_account_id,
             name,
@@ -410,6 +415,24 @@ export async function POST(request: NextRequest) {
             insertData.dm_config = dm_config;
         }
 
+        if (campaign) {
+            // One INSERT makes both paused drafts (and their version triggers)
+            // atomic: a failure cannot leave an unmatched half of the campaign.
+            const { data: automations, error: campaignError } = await supabase
+                .from('automations')
+                .insert([insertData, {
+                    ...insertData,
+                    ...campaign.verification,
+                    platform_post_id: '__canvas__',
+                    post_thumbnail_url: null,
+                    post_caption: null,
+                    trigger_config: { trigger_type: 'any_comment', keywords: [] },
+                }])
+                .select();
+            if (campaignError) throw campaignError;
+            return NextResponse.json({ success: true, automations });
+        }
+
         const { data: automation, error: createError } = await supabase
             .from('automations')
             .insert(insertData)
@@ -443,7 +466,7 @@ export async function POST(request: NextRequest) {
     });
 
     } catch (error: unknown) {
-        if (error instanceof Error && /Invalid platform_post_id|Invalid post_id|Request payload too large|Invalid content length/i.test(error.message,
+        if (error instanceof Error && /Invalid campaign|Invalid platform_post_id|Invalid post_id|Request payload too large|Invalid content length/i.test(error.message,
       )) {
             return NextResponse.json(
                 { error: error.message },

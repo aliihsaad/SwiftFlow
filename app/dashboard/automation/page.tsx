@@ -6,6 +6,7 @@ import { AutomationCommandCenter } from "@/components/automation/automation-comm
 import { AutomationSetupModal } from "@/components/automation/automation-setup-modal"
 import { AutomationTemplatePicker } from "@/components/automation/automation-template-picker"
 import { AutomationRunsDialog } from "@/components/automation/automation-runs-dialog"
+import { FollowerCampaignSetup } from "@/components/automation/follower-campaign-setup"
 import { WorkflowCanvas } from "@/components/automation/canvas/workflow-canvas"
 import { useWorkspacePermission } from "@/components/workspace/workspace-role-provider"
 import { Automation } from "@/types/automation"
@@ -32,6 +33,7 @@ export default function AutomationPage() {
     const [canvasTemplateName, setCanvasTemplateName] = useState<string | null>(null)
     const [isSetupModalOpen, setIsSetupModalOpen] = useState(false)
     const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false)
+    const [isFollowerCampaignOpen, setIsFollowerCampaignOpen] = useState(false)
     const [togglingAutomationIds, setTogglingAutomationIds] = useState<string[]>([])
     const [deletingAutomationIds, setDeletingAutomationIds] = useState<string[]>([])
     const [runsAutomation, setRunsAutomation] = useState<Automation | null>(null)
@@ -221,7 +223,14 @@ export default function AutomationPage() {
                 open={canWriteAutomations && isTemplatePickerOpen}
                 onOpenChange={setIsTemplatePickerOpen}
                 onSelectTemplate={handleApplyTemplate}
+                onCreateFollowerCampaign={() => { setIsTemplatePickerOpen(false); setIsFollowerCampaignOpen(true) }}
             />
+            {canWriteAutomations && isFollowerCampaignOpen && (
+                <FollowerCampaignSetup
+                    onClose={() => { setIsFollowerCampaignOpen(false); mutate() }}
+                    onCreated={() => { setIsFollowerCampaignOpen(false); mutate() }}
+                />
+            )}
 
             <AutomationRunsDialog
                 automation={runsAutomation}

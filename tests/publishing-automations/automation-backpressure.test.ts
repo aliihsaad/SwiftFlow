@@ -27,32 +27,37 @@ const automation = {
   },
 }
 
+interface ScheduledRow {
+  execution_context: Record<string, unknown>
+  [key: string]: unknown
+}
+
 class RuntimeDb {
-  queue: any[] = []
-  events: any[] = []
-  nodeRuns: any[] = []
+  queue: ScheduledRow[] = []
+  events: Record<string, unknown>[] = []
+  nodeRuns: Record<string, unknown>[] = []
   used = 0
   limit = 60
   denial = 'automation_budget_exhausted'
   blockAi = false
   scheduleError = false
-  rpc = vi.fn(async (_name: string, args: any) => {
+  rpc = vi.fn(async (_name: string, args: { p_resource_kind?: string }) => {
     if (_name !== 'reserve_automation_runtime_budget') return { error: null }
     const blocked = args.p_resource_kind === 'provider_send' ? this.used >= this.limit : this.blockAi
     if (!blocked && args.p_resource_kind === 'provider_send') this.used++
     return { data: [{ allowed: !blocked, reason: blocked ? this.denial : 'allowed', retry_after_seconds: 3600 }], error: null }
   })
-  from(table: string): any {
-    const db = this
+  from(table: string) {
     return {
-      async insert(row: any) {
-        if (db.scheduleError) return { error: { message: 'database unavailable' } }
-        db.queue.push({ id: `schedule-${db.queue.length}-${crypto.randomUUID()}`, ...row })
+      insert: async (row: ScheduledRow) => {
+        if (this.scheduleError) return { error: { message: 'database unavailable' } }
+        this.queue.push({ id: `schedule-${this.queue.length}-${crypto.randomUUID()}`, ...row })
         return { error: null }
       },
-      async upsert(rows: any) {
-        if (table === 'automation_execution_events') db.events.push(rows)
-        else db.nodeRuns.push(...rows)
+      upsert: async (rows: Record<string, unknown> | Record<string, unknown>[]) => {
+        const records = Array.isArray(rows) ? rows : [rows]
+        if (table === 'automation_execution_events') this.events.push(...records)
+        else this.nodeRuns.push(...records)
         return { error: null }
       },
       select() {
@@ -71,7 +76,7 @@ beforeEach(() => {
   vi.mocked(invokeEdgeFunction).mockImplementation(async (name, payload) => ({
     ok: true, status: 200,
     data: name === 'automation-worker-ai-response'
-      ? { success: true, output: { response: `saved AI ${String((payload.context as any).comment_id)}` } }
+      ? { success: true, output: { response: `saved AI ${String((payload.context as Record<string, unknown>).comment_id)}` } }
       : { success: true, dmSent: name === 'automation-worker-private-reply', output: { sent: true } },
   }))
 })
@@ -90,7 +95,7 @@ describe('durable automation backpressure', () => {
     expect(resumed).toMatchObject({ errors: 0, pendingContinuations: 0, processed: 0, dmsSent: 1 })
     const calls = vi.mocked(invokeEdgeFunction).mock.calls
     expect(calls.map(c => c[0])).toEqual(['automation-worker-ai-response', 'automation-worker-reply-comment', 'automation-worker-private-reply'])
-    expect((calls[2][1].context as any).ai_response).toBe('saved AI comment')
+    expect((calls[2][1].context as Record<string, unknown>).ai_response).toBe('saved AI comment')
     expect(new Set(db.events.map(e => e.event_key)).size).toBe(db.events.length)
   })
 
@@ -98,7 +103,7 @@ describe('durable automation backpressure', () => {
     const db = new RuntimeDb()
     const results = await Promise.all(Array.from({ length: 1000 }, (_, i) =>
       executeWorkflowGraph(db, automation, { comment_id: `comment-${i}` }, account, { runId: `run-${i}` })))
-    expect(results.every((r: any) => r.errors === 0)).toBe(true)
+    expect(results.every((r: { errors: number }) => r.errors === 0)).toBe(true)
     let windows = 0
     while (db.queue.length && windows++ < 100) {
       db.used = 0
@@ -106,14 +111,14 @@ describe('durable automation backpressure', () => {
       // The production scheduler claims four at a time.
       for (let i = 0; i < due.length; i += 4) {
         const resumed = await Promise.all(due.slice(i, i + 4).map(row => resumeFromDelay(db, row)))
-        expect(resumed.every((r: any) => r.errors === 0)).toBe(true)
+        expect(resumed.every((r: { errors: number }) => r.errors === 0)).toBe(true)
       }
       expect(db.used).toBeLessThanOrEqual(db.limit)
     }
     expect(db.queue).toHaveLength(0)
     const sends = new Map<string, number>()
     for (const [name, payload] of vi.mocked(invokeEdgeFunction).mock.calls) {
-      const key = `${name}:${(payload.context as any).comment_id}`
+      const key = `${name}:${(payload.context as Record<string, unknown>).comment_id}`
       sends.set(key, (sends.get(key) || 0) + 1)
     }
     expect(sends.size).toBe(3000)

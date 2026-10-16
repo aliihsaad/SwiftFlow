@@ -3,10 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { buildFollowerCampaign } from '@/lib/automation-templates/follower-campaign'
 import { keywordMatch } from '@/supabase/functions/_shared/automation-context'
 import { POST } from '@/app/api/automations/route'
+import type {
+  ActionAiResponseConfig, ActionPrivateReplyConfig, ActionReplyCommentConfig,
+  TriggerNewCommentConfig, TriggerNewMessageConfig, WorkflowGraph,
+} from '@/types/automation-graph'
 
 const state = vi.hoisted(() => ({
   user: true, account: true, permission: true, insertError: false,
-  inserts: [] as any[], filters: [] as [string, unknown][],
+  inserts: [] as Record<string, unknown>[][], filters: [] as [string, unknown][],
 }))
 vi.mock('@/utils/supabase/server', () => ({ createClient: async () => ({
   auth: { getUser: async () => ({ data: { user: state.user ? { id: 'user' } : null } }) },
@@ -16,7 +20,7 @@ vi.mock('@/utils/supabase/server', () => ({ createClient: async () => ({
       select: () => query,
       eq: (key: string, value: unknown) => { state.filters.push([key, value]); return query },
       single: async () => ({ data: state.account ? { id: 'account', platform: 'instagram', access_token: 'test' } : null }),
-      insert: (data: unknown) => { rows = data; state.inserts.push(data); return query },
+      insert: (data: Record<string, unknown>[]) => { rows = data; state.inserts.push(data); return query },
       then: (resolve: (value: unknown) => void) => resolve({ data: rows, error: state.insertError ? { message: 'database error' } : null }),
     }
     return query
@@ -41,7 +45,18 @@ const input = {
   resourceUrl: 'https://example.com/guide', buttonText: 'Get the guide', useAiReply: false,
 }
 const confirmation = '11111111-1111-4111-8111-111111111111'
-const config = (graph: any, type: string) => graph.nodes.find((n: any) => n.data.type === type).data.config
+interface CampaignConfigs {
+  action_ai_response: ActionAiResponseConfig
+  action_private_reply: ActionPrivateReplyConfig
+  action_reply_comment: ActionReplyCommentConfig
+  trigger_new_comment: TriggerNewCommentConfig
+  trigger_new_message: TriggerNewMessageConfig
+}
+function config<T extends keyof CampaignConfigs>(graph: WorkflowGraph, type: T): CampaignConfigs[T] {
+  const node = graph.nodes.find(n => n.data.type === type)
+  if (!node) throw new Error(`Missing campaign node: ${type}`)
+  return node.data.config as CampaignConfigs[T]
+}
 const request = (value: unknown = input) => new NextRequest('https://example.test/api/automations', {
   method: 'POST', body: JSON.stringify({ follower_campaign: value }), headers: { 'Content-Type': 'application/json' },
 })
@@ -59,8 +74,8 @@ describe('paired follower campaign', () => {
     const second = buildFollowerCampaign(input, '33333333-3333-4333-8333-333333333333')
     const button = config(first.entry.workflow_graph, 'action_private_reply')
     const trigger = config(first.verification.workflow_graph, 'trigger_new_message')
-    expect(keywordMatch(button.confirm_payload, trigger.keywords, 'keywords')).toBe(true)
-    expect(keywordMatch(button.confirm_payload, config(second.verification.workflow_graph, 'trigger_new_message').keywords, 'keywords')).toBe(false)
+    expect(keywordMatch(button.confirm_payload ?? '', trigger.keywords, 'keywords')).toBe(true)
+    expect(keywordMatch(button.confirm_payload ?? '', config(second.verification.workflow_graph, 'trigger_new_message').keywords, 'keywords')).toBe(false)
     expect(trigger.social_account_id).toBe(input.accountId)
     expect(button.follow_profile_url).toBe('https://www.instagram.com/example/')
     expect(config(first.entry.workflow_graph, 'trigger_new_comment')).toMatchObject({ post_scope: 'specific', post_id: input.postId, keywords: ['GUIDE'] })
@@ -88,7 +103,7 @@ describe('paired follower campaign', () => {
     expect(response.status).toBe(200)
     expect(state.inserts).toHaveLength(1)
     expect(state.inserts[0]).toHaveLength(2)
-    expect(state.inserts[0].every((row: any) => row.workspace_id === 'workspace' && row.is_active === false)).toBe(true)
+    expect(state.inserts[0].every(row => row.workspace_id === 'workspace' && row.is_active === false)).toBe(true)
     expect(state.inserts[0][0].platform_post_id).toBe(input.postId)
     expect(state.inserts[0][1].platform_post_id).toBe('__canvas__')
     expect(state.filters).toContainEqual(['workspace_id', 'workspace'])

@@ -7,7 +7,7 @@ export async function upsertAutomationNodeRuns(params: {
   automation: any
   runId?: string | null
   triggerContext: Record<string, unknown>
-  nodeResults: Record<string, { success: boolean; output?: any; error?: string }>
+  nodeResults: Record<string, { success: boolean; deferred?: boolean; output?: any; error?: string }>
 }) {
   const { supabase, workspaceId, automation, runId, triggerContext, nodeResults } = params
   if (!runId) return
@@ -23,7 +23,7 @@ export async function upsertAutomationNodeRuns(params: {
       run_id: runId,
       node_id: nodeId,
       node_type: node?.data?.type || "unknown",
-      status: nodeResult.success ? "completed" : "failed",
+      status: nodeResult.deferred ? "queued" : nodeResult.success ? "completed" : "failed",
       input: redactSensitiveLogValue({
         config: node?.data?.config || {},
         trigger_context: triggerContext || {},
@@ -31,7 +31,7 @@ export async function upsertAutomationNodeRuns(params: {
       output: redactSensitiveLogValue(nodeResult.output || {}),
       error_message: redactSensitiveLogValue(String(nodeResult.error || "")) || null,
       started_at: now,
-      finished_at: now,
+      finished_at: nodeResult.deferred ? null : now,
       updated_at: now,
     }
   })

@@ -39,6 +39,7 @@ import { checkInstagramFollowerStatus } from "../_shared/instagram-follower-stat
 import { buildInstagramPrivateReplyPlan } from "../_shared/instagram-private-reply.ts";
 import { deliverPrivateReply } from "../_shared/private-reply-delivery.ts";
 import { upsertAutomationNodeRuns } from "../_shared/automation-node-runs.ts";
+import { isRetryableRuntimeGuard, scheduleAutomationContinuation } from "../_shared/automation-backpressure.ts";
 
 
 const DM_FALLBACK_CODES = new Set([
@@ -115,11 +116,12 @@ interface TriggerContext {
 }
 
 export interface ExecutionResult {
+  workspaceId?: string
   processed: number
   dmsSent: number
   errors: number
   pendingContinuations: number
-  nodeResults: Record<string, { success: boolean; output?: any; error?: string }>
+  nodeResults: Record<string, { success: boolean; deferred?: boolean; output?: any; error?: string }>
 }
 
 function isTriggerNodeType(type: unknown): boolean {
@@ -621,6 +623,7 @@ export async function executeWorkflowGraph(
   result.processed = 1; // Trigger counted
 
   const visited = new Set<string>();
+  const executionDeadline = Date.now() + 60_000;
 
   while (executionQueue.length > 0) {
     const nodeId = executionQueue.shift()!;
@@ -653,12 +656,28 @@ export async function executeWorkflowGraph(
         runtimeContext,
         nodeOutputs: result.nodeResults,
       });
-      const nodeResult = await executeNode(
+      const nodeResult = Date.now() >= executionDeadline
+        ? { success: false, deferred: true, output: { reason: 'worker_time_slice', retry_after_seconds: 60 } }
+        : await executeNode(
         supabase, automation, node, runtimeContext, account, instagramAccountId,
         { approval },
       );
 
       result.nodeResults[nodeId] = nodeResult;
+
+      if (nodeResult.deferred) {
+        await scheduleAutomationContinuation({
+          supabase, automation, runId: timelineContext.runId, nodeId,
+          remainingQueue: executionQueue, visited, triggerContext: runtimeContext,
+          nodeOutputs: result.nodeResults, deferred: nodeResult,
+        });
+        result.pendingContinuations++;
+        await recordAutomationNodeEvent({
+          supabase, automation, node, context: timelineContext,
+          eventType: 'retry_scheduled', output: nodeResult.output,
+        });
+        break;
+      }
 
       await recordAutomationNodeEvent({
         supabase,
@@ -886,6 +905,7 @@ export async function resumeFromDelay(
   };
 
   // Build adjacency
+  result.workspaceId = automation.workspace_id;
   const adjacency = new Map<string, { targetId: string; sourceHandle?: string }[]>();
   for (const edge of graph.edges) {
     const list = adjacency.get(edge.source) || [];
@@ -896,7 +916,8 @@ export async function resumeFromDelay(
   // Continue from the next nodes after the delay
   const runtimeContext: TriggerContext = { ...(trigger_data || {}) };
   const queue = [...(next_nodes || [])];
-  const visited = new Set<string>();
+  const visited = new Set<string>(execution_context.visited_nodes || []);
+  const executionDeadline = Date.now() + 60_000;
 
   while (queue.length > 0) {
     const nodeId = queue.shift()!;
@@ -929,14 +950,29 @@ export async function resumeFromDelay(
           ...result.nodeResults,
         },
       });
-      const nodeResult = await executeNode(
+      const nodeResult = Date.now() >= executionDeadline
+        ? { success: false, deferred: true, output: { reason: 'worker_time_slice', retry_after_seconds: 60 } }
+        : await executeNode(
         supabase, automation, node, runtimeContext, account, instagramAccountId,
         { approval },
       );
       result.nodeResults[nodeId] = nodeResult;
+      if (nodeResult.deferred) {
+        await scheduleAutomationContinuation({
+          supabase, automation, runId: timelineContext.runId, nodeId,
+          remainingQueue: queue, visited, triggerContext: runtimeContext,
+          nodeOutputs: { ...(node_outputs || {}), ...result.nodeResults }, deferred: nodeResult,
+        });
+        result.pendingContinuations++;
+        await recordAutomationNodeEvent({
+          supabase, automation, node, context: timelineContext,
+          eventType: 'retry_scheduled', output: nodeResult.output,
+        });
+        break;
+      }
       if (nodeResult.dmSent) result.dmsSent++;
       if (!nodeResult.success) result.errors++;
-      result.processed++;
+      // The originating trigger was already counted by the initial worker.
       await recordAutomationNodeEvent({
         supabase,
         automation,
@@ -1100,11 +1136,14 @@ async function executeNode(
   const reservation = await reserveAutomationRuntimeBudget(supabase, scope, policy,
   );
   if (!reservation.allowed) {
+    const deferred = isRetryableRuntimeGuard(reservation.reason);
     return {
       success: false,
-      error: reservation.reason,
+      deferred,
+      ...(deferred ? {} : { error: reservation.reason }),
       output: {
         guarded: true,
+        reason: reservation.reason,
         retry_after_seconds: reservation.retryAfterSeconds,
         account_remaining: reservation.accountRemaining,
         automation_remaining: reservation.automationRemaining,
@@ -1188,10 +1227,20 @@ async function executeNodeUnchecked(
         page_id: instagramAccountId,
         platform: account?.platform,
         connection_method: account?.metadata?.connection_method,
-      });
+      }, { timeoutMs: 45_000 });
 
       if (workerResult.ok && workerResult.data) {
         return workerResult.data;
+      }
+
+      // A timeout or lost response does not establish whether the provider
+      // sent the message. Never repeat a side effect through local fallback.
+      if (['action_reply_comment', 'action_send_dm', 'action_private_reply', 'action_send_email'].includes(nodeType)) {
+        return {
+          success: false,
+          error: workerResult.error || 'The send result could not be confirmed',
+          output: { delivery_unconfirmed: true, automatic_retry: false },
+        };
       }
 
       if (nodeType === 'action_telegram') {

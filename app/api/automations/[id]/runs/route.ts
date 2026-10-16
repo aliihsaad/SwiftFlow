@@ -57,7 +57,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     const [runsResult, eventsResult, actionsResult, legacyResult] = await Promise.all([
       supabase
         .from("automation_runs")
-        .select("id, workflow_version_id, status, trigger_type, processed_count, dms_sent_count, error_count, error_message, started_at, finished_at, created_at")
+        .select("id, workflow_version_id, status, trigger_type, processed_count, dms_sent_count, error_count, error_message, started_at, finished_at, created_at, node_results")
         .eq("workspace_id", workspace.id)
         .eq("automation_id", automationId)
         .order("created_at", { ascending: false })
@@ -143,10 +143,16 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 
     return NextResponse.json({
       automation,
-      runs: (runsResult.data || []).map((run) => ({
-        ...run,
-        error_message: safeAuditText(run.error_message),
-      })),
+      runs: (runsResult.data || []).map(({ node_results, ...run }) => {
+        const queued = Object.values(node_results || {}).find((value) =>
+          value && typeof value === "object" && "deferred" in value && value.deferred === true,
+        ) as { output?: { scheduled_for?: string } } | undefined
+        return {
+          ...run,
+          error_message: safeAuditText(run.error_message),
+          retry_at: run.status === "waiting" ? queued?.output?.scheduled_for || null : null,
+        }
+      }),
       events,
       actions,
     })

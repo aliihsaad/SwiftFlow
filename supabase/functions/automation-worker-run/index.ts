@@ -138,6 +138,8 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       })
       .eq('id', effectiveRunId)
+      .eq('workspace_id', workspaceId)
+      .eq('automation_id', automationId)
       .eq('status', 'queued')
       .select('id, workflow_version_id');
 
@@ -244,7 +246,7 @@ serve(async (req) => {
       ? 'waiting'
       : graphResult.errors > 0 ? 'failed' : 'completed';
     const isTerminal = runStatus === 'failed' || runStatus === 'completed';
-    await supabase
+    const { error: completionError } = await supabase
       .from('automation_runs')
       .update({
         status: runStatus,
@@ -257,7 +259,9 @@ serve(async (req) => {
         finished_at: isTerminal ? new Date().toISOString() : null,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', effectiveRunId);
+      .eq('id', effectiveRunId)
+      .eq('workspace_id', workspaceId);
+    if (completionError) throw new Error(`Failed to save run completion: ${completionError.message}`);
 
     if (eventId && isTerminal) {
       await supabase
@@ -270,22 +274,13 @@ serve(async (req) => {
     }
 
     if (graphResult.processed > 0 || graphResult.dmsSent > 0) {
-      const { data: current } = await supabase
-        .from('automations')
-        .select('total_triggered, total_dms_sent')
-        .eq('id', automation.id)
-        .single();
-
-      if (current) {
-        await supabase
-          .from('automations')
-          .update({
-            total_triggered: (current.total_triggered || 0) + graphResult.processed,
-            total_dms_sent: (current.total_dms_sent || 0) + graphResult.dmsSent,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', automation.id);
-      }
+      const { error: statsError } = await supabase.rpc('increment_automation_stats', {
+        p_workspace_id: workspaceId,
+        p_automation_id: automation.id,
+        p_triggered: graphResult.processed,
+        p_dms_sent: graphResult.dmsSent,
+      });
+      if (statsError) console.error('[RUN_WORKER] Failed to update counters:', redactSensitiveLogValue(statsError));
     }
 
     if (graphResult.errors > 0 && effectiveRunId) {

@@ -1,7 +1,7 @@
 // @ts-nocheck - Deno runtime, not Node.js
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import { executeWorkflowGraph } from "./graph-executor.ts"
+import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
 import { assertInternalInvoke } from "../_shared/internal-auth.ts"
 import { canManageMessagesWithMetaAccount, canReadCommentsWithMetaAccount, decryptMetaAccountRow } from "../_shared/meta-account.ts"
 import { resolveAIConfig } from "../_shared/ai-config.ts"
@@ -733,10 +733,14 @@ async function processWebhookComment(
         // Route based on editor_version: canvas mode uses graph executor
         if (auto.editor_version === 'canvas' && auto.workflow_graph) {
             console.log(`[WEBHOOK_FAST] Using graph executor for automation ${auto.id}`);
-            const graphResult = await executeWorkflowGraph(
-                supabase,
-                auto,
-                {
+            // Canvas work always needs a durable run and pinned version so
+            // capacity pauses can resume safely through the scheduled worker.
+            const invocation = await invokeEdgeFunction('automation-worker-run', {
+                workspace_id: auto.workspace_id,
+                automation_id: auto.id,
+                workflow_version_id: auto.current_workflow_version_id,
+                trigger_type: 'trigger_new_comment',
+                trigger_context: {
                     comment_id: webhookCtx.comment_id,
                     post_id: webhookCtx.post_id,
                     commenter_id: webhookCtx.commenter_id,
@@ -744,33 +748,16 @@ async function processWebhookComment(
                     comment_text: webhookCtx.comment_text,
                     timestamp: webhookCtx.timestamp,
                 },
-                account,
-                { executionKey: `comment:${webhookCtx.comment_id}` },
-            );
-
+            });
+            if (!invocation.ok || !invocation.data?.result) {
+                totalStats.errors++;
+                continue;
+            }
+            const graphResult = invocation.data.result;
             totalStats.processed += graphResult.processed;
             totalStats.dmsSent += graphResult.dmsSent;
             totalStats.errors += graphResult.errors;
-
-            // Update automation stats
-            if (graphResult.processed > 0 || graphResult.dmsSent > 0) {
-                const { data: current } = await supabase
-                    .from('automations')
-                    .select('total_triggered, total_dms_sent')
-                    .eq('id', auto.id)
-                    .single();
-
-                if (current) {
-                    await supabase
-                        .from('automations')
-                        .update({
-                            total_triggered: (current.total_triggered || 0) + graphResult.processed,
-                            total_dms_sent: (current.total_dms_sent || 0) + graphResult.dmsSent,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('id', auto.id);
-                }
-            }
+            // The run worker owns the atomic statistics update.
 
             continue;
         }

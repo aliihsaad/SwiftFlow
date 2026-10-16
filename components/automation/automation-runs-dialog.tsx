@@ -47,6 +47,7 @@ interface AutomationRun {
   created_at: string
   started_at: string | null
   finished_at: string | null
+  retry_at?: string | null
 }
 
 interface TimelineEvent {
@@ -404,6 +405,11 @@ export function AutomationRunsDialog({
                       <p className="mt-1 text-[10px]" style={{ color: MUTED }}>
                         {run.processed_count} processed · {run.error_count} error(s) · {run.dms_sent_count} DM(s)
                       </p>
+                      {run.status === "waiting" && run.retry_at && (
+                        <p className="mt-2 text-xs text-amber-200/80">
+                          Queued safely · next attempt after {formatTimestamp(run.retry_at)}
+                        </p>
+                      )}
                     </div>
                   ))}
                   {data.runs.length === 0 && (
@@ -460,6 +466,11 @@ export function AutomationRunsDialog({
                           style={{ background: "rgba(251,113,133,0.06)", color: "#fda4af" }}
                         >
                           {event.error_code ? `${event.error_code}: ` : ""}{event.error_message}
+                        </p>
+                      )}
+                      {event.event_type === "retry_scheduled" && typeof event.output_redacted.scheduled_for === "string" && (
+                        <p className="mt-3 text-xs text-amber-200/80">
+                          Waiting for capacity. This step will resume automatically after {formatTimestamp(event.output_redacted.scheduled_for)}.
                         </p>
                       )}
                       <div className="mt-3 grid gap-2 lg:grid-cols-2">

@@ -114,17 +114,17 @@ export async function resolveAIConfig(opts: ResolveOptions): Promise<AIConfig> {
     let keySource: AIConfig["keySource"] = "unknown"
 
     if (provider === "openrouter") {
-        const dbKey = normalizeApiKey(await decryptSecretIfNeeded(settings?.openrouter_api_key))
+        const dbKey = normalizeApiKey(await decryptSecretIfNeeded(typeof settings?.openrouter_api_key === 'string' ? settings.openrouter_api_key : null))
         const envKey = normalizeApiKey(Deno.env.get("OPENROUTER_API_KEY"))
         apiKey = dbKey || envKey
         keySource = dbKey ? "workspace_settings" : envKey ? "env" : "unknown"
     } else if (provider === "openai") {
-        const dbKey = normalizeApiKey(await decryptSecretIfNeeded(settings?.openai_api_key))
+        const dbKey = normalizeApiKey(await decryptSecretIfNeeded(typeof settings?.openai_api_key === 'string' ? settings.openai_api_key : null))
         const envKey = normalizeApiKey(Deno.env.get("OPENAI_API_KEY"))
         apiKey = dbKey || envKey
         keySource = dbKey ? "workspace_settings" : envKey ? "env" : "unknown"
     } else {
-        const dbKey = normalizeApiKey(await decryptSecretIfNeeded(settings?.gemini_api_key))
+        const dbKey = normalizeApiKey(await decryptSecretIfNeeded(typeof settings?.gemini_api_key === 'string' ? settings.gemini_api_key : null))
         const envKey = normalizeApiKey(Deno.env.get("GEMINI_API_KEY"))
         apiKey = dbKey || envKey
         keySource = dbKey ? "workspace_settings" : envKey ? "env" : "unknown"
@@ -158,7 +158,8 @@ export async function resolveAIConfig(opts: ResolveOptions): Promise<AIConfig> {
     }
 
     // 3. Resolve model name
-    const settingsModel = settings?.ai_text_model_name || settings?.ai_model_name || ""
+    const settingsModel = (typeof settings?.ai_text_model_name === 'string' && settings.ai_text_model_name)
+        || (typeof settings?.ai_model_name === 'string' && settings.ai_model_name) || ""
     const rawModel = useGlobalSettings
         ? settingsModel
         : (modelOverride || settingsModel || "")

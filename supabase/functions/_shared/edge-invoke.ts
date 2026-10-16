@@ -43,6 +43,7 @@ function getEdgeHeaders(serviceRoleKey: string) {
 export async function invokeEdgeFunction<T = any>(
   functionName: string,
   payload: Record<string, unknown>,
+  options: { timeoutMs?: number } = {},
 ): Promise<InvokeResult<T>> {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -57,6 +58,7 @@ export async function invokeEdgeFunction<T = any>(
       method: 'POST',
       headers: getEdgeHeaders(serviceRoleKey),
       body: JSON.stringify(payload || {}),
+      ...(options.timeoutMs ? { signal: AbortSignal.timeout(options.timeoutMs) } : {}),
     });
 
     const text = await response.text();

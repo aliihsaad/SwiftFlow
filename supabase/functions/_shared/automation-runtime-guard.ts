@@ -29,6 +29,7 @@ function boundedInteger(
   minimum: number,
   maximum: number,
 ): number {
+  if (raw == null || raw.trim() === '') return fallback;
   const parsed = Number(raw);
   if (!Number.isInteger(parsed)) return fallback;
   return Math.min(Math.max(parsed, minimum), maximum);
@@ -41,7 +42,7 @@ export function resolveAutomationRuntimeGuardPolicy(
     ? 'AUTOMATION_PROVIDER_SEND'
     : 'AUTOMATION_AI';
   const defaults = resourceKind === 'provider_send'
-    ? { account: 60, automation: 20 }
+    ? { account: 60, automation: 60 }
     : { account: 120, automation: 60 };
 
   return {

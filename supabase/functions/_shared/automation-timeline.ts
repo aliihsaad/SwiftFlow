@@ -21,7 +21,7 @@ interface RecordNodeEventParams {
   automation: any
   node: TimelineNode
   context: AutomationTimelineContext
-  eventType: "started" | "succeeded" | "failed"
+  eventType: "started" | "succeeded" | "failed" | "retry_scheduled"
   input?: unknown
   output?: unknown
   error?: unknown
@@ -65,6 +65,7 @@ function safeText(value: unknown, maximum = 1_000): string | null {
 }
 
 function scopeKey(context: AutomationTimelineContext): string {
+  if (context.runId && context.scheduledExecutionId) return `run:${context.runId}:scheduled:${context.scheduledExecutionId}`
   if (context.runId) return `run:${context.runId}`
   if (context.scheduledExecutionId) return `scheduled:${context.scheduledExecutionId}`
   if (context.executionKey) return `execution:${context.executionKey}`

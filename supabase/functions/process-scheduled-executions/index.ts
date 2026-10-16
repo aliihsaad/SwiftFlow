@@ -24,7 +24,9 @@ const corsHeaders = {
 }
 
 const STALLED_RUN_AGE_MINUTES = 2
-const STALLED_RUN_BATCH = 10
+const STALLED_RUN_BATCH = 4
+// Claim only work we can start immediately, within one Edge Function lifetime.
+const CONTINUATION_BATCH = 4
 const ABANDONED_RUNNING_AGE_MINUTES = 30
 
 function continuationErrorMessage(result): string | null {
@@ -126,7 +128,7 @@ async function reclaimStalledAutomationRuns(supabase,
   }
 
   const dispatchStalled = async () => {
-    for (const run of stalledRuns || []) {
+    await Promise.all((stalledRuns || []).map(async (run) => {
       const result = await invokeEdgeFunction('automation-worker-run', {
         run_id: run.id,
         workspace_id: run.workspace_id,
@@ -144,7 +146,7 @@ async function reclaimStalledAutomationRuns(supabase,
         }),
         )
       }
-    }
+    }))
   }
 
   if ((stalledRuns || []).length > 0) {
@@ -215,7 +217,7 @@ serve(async (req) => {
     const { data: pendingExecs, error: fetchError } = await supabase
       .rpc('claim_due_scheduled_executions', {
         p_claim_token: claimToken,
-        p_limit: 50,
+        p_limit: CONTINUATION_BATCH,
         p_stale_after_minutes: 30,
       },
     );
@@ -241,7 +243,7 @@ serve(async (req) => {
     let processed = 0;
     let errors = 0;
 
-    for (const exec of pendingExecs) {
+    await Promise.all(pendingExecs.map(async (exec) => {
       let scheduledFinalized = false;
       try {
         // Rows are already claimed + marked 'executing' by the RPC.
@@ -263,34 +265,25 @@ serve(async (req) => {
           errors++;
           console.warn(`[SCHEDULED] Execution ${exec.id} was not counted because its claim was already lost`,
           );
-          continue;
+          return;
         }
 
         scheduledFinalized = true;
         await mergeContinuationIntoRun(supabase, exec, result);
 
-        // Update automation stats
+        // Increment atomically: concurrent comment runs must not lose counts.
         if (result.processed > 0 || result.dmsSent > 0) {
-          const { data: current } = await supabase
-            .from('automations')
-            .select('total_triggered, total_dms_sent')
-            .eq('id', exec.automation_id)
-            .single();
-
-          if (current) {
-            await supabase
-              .from('automations')
-              .update({
-                total_triggered: (current.total_triggered || 0) + result.processed,
-                total_dms_sent: (current.total_dms_sent || 0) + result.dmsSent,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', exec.automation_id);
-          }
+          const { error: statsError } = await supabase.rpc('increment_automation_stats', {
+            p_workspace_id: result.workspaceId,
+            p_automation_id: exec.automation_id,
+            p_triggered: 0,
+            p_dms_sent: result.dmsSent,
+          });
+          if (statsError) console.error('[SCHEDULED] Failed to update counters:', redactSensitiveLogValue(statsError));
         }
 
         processed++;
-        console.log(`[SCHEDULED] Execution ${exec.id} completed: ${JSON.stringify(result)}`,
+        console.log(`[SCHEDULED] Execution ${exec.id}: errors=${result.errors}, waiting=${result.pendingContinuations}`,
         );
       } catch (err) {
         errors++;
@@ -299,7 +292,7 @@ serve(async (req) => {
 
         if (scheduledFinalized) {
           await markRunFinalizationFailure(supabase, exec, err);
-          continue;
+          return;
         }
 
         const executedAt = new Date().toISOString();
@@ -318,7 +311,7 @@ serve(async (req) => {
           if (!finalization.finalized) {
             console.warn(`[SCHEDULED] Failed execution ${exec.id} was not finalized because its claim was already lost`,
             );
-            continue;
+            return;
           }
 
           scheduledFinalized = true;
@@ -342,7 +335,7 @@ serve(async (req) => {
           }
         }
       }
-    }
+    }));
 
     return new Response(
       JSON.stringify({

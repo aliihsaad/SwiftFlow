@@ -1,7 +1,7 @@
 "use client"
 
 import { memo } from "react"
-import Image from "next/image"
+import { AutomationPostImage } from '../../automation-post-image'
 import { Handle, Position, type NodeProps } from "@xyflow/react"
 import { AtSign, Clock, Info, Mail, MessageCircle, Reply, UserPlus } from "lucide-react"
 
@@ -55,7 +55,7 @@ function TriggerNodeComponent({ data, selected }: NodeProps) {
           {nodeData.type === "trigger_new_comment" && postThumbnailUrl ? (
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="relative size-5 shrink-0 overflow-hidden rounded border border-white/10 sm:size-7 sm:rounded-lg">
-                <Image src={postThumbnailUrl} alt="" fill unoptimized sizes="32px" className="object-cover" />
+                <AutomationPostImage src={postThumbnailUrl} accountId={String(config.social_account_id || '')} postId={String(config.post_id || '')} sizes="32px" />
               </span>
               <p className="line-clamp-1 text-[9px] leading-3.5 text-white/42 sm:line-clamp-2 sm:text-[10px] sm:leading-4">{description}</p>
             </div>

@@ -1,7 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import Image from "next/image"
+import { AutomationPostImage } from './automation-post-image'
+import { isMetaGraphNodeId } from '@/lib/security/phase1-validation'
 import { Automation } from "@/types/automation"
 import type { WorkflowNode, WorkflowNodeData } from "@/types/automation-graph"
 import { Switch } from "@/components/ui/switch"
@@ -240,12 +241,12 @@ export function ActiveAutomationsList({
                             <div className="p-4 sm:p-5">
                                 <div className="flex items-start gap-4">
                                     <div className="relative size-14 shrink-0 overflow-hidden rounded-2xl border border-white/10 bg-[#171923]">
-                                        {automation.post_thumbnail_url ? (
-                                            <Image
+                                        {automation.post_thumbnail_url || isMetaGraphNodeId(automation.platform_post_id) ? (
+                                            <AutomationPostImage
+                                                accountId={automation.social_account_id}
+                                                postId={automation.platform_post_id}
                                                 src={automation.post_thumbnail_url}
                                                 alt=""
-                                                fill
-                                                unoptimized
                                                 sizes="56px"
                                                 className="object-cover opacity-85 transition duration-300 group-hover:scale-105"
                                             />

@@ -1,5 +1,7 @@
 "use client"
 
+import { AutomationPostImage } from '../../automation-post-image'
+
 import { useEffect } from 'react'
 import useSWR from 'swr'
 import NextImage from 'next/image'
@@ -458,14 +460,9 @@ function TriggerCommentFields({ config, onUpdate,
           </p>
           <div className="flex items-start gap-2">
             {config.post_thumbnail_url && (
-              <NextImage
-                src={config.post_thumbnail_url}
-                alt="Selected"
-                width={40}
-                height={40}
-                unoptimized
-                className="size-10 shrink-0 rounded object-cover"
-              />
+              <span className="relative size-10 shrink-0 overflow-hidden rounded">
+                <AutomationPostImage src={config.post_thumbnail_url} accountId={accountId} postId={config.post_id} alt="Selected" sizes="40px" />
+              </span>
             )}
             <p className="text-xs text-muted-foreground line-clamp-2">{config.post_caption}</p>
           </div>

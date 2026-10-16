@@ -14,6 +14,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Instagram, Check, Image as ImageIcon, Video, LayoutGrid } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { AutomationPostImage } from './automation-post-image'
 
 interface SocialAccount {
     id: string
@@ -190,21 +191,8 @@ export function PostSelector({
                     <Label className="text-xs text-muted-foreground uppercase tracking-wide">Selected Post</Label>
                     <div className="flex items-start gap-3 mt-2">
                         <div className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0">
-                            {selectedPost.thumbnail_url || selectedPost.media_url ? (
-                                <>
-                                {/* Meta CDN URLs are signed and time-bound, so they intentionally bypass Next image proxying. */}
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                    src={selectedPost.thumbnail_url || selectedPost.media_url!}
-                                    alt="Selected post"
-                                    className="absolute inset-0 w-full h-full object-cover"
-                                />
-                                </>
-                            ) : (
-                                <div className="w-full h-full bg-muted flex items-center justify-center">
-                                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
-                                </div>
-                            )}
+                            <AutomationPostImage accountId={selectedAccountId} postId={selectedPost.id}
+                                src={selectedPost.thumbnail_url || selectedPost.media_url} alt="Selected post" sizes="64px" />
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm line-clamp-3">

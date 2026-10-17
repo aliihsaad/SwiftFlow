@@ -11,6 +11,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
+import { shouldLogSchedulerSuccess } from "../_shared/scheduler-logging.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,11 +47,13 @@ async function runJob(job: JobName, payload: Record<string, unknown> = {}) {
     }
   }
 
-  console.log("[SCHEDULER_TICK] Job completed", {
-    job,
-    status: result.status,
-    durationMs,
-  })
+  if (shouldLogSchedulerSuccess(job, result.data, new Date(startedAt).getUTCMinutes())) {
+    console.log("[SCHEDULER_TICK] Job completed", {
+      job,
+      status: result.status,
+      durationMs,
+    })
+  }
   return {
     job,
     ok: true,

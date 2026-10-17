@@ -55,5 +55,7 @@ next-env.d.ts
 .codex-remote-attachments/
 tasks/
 workspace/
+backup-output/
+*.sfb
 docs/superpowers/
 docs/detailed-security-report/

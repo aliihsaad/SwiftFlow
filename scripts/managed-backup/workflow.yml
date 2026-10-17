@@ -1,0 +1,74 @@
+# Install this in the PRIVATE backup repository as .github/workflows/backup.yml.
+# Only code and the PUBLIC encryption key belong in that repository.
+name: Encrypted daily Supabase backup
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '41 2 * * *'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: supabase-daily-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    if: github.event.repository.private == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Stay within the free artifact budget
+        id: budget
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          today="$(date -u +%F)"
+          echo "name=swiftflow-$today" >> "$GITHUB_OUTPUT"
+          artifacts="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" --jq '.artifacts[] | select(.expired == false) | {name,size_in_bytes}')"
+          if printf '%s' "$artifacts" | jq -s -e --arg n "swiftflow-$today" 'any(.name == $n)' >/dev/null; then
+            echo 'skip=true' >> "$GITHUB_OUTPUT"
+            echo 'A successful encrypted backup already exists for today.'
+          elif [ "$(printf '%s' "$artifacts" | jq -s '[.[].size_in_bytes] | add // 0')" -gt 146800640 ]; then
+            echo 'Backup storage safety cap reached; review retention before continuing.'
+            exit 1
+          fi
+      - name: Install pinned official Supabase CLI
+        if: steps.budget.outputs.skip != 'true'
+        run: |
+          curl --fail --silent --show-error --location https://github.com/supabase/cli/releases/download/v2.107.0/supabase_2.107.0_linux_amd64.tar.gz -o "$RUNNER_TEMP/supabase.tar.gz"
+          echo 'ea233b337be698cee5bbca0795ee3e63b9dd154948c515c03cb72f191b3d103c  '"$RUNNER_TEMP/supabase.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/supabase.tar.gz" -C "$RUNNER_TEMP" supabase supabase-go
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+          # Add PostgreSQL's signed repository explicitly; runner images vary.
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl --fail --silent --show-error https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+          echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt noble-pgdg main' | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+          echo '/usr/lib/postgresql/17/bin' >> "$GITHUB_PATH"
+      - name: Read, verify and encrypt backup
+        if: steps.budget.outputs.skip != 'true'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          APP_SECRETS_ENCRYPTION_KEY: ${{ secrets.APP_SECRETS_ENCRYPTION_KEY }}
+          BACKUP_PUBLIC_KEY: ${{ vars.BACKUP_PUBLIC_KEY }}
+        run: node backup.mjs
+      - name: Upload ciphertext only
+        if: success() && steps.budget.outputs.skip != 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ steps.budget.outputs.name }}
+          path: |
+            backup-output/*.sfb
+            backup-output/*.sha256
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

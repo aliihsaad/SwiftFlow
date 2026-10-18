@@ -1130,9 +1130,12 @@ async function executeNode(supabase, automation, node, triggerContext, account, 
   if (node.data.type === 'action_send_dm' && node.data.config.resource_campaign_id) {
     const error = await validateResourceDelivery(supabase, automation, node, triggerContext, accountId, executionMetadata.nodeOutputs);
     if (error) return { success: false, error };
-    return run(node, { ...executionMetadata, campaignDelivery: { workspaceId: automation.workspace_id, accountId,
+    // Check delivery before spending provider budget. Repeated confirmations
+    // must skip even when this account's send allowance is exhausted.
+    return performCampaignDelivery(supabase, { workspaceId: automation.workspace_id, accountId,
       campaignId: node.data.config.resource_campaign_id, kind: 'resource', recoveryId: triggerContext.recovery_id,
-      subjectId: triggerContext.sender_id || triggerContext.commenter_id } });
+      subjectId: triggerContext.sender_id || triggerContext.commenter_id },
+      () => run(node, { ...executionMetadata, atomicResourceDelivery: true }));
   }
   return run();
 }
@@ -1254,7 +1257,8 @@ async function executeNodeUnchecked(
         node_id: node.id,
         node_type: nodeType,
         node_label: node.data?.label,
-        config: executionMetadata.campaignDelivery?.kind === 'resource' ? { ...config, atomic_resource_delivery: true } : config,
+        config: executionMetadata.atomicResourceDelivery === true || executionMetadata.campaignDelivery?.kind === 'resource'
+          ? { ...config, atomic_resource_delivery: true } : config,
         context: enrichedContext,
         approval: executionMetadata.approval,
         access_token: account?.access_token,

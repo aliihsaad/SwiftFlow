@@ -424,7 +424,7 @@ export async function POST(request: NextRequest) {
             // atomic: a failure cannot leave an unmatched half of the campaign.
             const { data: automations, error: campaignError } = await supabase
                 .from('automations')
-                .insert([insertData, {
+                .insert([{ ...insertData, id: campaign.entry.id }, {
                     ...insertData,
                     ...campaign.verification,
                     platform_post_id: '__canvas__',

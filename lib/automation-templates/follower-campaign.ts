@@ -75,6 +75,7 @@ export function buildFollowerCampaign(raw: unknown, confirmationId: string) {
     { key: 'deliver', type: 'action_send_dm', label: 'Send Resource', position: { x: 920, y: 40 }, config: {
       use_ai_response: false, opening_message: deliveryMessage, cta_mode: 'button', button_text: buttonText,
       link_url: url.toString(), cta_button_fallback_to_text: true, fallback_to_private_reply_on_failure: false,
+      resource_campaign_id: confirmationId,
     } },
     { key: 'retry', type: 'action_send_dm', label: 'Ask to Follow', position: { x: 920, y: 260 }, config: {
       use_ai_response: false, opening_message: 'I couldn’t confirm the follow yet. Follow the account below, wait one minute, then tap I Followed in the first message again.',
@@ -87,7 +88,7 @@ export function buildFollowerCampaign(raw: unknown, confirmationId: string) {
     { source: 'check', target: 'retry', sourceHandle: 'false', label: 'Not following' },
   ])
   return {
-    entry: { name: `${name} · Comments`, social_account_id: accountId, editor_version: 'canvas', is_active: false, workflow_graph: entryGraph },
+    entry: { id: confirmationId, name: `${name} · Comments`, social_account_id: accountId, editor_version: 'canvas', is_active: false, workflow_graph: entryGraph },
     verification: { name: `${name} · Follower check`, workflow_graph: verificationGraph },
   }
 }

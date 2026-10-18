@@ -83,6 +83,10 @@ describe('paired follower campaign', () => {
     const check = first.verification.workflow_graph.nodes.find(n => n.data.type === 'action_condition')!
     expect(first.verification.workflow_graph.edges.filter(e => e.source === check.id).map(e => e.sourceHandle).sort()).toEqual(['false', 'true'])
     expect(first.entry.workflow_graph.nodes.some(n => n.data.type === 'action_ai_response')).toBe(false)
+    expect(first.entry.id).toBe(confirmation)
+    const deliveries = first.verification.workflow_graph.nodes.filter(n => n.data.type === 'action_send_dm')
+    expect(deliveries.map(n => (n.data.config as { resource_campaign_id?: string }).resource_campaign_id)).toEqual([confirmation, undefined])
+    expect(JSON.stringify(first)).not.toContain('dm_restriction_recovery')
   })
 
   it('adds AI only when requested and supports every comment on the selected post', () => {
@@ -107,6 +111,10 @@ describe('paired follower campaign', () => {
     expect(state.inserts[0].every(row => row.workspace_id === 'workspace' && row.is_active === false)).toBe(true)
     expect(state.inserts[0][0].platform_post_id).toBe(input.postId)
     expect(state.inserts[0][1].platform_post_id).toBe('__canvas__')
+    expect(state.inserts[0][0].id).toEqual(expect.any(String))
+    expect(state.inserts[0][1].id).toBeUndefined()
+    const graph = state.inserts[0][1].workflow_graph as WorkflowGraph
+    expect(graph.nodes.some(n => (n.data.config as { resource_campaign_id?: string }).resource_campaign_id === state.inserts[0][0].id)).toBe(true)
     expect(state.filters).toContainEqual(['workspace_id', 'workspace'])
     expect((await response.json()).automations).toHaveLength(2)
   })

@@ -97,7 +97,8 @@ serve(async (req) => {
     }
 
     const sendUrl = `${metaGraphUrl}/${pageId}/messages`;
-    // Guarded campaign resources use one provider request. The ledger must not
+    // Guarded campaign resources include the resource in the opening message.
+    // The ledger must not
     // mark the resource delivered merely because a separate opening text sent.
     if (config.atomic_resource_delivery === true) {
       if (!effectiveLinkUrl) return new Response(JSON.stringify({ success: false, error: 'Resource link is missing' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -105,10 +106,21 @@ serve(async (req) => {
         ? { attachment: { type: 'template', payload: { template_type: 'button', text: openingMessage + (effectiveLinkMessage ? '\n\n' + effectiveLinkMessage : ''),
             buttons: [{ type: 'web_url', url: effectiveLinkUrl, title: effectiveButtonText }] } } }
         : { text: openingMessage + '\n\n' + (effectiveLinkMessage ? effectiveLinkMessage + '\n' : '') + effectiveLinkUrl };
-      const response = await fetch(sendUrl, { method: 'POST', signal: AbortSignal.timeout(15000), redirect: 'error',
+      const sendResource = async (payload) => fetch(sendUrl, { method: 'POST', signal: AbortSignal.timeout(15000), redirect: 'error',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: await toMetaGraphFormBody({ recipient: { id: recipientId }, message, access_token: accessToken }, accessToken, { connectionMethod }) });
-      const result = await response.json().catch(() => null);
+        body: await toMetaGraphFormBody({ recipient: { id: recipientId }, message: payload, access_token: accessToken }, accessToken, { connectionMethod }) });
+      let response = await sendResource(message);
+      let result = await response.json().catch(() => null);
+      const rejection = normalizeMetaMessagingError(result?.error, response.status);
+      // Preserve the configured text fallback only after a definitive bad-request
+      // rejection. Never retry an accepted, rate-limited, transient or uncertain
+      // send, including a timeout or an unreadable provider response.
+      if (effectiveCtaMode === 'button' && buttonFallbackToText && response.status === 400
+        && result?.error && !result?.message_id && rejection.outcome === 'unknown') {
+        response = await sendResource({ text: openingMessage + '\n\n'
+          + (effectiveLinkMessage ? effectiveLinkMessage + '\n' : '') + effectiveLinkUrl });
+        result = await response.json().catch(() => null);
+      }
       const delivered = response.ok && !result?.error && typeof result?.message_id === 'string' && result.message_id;
       return new Response(JSON.stringify(delivered
         ? { success: true, dmSent: true, output: { channel: 'dm', messageId: result.message_id } }

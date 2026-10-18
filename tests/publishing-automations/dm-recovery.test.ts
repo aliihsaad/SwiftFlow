@@ -134,6 +134,19 @@ describe('restriction fallback and delivery reservation', () => {
     expect(await performCampaignDelivery(db, scope, send)).toMatchObject({ deferred: true, output: { reason: 'meta_rate_limited' } })
     expect(db.state()).toBe('')
   })
+  it('releases only a known pre-send guard denial so a later continuation can deliver', async () => {
+    const db = database()
+    const denied = { success: false, deferred: true, output: { guarded: true, reason: 'account_budget_exhausted', retry_after_seconds: 60 } }
+    expect(await performCampaignDelivery(db, scope, async () => denied)).toEqual(denied)
+    expect(db.state()).toBe('')
+    expect(await performCampaignDelivery(db, scope, async () => ({ success: true, output: { messageId: 'resource' } }))).toMatchObject({ success: true })
+    expect(db.state()).toBe('sent')
+  })
+  it('does not release a claim for an unexplained deferral', async () => {
+    const db = database()
+    await performCampaignDelivery(db, scope, async () => ({ success: false, deferred: true, output: { reason: 'unknown' } }))
+    expect(db.state()).toBe('unknown')
+  })
   it('public permission rejection is failed and not resent on worker retry', async () => {
     const db = database(), send = vi.fn(async () => ({ success: false, output: { meta_error: { code: 200, http_status: 403 } } }))
     await performCampaignDelivery(db, scope, send)

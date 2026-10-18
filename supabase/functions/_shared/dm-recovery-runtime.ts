@@ -1,5 +1,6 @@
 // @ts-nocheck - shared Deno graph executor
 import { normalizeRecoveryKeyword, renderRecoveryReply, validRecoveryTarget, validateDmRecoveryNodeConfigs } from './dm-recovery-policy.ts'
+import { isRetryableRuntimeGuard } from './automation-backpressure.ts'
 
 const deferred = () => ({ success: false, deferred: true, output: { reason: 'meta_rate_limited', retry_after_seconds: 300 } })
 
@@ -18,12 +19,17 @@ export async function performCampaignDelivery(db, scope, send) {
   const providerId = result?.output?.messageId || result?.output?.replyId
   const id = typeof providerId === 'string' ? providerId.trim() : ''
   const rateLimited = result?.output?.meta_error?.outcome === 'rate_limited'
-  const status = result?.success && id ? 'sent' : rateLimited ? 'retryable'
+  // A budget/circuit denial happens before the worker is invoked. Release only
+  // this known pre-send claim so the durable continuation can try later.
+  const guardedBeforeSend = result?.deferred === true && result?.output?.guarded === true
+    && isRetryableRuntimeGuard(result.output.reason)
+  const status = result?.success && id ? 'sent' : rateLimited || guardedBeforeSend ? 'retryable'
     : result?.output?.meta_error?.http_status >= 400 && result.output.meta_error.http_status < 500 ? 'failed' : 'unknown'
   const finish = await db.rpc('finish_instagram_campaign_delivery', { ...args,
     p_claim_token: claim.claim_token, p_status: status, p_provider_id: id || null,
     p_meta_error: result?.output?.meta_error || null })
   if (finish.error || finish.data !== true) return { success: false, error: 'Delivery result needs review; reservation retained', output: { delivery_unconfirmed: true, automatic_retry: false } }
+  if (guardedBeforeSend) return result
   if (rateLimited) return deferred()
   if (status === 'sent') return { ...result, output: { ...result.output, outcome: scope.kind === 'resource' ? (scope.recoveryId ? 'recovery_completed' : 'resource_delivered') : 'fallback_reply_sent' } }
   return { success: false, error: result?.error || 'Delivery result needs review', output: { ...result?.output, delivery_unconfirmed: status === 'unknown', automatic_retry: false } }

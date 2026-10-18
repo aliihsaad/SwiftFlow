@@ -19,9 +19,14 @@ const automation = { id: 'verification', workspace_id: 'workspace', social_accou
   edges: [{ id: 'a', source: 'trigger', target: 'follow' }, { id: 'b', source: 'follow', target: 'deliver', sourceHandle: 'true' }] } }
 function database() {
   let status = ''
+  let budgetCalls = 0
   return {
+    budgetCalls: () => budgetCalls,
     rpc: async (name: string, args: Record<string, unknown>) => {
-      if (name === 'reserve_automation_runtime_budget') return { data: [{ allowed: true }], error: null }
+      if (name === 'reserve_automation_runtime_budget') {
+        budgetCalls++
+        return { data: [{ allowed: true }], error: null }
+      }
       if (name === 'claim_instagram_campaign_delivery') {
         if (status) return { data: { claimed: false, status }, error: null }
         status = 'sending'
@@ -67,6 +72,8 @@ describe('recovery uses the existing graph follower branch', () => {
     const recovered = await executeWorkflowGraph(db, automation, { sender_id: 'recipient', recovery_id: 'recovery', recovery_campaign_id: campaign }, account, { runId: 'recovery' })
     expect(vi.mocked(invokeEdgeFunction).mock.calls.filter(([name]) => name === 'automation-worker-send-dm')).toHaveLength(1)
     expect(recovered.nodeResults.deliver.output.outcome).toBe('already_delivered_skipped')
+    expect(recovered.dmsSent).toBe(0)
+    expect(db.budgetCalls()).toBe(1)
   })
   it('a follower lookup error never reaches the resource node', async () => {
     vi.mocked(invokeEdgeFunction).mockResolvedValue({ ok: true, status: 200, data: { success: false, error: 'Follower lookup unavailable' } })

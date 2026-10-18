@@ -26,7 +26,9 @@ type JobName =
 
 async function runJob(job: JobName, payload: Record<string, unknown> = {}) {
   const startedAt = Date.now()
-  const result = await invokeEdgeFunction(job, payload)
+  const result = await invokeEdgeFunction(job, payload, { timeoutMs: 120_000 }).catch(() => ({
+    ok: false, status: 500, error: "Job invocation failed unexpectedly",
+  }))
   const durationMs = Date.now() - startedAt
 
   if (!result.ok) {
@@ -92,21 +94,39 @@ serve(async (req) => {
       jobRuns.push(runJob("token-health-sweep", { triggeredBy: "scheduler" }))
     }
 
-    const jobs = await Promise.all(jobRuns)
-    const hasFailure = jobs.some((job) => !job.ok)
-    const payload = {
-      success: !hasFailure,
-      tick: {
-        started_at: new Date(tickStartedAt).toISOString(),
-        duration_ms: Date.now() - tickStartedAt,
-      },
-      jobs,
-    }
+    const completion = Promise.all(jobRuns).then((jobs) => {
+      const hasFailure = jobs.some((job) => !job.ok)
+      const payload = {
+        success: !hasFailure,
+        tick: {
+          started_at: new Date(tickStartedAt).toISOString(),
+          duration_ms: Date.now() - tickStartedAt,
+        },
+        jobs,
+      }
 
-    return new Response(JSON.stringify(payload), {
-      status: hasFailure ? 207 : 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify(payload), {
+        status: hasFailure ? 207 : 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }).catch((error) => {
+      console.error("[SCHEDULER_TICK] Background tick failed:", error)
+      return new Response(JSON.stringify({ success: false, error: "Scheduler tick failed" }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
     })
+
+    // pg_net has a 15-second response deadline. Acknowledging the tick does not
+    // mean jobs succeeded: runJob logs their actual results, and the existing
+    // database claims/checkpoints govern retries. waitUntil keeps this invocation
+    // alive after its response; no new queue or blind job replay is introduced.
+    if (typeof EdgeRuntime !== "undefined" && typeof EdgeRuntime.waitUntil === "function") {
+      EdgeRuntime.waitUntil(completion)
+      return new Response(JSON.stringify({ accepted: true, started_at: new Date(tickStartedAt).toISOString() }), {
+        status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+    return await completion
   } catch (error) {
     console.error("[SCHEDULER_TICK] Fatal error:", error)
     return new Response(JSON.stringify({

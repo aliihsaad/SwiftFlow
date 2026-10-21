@@ -28,8 +28,8 @@ import {
 import type { DeveloperApiScope } from "@/lib/developer-api/types"
 import {
   buildDeveloperApiGuide,
+  buildDeveloperApiMcpConfig,
   DEVELOPER_API_AUTH_HEADER_EXAMPLE,
-  DEVELOPER_API_MCP_CONFIG_TEMPLATE,
 } from "@/lib/developer-api/guide"
 
 const fetcher = async <T,>(url: string): Promise<T> => {
@@ -141,7 +141,8 @@ export function DeveloperApiView() {
   const auditLogs = auditData?.logs || []
   const loading = keysLoading
   const loadError = keysError || auditError
-  const guide = buildDeveloperApiGuide(typeof window === "undefined" ? "https://social.swiftdigital-s.com" : window.location.origin)
+  const guide = buildDeveloperApiGuide(typeof window === "undefined" ? "https://social-media-manager-ai-ecru.vercel.app" : window.location.origin)
+  const mcpConfig = buildDeveloperApiMcpConfig(guide.mcpUrl)
 
   const selectedCapabilities = useMemo(() => {
     const options = data?.scopeOptions || []
@@ -421,13 +422,13 @@ export function DeveloperApiView() {
                 <Link2 className="size-4 text-cyan-300" />
                 MCP client config
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => copyText(DEVELOPER_API_MCP_CONFIG_TEMPLATE)} className="w-full sm:w-auto">
+              <Button type="button" variant="outline" size="sm" onClick={() => copyText(mcpConfig)} className="w-full sm:w-auto">
                 <Clipboard className="size-4" />
                 Copy
               </Button>
             </div>
             <pre className="max-w-full overflow-x-auto rounded-md border border-white/10 bg-[#0b0c12] p-3 text-xs leading-5 text-white/70">
-              <code>{DEVELOPER_API_MCP_CONFIG_TEMPLATE}</code>
+              <code>{mcpConfig}</code>
             </pre>
             <div className="mt-3 grid gap-2 text-xs text-white/55">
               <p>Store the key in the local environment as SWIFTFLOW_API_KEY. Do not paste the secret into config files or source control.</p>

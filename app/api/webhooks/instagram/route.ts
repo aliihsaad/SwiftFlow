@@ -413,6 +413,7 @@ async function handleCommentEvent(value: Record<string, unknown>, account: Resol
 
     const webhookContext = {
         comment_id: value?.id,
+        parent_id: typeof value?.parent_id === 'string' ? value.parent_id : null,
         post_id: media?.id,
         // Instagram sends media_product_type (FEED | REELS | ...) on comment
         // webhooks. Used by post/Reel

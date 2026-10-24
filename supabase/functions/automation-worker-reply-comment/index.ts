@@ -4,6 +4,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { interpolateTemplate } from "../_shared/automation-context.ts"
 import { getMetaGraphApiBaseUrl, toMetaGraphFormBody } from "../_shared/meta-graph.ts"
 import { assertInternalInvoke } from "../_shared/internal-auth.ts"
+import { shouldSkipCommentReply, skippedCommentReplyResult } from "../_shared/comment-reply-policy.ts"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -65,6 +66,12 @@ serve(async (req) => {
     const body = await req.json();
     const config = body?.config || {};
     const context = body?.context || {};
+    if (shouldSkipCommentReply(config, context)) {
+      return new Response(JSON.stringify(skippedCommentReplyResult()), {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const accessToken = body?.access_token as string | undefined;
     const platform = String(body?.platform || '').toLowerCase();
     const connectionMethod = body?.connection_method as string | undefined;

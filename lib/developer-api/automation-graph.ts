@@ -118,6 +118,11 @@ function normalizeNodeConfig(nodeType: string, value: unknown,
     if (maxTokens !== null) config.max_tokens = maxTokens
   }
 
+  if (nodeType === "action_reply_comment") {
+    const topLevelOnly = booleanValue(config.top_level_only)
+    if (topLevelOnly !== null) config.top_level_only = topLevelOnly
+  }
+
   if (nodeType === "action_send_dm" || nodeType === "action_private_reply" || nodeType === "action_reply_comment") {
     const useAiResponse = booleanValue(config.use_ai_response)
     if (useAiResponse !== null) config.use_ai_response = useAiResponse

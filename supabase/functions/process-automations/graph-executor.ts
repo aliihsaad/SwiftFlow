@@ -8,6 +8,7 @@ import { executeDmRecovery, performCampaignDelivery, validateResourceDelivery } 
  * condition nodes and parallel edges.
  */
 import { invokeEdgeFunction } from "../_shared/edge-invoke.ts"
+import { shouldSkipCommentReply, skippedCommentReplyResult } from "../_shared/comment-reply-policy.ts"
 import {
   recordAutomationRuntimeOutcome,
   reserveAutomationRuntimeBudget,
@@ -87,6 +88,7 @@ interface WorkflowGraph {
 
 interface TriggerContext {
   comment_id?: string
+  parent_id?: string | null
   post_id?: string
   commenter_id?: string
   commenter_username?: string
@@ -1149,6 +1151,9 @@ async function executeBudgetedNode(
   instagramAccountId: string,
   executionMetadata: Record<string, unknown> = {},
 ): Promise<{ success: boolean; output?: any; error?: string; dmSent?: boolean }> {
+  if (node.data.type === 'action_reply_comment' && shouldSkipCommentReply(node.data.config, triggerContext)) {
+    return skippedCommentReplyResult();
+  }
   const resourceKind = GUARDED_RESOURCE_BY_NODE_TYPE[node.data.type];
   if (!resourceKind) {
     return executeNodeUnchecked(supabase, automation, node, triggerContext, account, instagramAccountId,

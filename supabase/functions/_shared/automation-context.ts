@@ -6,6 +6,8 @@ export const META_GRAPH_URL = META_GRAPH_API_BASE_URL;
 
 export interface TriggerContext {
   comment_id?: string
+  /** Parent Instagram comment ID; absent/null for top-level comments. */
+  parent_id?: string | null
   post_id?: string
   /** Caption/message of the commented media (enriched at run time). */
   post_caption?: string

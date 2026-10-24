@@ -952,6 +952,23 @@ function ActionReplyFields({ config, onUpdate,
       <div className="rounded-md border border-border/60 p-3">
         <div className="flex items-center justify-between gap-3">
           <div>
+            <Label htmlFor="reply-top-level-only" className="text-xs">Reply only to top-level comments</Label>
+            <p id="reply-top-level-only-description" className="text-[10px] text-muted-foreground mt-1">
+              Ignore replies to other comments. Later nodes will still run.
+            </p>
+          </div>
+          <Switch
+            id="reply-top-level-only"
+            aria-describedby="reply-top-level-only-description"
+            checked={config.top_level_only === true}
+            onCheckedChange={(checked) => onUpdate({ top_level_only: checked })}
+          />
+        </div>
+      </div>
+
+      <div className="rounded-md border border-border/60 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
             <Label className="text-xs">Use AI Response as Comment Reply</Label>
             <p className="text-[10px] text-muted-foreground mt-1">
               Sends the latest AI output automatically.

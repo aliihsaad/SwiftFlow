@@ -105,6 +105,7 @@ export interface ActionPrivateReplyConfig {
 
 export interface ActionReplyCommentConfig {
   use_ai_response?: boolean
+  top_level_only?: boolean
   messages: string[] // random pick at runtime
 }
 
@@ -440,7 +441,7 @@ export function getDefaultConfig(type: WorkflowNodeType,
         button_fallback_to_text: true,
       } as ActionPrivateReplyConfig
     case 'action_reply_comment':
-      return { use_ai_response: false, messages: [''],
+      return { use_ai_response: false, top_level_only: false, messages: [''],
       } as ActionReplyCommentConfig
     case 'action_delay':
       return { duration_value: 5, duration_unit: 'minutes',

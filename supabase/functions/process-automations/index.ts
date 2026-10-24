@@ -629,6 +629,7 @@ async function processSingleComment(
 
 interface WebhookContext {
     comment_id: string;
+    parent_id?: string | null;
     post_id: string;
     commenter_id: string;
     commenter_username?: string;
@@ -742,6 +743,7 @@ async function processWebhookComment(
                 trigger_type: 'trigger_new_comment',
                 trigger_context: {
                     comment_id: webhookCtx.comment_id,
+                    parent_id: webhookCtx.parent_id,
                     post_id: webhookCtx.post_id,
                     commenter_id: webhookCtx.commenter_id,
                     commenter_username: webhookCtx.commenter_username,
